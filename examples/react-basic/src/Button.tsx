@@ -25,8 +25,10 @@ export function Button({
       disabled={disabled}
       aria-disabled={blocked || undefined}
       aria-busy={loading || undefined}
-      onClick={(e) => {
-        if (!blocked) onClick?.(e)
+      onClick={(event) => {
+        if (!blocked) {
+          onClick?.(event)
+        }
       }}
       {...rest}
     >

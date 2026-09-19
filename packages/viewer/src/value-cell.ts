@@ -1,13 +1,22 @@
-import { h } from './h.js'
+import { el } from './el.js'
 
 /** Render one serialized prop value, coloured by its type. */
-export function valueCell(v: unknown): HTMLElement {
-  if (typeof v === 'string') {
-    if (v.startsWith('ƒ ')) return h('span', { class: 'val-fn' }, v)
-    return h('span', { class: 'val-string' }, JSON.stringify(v))
+export function valueCell(value: unknown): HTMLElement {
+  if (typeof value === 'string') {
+    if (value.startsWith('ƒ ')) {
+      return el('span', { class: 'val-fn' }, value)
+    }
+
+    return el('span', { class: 'val-string' }, JSON.stringify(value))
   }
-  if (typeof v === 'number' || typeof v === 'boolean')
-    return h('span', { class: `val-${typeof v}` }, String(v))
-  if (v === null || v === undefined) return h('span', { class: 'val-fn' }, String(v))
-  return h('span', {}, JSON.stringify(v))
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return el('span', { class: `val-${typeof value}` }, String(value))
+  }
+
+  if (value === null || value === undefined) {
+    return el('span', { class: 'val-fn' }, String(value))
+  }
+
+  return el('span', {}, JSON.stringify(value))
 }

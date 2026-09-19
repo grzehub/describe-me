@@ -11,7 +11,10 @@ const snapshotCache = new Map<string, Promise<SerializedNode>>()
 /** Fetch the manifest, keep the selection if it still exists, repaint. */
 export async function loadManifest(): Promise<void> {
   const res = await fetch('/__data/manifest.json', { cache: 'no-store' })
-  if (!res.ok) throw new Error(`manifest: ${res.status}`)
+  if (!res.ok) {
+    throw new Error(`manifest: ${res.status}`)
+  }
+
   state.manifest = (await res.json()) as Manifest
   snapshotCache.clear()
   if (!currentTest()) {
@@ -19,19 +22,25 @@ export async function loadManifest(): Promise<void> {
     state.testId = first?.id ?? null
     state.frame = 0
   }
+
   const test = currentTest()
-  if (test) state.frame = Math.min(state.frame, Math.max(0, test.frames.length - 1))
+  if (test) {
+    state.frame = Math.min(state.frame, Math.max(0, test.frames.length - 1))
+  }
+
   rerender()
 }
 
 /** Fetch one serialized DOM, memoized until the next manifest load. */
 export function loadSnapshot(path: string): Promise<SerializedNode> {
-  let p = snapshotCache.get(path)
-  if (!p) {
-    p = fetch(`/__data/${path}`, { cache: 'no-store' }).then(
-      (r) => r.json() as Promise<SerializedNode>,
+  let pending = snapshotCache.get(path)
+  if (!pending) {
+    pending = fetch(`/__data/${path}`, { cache: 'no-store' }).then(
+      (response) => response.json() as Promise<SerializedNode>,
     )
-    snapshotCache.set(path, p)
+
+    snapshotCache.set(path, pending)
   }
-  return p
+
+  return pending
 }

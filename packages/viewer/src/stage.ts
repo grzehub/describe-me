@@ -9,7 +9,10 @@ let paintToken = 0
 export async function paintFrame(stage: HTMLElement, frame: ManifestFrame): Promise<void> {
   const token = ++paintToken
   const node = await loadSnapshot(frame.snapshot)
-  if (token !== paintToken) return
+  if (token !== paintToken) {
+    return
+  }
+
   stage.replaceChildren()
   const { iframe } = rebuildIntoSandboxedIframe(node, {
     root: stage,
@@ -18,5 +21,8 @@ export async function paintFrame(stage: HTMLElement, frame: ManifestFrame): Prom
     mirror: createMirror(),
     hackCss: true,
   })
-  if (state.width !== 'auto') iframe.style.width = `${state.width}px`
+
+  if (state.width !== 'auto') {
+    iframe.style.width = `${state.width}px`
+  }
 }

@@ -4,11 +4,12 @@ import type { ComponentInfo } from '@describe-me/core'
 export function labelFor(info: ComponentInfo): string {
   const shown = Object.entries(info.props)
     .filter(
-      ([k, v]) =>
-        k !== 'children' &&
-        (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'),
+      ([key, value]) =>
+        key !== 'children' &&
+        (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
     )
     .slice(0, 3)
-    .map(([k, v]) => (v === true ? k : `${k}=${JSON.stringify(v)}`))
+    .map(([key, value]) => (value === true ? key : `${key}=${JSON.stringify(value)}`))
+
   return `<${info.name}${shown.length ? ' ' + shown.join(' ') : ''} />`
 }

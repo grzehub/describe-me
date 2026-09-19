@@ -50,6 +50,7 @@ describe('Button', () => {
           Saving
         </Button>,
       )
+
       await expect.element(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true')
       await userEvent.click(screen.getByRole('button'), { force: true })
       expect(onClick).not.toHaveBeenCalled()

@@ -10,11 +10,14 @@ type UserEvent = typeof baseUserEvent
 
 function wrap(target: UserEvent): UserEvent {
   return new Proxy(target, {
-    get(t, key, receiver) {
-      const value = Reflect.get(t, key, receiver)
-      if (typeof value !== 'function') return value
+    get(proxied, key, receiver) {
+      const value = Reflect.get(proxied, key, receiver)
+      if (typeof value !== 'function') {
+        return value
+      }
+
       return async (...args: unknown[]) => {
-        const result = await (value as (...a: unknown[]) => unknown).apply(t, args)
+        const result = await (value as (...params: unknown[]) => unknown).apply(proxied, args)
         const shown = args.map(describeArg).filter(Boolean).join(', ')
         await recorder.capture('action', `${String(key)}(${shown})`)
         return result

@@ -1,4 +1,4 @@
-import { h } from './h.js'
+import { el } from './el.js'
 import { rerender } from './rerender.js'
 import { paintFrame } from './stage.js'
 import { currentTest, state, writeHash } from './state.js'
@@ -8,57 +8,62 @@ export function renderMain(): HTMLElement {
   const test = currentTest()
   const frame = test?.frames[state.frame]
 
-  const crumbs = h('div', { class: 'crumbs' })
+  const crumbs = el('div', { class: 'crumbs' })
   if (test) {
-    for (const p of test.path) crumbs.append(h('span', {}, p), h('span', { class: 'sep' }, '›'))
-    crumbs.append(h('span', { class: 'cur' }, test.name))
+    for (const part of test.path) {
+      crumbs.append(el('span', {}, part), el('span', { class: 'sep' }, '›'))
+    }
+
+    crumbs.append(el('span', { class: 'cur' }, test.name))
   }
-  const tools = h('div', { class: 'tools' })
-  for (const w of ['auto', '768', '375'] as const) {
+
+  const tools = el('div', { class: 'tools' })
+  for (const width of ['auto', '768', '375'] as const) {
     tools.append(
-      h(
+      el(
         'button',
         {
-          class: state.width === w ? 'on' : '',
+          class: state.width === width ? 'on' : '',
           click: () => {
-            state.width = w
+            state.width = width
             rerender()
           },
         },
-        w === 'auto' ? '100%' : `${w}px`,
+        width === 'auto' ? '100%' : `${width}px`,
       ),
     )
   }
+
   crumbs.append(tools)
 
-  const stage = h('div', { class: 'stage' })
+  const stage = el('div', { class: 'stage' })
   if (frame) {
     void paintFrame(stage, frame)
   } else {
     stage.append(
-      h('div', { class: 'empty' }, test ? 'no frames recorded for this test' : 'select a test'),
+      el('div', { class: 'empty' }, test ? 'no frames recorded for this test' : 'select a test'),
     )
   }
 
-  const timeline = h('div', { class: 'timeline' })
-  test?.frames.forEach((f, i) => {
+  const timeline = el('div', { class: 'timeline' })
+  test?.frames.forEach((timelineFrame, i) => {
     timeline.append(
-      h(
+      el(
         'button',
         {
-          class: `frame ${f.kind}${i === state.frame ? ' active' : ''}`,
+          class: `frame ${timelineFrame.kind}${i === state.frame ? ' active' : ''}`,
           click: () => {
             state.frame = i
             writeHash()
             rerender()
           },
         },
-        h('span', { class: 'k' }, f.kind),
-        h('span', {}, f.label),
-        h('span', { class: 't' }, `${f.at}ms`),
+        el('span', { class: 'k' }, timelineFrame.kind),
+        el('span', {}, timelineFrame.label),
+        el('span', { class: 't' }, `${timelineFrame.at}ms`),
       ),
     )
   })
 
-  return h('main', { class: 'main' }, crumbs, stage, timeline)
+  return el('main', { class: 'main' }, crumbs, stage, timeline)
 }

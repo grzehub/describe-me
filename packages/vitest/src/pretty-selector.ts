@@ -7,22 +7,31 @@ export function prettySelector(selector: string): string {
   const last =
     selector
       .split('>>')
-      .map((s) => s.trim())
-      .filter((s) => !s.startsWith('internal:testid'))
+      .map((part) => part.trim())
+      .filter((part) => !part.startsWith('internal:testid'))
       .pop() ?? selector
-  const m = /^internal:(\w+)=(.*)$/.exec(last)
-  if (!m) return last
-  const [, kind, rest] = m
+
+  const match = /^internal:(\w+)=(.*)$/.exec(last)
+  if (!match) {
+    return last
+  }
+
+  const [, kind, rest] = match
   const name = /\[name=("[^"]*")[si]?\]/.exec(rest)?.[1]
   const base = rest.replace(/\[.*$/, '').replace(/[si]$/, '')
-  if (kind === 'role') return name ? `${base} ${name}` : base
+  if (kind === 'role') {
+    return name ? `${base} ${name}` : base
+  }
+
   if (
     kind === 'text' ||
     kind === 'label' ||
     kind === 'placeholder' ||
     kind === 'alt' ||
     kind === 'title'
-  )
+  ) {
     return `${kind} ${base}`
+  }
+
   return last
 }

@@ -8,11 +8,17 @@
     "viewer": "pnpm --filter @describe-me/viewer dev",
     "dev": "pnpm --filter react-basic dev",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix && prettier --write ."
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "prettier": "^3.4.2"
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.4.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0"
   },
   "packageManager": "pnpm@10.5.0"
 }

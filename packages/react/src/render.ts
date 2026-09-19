@@ -19,6 +19,7 @@ export async function render(ui: ReactElement, options?: RenderOptions): Promise
     recorder.setComponent(info)
     await recorder.capture('render', labelFor(info), { props: info.props })
   }
+
   const originalRerender = screen.rerender.bind(screen)
   screen.rerender = (async (next: ReactElement) => {
     const result = await originalRerender(next)
@@ -26,7 +27,9 @@ export async function render(ui: ReactElement, options?: RenderOptions): Promise
       const info = describeElement(next)
       await recorder.capture('render', `rerender ${labelFor(info)}`, { props: info.props })
     }
+
     return result
   }) as Screen['rerender']
+
   return screen
 }

@@ -47,11 +47,16 @@ export default class DescribeMeReporter implements Reporter {
    */
   private seedFromPreviousRun(): void {
     const file = join(this.outDir, 'manifest.json')
-    if (!existsSync(file)) return
+    if (!existsSync(file)) {
+      return
+    }
+
     try {
       const previous = JSON.parse(readFileSync(file, 'utf8')) as Manifest
       for (const mod of previous.modules ?? []) {
-        if (existsSync(resolve(this.root, mod.id))) this.modules.set(mod.id, mod)
+        if (existsSync(resolve(this.root, mod.id))) {
+          this.modules.set(mod.id, mod)
+        }
       }
     } catch {
       // corrupt or incompatible manifest: start fresh
@@ -69,11 +74,17 @@ export default class DescribeMeReporter implements Reporter {
       version: 1,
       generatedAt: new Date().toISOString(),
       root: this.root,
-      modules: Array.from(this.modules.values()).sort((a, b) => a.id.localeCompare(b.id)),
+      modules: Array.from(this.modules.values()).sort((left, right) =>
+        left.id.localeCompare(right.id),
+      ),
     }
+
     this.snapshots.collectGarbage(
-      manifest.modules.flatMap((m) => m.tests.flatMap((t) => t.frames.map((f) => f.snapshot))),
+      manifest.modules.flatMap((mod) =>
+        mod.tests.flatMap((test) => test.frames.map((frame) => frame.snapshot)),
+      ),
     )
+
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
   }
 
@@ -88,6 +99,7 @@ export default class DescribeMeReporter implements Reporter {
       meta: frame.meta,
       snapshot: this.snapshots.write(frame.snapshot),
     }))
+
     return {
       id: tc.id,
       name: tc.name,
@@ -95,7 +107,7 @@ export default class DescribeMeReporter implements Reporter {
       fullName: tc.fullName,
       state: (result.state as TestState) ?? 'pending',
       duration: tc.diagnostic()?.duration,
-      errors: result.errors?.map((e) => ({ message: e.message, stack: e.stack })),
+      errors: result.errors?.map((error) => ({ message: error.message, stack: error.stack })),
       component: record?.component,
       frames,
     }
