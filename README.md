@@ -38,17 +38,25 @@ Prototype. React + Vitest browser mode only, static snapshots (no live mount).
 - `@describe-me/react` — a drop-in `render` for `vitest-browser-react` that
   records a frame after mount and after `rerender`, and extracts the component
   name and props. This is the only React-specific code.
-- `@describe-me/vitest` — `setup` (beforeEach/afterEach hooks that hand frames
-  to the reporter through `task.meta`), a `userEvent` proxy that records a
-  frame after every interaction, and the Node `reporter` that writes the
-  output directory.
+- `@describe-me/vitest` — `setup` (patches Vitest's `Locator` and `userEvent`
+  so every interaction records a frame, plus beforeEach/afterEach hooks that
+  hand frames to the reporter through `task.meta`) and the Node `reporter`
+  that writes the output directory.
 - `@describe-me/viewer` — a vanilla-TS Vite app. Serves `.describe-me/` under
   `/__data`, replays snapshots into a sandboxed iframe, pushes an HMR event
   when the manifest changes.
 
-Frames are captured after `render`, after each `userEvent.*` call, after each
+Frames are captured after `render`, after every interaction, after each
 `step()`, and at the end of the test if the DOM changed since the last frame.
 A `step()` whose body already produced the current DOM just names that frame.
+
+Interactions are intercepted at the source: the setup file patches Vitest's
+`Locator` action methods (`click`, `dblClick`, `tripleClick`, `fill`, `clear`,
+`hover`, `unhover`, `wheel`, `dropTo`, `selectOptions`, `upload`) and the
+keyboard-level `userEvent` methods (`type`, `keyboard`, `tab`, `copy`, `cut`,
+`paste`). So `screen.getByRole('button').click()` and `userEvent.click(...)` from
+`vitest/browser` record the same frame, and a gesture that delegates internally (`userEvent.click`
+→ `locator.click`) records it once.
 
 ## Try it
 
@@ -65,7 +73,7 @@ pnpm dev                         # vitest --watch + viewer on http://localhost:6
 
 ```tsx
 import { render, step } from '@describe-me/react'
-import { userEvent } from '@describe-me/vitest'
+import { userEvent } from 'vitest/browser'
 
 describe('Counter', () => {
   it('does not go below the minimum', async () => {
@@ -99,8 +107,6 @@ export default defineConfig({
 
 - Live mount: re-run a test up to frame N inside the viewer with HMR.
 - Controls: generate a props panel from TypeScript types and re-render.
-- Locator-method interactions (`screen.getByRole(...).click()`) are not
-  intercepted yet; only `userEvent.*` and `step()` produce frames.
 - CSS-in-JS / adopted stylesheets need checking beyond plain CSS imports.
 - `vite build` for the viewer plus copying `.describe-me/` in → static docs.
 - Vue / Svelte adapters: a `render` wrapper each, nothing else.

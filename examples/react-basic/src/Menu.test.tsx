@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, step } from '@describe-me/react'
-import { userEvent } from '@describe-me/vitest'
+import { userEvent } from 'vitest/browser'
 import { Menu } from './Menu'
 
 const items = ['Duplicate', 'Rename', 'Delete']
