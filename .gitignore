@@ -1,0 +1,6 @@
+node_modules
+dist
+.describe-me
+*.log
+.vitest
+.idea

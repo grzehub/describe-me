@@ -1,0 +1,18 @@
+{
+  "name": "describe-me-monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' --filter '!@describe-me/viewer' run build",
+    "test": "pnpm --filter react-basic test",
+    "viewer": "pnpm --filter @describe-me/viewer dev",
+    "dev": "pnpm --filter react-basic dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "prettier": "^3.4.2"
+  },
+  "packageManager": "pnpm@10.5.0"
+}

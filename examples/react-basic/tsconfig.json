@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "types": ["vitest/browser"] },
+  "include": ["src", "vitest.config.ts"]
+}

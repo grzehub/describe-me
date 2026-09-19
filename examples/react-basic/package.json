@@ -1,0 +1,28 @@
+{
+  "name": "react-basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "vitest & DESCRIBE_ME_DIR=$(pwd)/.describe-me pnpm --filter @describe-me/viewer dev; wait",
+    "bench:micro": "BENCH_MICRO=1 vitest run",
+    "bench:macro": "node bench/macro.mjs 5"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@describe-me/core": "workspace:*",
+    "@describe-me/react": "workspace:*",
+    "@describe-me/vitest": "workspace:*",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "@vitest/browser-playwright": "^5.0.1",
+    "playwright": "^1.63.0",
+    "vitest": "^5.0.1",
+    "vitest-browser-react": "^2.3.0"
+  }
+}
