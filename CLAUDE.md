@@ -12,7 +12,7 @@ pnpm install
 pnpm build            # tsc for core, react, vitest
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
-cd examples/react-basic && pnpm test          # 12 tests, browser mode
+cd examples/react-basic && pnpm test          # 15 tests, browser mode
 cd examples/react-basic && pnpm bench:micro   # capture cost by DOM size
 ```
 
