@@ -19,10 +19,13 @@ function List({ n }: { n: number }) {
 
 const ROUNDS = 20
 const stats = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b)
-  const q = (p: number) => s[Math.min(s.length - 1, Math.floor(p * s.length))]
-  return { median: +q(0.5).toFixed(2), p95: +q(0.95).toFixed(2) }
+  const sorted = [...xs].sort((left, right) => left - right)
+  const quantile = (fraction: number) =>
+    sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))]
+
+  return { median: +quantile(0.5).toFixed(2), p95: +quantile(0.95).toFixed(2) }
 }
+
 const time = async (fn: () => Promise<unknown> | unknown) => {
   const t0 = performance.now()
   await fn()
@@ -30,9 +33,9 @@ const time = async (fn: () => Promise<unknown> | unknown) => {
 }
 
 describe('capture cost', () => {
-  for (const n of [10, 100, 1000, 5000]) {
-    it(`${n} rows`, async () => {
-      await render(<List n={n} />)
+  for (const rows of [10, 100, 1000, 5000]) {
+    it(`${rows} rows`, async () => {
+      await render(<List n={rows} />)
       const nodes = document.querySelectorAll('*').length
 
       const stepT: number[] = []
@@ -43,26 +46,31 @@ describe('capture cost', () => {
         stepT.push(await time(() => step(`round ${i}`, () => {})))
         settleT.push(
           await time(async () => {
-            await new Promise<void>((r) => setTimeout(r, 0))
-            await new Promise<void>((r) => requestAnimationFrame(() => r()))
+            await new Promise<void>((resolve) => setTimeout(resolve, 0))
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
           }),
         )
+
         let node: unknown
         snapT.push(
           await time(() => {
             node = snapshot(document, { mirror: createMirror(), inlineStylesheet: true })
           }),
         )
+
         hashT.push(
           await time(() =>
-            JSON.stringify(node, (k, v) => (k === 'id' || k === 'rootId' ? undefined : v)),
+            JSON.stringify(node, (key, value) =>
+              key === 'id' || key === 'rootId' ? undefined : value,
+            ),
           ),
         )
       }
+
       console.log(
         'BENCH ' +
           JSON.stringify({
-            rows: n,
+            rows,
             nodes,
             step: stats(stepT),
             settle: stats(settleT),

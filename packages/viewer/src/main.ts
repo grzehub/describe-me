@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { loadManifest } from './data.js'
-import { h } from './h.js'
+import { el } from './el.js'
 import { renderHeader } from './header.js'
 import { onKey } from './keyboard.js'
 import { renderAll } from './render-all.js'
@@ -15,15 +15,16 @@ window.addEventListener('hashchange', () => {
   readHash()
   renderAll()
 })
+
 loadManifest().catch((err) => {
   document
     .getElementById('app')!
     .replaceChildren(
       renderHeader(),
-      h(
+      el(
         'div',
         { class: 'stage' },
-        h('div', { class: 'empty' }, `no manifest yet — run vitest first (${String(err)})`),
+        el('div', { class: 'empty' }, `no manifest yet — run vitest first (${String(err)})`),
       ),
     )
 })

@@ -20,18 +20,25 @@ function describeMeData(): Plugin {
           150,
         )
       }
+
       const watchTarget = existsSync(dir) ? dir : dirname(dir)
       try {
         watch(watchTarget, { recursive: true }, (_event, file) => {
-          if (!file || String(file).endsWith('manifest.json')) notify()
+          if (!file || String(file).endsWith('manifest.json')) {
+            notify()
+          }
         })
       } catch (err) {
         server.config.logger.warn(`describe-me: cannot watch ${watchTarget}: ${String(err)}`)
       }
+
       server.middlewares.use('/__data', (req, res, next) => {
         const rel = decodeURIComponent((req.url ?? '/').split('?')[0])
         const abs = join(dir, rel)
-        if (!abs.startsWith(dir + sep) || !existsSync(abs) || !statSync(abs).isFile()) return next()
+        if (!abs.startsWith(dir + sep) || !existsSync(abs) || !statSync(abs).isFile()) {
+          return next()
+        }
+
         res.setHeader('Content-Type', 'application/json')
         res.setHeader('Cache-Control', 'no-store')
         res.end(readFileSync(abs))

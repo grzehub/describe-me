@@ -16,6 +16,7 @@ describe('Counter', () => {
     await step('go down to the minimum', async () => {
       await userEvent.click(screen.getByRole('button', { name: 'decrement' }))
     })
+
     await expect.element(screen.getByLabelText('value')).toHaveTextContent('0')
     await expect.element(screen.getByRole('button', { name: 'decrement' })).toBeDisabled()
     await expect.element(screen.getByText('minimum reached')).toBeVisible()

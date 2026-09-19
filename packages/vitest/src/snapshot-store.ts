@@ -20,16 +20,24 @@ export class SnapshotStore {
     const hash = createHash('sha1').update(json).digest('hex').slice(0, 16)
     const file = `${hash}.json`
     const abs = join(this.dir, file)
-    if (!existsSync(abs)) writeFileSync(abs, json)
+    if (!existsSync(abs)) {
+      writeFileSync(abs, json)
+    }
+
     return `snapshots/${file}`
   }
 
   /** Drop the files no manifest frame points at any more. */
   collectGarbage(referenced: Iterable<string>): void {
     const keep = new Set<string>()
-    for (const path of referenced) keep.add(path.replace('snapshots/', ''))
+    for (const path of referenced) {
+      keep.add(path.replace('snapshots/', ''))
+    }
+
     for (const file of readdirSync(this.dir)) {
-      if (!keep.has(file)) rmSync(join(this.dir, file), { force: true })
+      if (!keep.has(file)) {
+        rmSync(join(this.dir, file), { force: true })
+      }
     }
   }
 }

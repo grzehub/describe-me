@@ -14,15 +14,17 @@ export function Menu({ label, items, onSelect }: MenuProps) {
   return (
     <div
       className="menu"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false)
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setOpen(false)
+        }
       }}
     >
       <Button
         variant="secondary"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((current) => !current)}
       >
         {label} {open ? '▴' : '▾'}
       </Button>

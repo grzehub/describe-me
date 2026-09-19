@@ -10,6 +10,7 @@ export function describeElement(ui: ReactElement): ComponentInfo {
       : ((type as { displayName?: string })?.displayName ??
         (type as { name?: string })?.name ??
         'Anonymous')
+
   const props = serializeValue(ui.props ?? {}) as Record<string, unknown>
   return { name, props }
 }

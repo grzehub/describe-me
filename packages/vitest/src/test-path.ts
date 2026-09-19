@@ -8,5 +8,6 @@ export function testPath(tc: TestCase): string[] {
     path.unshift(parent.name)
     parent = parent.parent
   }
+
   return path
 }

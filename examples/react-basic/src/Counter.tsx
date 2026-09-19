@@ -17,7 +17,7 @@ export function Counter({ initial = 0, min = 0 }: CounterProps) {
         size="sm"
         aria-label="decrement"
         disabled={atMin}
-        onClick={() => setValue((v) => v - 1)}
+        onClick={() => setValue((current) => current - 1)}
       >
         −
       </Button>
@@ -28,7 +28,7 @@ export function Counter({ initial = 0, min = 0 }: CounterProps) {
         variant="secondary"
         size="sm"
         aria-label="increment"
-        onClick={() => setValue((v) => v + 1)}
+        onClick={() => setValue((current) => current + 1)}
       >
         +
       </Button>

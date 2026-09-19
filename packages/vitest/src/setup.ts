@@ -12,5 +12,6 @@ beforeEach(() => {
 
 afterEach(async (ctx) => {
   await recorder.capture('end', 'end of test')
+
   ;(ctx.task.meta as Record<string, unknown>)[META_KEY] = recorder.end()
 })

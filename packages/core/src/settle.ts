@@ -5,5 +5,5 @@
  * layout, and a rAF costs a whole vsync (~16ms) per capture in headless Chromium.
  */
 export async function settle(): Promise<void> {
-  await new Promise<void>((r) => setTimeout(r, 0))
+  await new Promise<void>((resolve) => setTimeout(resolve, 0))
 }

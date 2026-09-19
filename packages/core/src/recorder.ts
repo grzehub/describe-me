@@ -29,20 +29,32 @@ class Recorder {
   }
 
   setComponent(info: ComponentInfo): void {
-    if (!this.component) this.component = info
+    if (!this.component) {
+      this.component = info
+    }
   }
 
   async capture(kind: FrameKind, label: string, meta?: Record<string, unknown>): Promise<void> {
-    if (!this.active) return
+    if (!this.active) {
+      return
+    }
+
     await settle()
     const node = snapshot(document, { mirror: createMirror(), inlineStylesheet: true })
-    if (!node) return
+    if (!node) {
+      return
+    }
+
     // rrweb numbers nodes with a global counter, so ids differ between otherwise identical captures.
     const hash = quickHash(
-      JSON.stringify(node, (k, v) => (k === 'id' || k === 'rootId' ? undefined : v)),
+      JSON.stringify(node, (key, value) => (key === 'id' || key === 'rootId' ? undefined : value)),
     )
+
     // The closing frame is only interesting if something changed since the last one.
-    if (kind === 'end' && hash === this.lastHash) return
+    if (kind === 'end' && hash === this.lastHash) {
+      return
+    }
+
     // A step whose body already produced this exact DOM (e.g. via an action) just names that frame.
     if (kind === 'step' && hash === this.lastHash && this.frames.length) {
       const last = this.frames[this.frames.length - 1]
@@ -50,6 +62,7 @@ class Recorder {
       last.kind = 'step'
       return
     }
+
     this.lastHash = hash
     this.frames.push({
       id: `f${this.seq++}`,

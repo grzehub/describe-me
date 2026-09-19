@@ -4,3 +4,4 @@ dist
 *.log
 .vitest
 .idea
+.DS_Store

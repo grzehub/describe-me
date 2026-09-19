@@ -1,37 +1,50 @@
-import { h } from './h.js'
+import { el } from './el.js'
 import { select, state } from './state.js'
 import { buildTree, type SuiteNode } from './tree.js'
 
 function renderSuite(node: SuiteNode): HTMLElement {
-  const wrap = h('div', { class: 'suite' })
-  if (node.name) wrap.append(h('div', { class: 'suite-name' }, node.name))
-  for (const t of node.tests) {
+  const wrap = el('div', { class: 'suite' })
+  if (node.name) {
+    wrap.append(el('div', { class: 'suite-name' }, node.name))
+  }
+
+  for (const test of node.tests) {
     wrap.append(
-      h(
+      el(
         'button',
         {
-          class: `test${t.id === state.testId ? ' active' : ''}`,
-          click: () => select(t.id),
-          title: t.fullName,
+          class: `test${test.id === state.testId ? ' active' : ''}`,
+          click: () => select(test.id),
+          title: test.fullName,
         },
-        h('span', { class: `dot ${t.state}` }),
-        h('span', {}, t.name),
-        h('span', { class: 'n' }, String(t.frames.length)),
+        el('span', { class: `dot ${test.state}` }),
+        el('span', {}, test.name),
+        el('span', { class: 'n' }, String(test.frames.length)),
       ),
     )
   }
-  for (const child of node.suites.values()) wrap.append(renderSuite(child))
+
+  for (const child of node.suites.values()) {
+    wrap.append(renderSuite(child))
+  }
+
   return wrap
 }
 
 /** One block per test module, each holding its suite tree. */
 export function renderSidebar(): HTMLElement {
-  const aside = h('aside', { class: 'sidebar' })
+  const aside = el('aside', { class: 'sidebar' })
   for (const mod of state.manifest?.modules ?? []) {
     const tree = buildTree(mod)
     aside.append(
-      h('div', { class: 'module' }, h('div', { class: 'module-name' }, mod.id), renderSuite(tree)),
+      el(
+        'div',
+        { class: 'module' },
+        el('div', { class: 'module-name' }, mod.id),
+        renderSuite(tree),
+      ),
     )
   }
+
   return aside
 }

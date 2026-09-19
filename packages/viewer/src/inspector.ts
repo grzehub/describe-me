@@ -1,72 +1,86 @@
-import { h } from './h.js'
+import { el } from './el.js'
 import { currentTest, state } from './state.js'
 import { valueCell } from './value-cell.js'
 
 /** Right-hand pane: test status, component props, current frame, errors. */
 export function renderInspector(): HTMLElement {
   const test = currentTest()
-  const aside = h('aside', { class: 'inspector' })
-  if (!test) return aside
+  const aside = el('aside', { class: 'inspector' })
+  if (!test) {
+    return aside
+  }
+
   const frame = test.frames[state.frame]
   const props =
     (frame?.meta?.props as Record<string, unknown> | undefined) ?? test.component?.props ?? {}
 
-  const status = h('section', {}, h('h3', {}, 'test'))
+  const status = el('section', {}, el('h3', {}, 'test'))
   status.append(
-    h(
+    el(
       'div',
       { class: 'status' },
-      h('span', { class: `dot ${test.state}` }),
+      el('span', { class: `dot ${test.state}` }),
       test.state,
-      test.duration != null ? h('span', { class: 'hint' }, `${Math.round(test.duration)}ms`) : null,
+      test.duration != null
+        ? el('span', { class: 'hint' }, `${Math.round(test.duration)}ms`)
+        : null,
     ),
   )
+
   aside.append(status)
 
   if (test.component) {
-    const table = h('table', { class: 'kv' })
-    for (const [k, v] of Object.entries(props))
-      table.append(h('tr', {}, h('td', {}, k), h('td', {}, valueCell(v))))
-    if (!Object.keys(props).length)
-      table.append(h('tr', {}, h('td', {}, h('span', { class: 'hint' }, 'no props'))))
-    aside.append(h('section', {}, h('h3', {}, `component · ${test.component.name}`), table))
+    const table = el('table', { class: 'kv' })
+    for (const [key, value] of Object.entries(props)) {
+      table.append(el('tr', {}, el('td', {}, key), el('td', {}, valueCell(value))))
+    }
+
+    if (!Object.keys(props).length) {
+      table.append(el('tr', {}, el('td', {}, el('span', { class: 'hint' }, 'no props'))))
+    }
+
+    aside.append(el('section', {}, el('h3', {}, `component · ${test.component.name}`), table))
   }
 
   if (frame) {
     aside.append(
-      h(
+      el(
         'section',
         {},
-        h('h3', {}, `frame ${state.frame + 1} / ${test.frames.length}`),
-        h('div', {}, frame.label),
-        h('div', { class: 'hint' }, `${frame.kind} · ${frame.at}ms into the test`),
+        el('h3', {}, `frame ${state.frame + 1} / ${test.frames.length}`),
+        el('div', {}, frame.label),
+        el('div', { class: 'hint' }, `${frame.kind} · ${frame.at}ms into the test`),
       ),
     )
   }
 
   if (test.errors?.length) {
-    const sec = h('section', {}, h('h3', {}, 'errors'))
-    for (const e of test.errors) sec.append(h('pre', { class: 'err' }, e.message))
+    const sec = el('section', {}, el('h3', {}, 'errors'))
+    for (const error of test.errors) {
+      sec.append(el('pre', { class: 'err' }, error.message))
+    }
+
     aside.append(sec)
   }
 
   aside.append(
-    h(
+    el(
       'section',
       {},
-      h(
+      el(
         'div',
         { class: 'hint' },
-        h('kbd', {}, '←'),
+        el('kbd', {}, '←'),
         ' ',
-        h('kbd', {}, '→'),
+        el('kbd', {}, '→'),
         ' frames · ',
-        h('kbd', {}, '↑'),
+        el('kbd', {}, '↑'),
         ' ',
-        h('kbd', {}, '↓'),
+        el('kbd', {}, '↓'),
         ' tests',
       ),
     ),
   )
+
   return aside
 }
