@@ -29,8 +29,13 @@ loadManifest().catch((err) => {
     )
 })
 
+/** A failed refresh is not worth breaking the page over; the next one may succeed. */
+const refresh = () => loadManifest().catch(() => undefined)
+
 if (import.meta.hot) {
-  import.meta.hot.on('describe-me:update', () => void loadManifest())
+  // Dev: the Vite plugin pushes an event whenever the reporter rewrites the manifest.
+  import.meta.hot.on('describe-me:update', () => void refresh())
 } else {
-  setInterval(() => void loadManifest(), 3000)
+  // Static site: data only changes on redeploy, so a slow poll is plenty.
+  setInterval(() => void refresh(), 60_000)
 }
