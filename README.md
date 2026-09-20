@@ -38,13 +38,15 @@ Prototype. React + Vitest browser mode only, static snapshots (no live mount).
 - `@describe-me/react` — a drop-in `render` for `vitest-browser-react` that
   records a frame after mount and after `rerender`, and extracts the component
   name and props. This is the only React-specific code.
-- `@describe-me/vitest` — `setup` (patches Vitest's `Locator` and `userEvent`
-  so every interaction records a frame, plus beforeEach/afterEach hooks that
-  hand frames to the reporter through `task.meta`) and the Node `reporter`
-  that writes the output directory.
-- `@describe-me/viewer` — a vanilla-TS Vite app. Serves `.describe-me/` under
-  `/__data`, replays snapshots into a sandboxed iframe, pushes an HMR event
-  when the manifest changes.
+- `@describe-me/vitest` — the `plugin` (one-line integration: setup file,
+  reporter, `render` redirect), `setup` (patches Vitest's `Locator` and
+  `userEvent` so every interaction records a frame, plus beforeEach/afterEach
+  hooks that hand frames to the reporter through `task.meta`) and the Node
+  `reporter` that writes the output directory.
+- `@describe-me/viewer` — a vanilla-TS Vite app plus the `describe-me` CLI.
+  `dev` serves `.describe-me/` under `__data/` with an HMR push when the
+  manifest changes; `build` emits a static site with the data copied in.
+  Snapshots replay into a sandboxed iframe.
 
 Frames are captured after `render`, after every interaction, after each
 `step()`, and at the end of the test if the DOM changed since the last frame.
@@ -62,12 +64,45 @@ keyboard-level `userEvent` methods (`type`, `keyboard`, `tab`, `copy`, `cut`,
 
 ```sh
 pnpm install
-pnpm build                       # builds core, react, vitest (tsc)
+pnpm build                       # core, react, vitest (tsc) and the describe-me CLI
 cd examples/react-basic
 pnpm exec playwright install chromium
 pnpm test                        # vitest run → writes .describe-me/
 pnpm dev                         # vitest --watch + viewer on http://localhost:6006
+pnpm docs:build                  # static site in docs-dist/, deploy anywhere
 ```
+
+## Add it to your project
+
+```sh
+pnpm add -D @describe-me/vitest @describe-me/react @describe-me/viewer
+```
+
+```ts
+// vitest.config.ts
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: {
+    browser: { enabled: true, provider: playwright(), instances: [{ browser: 'chromium' }] },
+  },
+})
+```
+
+That is the whole integration. The plugin registers the setup file and the
+reporter, and redirects `import { render } from 'vitest-browser-react'` to the
+recording adapter, so existing tests produce frames without any edits.
+`step()` is the only opt-in, imported from `@describe-me/vitest`.
+
+```sh
+describe-me dev                  # viewer with live updates while vitest --watch runs
+describe-me build --out docs     # self-contained static site: viewer + __data/
+```
+
+The static site uses relative URLs, so it works from a sub-path such as
+GitHub Pages. `.github/workflows/docs.yml` shows the CI shape: test, build,
+deploy.
 
 ## Writing tests that double as stories
 
@@ -89,7 +124,9 @@ describe('Counter', () => {
 A test with no assertion is a valid story. A story with an assertion is a
 test. Same primitive.
 
-## vitest.config.ts
+## Without the plugin
+
+The pieces can be wired by hand if you prefer explicit config:
 
 ```ts
 import DescribeMeReporter from '@describe-me/vitest/reporter'
@@ -98,18 +135,33 @@ export default defineConfig({
   test: {
     setupFiles: ['@describe-me/vitest/setup'],
     reporters: ['default', new DescribeMeReporter()],
-    browser: { enabled: true, provider: playwright(), instances: [{ browser: 'chromium' }] },
   },
 })
 ```
+
+Then import `render` from `@describe-me/react` instead of `vitest-browser-react`.
 
 ## Open questions / next
 
 - Live mount: re-run a test up to frame N inside the viewer with HMR.
 - Controls: generate a props panel from TypeScript types and re-render.
 - CSS-in-JS / adopted stylesheets need checking beyond plain CSS imports.
-- `vite build` for the viewer plus copying `.describe-me/` in → static docs.
 - Vue / Svelte adapters: a `render` wrapper each, nothing else.
+
+## Switches
+
+There is no `.env`: nothing here is per-environment configuration or a secret.
+The variables below are one-shot switches for the example's benchmarks, set
+inline for a single run.
+
+| Variable           | Effect                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`). |
+| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.   |
+| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size).   |
+
+`DESCRIBE_ME_DIR` is set by the `describe-me` CLI for the viewer; use `--data`
+instead of setting it yourself.
 
 ## Overhead
 

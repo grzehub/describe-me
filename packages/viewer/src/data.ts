@@ -10,7 +10,7 @@ const snapshotCache = new Map<string, Promise<SerializedNode>>()
 
 /** Fetch the manifest, keep the selection if it still exists, repaint. */
 export async function loadManifest(): Promise<void> {
-  const res = await fetch('/__data/manifest.json', { cache: 'no-store' })
+  const res = await fetch('__data/manifest.json', { cache: 'no-store' })
   if (!res.ok) {
     throw new Error(`manifest: ${res.status}`)
   }
@@ -35,7 +35,7 @@ export async function loadManifest(): Promise<void> {
 export function loadSnapshot(path: string): Promise<SerializedNode> {
   let pending = snapshotCache.get(path)
   if (!pending) {
-    pending = fetch(`/__data/${path}`, { cache: 'no-store' }).then(
+    pending = fetch(`__data/${path}`, { cache: 'no-store' }).then(
       (response) => response.json() as Promise<SerializedNode>,
     )
 

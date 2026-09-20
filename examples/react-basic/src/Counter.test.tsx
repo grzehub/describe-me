@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { render, step } from '@describe-me/react'
+import { render } from 'vitest-browser-react'
+import { step } from '@describe-me/vitest'
 import { Counter } from './Counter'
 
 describe('Counter', () => {

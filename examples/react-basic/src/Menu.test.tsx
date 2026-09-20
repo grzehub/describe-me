@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, step } from '@describe-me/react'
+import { render } from 'vitest-browser-react'
+import { step } from '@describe-me/vitest'
 import { userEvent } from 'vitest/browser'
 import { Menu } from './Menu'
 
