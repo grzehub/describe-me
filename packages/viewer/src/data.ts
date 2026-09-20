@@ -8,14 +8,22 @@ type SerializedNode = Parameters<typeof rebuildIntoSandboxedIframe>[0]
 
 const snapshotCache = new Map<string, Promise<SerializedNode>>()
 
-/** Fetch the manifest, keep the selection if it still exists, repaint. */
+/**
+ * Fetch the manifest and repaint, but only if it differs from the one on
+ * screen. Polling an unchanged static site must not re-render or drop caches.
+ */
 export async function loadManifest(): Promise<void> {
-  const res = await fetch('__data/manifest.json', { cache: 'no-store' })
-  if (!res.ok) {
-    throw new Error(`manifest: ${res.status}`)
+  const response = await fetch('__data/manifest.json', { cache: 'no-store' })
+  if (!response.ok) {
+    throw new Error(`manifest: ${response.status}`)
   }
 
-  state.manifest = (await res.json()) as Manifest
+  const next = (await response.json()) as Manifest
+  if (state.manifest?.generatedAt === next.generatedAt) {
+    return
+  }
+
+  state.manifest = next
   snapshotCache.clear()
   if (!currentTest()) {
     const first = allTests(state.manifest)[0]
