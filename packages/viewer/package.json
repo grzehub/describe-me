@@ -15,9 +15,10 @@
     "@types/node": "^22"
   },
   "bin": {
-    "describe-me": "./dist-cli/main.js"
+    "describe-me": "./bin/describe-me.js"
   },
   "files": [
+    "bin",
     "dist-cli",
     "index.html",
     "src",
