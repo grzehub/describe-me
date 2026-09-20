@@ -3,3 +3,6 @@ node_modules
 .describe-me
 .vitest
 pnpm-lock.yaml
+dist-cli
+docs-dist
+describe-me-dist

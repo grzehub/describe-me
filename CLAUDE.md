@@ -9,11 +9,12 @@ project asked for light and visible structure.
 
 ```sh
 pnpm install
-pnpm build            # tsc for core, react, vitest
+pnpm build            # tsc for core, react, vitest and the viewer CLI
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
 cd examples/react-basic && pnpm test          # 15 tests, browser mode
 cd examples/react-basic && pnpm bench:micro   # capture cost by DOM size
+cd examples/react-basic && pnpm docs:build    # static site → docs-dist/
 ```
 
 ## Rules of the road

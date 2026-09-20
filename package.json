@@ -3,14 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm -r --filter './packages/*' --filter '!@describe-me/viewer' run build",
+    "build": "pnpm -r --filter './packages/*' run build",
     "test": "pnpm --filter react-basic test",
-    "viewer": "pnpm --filter @describe-me/viewer dev",
     "dev": "pnpm --filter react-basic dev",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix && prettier --write ."
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",

@@ -7,7 +7,17 @@ import tseslint from 'typescript-eslint'
  * Formatting itself (quotes, semicolons, line width) is Prettier's job.
  */
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/.describe-me/**', '**/.vitest/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/dist-cli/**',
+      '**/docs-dist/**',
+      '**/describe-me-dist/**',
+      '**/node_modules/**',
+      '**/.describe-me/**',
+      '**/.vitest/**',
+    ],
+  },
   ...tseslint.configs.recommended,
   // Prettier's config turns off every formatting rule, including `curly`,
   // so it must come before our block: later entries win.

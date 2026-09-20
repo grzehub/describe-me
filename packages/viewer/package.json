@@ -1,18 +1,26 @@
 {
   "name": "@describe-me/viewer",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build"
+    "build": "tsc -p tsconfig.cli.json",
+    "dev": "node dist-cli/main.js dev --data ../../examples/react-basic/.describe-me"
   },
   "dependencies": {
     "@describe-me/core": "workspace:*",
-    "rrweb-snapshot": "^2.1.6"
+    "rrweb-snapshot": "^2.1.6",
+    "vite": "^8.3.0"
   },
   "devDependencies": {
-    "vite": "^8.3.0",
     "@types/node": "^22"
-  }
+  },
+  "bin": {
+    "describe-me": "./dist-cli/main.js"
+  },
+  "files": [
+    "dist-cli",
+    "index.html",
+    "src",
+    "vite.config.ts"
+  ]
 }

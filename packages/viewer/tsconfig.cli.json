@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist-cli", "rootDir": "cli", "types": ["node"] },
+  "include": ["cli"]
+}

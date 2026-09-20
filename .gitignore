@@ -5,3 +5,6 @@ dist
 .vitest
 .idea
 .DS_Store
+describe-me-dist
+docs-dist
+dist-cli
