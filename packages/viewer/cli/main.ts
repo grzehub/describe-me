@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { parseArgs } from './parse-args.js'
 import { runBuild } from './run-build.js'
 import { runDev } from './run-dev.js'
