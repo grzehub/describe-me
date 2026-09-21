@@ -84,4 +84,23 @@ class Recorder {
   }
 }
 
-export const recorder = new Recorder()
+const RECORDER_KEY = Symbol.for('describe-me.recorder')
+
+type GlobalWithRecorder = typeof globalThis & { [RECORDER_KEY]?: Recorder }
+
+/**
+ * The adapter and the setup file may receive two copies of this module: Vite
+ * pre-bundles the adapter together with its own copy of core, while a linked
+ * workspace serves the setup file's import from source. A module-level
+ * singleton would then split into an active recorder and a silent one, and
+ * every render frame would go missing. Anchoring it on `globalThis` keeps one
+ * recorder per page no matter how the code was bundled.
+ */
+function sharedRecorder(): Recorder {
+  const scope = globalThis as GlobalWithRecorder
+  scope[RECORDER_KEY] ??= new Recorder()
+
+  return scope[RECORDER_KEY]
+}
+
+export const recorder = sharedRecorder()
