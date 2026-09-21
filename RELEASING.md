@@ -20,36 +20,50 @@ How describe-me gets to npm. Four packages ship together under one version:
 ## Versioning
 
 [Changesets](https://github.com/changesets/changesets) with a `fixed` group
-covering all four packages, so users see a single version everywhere. Merging a
-PR that carries changeset files makes the release action open or update a
-"Version Packages" PR. Merging that PR bumps versions, writes CHANGELOGs and
-publishes.
+covering all four packages, so users see a single version everywhere.
 
-Start at `0.1.0`. Anything below `1.0.0` may change its public exports between
-minors; say so in the changelog entry.
+- `pnpm changeset` in a feature branch writes the changeset file; the PR
+  carries it. Every user-visible change needs one.
+- On merge to `main`, `release.yml` runs `changesets/action`. With pending
+  changesets it opens or refreshes the "Version Packages" PR
+  (`pnpm version-packages`: bumps versions, writes CHANGELOGs from the
+  changeset texts with PR links, refreshes the lockfile, formats).
+- Merging that PR runs the same workflow again, now with no pending
+  changesets, so the action publishes (`pnpm release`: build, then
+  `changeset publish`, which uses `pnpm publish` under the hood and therefore
+  resolves the `workspace:` protocol).
+- The "Version Packages" PR is opened with the default `GITHUB_TOKEN`, and
+  GitHub does not run CI on PRs created by that token. Review it by eye or, if
+  CI on it matters, give the action a fine-grained PAT or a GitHub App token.
+  Branch protection still requires an approving review before merging it.
+
+Start at `0.1.0` (the `first-release` changeset). Anything below `1.0.0` may
+change its public exports between minors; say so in the changelog entry.
 
 ## Publishing
 
 - The `describe-me` npm org owns the scope. Public packages are free.
-- **First publish is manual**, from a laptop with `npm login` done:
+- **First publish is manual**, from a laptop with `npm login` done and Node
+  `^20.19.0 || >=22.12.0`:
 
   ```sh
-  pnpm -r --filter './packages/*' publish --access public
+  pnpm smoke                        # tarballs work in a fresh project
+  pnpm version-packages             # or merge the Version Packages PR
+  pnpm release                      # build + changeset publish
   ```
 
-  Use `pnpm publish`, never `npm publish`: only pnpm rewrites the
-  `workspace:` protocol in the published manifest. Internal dependencies are
-  declared as `workspace:^`, which becomes `^0.1.0`; `workspace:*` would pin
-  the exact version and force a lockstep bump of every package on each
-  release. Publish `@describe-me/core` first (pnpm's recursive publish orders
-  by dependency graph).
+  Use `pnpm publish` (which `changeset publish` does for pnpm workspaces),
+  never `npm publish`: only pnpm rewrites the `workspace:` protocol. Internal
+  dependencies are declared as `workspace:^`, which becomes `^0.1.0`.
+  `publishConfig.provenance: true` is set on every package, so a publish from
+  GitHub Actions carries a provenance attestation automatically.
 
-- **After the first publish**, on npmjs.com set a _trusted publisher_ for each
-  of the four packages pointing at this repository and the `release.yml`
-  workflow. From then on CI publishes through OIDC with `--provenance`; no
-  long-lived npm token lives in GitHub secrets.
-- `release.yml` runs on push to `main`: install, build, then
-  `changesets/action` with `publish: pnpm -r publish --access public --provenance`.
+- **After the first publish**, on npmjs.com set a _trusted publisher_ on each
+  of the four packages: repository `grzehub/describe-me`, workflow
+  `release.yml`, environment empty. From then on CI publishes through OIDC
+  (pnpm delegates to the npm CLI, which needs `npm >= 11.5.1`; the workflow
+  upgrades it). Once all four are configured, delete the `NPM_TOKEN` secret;
+  it exists only as the fallback before trusted publishers can be created.
 
 ## Manifest rules
 

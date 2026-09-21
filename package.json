@@ -10,9 +10,14 @@
     "lint:fix": "eslint . --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "changeset": "changeset",
+    "version-packages": "changeset version && pnpm install --lockfile-only && pnpm format",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@stylistic/eslint-plugin": "^5.10.0",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
@@ -21,5 +26,5 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0"
   },
-  "packageManager": "pnpm@10.5.0"
+  "packageManager": "pnpm@10.34.5"
 }
