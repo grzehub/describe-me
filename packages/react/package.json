@@ -1,6 +1,6 @@
 {
   "name": "@describe-me/react",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "React adapter for describe-me: a drop-in render that records frames",
   "keywords": [
     "vitest",
