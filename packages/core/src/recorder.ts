@@ -1,4 +1,5 @@
 import { snapshot, createMirror } from 'rrweb-snapshot'
+import { materializeAdoptedStyles } from './materialize-adopted-styles.js'
 import { quickHash } from './quick-hash.js'
 import { settle } from './settle.js'
 import type { ComponentInfo, Frame, FrameKind, TestRecord } from './types.js'
@@ -40,7 +41,10 @@ class Recorder {
     }
 
     await settle()
-    const node = snapshot(document, { mirror: createMirror(), inlineStylesheet: true })
+    const node = await materializeAdoptedStyles(() =>
+      snapshot(document, { mirror: createMirror(), inlineStylesheet: true }),
+    )
+
     if (!node) {
       return
     }
