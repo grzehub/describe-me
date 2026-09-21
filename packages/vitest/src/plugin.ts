@@ -44,6 +44,14 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const reporters = userConfig.test?.reporters ? [reporter] : ['default', reporter]
 
       return {
+        // Vite's dependency scanner runs before our `resolveId` redirect, so it
+        // never sees the adapter. Discovering it mid-run makes Vite re-optimize
+        // and reload, and the test ends up with two copies of the bundled deps
+        // ("Vitest failed to find the runner"). Declaring the adapter up front
+        // keeps a single optimization pass.
+        optimizeDeps: {
+          include: [adapter, original],
+        },
         test: {
           setupFiles: ['@describe-me/vitest/setup'],
           reporters,

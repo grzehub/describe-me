@@ -7,18 +7,14 @@ How describe-me gets to npm. Four packages ship together under one version:
 ## Before every release
 
 1. `pnpm build && pnpm lint && pnpm format:check` and the example suite green.
-2. Verify the artifact, not the sources. From the repo root:
-
-   ```sh
-   pnpm -r --filter './packages/*' pack --pack-destination /tmp/dm-pack
-   ```
-
-   Then, in a fresh directory outside the monorepo, install the tarballs
-   into a minimal Vitest browser-mode project, add `describeMe()` to its
-   config, run one test and `describe-me build`. This catches everything the
-   workspace hides: `workspace:*` left unresolved, files missing from `files`,
-   wrong peer dependencies, imports that only resolve through symlinks.
-
+2. Verify the artifact, not the sources: `pnpm smoke` (also a CI job). It packs
+   every package, installs the tarballs into a fresh project in a temp
+   directory with an isolated pnpm store, runs a browser-mode test through the
+   plugin and builds the static site. This catches what the workspace hides:
+   `workspace:` protocol left unresolved, files missing from `files`, wrong
+   peer dependencies, dependency-optimizer reloads, imports that only resolve
+   through symlinks. Needs Node `^20.19.0 || >=22.12.0` (Vite 8). Pass
+   `--keep` to inspect the temp project afterwards.
 3. A changeset exists for every user-visible change (`pnpm changeset`).
 
 ## Versioning
@@ -65,7 +61,11 @@ minors; say so in the changelog entry.
   source never leaves a stale file in a tarball.
 - `typescript` is an optional peer of `@describe-me/vitest`: without it the
   reporter still runs, it just skips the props documentation.
-- `engines.node >= 20`.
+- `engines.node >= 20` for the libraries; the `describe-me` CLI requires
+  `^20.19.0 || >=22.12.0` because it depends on Vite 8, whose native rolldown
+  bindings declare that range. Package managers silently skip optional
+  dependencies that do not match `engines`, which surfaces as
+  "Cannot find native binding" at startup.
 
 ## Known caveats
 
