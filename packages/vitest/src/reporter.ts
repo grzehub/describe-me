@@ -14,6 +14,8 @@ import {
   type TestRecord,
   type TestState,
 } from '@describe-me/core/types'
+import { collectComponentDocs } from './collect-component-docs.js'
+import { componentEntries } from './component-entries.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { testPath } from './test-path.js'
 
@@ -70,13 +72,16 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   onTestRunEnd(): void {
+    const modules = Array.from(this.modules.values()).sort((left, right) =>
+      left.id.localeCompare(right.id),
+    )
+
     const manifest: Manifest = {
       version: 1,
       generatedAt: new Date().toISOString(),
       root: this.root,
-      modules: Array.from(this.modules.values()).sort((left, right) =>
-        left.id.localeCompare(right.id),
-      ),
+      modules,
+      components: collectComponentDocs(this.root, componentEntries(modules, this.root)),
     }
 
     this.snapshots.collectGarbage(

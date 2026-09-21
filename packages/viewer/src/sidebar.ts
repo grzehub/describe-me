@@ -1,11 +1,24 @@
 import { el } from './el.js'
-import { select, state } from './state.js'
+import { select, selectSuite, state } from './state.js'
+import { suiteKey } from './suite-key.js'
 import { buildTree, type SuiteNode } from './tree.js'
 
-function renderSuite(node: SuiteNode): HTMLElement {
+function scopeButton(label: string, key: string, kind: 'module' | 'suite'): HTMLElement {
+  return el(
+    'button',
+    {
+      class: `${kind}-button${key === state.suiteKey ? ' active' : ''}`,
+      click: () => selectSuite(key),
+      title: `overview of ${label}`,
+    },
+    label,
+  )
+}
+
+function renderSuite(node: SuiteNode, moduleId: string, path: string[]): HTMLElement {
   const wrap = el('div', { class: 'suite' })
   if (node.name) {
-    wrap.append(el('div', { class: 'suite-name' }, node.name))
+    wrap.append(scopeButton(node.name, suiteKey(moduleId, path), 'suite'))
   }
 
   for (const test of node.tests) {
@@ -13,7 +26,7 @@ function renderSuite(node: SuiteNode): HTMLElement {
       el(
         'button',
         {
-          class: `test${test.id === state.testId ? ' active' : ''}`,
+          class: `test${!state.suiteKey && test.id === state.testId ? ' active' : ''}`,
           click: () => select(test.id),
           title: test.fullName,
         },
@@ -25,7 +38,7 @@ function renderSuite(node: SuiteNode): HTMLElement {
   }
 
   for (const child of node.suites.values()) {
-    wrap.append(renderSuite(child))
+    wrap.append(renderSuite(child, moduleId, [...path, child.name]))
   }
 
   return wrap
@@ -35,13 +48,12 @@ function renderSuite(node: SuiteNode): HTMLElement {
 export function renderSidebar(): HTMLElement {
   const aside = el('aside', { class: 'sidebar' })
   for (const mod of state.manifest?.modules ?? []) {
-    const tree = buildTree(mod)
     aside.append(
       el(
         'div',
         { class: 'module' },
-        el('div', { class: 'module-name' }, mod.id),
-        renderSuite(tree),
+        scopeButton(mod.id, suiteKey(mod.id, []), 'module'),
+        renderSuite(buildTree(mod), mod.id, []),
       ),
     )
   }

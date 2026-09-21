@@ -30,10 +30,12 @@
     "@describe-me/core": "workspace:*"
   },
   "peerDependencies": {
-    "vitest": ">=4"
+    "vitest": ">=4",
+    "typescript": ">=5.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1",
-    "@types/node": "^22"
+    "@types/node": "^22",
+    "typescript": "^6"
   }
 }

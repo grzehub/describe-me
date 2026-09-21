@@ -143,10 +143,34 @@ Then import `render` from `@describe-me/react` instead of `vitest-browser-react`
 
 ## Open questions / next
 
+- Controls: turn the props table into inputs and mount the component live
+  (dev only, via a playground endpoint on the Vitest server).
 - Live mount: re-run a test up to frame N inside the viewer with HMR.
-- Controls: generate a props panel from TypeScript types and re-render.
 - CSS-in-JS / adopted stylesheets need checking beyond plain CSS imports.
 - Vue / Svelte adapters: a `render` wrapper each, nothing else.
+
+## Component overview
+
+Click a `describe` block or a test file in the sidebar to get the component
+page: its props read from TypeScript, which values the tests actually cover,
+and the final frame of every test as a thumbnail.
+
+```
+variant   'primary' | 'secondary' | 'ghost' | 'danger'   primary ✓ (default)  secondary ✓  ghost ✓  danger ✗
+size      'sm' | 'md' | 'lg'                             sm ✓  md ✓ (default)  lg ✓
+loading   boolean                                        true ✓  false ✓ (default)
+children  ReactNode                                      passed in 7 of 7 tests
+```
+
+A red cross is an invitation to write a test. Coverage is computed from the
+props recorded in `render` frames: a literal or boolean value counts when some
+test passed it, and the default counts when some test omitted the prop.
+
+The reporter finds each component by following the test file's import with
+TypeScript's own module resolution, then reads the props type of the exported
+function: name, type, required, default value from the destructuring pattern,
+JSDoc description. Props inherited from library types (`ButtonHTMLAttributes`)
+are left out. The whole step costs about 0.1–0.2 s per run on the example.
 
 ## Switches
 
