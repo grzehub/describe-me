@@ -19,6 +19,7 @@ pnpm lint && pnpm format:check
 cd examples/react-basic && pnpm test          # 16 tests, browser mode
 cd examples/react-basic && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-basic && pnpm docs:build    # static site → docs-dist/
+pnpm smoke            # pack + install tarballs in a fresh project (Node ^20.19 || >=22.12)
 ```
 
 ## Rules of the road
