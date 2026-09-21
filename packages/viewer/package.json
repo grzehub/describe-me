@@ -1,18 +1,30 @@
 {
-  "name": "@describe-me/viewer",
+  "name": "describe-me",
   "version": "0.0.1",
+  "description": "Living component documentation generated from your Vitest tests: viewer and CLI",
+  "keywords": [
+    "vitest",
+    "storybook",
+    "component documentation",
+    "visual testing",
+    "testing",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Grzegorz Łotysz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grzehub/describe-me.git",
+    "directory": "packages/viewer"
+  },
+  "homepage": "https://grzehub.github.io/describe-me/",
+  "bugs": "https://github.com/grzehub/describe-me/issues",
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.cli.json",
-    "dev": "node dist-cli/main.js dev --data ../../examples/react-basic/.describe-me"
+  "engines": {
+    "node": ">=20"
   },
-  "dependencies": {
-    "@describe-me/core": "workspace:*",
-    "rrweb-snapshot": "^2.1.6",
-    "vite": "^8.3.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22"
+  "publishConfig": {
+    "access": "public"
   },
   "bin": {
     "describe-me": "./bin/describe-me.js"
@@ -22,6 +34,21 @@
     "dist-cli",
     "index.html",
     "src",
-    "vite.config.ts"
-  ]
+    "vite.config.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rimraf dist-cli && tsc -p tsconfig.cli.json",
+    "dev": "node dist-cli/main.js dev --data ../../examples/react-basic/.describe-me"
+  },
+  "dependencies": {
+    "@describe-me/core": "workspace:^",
+    "rrweb-snapshot": "^2.1.6",
+    "vite": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22"
+  }
 }

@@ -28,12 +28,20 @@ export function extractProps(
     return null
   }
 
-  const propsType = propsTypeOf(checker, component, declaration)
+  const signature = componentSignature(checker, component, declaration)
 
-  if (!propsType) {
+  if (!signature) {
     return null
   }
 
+  // A component that takes no props is still a component, with nothing to list.
+  const [parameter] = signature.parameters
+
+  if (!parameter) {
+    return []
+  }
+
+  const propsType = checker.getTypeOfSymbolAtLocation(parameter, declaration)
   const defaults = defaultValues(declaration)
 
   return propsType
@@ -63,26 +71,16 @@ function exportedSymbol(
   return exported
 }
 
-/** The type of the first parameter of the component's first call signature. */
-function propsTypeOf(
+/** The first call signature of the export, or null when it is not callable (not a component). */
+function componentSignature(
   checker: ts.TypeChecker,
   component: ts.Symbol,
   declaration: ts.Declaration,
-): ts.Type | null {
+): ts.Signature | null {
   const type = checker.getTypeOfSymbolAtLocation(component, declaration)
   const [signature] = type.getCallSignatures()
 
-  if (!signature) {
-    return null
-  }
-
-  const [parameter] = signature.parameters
-
-  if (!parameter) {
-    return null
-  }
-
-  return checker.getTypeOfSymbolAtLocation(parameter, declaration)
+  return signature ?? null
 }
 
 /**
