@@ -52,6 +52,10 @@ body {
   background: transparent;
   color: var(--ink);
 }
+.btn-danger {
+  background: var(--danger);
+  color: var(--paper);
+}
 .btn-ghost:hover {
   background: #f2f2f2;
 }

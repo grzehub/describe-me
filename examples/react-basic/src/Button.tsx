@@ -2,7 +2,8 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import './styles.css'
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
-  variant?: 'primary' | 'secondary' | 'ghost'
+  /** Visual weight. `danger` is for destructive actions. */
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   children: ReactNode

@@ -110,7 +110,17 @@ a {
 .module {
   margin-bottom: 14px;
 }
-.module-name {
+.module-button,
+.suite-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.module-button {
   color: var(--muted);
   padding: 4px 8px;
   font-size: 12px;
@@ -118,9 +128,18 @@ a {
 .suite {
   padding-left: 12px;
 }
-.suite-name {
+.suite-button {
   padding: 3px 8px;
   color: var(--ink);
+}
+.module-button:hover,
+.suite-button:hover {
+  background: var(--hover);
+}
+.module-button.active,
+.suite-button.active {
+  background: var(--ink);
+  color: var(--bg);
 }
 .test {
   display: flex;
@@ -346,4 +365,163 @@ kbd {
   padding: 0 4px;
   font: inherit;
   font-size: 11px;
+}
+
+.overview {
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 20px 24px 48px;
+}
+.overview-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.overview-head h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.overview-meta {
+  margin-left: auto;
+  color: var(--muted);
+}
+.overview-section {
+  margin-top: 22px;
+}
+.overview-section h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.overview h3 {
+  margin: 18px 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 500;
+}
+.overview .empty {
+  color: var(--muted);
+  padding: 24px 0;
+}
+.head-hint {
+  margin-left: 10px;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.85;
+}
+
+.props th {
+  text-align: left;
+  padding: 0 12px 5px 0;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.props td {
+  padding: 7px 12px 7px 0;
+}
+.props td.prop-name {
+  color: var(--ink);
+}
+.props .req {
+  color: var(--fail);
+}
+.props .prop-type {
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.props .prop-covered {
+  width: 52%;
+}
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0 6px 4px 0;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.chip.covered {
+  color: var(--pass);
+  background: color-mix(in srgb, var(--pass) 14%, transparent);
+  border-color: color-mix(in srgb, var(--pass) 32%, transparent);
+}
+.chip.missing {
+  color: var(--fail);
+  background: color-mix(in srgb, var(--fail) 14%, transparent);
+  border-color: color-mix(in srgb, var(--fail) 32%, transparent);
+}
+.chip-default {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+.tile {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.tile:hover {
+  border-color: var(--muted);
+}
+.thumb {
+  height: 150px;
+  overflow: hidden;
+  background: var(--stage);
+  border-bottom: 1px solid var(--line);
+}
+.thumb iframe {
+  width: 800px;
+  height: 500px;
+  border: 0;
+  transform: scale(0.3);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.thumb .hint {
+  padding: 10px;
+}
+.cap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  min-width: 0;
+}
+.cap-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missing-line {
+  color: var(--fail);
+}
+.component-line {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
 }
