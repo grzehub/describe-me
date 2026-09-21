@@ -1,5 +1,14 @@
 # @describe-me/core
 
+## 0.1.1
+
+### Patch Changes
+
+- [#12](https://github.com/grzehub/describe-me/pull/12) [`b5fbd45`](https://github.com/grzehub/describe-me/commit/b5fbd45aae1076b0db68adb57c3f256596a4a1e6) Thanks [@grzehub](https://github.com/grzehub)! - Fix render frames going missing when the adapter and the setup file receive
+  two copies of `@describe-me/core` (Vite pre-bundles the adapter with its own
+  copy while a linked workspace serves the setup file from source). The recorder
+  is now a single instance per page, anchored on `globalThis`.
+
 ## 0.1.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@describe-me/vitest",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vitest integration for describe-me: plugin, setup file and reporter",
   "keywords": [
     "vitest",
