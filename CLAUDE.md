@@ -5,6 +5,10 @@ Read `README.md` for the architecture and `STYLE.md` for how code is written
 here. Follow STYLE.md even when it makes the code longer; the humans on this
 project asked for light and visible structure.
 
+The published packages are `@describe-me/core`, `@describe-me/react`,
+`@describe-me/vitest` and `describe-me` — the last one is the CLI and viewer,
+which lives in `packages/viewer`.
+
 ## Commands
 
 ```sh

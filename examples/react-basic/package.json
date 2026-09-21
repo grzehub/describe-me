@@ -18,12 +18,12 @@
   "devDependencies": {
     "@describe-me/core": "workspace:*",
     "@describe-me/react": "workspace:*",
-    "@describe-me/viewer": "workspace:*",
     "@describe-me/vitest": "workspace:*",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5",
     "@vitest/browser-playwright": "^5.0.1",
+    "describe-me": "workspace:*",
     "playwright": "^1.63.0",
     "rrweb-snapshot": "^2.1.6",
     "vitest": "^5.0.1",

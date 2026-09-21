@@ -1,7 +1,30 @@
 {
   "name": "@describe-me/vitest",
   "version": "0.0.1",
+  "description": "Vitest integration for describe-me: plugin, setup file and reporter",
+  "keywords": [
+    "vitest",
+    "storybook",
+    "component documentation",
+    "visual testing",
+    "testing"
+  ],
+  "license": "MIT",
+  "author": "Grzegorz Łotysz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grzehub/describe-me.git",
+    "directory": "packages/vitest"
+  },
+  "homepage": "https://grzehub.github.io/describe-me/",
+  "bugs": "https://github.com/grzehub/describe-me/issues",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,17 +44,27 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/setup.js"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "rimraf dist && tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@describe-me/core": "workspace:*"
+    "@describe-me/core": "workspace:^"
   },
   "peerDependencies": {
     "vitest": ">=4",
     "typescript": ">=5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "vitest": "^5.0.1",

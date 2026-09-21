@@ -27,7 +27,7 @@ Prototype. React + Vitest browser mode only, static snapshots (no live mount).
  └──────────────────────────────┘             └──────────────┬───────────────┘
                                                              │ fs.watch → HMR
                                               ┌──────────────▼───────────────┐
-                                              │ @describe-me/viewer (Vite)   │
+                                              │ describe-me (Vite viewer)    │
                                               │  sidebar · stage · timeline  │
                                               └──────────────────────────────┘
 ```
@@ -43,7 +43,7 @@ Prototype. React + Vitest browser mode only, static snapshots (no live mount).
   `userEvent` so every interaction records a frame, plus beforeEach/afterEach
   hooks that hand frames to the reporter through `task.meta`) and the Node
   `reporter` that writes the output directory.
-- `@describe-me/viewer` — a vanilla-TS Vite app plus the `describe-me` CLI.
+- `describe-me` — the viewer: a vanilla-TS Vite app plus the CLI of the same name.
   `dev` serves `.describe-me/` under `__data/` with an HMR push when the
   manifest changes; `build` emits a static site with the data copied in.
   Snapshots replay into a sandboxed iframe.
@@ -75,7 +75,7 @@ pnpm docs:build                  # static site in docs-dist/, deploy anywhere
 ## Add it to your project
 
 ```sh
-pnpm add -D @describe-me/vitest @describe-me/react @describe-me/viewer
+pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
 ```ts

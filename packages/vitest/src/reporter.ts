@@ -14,7 +14,7 @@ import {
   type TestRecord,
   type TestState,
 } from '@describe-me/core/types'
-import { collectComponentDocs } from './collect-component-docs.js'
+import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
 import { componentEntries } from './component-entries.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { testPath } from './test-path.js'
@@ -71,9 +71,14 @@ export default class DescribeMeReporter implements Reporter {
     this.modules.set(id, { id, tests })
   }
 
-  onTestRunEnd(): void {
+  async onTestRunEnd(): Promise<void> {
     const modules = Array.from(this.modules.values()).sort((left, right) =>
       left.id.localeCompare(right.id),
+    )
+
+    const components = await collectComponentDocsSafely(
+      this.root,
+      componentEntries(modules, this.root),
     )
 
     const manifest: Manifest = {
@@ -81,7 +86,7 @@ export default class DescribeMeReporter implements Reporter {
       generatedAt: new Date().toISOString(),
       root: this.root,
       modules,
-      components: collectComponentDocs(this.root, componentEntries(modules, this.root)),
+      components,
     }
 
     this.snapshots.collectGarbage(
