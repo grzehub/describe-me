@@ -1,5 +1,12 @@
 # @describe-me/vitest
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`b5fbd45`](https://github.com/grzehub/describe-me/commit/b5fbd45aae1076b0db68adb57c3f256596a4a1e6)]:
+  - @describe-me/core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
