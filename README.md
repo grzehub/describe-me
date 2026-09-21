@@ -146,7 +146,7 @@ Then import `render` from `@describe-me/react` instead of `vitest-browser-react`
 - Controls: turn the props table into inputs and mount the component live
   (dev only, via a playground endpoint on the Vitest server).
 - Live mount: re-run a test up to frame N inside the viewer with HMR.
-- CSS-in-JS / adopted stylesheets need checking beyond plain CSS imports.
+- `adoptedStyleSheets` inside shadow roots are not mirrored yet.
 - Vue / Svelte adapters: a `render` wrapper each, nothing else.
 
 ## Component overview
@@ -171,6 +171,20 @@ TypeScript's own module resolution, then reads the props type of the exported
 function: name, type, required, default value from the destructuring pattern,
 JSDoc description. Props inherited from library types (`ButtonHTMLAttributes`)
 are left out. The whole step costs about 0.1–0.2 s per run on the example.
+
+## Styling techniques
+
+A snapshot is DOM plus stylesheets, so how styles reach the page matters.
+Verified by `StyledText.test.tsx` in the example, whose replay is checked for
+computed colours:
+
+| Technique                                  | Used by                                                                                          | Captured                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                     |
+| `<style>` / `<link>` in the document       | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                     |
+| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                             |
+| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture |
+| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                 |
 
 ## Switches
 
