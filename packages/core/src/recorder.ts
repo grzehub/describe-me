@@ -2,11 +2,14 @@ import { snapshot, createMirror } from 'rrweb-snapshot'
 import { materializeAdoptedStyles } from './materialize-adopted-styles.js'
 import { quickHash } from './quick-hash.js'
 import { settle } from './settle.js'
-import type { ComponentInfo, Frame, FrameKind, TestRecord } from './types.js'
+import type { CaptureOptions, ComponentInfo, Frame, FrameKind, TestRecord } from './types.js'
+
+type Teardown = () => void
 
 /**
- * Browser-side recorder. One instance per test iframe; `begin()` in beforeEach,
- * `end()` in afterEach. Framework adapters call `capture()` and `setComponent()`.
+ * Test-side recorder, running wherever the tests run: the browser-mode iframe
+ * or jsdom. `begin()` in beforeEach, `end()` then `teardown()` in afterEach.
+ * Framework adapters call `capture()`, `setComponent()` and `onTeardown()`.
  */
 class Recorder {
   private frames: Frame[] = []
@@ -15,6 +18,7 @@ class Recorder {
   private active = false
   private lastHash = ''
   private seq = 0
+  private teardowns = new Set<Teardown>()
 
   begin(): void {
     this.frames = []
@@ -35,12 +39,20 @@ class Recorder {
     }
   }
 
-  async capture(kind: FrameKind, label: string, meta?: Record<string, unknown>): Promise<void> {
+  async capture(
+    kind: FrameKind,
+    label: string,
+    meta?: Record<string, unknown>,
+    options: CaptureOptions = {},
+  ): Promise<void> {
     if (!this.active) {
       return
     }
 
-    await settle()
+    if (options.settle !== false) {
+      await settle()
+    }
+
     const node = await materializeAdoptedStyles(() =>
       snapshot(document, { mirror: createMirror(), inlineStylesheet: true }),
     )
@@ -81,6 +93,22 @@ class Recorder {
   end(): TestRecord {
     this.active = false
     return { frames: this.frames, component: this.component }
+  }
+
+  /**
+   * Register work that must run after the test's frames are handed over, such
+   * as unmounting. Adapters call this once at import; registering the same
+   * callback again is a no-op.
+   */
+  onTeardown(callback: Teardown): void {
+    this.teardowns.add(callback)
+  }
+
+  /** Run the registered teardowns. Called by the runner integration after `end()`. */
+  teardown(): void {
+    for (const callback of this.teardowns) {
+      callback()
+    }
   }
 }
 

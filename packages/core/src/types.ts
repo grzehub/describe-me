@@ -7,6 +7,17 @@ export interface ComponentInfo {
   props: Record<string, unknown>
 }
 
+/** Options for `recorder.capture()`. */
+export interface CaptureOptions {
+  /**
+   * Wait one macrotask for the framework to flush before looking at the DOM.
+   * Default: true. Pass false when the caller knows the DOM is already
+   * committed (e.g. right after Testing Library's `act()`-wrapped `rerender`):
+   * the snapshot is then taken synchronously, before the caller moves on.
+   */
+  settle?: boolean
+}
+
 /** A frame as captured in the browser. `snapshot` is an rrweb serialized document. */
 export interface Frame {
   id: string

@@ -30,7 +30,8 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter react-basic exec playwright install --with-deps chromium
       - run: pnpm --filter react-basic test
-      - run: pnpm check-manifest
+      # Only the example this workflow publishes; `pnpm check-manifest` expects both.
+      - run: node scripts/check-manifest.mjs examples/react-basic/.describe-me/manifest.json
       - run: pnpm --filter react-basic docs:build
       - uses: actions/upload-pages-artifact@v3
         with:

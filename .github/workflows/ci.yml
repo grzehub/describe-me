@@ -24,6 +24,8 @@ jobs:
       - run: pnpm format:check
       - run: pnpm --filter react-basic exec playwright install --with-deps chromium
       - run: pnpm --filter react-basic test
+      - run: pnpm --filter react-jsdom test
+      - run: pnpm --filter react-jsdom check-styles
       - run: pnpm check-manifest
 
   smoke:
