@@ -48,7 +48,7 @@ export function renderInspector(): HTMLElement {
         'section',
         {},
         el('h3', {}, `frame ${state.frame + 1} / ${test.frames.length}`),
-        el('div', {}, frame.label),
+        el('div', { class: 'mono' }, frame.label),
         el('div', { class: 'hint' }, `${frame.kind} · ${frame.at}ms into the test`),
       ),
     )

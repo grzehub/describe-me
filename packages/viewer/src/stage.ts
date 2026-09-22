@@ -1,6 +1,7 @@
 import { createCache, createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
 import type { ManifestFrame } from '@describe-me/core/types'
 import { loadSnapshot } from './data.js'
+import { fitStage } from './fit-stage.js'
 import { state } from './state.js'
 
 let paintToken = 0
@@ -25,4 +26,11 @@ export async function paintFrame(stage: HTMLElement, frame: ManifestFrame): Prom
   if (state.width !== 'auto') {
     iframe.style.width = `${state.width}px`
   }
+
+  // Styles are in place after a frame; only then do the boxes have their final size.
+  requestAnimationFrame(() => {
+    if (token === paintToken) {
+      fitStage(iframe)
+    }
+  })
 }
