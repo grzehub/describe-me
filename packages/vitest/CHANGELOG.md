@@ -1,5 +1,12 @@
 # @describe-me/vitest
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @describe-me/core@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
