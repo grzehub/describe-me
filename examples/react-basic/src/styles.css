@@ -3,6 +3,7 @@
   --paper: #fff;
   --muted: #6b6b6b;
   --line: #e2e2e2;
+  --hover: #f2f2f2;
   --accent: #2b5cff;
   --danger: #d33;
   font-family:
@@ -18,7 +19,6 @@ body {
   margin: 0;
   padding: 24px;
 }
-
 .btn {
   font: inherit;
   font-weight: 500;
@@ -43,6 +43,9 @@ body {
   background: var(--ink);
   color: var(--paper);
 }
+.btn-primary:hover {
+  background: var(--accent);
+}
 .btn-secondary {
   background: var(--paper);
   color: var(--ink);
@@ -56,8 +59,9 @@ body {
   background: var(--danger);
   color: var(--paper);
 }
-.btn-ghost:hover {
-  background: #f2f2f2;
+.btn-ghost:hover,
+.btn-secondary:hover {
+  background: var(--hover);
 }
 .btn:disabled,
 .btn[aria-disabled='true'] {
@@ -71,7 +75,6 @@ body {
   border: 2px solid currentColor;
   border-right-color: transparent;
 }
-
 .counter {
   display: inline-flex;
   align-items: center;
@@ -91,7 +94,6 @@ body {
   font-size: 12px;
   margin-left: 8px;
 }
-
 .menu {
   position: relative;
   display: inline-block;
@@ -116,14 +118,13 @@ body {
 }
 .menu-item:hover,
 .menu-item[aria-selected='true'] {
-  background: #f2f2f2;
+  background: var(--hover);
 }
 .menu-selected {
   margin-top: 12px;
   color: var(--muted);
   font-size: 13px;
 }
-
 .searchbox {
   display: inline-flex;
   align-items: center;

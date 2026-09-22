@@ -59,7 +59,7 @@ export function renderMain(): HTMLElement {
           },
         },
         el('span', { class: 'k' }, timelineFrame.kind),
-        el('span', {}, timelineFrame.label),
+        el('span', { class: 'label' }, timelineFrame.label),
         el('span', { class: 't' }, `${timelineFrame.at}ms`),
       ),
     )
