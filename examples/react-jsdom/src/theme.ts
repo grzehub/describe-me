@@ -1,6 +1,6 @@
-/** A minimal design-system theme, provided through styled-components. */
+/** A minimal design-system theme, provided through styled-components. Same ink as the tokens. */
 export const theme = {
   colors: {
-    accent: 'rgb(4, 120, 87)',
+    ink: 'rgb(17, 17, 17)',
   },
 }

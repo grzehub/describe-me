@@ -42,7 +42,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "rimraf dist-cli && tsc -p tsconfig.cli.json",
-    "dev": "node dist-cli/main.js dev --data ../../examples/react-basic/.describe-me"
+    "dev": "node dist-cli/main.js dev --data ../../examples/react-browser/.describe-me"
   },
   "dependencies": {
     "@describe-me/core": "workspace:^",

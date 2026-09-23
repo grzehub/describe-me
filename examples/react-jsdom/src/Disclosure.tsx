@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import './styles.css'
 
 export interface DisclosureProps {
   /** Label of the toggle button. */
@@ -12,10 +13,15 @@ export function Disclosure({ label, children }: DisclosureProps) {
 
   return (
     <div>
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
         {label}
       </button>
-      {open ? <p>{children}</p> : null}
+      {open ? <p className="disclosure-body">{children}</p> : null}
     </div>
   )
 }

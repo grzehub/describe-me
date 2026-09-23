@@ -17,12 +17,12 @@ pnpm install
 pnpm build            # tsc for core, react, vitest and the viewer CLI
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
-cd examples/react-basic && pnpm test          # 16 tests, browser mode
+cd examples/react-browser && pnpm test          # 16 tests, browser mode
 cd examples/react-jsdom && pnpm test          # 8 tests, jsdom
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 pnpm check-manifest   # both examples' manifests, after running their tests
-cd examples/react-basic && pnpm bench:micro   # capture cost by DOM size
-cd examples/react-basic && pnpm docs:build    # static site → docs-dist/
+cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
+cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
 pnpm smoke            # pack + install tarballs in a fresh project (Node ^20.19 || >=22.12)
 ```
 

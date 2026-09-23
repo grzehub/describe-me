@@ -69,7 +69,7 @@ are patched, and `userEvent.click(el)` delegating to an instance records once.
 ```sh
 pnpm install
 pnpm build                       # core, react, vitest (tsc) and the describe-me CLI
-cd examples/react-basic
+cd examples/react-browser
 pnpm exec playwright install chromium
 pnpm test                        # vitest run → writes .describe-me/
 pnpm dev                         # vitest --watch + viewer on http://localhost:6006
@@ -172,7 +172,7 @@ viewer. Pseudo-class states such as `:hover` or `:focus-visible` are not part
 of the DOM, so they do not survive a snapshot in either environment; a hover
 shows up only when the component puts it into the DOM.
 
-`examples/react-jsdom` is the jsdom counterpart of `examples/react-basic`. Only
+`examples/react-jsdom` is the jsdom counterpart of `examples/react-browser`. Only
 jsdom is tested; happy-dom is untested.
 
 ## Without the plugin
@@ -264,7 +264,7 @@ instead of setting it yourself.
 
 Measured on the example suite (12 tests, 24 frames) in headless Chromium,
 5 runs per variant, medians. `pnpm bench:micro` / `pnpm bench:macro` in
-`examples/react-basic`.
+`examples/react-browser`.
 
 |                            | recording off | recording on | overhead               |
 | -------------------------- | ------------- | ------------ | ---------------------- |

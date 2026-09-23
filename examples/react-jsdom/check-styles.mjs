@@ -15,10 +15,18 @@ const TECHNIQUES = [
   { name: 'runtime <style> tag', selector: '.styled-tag', value: 'rgb(0, 128, 0)' },
   { name: 'CSSOM insertRule', selector: '.styled-cssom', value: 'rgb(0, 0, 255)' },
   { name: 'adoptedStyleSheets', selector: '.styled-adopted', value: 'rgb(255, 165, 0)' },
-  { name: 'styled-components (info)', selector: 'border-radius', value: 'rgb(30, 64, 175)' },
-  { name: 'styled-components (danger)', selector: 'border-radius', value: 'rgb(153, 27, 27)' },
-  { name: 'imported .css file', selector: '.panel-title', value: 'rgb(126, 34, 206)' },
-  { name: 'styled-components + theme', selector: 'margin: 0', value: 'rgb(4, 120, 87)' },
+  { name: 'styled-components (info)', selector: 'border-radius: 999px', value: 'rgb(43, 92, 255)' },
+  {
+    name: 'styled-components (danger)',
+    selector: 'border-radius: 999px',
+    value: 'rgb(221, 51, 51)',
+  },
+  { name: 'imported .css file', selector: '.panel-title', value: '--accent: #2b5cff' },
+  {
+    name: 'styled-components + theme',
+    selector: 'letter-spacing: -0.01em',
+    value: 'rgb(17, 17, 17)',
+  },
 ]
 
 const manifest = JSON.parse(readFileSync(join(DATA, 'manifest.json'), 'utf8'))

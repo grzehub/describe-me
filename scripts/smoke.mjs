@@ -51,7 +51,7 @@ function readJson(path) {
 
 const packageDirs = ['core', 'react', 'vitest', 'viewer'].map((dir) => join(root, 'packages', dir))
 const manifests = packageDirs.map((dir) => readJson(join(dir, 'package.json')))
-const example = readJson(join(root, 'examples', 'react-basic', 'package.json'))
+const example = readJson(join(root, 'examples', 'react-browser', 'package.json'))
 const domExample = readJson(join(root, 'examples', 'react-jsdom', 'package.json'))
 const rootManifest = readJson(join(root, 'package.json'))
 
