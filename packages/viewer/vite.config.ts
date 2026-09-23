@@ -4,7 +4,7 @@ import { defineConfig, type Plugin } from 'vite'
 
 /** Where the manifest and snapshots live. The CLI sets this; the default is the example project. */
 function dataDir(): string {
-  return resolve(process.env.DESCRIBE_ME_DIR ?? '../../examples/react-basic/.describe-me')
+  return resolve(process.env.DESCRIBE_ME_DIR ?? '../../examples/react-browser/.describe-me')
 }
 
 /**

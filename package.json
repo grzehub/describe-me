@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r --filter './packages/*' run build",
-    "test": "pnpm --filter react-basic test",
-    "dev": "pnpm --filter react-basic dev",
+    "test": "pnpm --filter react-browser --filter react-jsdom test",
+    "dev": "pnpm --filter react-browser dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix && prettier --write .",
     "format": "prettier --write .",
@@ -14,7 +14,7 @@
     "changeset": "changeset",
     "version-packages": "changeset version && pnpm install --lockfile-only && pnpm format",
     "release": "pnpm build && changeset publish",
-    "check-manifest": "node scripts/check-manifest.mjs examples/react-basic/.describe-me/manifest.json"
+    "check-manifest": "node scripts/check-manifest.mjs examples/react-browser/.describe-me/manifest.json examples/react-jsdom/.describe-me/manifest.json"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",

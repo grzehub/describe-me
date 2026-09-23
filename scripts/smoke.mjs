@@ -1,7 +1,8 @@
 /**
  * Verifies the published artifact, not the sources: packs every package,
- * installs the tarballs into a fresh project outside the monorepo, runs one
- * browser-mode test through the plugin and builds the static site.
+ * installs the tarballs into a fresh project outside the monorepo, runs the
+ * same component through the plugin in browser mode and in jsdom, and builds
+ * the static site.
  * Usage: `pnpm smoke [--keep]` (keep leaves the temp project for inspection).
  */
 import { execSync } from 'node:child_process'
@@ -50,7 +51,8 @@ function readJson(path) {
 
 const packageDirs = ['core', 'react', 'vitest', 'viewer'].map((dir) => join(root, 'packages', dir))
 const manifests = packageDirs.map((dir) => readJson(join(dir, 'package.json')))
-const example = readJson(join(root, 'examples', 'react-basic', 'package.json'))
+const example = readJson(join(root, 'examples', 'react-browser', 'package.json'))
+const domExample = readJson(join(root, 'examples', 'react-jsdom', 'package.json'))
 const rootManifest = readJson(join(root, 'package.json'))
 
 /** The user's toolchain, pinned to what the example and the repo run on, so there is one source of truth. */
@@ -59,6 +61,8 @@ function toolchain(names) {
     ...rootManifest.devDependencies,
     ...example.dependencies,
     ...example.devDependencies,
+    ...domExample.dependencies,
+    ...domExample.devDependencies,
   }
 
   const picked = {}
@@ -120,6 +124,10 @@ function scaffold() {
             '@vitejs/plugin-react',
             'playwright',
             'typescript',
+            '@testing-library/react',
+            '@testing-library/dom',
+            '@testing-library/user-event',
+            'jsdom',
           ]),
         },
         pnpm: { overrides: local },
@@ -159,6 +167,7 @@ import { describeMe } from '@describe-me/vitest/plugin'
 export default defineConfig({
   plugins: [react(), describeMe()],
   test: {
+    include: ['src/**/*.test.tsx'],
     browser: {
       enabled: true,
       headless: true,
@@ -166,6 +175,49 @@ export default defineConfig({
       instances: [{ browser: 'chromium' }],
     },
   },
+})
+`,
+  )
+
+  // The DOM scenario: same component, Testing Library tests, jsdom, and its
+  // own output directory so the two manifests can be checked separately.
+  writeFileSync(
+    join(app, 'vitest.dom.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-dom' })],
+  test: {
+    environment: 'jsdom',
+    include: ['dom/**/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  mkdirSync(join(app, 'dom'), { recursive: true })
+
+  writeFileSync(
+    join(app, 'dom', 'Hello.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { Hello } from '../src/Hello'
+
+describe('Hello', () => {
+  it('greets and counts waves', async () => {
+    const screen = render(<Hello name="Ada" />)
+    expect(screen.getByText('Hello Ada')).toBeDefined()
+    await userEvent.setup().click(screen.getByRole('button'))
+    expect(screen.getByRole('button').textContent).toBe('waved 1 times')
+  })
+
+  it('can be loud', () => {
+    const screen = render(<Hello name="Ada" tone="loud" />)
+    expect(screen.getByText('HELLO ADA')).toBeDefined()
+  })
 })
 `,
   )
@@ -225,8 +277,8 @@ function assert(condition, message) {
   }
 }
 
-function verify() {
-  const manifest = readJson(join(app, '.describe-me', 'manifest.json'))
+function verify(outDir, environment) {
+  const manifest = readJson(join(app, outDir, 'manifest.json'))
   const tests = manifest.modules.flatMap((module) => module.tests)
   const frames = tests.flatMap((test) => test.frames)
   const labels = frames.map((frame) => `${frame.kind}:${frame.label}`)
@@ -244,7 +296,7 @@ function verify() {
 
   assert(
     labels.some((label) => label.startsWith('action:click(button')),
-    `no click frame from a locator call; frames were ${labels.join(' | ')}`,
+    `no click frame (${environment}); frames were ${labels.join(' | ')}`,
   )
 
   const hello = manifest.components.Hello
@@ -257,11 +309,7 @@ function verify() {
     'tone prop was not read as two literals',
   )
 
-  for (const path of ['site/index.html', 'site/__data/manifest.json']) {
-    assert(existsSync(join(app, path)), `static build is missing ${path}`)
-  }
-
-  console.log('\nframes:', labels.join(' | '))
+  console.log(`\n${environment} frames:`, labels.join(' | '))
   console.log('props of Hello:', hello.props.map((prop) => `${prop.name}: ${prop.type}`).join(', '))
 }
 
@@ -274,8 +322,15 @@ try {
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
   run('pnpm exec vitest run', app)
+  run('pnpm exec vitest run --config vitest.dom.config.ts', app)
   run('pnpm exec describe-me build --data .describe-me --out site', app)
-  verify()
+  verify('.describe-me', 'browser')
+  verify('.describe-me-dom', 'dom')
+
+  for (const path of ['site/index.html', 'site/__data/manifest.json']) {
+    assert(existsSync(join(app, path)), `static build is missing ${path}`)
+  }
+
   console.log('\nsmoke: OK — the tarballs install and work in a fresh project')
 } finally {
   if (keep) {

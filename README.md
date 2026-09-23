@@ -13,7 +13,7 @@ component, CI goes red.
 
 ## Status
 
-Prototype. React + Vitest browser mode only, static snapshots (no live mount).
+Prototype. React, Vitest in browser mode or jsdom, static snapshots (no live mount).
 
 ## How it works
 
@@ -35,14 +35,16 @@ Prototype. React + Vitest browser mode only, static snapshots (no live mount).
 - `@describe-me/core` — framework-agnostic. The `recorder` (begin / capture /
   end), the `step()` helper, and the JSON manifest types. Snapshots are
   serialized DOM via rrweb-snapshot, so the viewer never needs your framework.
-- `@describe-me/react` — a drop-in `render` for `vitest-browser-react` that
-  records a frame after mount and after `rerender`, and extracts the component
-  name and props. This is the only React-specific code.
-- `@describe-me/vitest` — the `plugin` (one-line integration: setup file,
-  reporter, `render` redirect), `setup` (patches Vitest's `Locator` and
-  `userEvent` so every interaction records a frame, plus beforeEach/afterEach
-  hooks that hand frames to the reporter through `task.meta`) and the Node
-  `reporter` that writes the output directory.
+- `@describe-me/react` — drop-in `render` functions that record a frame after
+  mount and after `rerender`, and extract the component name and props: one
+  for `vitest-browser-react`, one for `@testing-library/react`
+  (`@describe-me/react/testing-library`). This is the only React-specific code.
+- `@describe-me/vitest` — the `plugin` (one-line integration: detects the
+  environment, registers the setup file and reporter, redirects `render`), two
+  setup files (`setup` patches Vitest's `Locator` and `userEvent` in browser
+  mode, `setup-dom` patches Testing Library's `userEvent` in jsdom; both add
+  beforeEach/afterEach hooks that hand frames to the reporter through
+  `task.meta`) and the Node `reporter` that writes the output directory.
 - `describe-me` — the viewer: a vanilla-TS Vite app plus the CLI of the same name.
   `dev` serves `.describe-me/` under `__data/` with an HMR push when the
   manifest changes; `build` emits a static site with the data copied in.
@@ -58,14 +60,16 @@ Interactions are intercepted at the source: the setup file patches Vitest's
 keyboard-level `userEvent` methods (`type`, `keyboard`, `tab`, `copy`, `cut`,
 `paste`). So `screen.getByRole('button').click()` and `userEvent.click(...)` from
 `vitest/browser` record the same frame, and a gesture that delegates internally (`userEvent.click`
-→ `locator.click`) records it once.
+→ `locator.click`) records it once. In jsdom the same holds for
+`@testing-library/user-event`: its direct API and `userEvent.setup()` instances
+are patched, and `userEvent.click(el)` delegating to an instance records once.
 
 ## Try it
 
 ```sh
 pnpm install
 pnpm build                       # core, react, vitest (tsc) and the describe-me CLI
-cd examples/react-basic
+cd examples/react-browser
 pnpm exec playwright install chromium
 pnpm test                        # vitest run → writes .describe-me/
 pnpm dev                         # vitest --watch + viewer on http://localhost:6006
@@ -94,6 +98,9 @@ That is the whole integration. The plugin registers the setup file and the
 reporter, and redirects `import { render } from 'vitest-browser-react'` to the
 recording adapter, so existing tests produce frames without any edits.
 `step()` is the only opt-in, imported from `@describe-me/vitest`.
+
+For jsdom, the same line works with a jsdom config — see
+[Environments](#environments).
 
 ```sh
 describe-me dev                  # viewer with live updates while vitest --watch runs
@@ -124,6 +131,50 @@ describe('Counter', () => {
 A test with no assertion is a valid story. A story with an assertion is a
 test. Same primitive.
 
+## Environments
+
+The plugin detects where the tests run and wires the matching pieces:
+
+|                     | browser mode (`test.browser.enabled`) | DOM (`environment: 'jsdom'`)              |
+| ------------------- | ------------------------------------- | ----------------------------------------- |
+| redirected `render` | `vitest-browser-react`                | `@testing-library/react`                  |
+| interactions        | `Locator` actions, `userEvent`        | `@testing-library/user-event`             |
+| setup file          | `@describe-me/vitest/setup`           | `@describe-me/vitest/setup-dom`           |
+| also sets           | —                                     | `test.css: true`, `RTL_SKIP_AUTO_CLEANUP` |
+
+```sh
+pnpm add -D describe-me @describe-me/vitest @describe-me/react \
+  @testing-library/react @testing-library/user-event jsdom
+```
+
+```ts
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: { environment: 'jsdom' },
+})
+```
+
+In jsdom the recording `render` stays synchronous, so
+`const { asFragment } = render(...)` keeps working, and the redirect also
+covers a custom `render` in your own `test-utils` that imports
+`@testing-library/react`. `test.css` is switched on because Vitest stubs CSS
+imports by default and every imported stylesheet would be missing from the
+snapshots; an explicit `css: false` wins, with a warning. Testing Library's
+auto-cleanup is switched off so the component is unmounted only after the
+closing frame; describe-me unmounts it instead.
+
+What differs is what happens **inside the test**. jsdom has no layout engine,
+so anything the test measures, scrolls or observes (`IntersectionObserver`,
+`getBoundingClientRect`) behaves differently, and user-event cannot tell
+whether an element is covered by another. The frames themselves are the same
+kind of thing in both: DOM plus stylesheets, laid out by a real browser in the
+viewer. Pseudo-class states such as `:hover` or `:focus-visible` are not part
+of the DOM, so they do not survive a snapshot in either environment; a hover
+shows up only when the component puts it into the DOM.
+
+`examples/react-jsdom` is the jsdom counterpart of `examples/react-browser`. Only
+jsdom is tested; happy-dom is untested.
+
 ## Without the plugin
 
 The pieces can be wired by hand if you prefer explicit config:
@@ -140,6 +191,9 @@ export default defineConfig({
 ```
 
 Then import `render` from `@describe-me/react` instead of `vitest-browser-react`.
+For jsdom, use `@describe-me/vitest/setup-dom`, import `render` from
+`@describe-me/react/testing-library`, and set `css: true` and
+`env: { RTL_SKIP_AUTO_CLEANUP: 'true' }` yourself.
 
 ## Open questions / next
 
@@ -175,16 +229,21 @@ are left out. The whole step costs about 0.1–0.2 s per run on the example.
 ## Styling techniques
 
 A snapshot is DOM plus stylesheets, so how styles reach the page matters.
-Verified by `StyledText.test.tsx` in the example, whose replay is checked for
-computed colours:
+Verified by `StyledText.test.tsx` in both examples: the browser-mode replay is
+checked for computed colours, and `pnpm check-styles` in `examples/react-jsdom`
+checks that each rule is in the jsdom snapshots:
 
-| Technique                                  | Used by                                                                                          | Captured                                                |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                     |
-| `<style>` / `<link>` in the document       | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                     |
-| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                             |
-| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture |
-| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                 |
+| Technique                                  | Used by                                                                                          | Browser mode                                            | jsdom                                             |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------- |
+| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                     | yes                                               |
+| `<style>` / `<link>` in the document       | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                     | yes, CSS imports need `test.css` (plugin sets it) |
+| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                             | yes, simple rules verified                        |
+| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture | no: jsdom has no constructable stylesheets        |
+| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                 | no                                                |
+
+In jsdom, rules go through jsdom's own CSS parser, which drops what it does
+not understand. Simple rules are verified; nesting, `@layer` and `@container`
+are not yet.
 
 ## Switches
 
@@ -205,7 +264,7 @@ instead of setting it yourself.
 
 Measured on the example suite (12 tests, 24 frames) in headless Chromium,
 5 runs per variant, medians. `pnpm bench:micro` / `pnpm bench:macro` in
-`examples/react-basic`.
+`examples/react-browser`.
 
 |                            | recording off | recording on | overhead               |
 | -------------------------- | ------------- | ------------ | ---------------------- |

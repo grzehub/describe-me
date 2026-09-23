@@ -22,8 +22,10 @@ jobs:
       - run: pnpm build
       - run: pnpm lint
       - run: pnpm format:check
-      - run: pnpm --filter react-basic exec playwright install --with-deps chromium
-      - run: pnpm --filter react-basic test
+      - run: pnpm --filter react-browser exec playwright install --with-deps chromium
+      - run: pnpm --filter react-browser test
+      - run: pnpm --filter react-jsdom test
+      - run: pnpm --filter react-jsdom check-styles
       - run: pnpm check-manifest
 
   smoke:
@@ -38,5 +40,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm --filter react-basic exec playwright install --with-deps chromium
+      - run: pnpm --filter react-browser exec playwright install --with-deps chromium
       - run: pnpm smoke

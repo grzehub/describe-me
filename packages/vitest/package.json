@@ -35,6 +35,10 @@
       "types": "./dist/setup.d.ts",
       "default": "./dist/setup.js"
     },
+    "./setup-dom": {
+      "types": "./dist/setup-dom.d.ts",
+      "default": "./dist/setup-dom.js"
+    },
     "./reporter": {
       "types": "./dist/reporter.d.ts",
       "default": "./dist/reporter.js"
@@ -50,7 +54,8 @@
     "LICENSE"
   ],
   "sideEffects": [
-    "./dist/setup.js"
+    "./dist/setup.js",
+    "./dist/setup-dom.js"
   ],
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json"
@@ -60,16 +65,22 @@
   },
   "peerDependencies": {
     "vitest": ">=4",
-    "typescript": ">=5.0"
+    "typescript": ">=5.0",
+    "@testing-library/user-event": ">=14"
   },
   "peerDependenciesMeta": {
     "typescript": {
+      "optional": true
+    },
+    "@testing-library/user-event": {
       "optional": true
     }
   },
   "devDependencies": {
     "vitest": "^5.0.1",
     "@types/node": "^22",
-    "typescript": "^6"
+    "typescript": "^6",
+    "@testing-library/user-event": "^14.6.1",
+    "@testing-library/dom": "^10.4.0"
   }
 }
