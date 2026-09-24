@@ -14,9 +14,8 @@ export class SnapshotStore {
     mkdirSync(this.dir, { recursive: true })
   }
 
-  /** Write one snapshot and return its path relative to the manifest. */
-  write(snapshot: unknown): string {
-    const json = JSON.stringify(snapshot)
+  /** Write one serialized snapshot and return its path relative to the manifest. */
+  write(json: string): string {
     const hash = createHash('sha1').update(json).digest('hex').slice(0, 16)
     const file = `${hash}.json`
     const abs = join(this.dir, file)

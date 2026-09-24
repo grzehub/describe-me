@@ -5,7 +5,37 @@ export type FrameKind = 'render' | 'action' | 'step' | 'end'
 export interface ComponentInfo {
   name: string
   props: Record<string, unknown>
+  /**
+   * Source file that defines the component, relative to the project root, when
+   * the plugin registered its module's exports. Lets the reporter read props
+   * without guessing the file from the test's imports.
+   */
+  file?: string
 }
+
+/** What the plugin registers for every top-level export of a project module. */
+export interface RegisteredExport {
+  /** The export name in the defining module, e.g. `Button`. */
+  name: string
+  /** The defining module, relative to the project root, posix separators. */
+  file: string
+}
+
+/**
+ * `Symbol.for()` key of the registry on `globalThis`: a
+ * `WeakMap<object, RegisteredExport>` filled by code the plugin appends to
+ * project modules. A global rather than an import, because a user's module
+ * cannot always resolve `@describe-me/core` (pnpm) and a bundled adapter may
+ * carry its own copy of core.
+ */
+export const EXPORT_REGISTRY_KEY = 'describe-me.exports' as const
+
+/**
+ * Prefix of project asset URLs inside stored snapshots, e.g.
+ * `describe-me-asset:3f2a9c1d.svg`. The reporter copies the file to
+ * `<outDir>/assets/` and the viewer resolves the prefix against `__data/assets/`.
+ */
+export const ASSET_URL_PREFIX = 'describe-me-asset:' as const
 
 /** Options for `recorder.capture()`. */
 export interface CaptureOptions {
@@ -33,6 +63,12 @@ export interface Frame {
 export interface TestRecord {
   frames: Frame[]
   component?: ComponentInfo
+  /**
+   * `location.origin` of the page the test ran in (`http://localhost:3000` in
+   * jsdom, the Vitest server in browser mode). rrweb makes every URL absolute
+   * against it, so the reporter uses it to find project assets.
+   */
+  origin?: string
 }
 
 export const META_KEY = 'describeMe' as const
@@ -106,4 +142,23 @@ export interface Manifest {
   modules: ManifestModule[]
   /** Keyed by component name, as reported by the framework adapter. */
   components: Record<string, ComponentDoc>
+  /**
+   * Asset URLs the snapshots point at on the test page's origin that could not
+   * be found in the project, as root-relative paths (`/lib/images/logo.svg`).
+   * They will not load in the viewer. Absent in manifests written before 0.4.
+   */
+  assetsMissing?: string[]
+}
+
+/** The name adapters fall back to when a component has no usable name. */
+export const ANONYMOUS_COMPONENT = 'Anonymous' as const
+
+/** What keeps a manifest from documenting everything its tests rendered. */
+export interface ManifestDiagnostics {
+  /** Tests whose rendered component has no usable name. */
+  anonymous: { testId: string; fullName: string }[]
+  /** Named components without a props doc, with how many tests rendered each. */
+  undocumented: { name: string; tests: number }[]
+  /** Root-relative asset paths that will not load in the viewer. */
+  assetsMissing: string[]
 }

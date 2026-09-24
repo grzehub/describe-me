@@ -14,8 +14,10 @@ import {
   type TestRecord,
   type TestState,
 } from '@describe-me/core/types'
+import { AssetStore } from './asset-store.js'
 import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
 import { componentEntries } from './component-entries.js'
+import { printDiagnostics } from './print-diagnostics.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { testPath } from './test-path.js'
 
@@ -29,6 +31,7 @@ export default class DescribeMeReporter implements Reporter {
   private root = process.cwd()
   private outDir = ''
   private snapshots!: SnapshotStore
+  private assets!: AssetStore
   private modules = new Map<string, ManifestModule>()
 
   constructor(options: DescribeMeReporterOptions = {}) {
@@ -39,7 +42,12 @@ export default class DescribeMeReporter implements Reporter {
     this.root = vitest.config.root
     this.outDir = resolve(this.root, this.outDirOption)
     this.snapshots = new SnapshotStore(this.outDir)
+    this.assets = new AssetStore(this.outDir, this.root)
     this.seedFromPreviousRun()
+  }
+
+  onTestRunStart(): void {
+    this.assets.startRun()
   }
 
   /**
@@ -81,21 +89,27 @@ export default class DescribeMeReporter implements Reporter {
       componentEntries(modules, this.root),
     )
 
+    // Only what this run found: a filtered run does not know which of the
+    // previous run's missing assets belonged to the modules it skipped.
+    const assetsMissing = this.assets.missing()
+
     const manifest: Manifest = {
       version: 1,
       generatedAt: new Date().toISOString(),
       root: this.root,
       modules,
       components,
+      assetsMissing,
     }
 
-    this.snapshots.collectGarbage(
-      manifest.modules.flatMap((mod) =>
-        mod.tests.flatMap((test) => test.frames.map((frame) => frame.snapshot)),
-      ),
+    const snapshotFiles = manifest.modules.flatMap((mod) =>
+      mod.tests.flatMap((test) => test.frames.map((frame) => frame.snapshot)),
     )
 
+    this.snapshots.collectGarbage(snapshotFiles)
+    this.assets.collectGarbage(snapshotFiles)
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
+    printDiagnostics(manifest)
   }
 
   private toManifestTest(tc: TestCase): ManifestTest {
@@ -107,7 +121,7 @@ export default class DescribeMeReporter implements Reporter {
       label: frame.label,
       at: frame.at,
       meta: frame.meta,
-      snapshot: this.snapshots.write(frame.snapshot),
+      snapshot: this.writeSnapshot(frame.snapshot, record?.origin),
     }))
 
     return {
@@ -121,5 +135,10 @@ export default class DescribeMeReporter implements Reporter {
       component: record?.component,
       frames,
     }
+  }
+
+  /** Store one frame's DOM, with its project asset URLs pointing into the asset store. */
+  private writeSnapshot(snapshot: unknown, origin: string | undefined): string {
+    return this.snapshots.write(this.assets.rewrite(JSON.stringify(snapshot), origin))
   }
 }

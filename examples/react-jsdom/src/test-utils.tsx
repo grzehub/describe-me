@@ -1,12 +1,18 @@
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { ThemeProvider } from 'styled-components'
+import { GlobalStyles } from './GlobalStyles'
 import { theme } from './theme'
 
 export * from '@testing-library/react'
 
 function AllTheProviders({ children }: { children: ReactNode }) {
-  return <ThemeProvider theme={theme}>{children}</ThemeProvider>
+  return (
+    <ThemeProvider theme={theme}>
+      <GlobalStyles />
+      {children}
+    </ThemeProvider>
+  )
 }
 
 /**

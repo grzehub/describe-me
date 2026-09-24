@@ -1,16 +1,13 @@
 import type { ReactElement } from 'react'
-import { serializeValue, type ComponentInfo } from '@describe-me/core'
+import { describeComponentType, serializeValue, type ComponentInfo } from '@describe-me/core'
 
-/** Pull the component name and JSON-safe props out of a React element. */
+/**
+ * Pull the component name, its defining file when the plugin registered it,
+ * and JSON-safe props out of a React element.
+ */
 export function describeElement(ui: ReactElement): ComponentInfo {
-  const type = ui.type as unknown
-  const name =
-    typeof type === 'string'
-      ? type
-      : ((type as { displayName?: string })?.displayName ??
-        (type as { name?: string })?.name ??
-        'Anonymous')
-
+  const identity = describeComponentType(ui.type)
   const props = serializeValue(ui.props ?? {}) as Record<string, unknown>
-  return { name, props }
+
+  return { ...identity, props }
 }

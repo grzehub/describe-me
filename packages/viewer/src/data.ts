@@ -1,5 +1,5 @@
 import type { rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
-import type { Manifest } from '@describe-me/core/types'
+import { ASSET_URL_PREFIX, type Manifest } from '@describe-me/core/types'
 import { allTests, currentTest, state } from './state.js'
 import { rerender } from './rerender.js'
 
@@ -39,16 +39,27 @@ export async function loadManifest(): Promise<void> {
   rerender()
 }
 
-/** Fetch one serialized DOM, memoized until the next manifest load. */
+/**
+ * Fetch one serialized DOM, memoized until the next manifest load. Asset URLs
+ * are made absolute here, against the page, because the snapshot replays in a
+ * sandboxed iframe that has no base URL of its own. The stage and the gallery
+ * thumbnails both load through this.
+ */
 export function loadSnapshot(path: string): Promise<SerializedNode> {
   let pending = snapshotCache.get(path)
   if (!pending) {
-    pending = fetch(`__data/${path}`, { cache: 'no-store' }).then(
-      (response) => response.json() as Promise<SerializedNode>,
-    )
+    pending = fetch(`__data/${path}`, { cache: 'no-store' })
+      .then((response) => response.text())
+      .then((json) => parseSnapshot(json))
 
     snapshotCache.set(path, pending)
   }
 
   return pending
+}
+
+function parseSnapshot(json: string): SerializedNode {
+  const assetsUrl = new URL('__data/assets/', location.href).href
+
+  return JSON.parse(json.replaceAll(ASSET_URL_PREFIX, assetsUrl)) as SerializedNode
 }

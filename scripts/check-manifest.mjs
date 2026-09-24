@@ -1,9 +1,11 @@
 /**
  * Guards the generated manifests against silent regressions: every test must
- * have a `render` frame with a component, and the props docs must be present.
+ * have a `render` frame with a named component, every component must have its
+ * props docs, and every asset must have been found. Run after `pnpm build`.
  * Usage: `node scripts/check-manifest.mjs <path/to/manifest.json> [...more]`
  */
 import { readFileSync } from 'node:fs'
+import { manifestDiagnostics } from '../packages/core/dist/manifest-diagnostics.js'
 
 const paths = process.argv.slice(2)
 
@@ -28,6 +30,20 @@ function problemsIn(manifest) {
 
   if (Object.keys(manifest.components ?? {}).length === 0) {
     problems.push('manifest.components is empty')
+  }
+
+  const { anonymous, undocumented, assetsMissing } = manifestDiagnostics(manifest)
+
+  for (const test of anonymous) {
+    problems.push(`${test.fullName}: anonymous component`)
+  }
+
+  for (const component of undocumented) {
+    problems.push(`${component.name}: no props docs (${component.tests} tests)`)
+  }
+
+  for (const path of assetsMissing) {
+    problems.push(`${path}: asset not found`)
   }
 
   return { tests, problems }

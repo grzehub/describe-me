@@ -220,11 +220,28 @@ A red cross is an invitation to write a test. Coverage is computed from the
 props recorded in `render` frames: a literal or boolean value counts when some
 test passed it, and the default counts when some test omitted the prop.
 
-The reporter finds each component by following the test file's import with
-TypeScript's own module resolution, then reads the props type of the exported
-function: name, type, required, default value from the destructuring pattern,
-JSDoc description. Props inherited from library types (`ButtonHTMLAttributes`)
-are left out. The whole step costs about 0.1–0.2 s per run on the example.
+A component is named after its export. The plugin appends a line to every
+project module (not tests, not `node_modules`) that registers its top-level
+exports, so `export const Button = forwardRef(<T,>(…) => …)` is `Button` and
+`export const Text = styled.p` is `Text`, although neither has a usable
+`displayName`. Without the registration (`registerExports: false`, or a module
+outside the project) the name falls back to `displayName`, then the function
+name, then whatever `memo` / `forwardRef` wrap.
+
+The reporter reads the props type of that export with TypeScript: name, type,
+required, default value from the destructuring pattern (also through
+`forwardRef(…)` and `memo(…)`), JSDoc description. When the export was not
+registered, it finds the file by following the test's import instead. Props
+inherited from library types (`ButtonHTMLAttributes`) are left out. The whole
+step costs about 0.1–0.2 s per run on the example.
+
+## Diagnostics
+
+After each run the reporter prints one warning line for each thing it could
+not document: tests that render an anonymous component, components without
+props docs, assets that were not found. The viewer shows the same list behind
+an "issues" chip in its header, with links to the tests. `pnpm check-manifest`
+fails on any of them in this repository's examples.
 
 ## Styling techniques
 
@@ -244,6 +261,59 @@ checks that each rule is in the jsdom snapshots:
 In jsdom, rules go through jsdom's own CSS parser, which drops what it does
 not understand. Simple rules are verified; nesting, `@layer` and `@container`
 are not yet.
+
+## Global styles and fonts
+
+The viewer shows the DOM and the CSS that were on the page during the test,
+nothing more. A reset, a `body { font-family }` or a web font that your app or
+Storybook adds around every component must therefore be there in the test too,
+or buttons show up with the browser's grey default and text in Times. Put them
+in the wrapper of your custom `render`, the same place as your providers:
+
+```tsx
+// test-utils.tsx
+import { render, type RenderOptions } from '@testing-library/react'
+import { ThemeProvider } from 'styled-components'
+import { GlobalStyles, theme } from './styles'
+
+function AllTheProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider theme={theme}>
+      <GlobalStyles />
+      {children}
+    </ThemeProvider>
+  )
+}
+
+function customRender(ui: React.ReactElement, options?: RenderOptions) {
+  return render(ui, { wrapper: AllTheProviders, ...options })
+}
+
+export * from '@testing-library/react'
+export { customRender as render }
+```
+
+Fonts loaded with a `<link>` (Google Fonts and the like) can be added once in a
+setup file; the link is captured with the snapshot and loads in the viewer.
+
+**styled-components in jsdom.** Vitest loads the Node build of
+styled-components (5 and 6), whose `createGlobalStyle` never inserts its CSS
+on the client, so `<GlobalStyles />` silently does nothing in jsdom. The plugin
+therefore points `styled-components` at its browser build and pre-bundles it
+together with `jest-styled-components`, so both share one instance and
+`toMatchSnapshot` output stays the same. Turn it off with
+`describeMe({ styledComponentsBrowserBuild: false })`.
+
+## Assets
+
+Images, videos, local fonts and CSS `url()`s that point at project files are
+copied into `.describe-me/assets/` when the snapshots are written, so they load
+in `describe-me dev` and in the static build. rrweb records them as absolute
+URLs on the test page (`http://localhost:3000/src/logo.svg` in jsdom, the Vitest
+server in browser mode), which stop working once the tests end. A file is
+looked up under the project root, then `public/`; paths that cannot be found
+are listed as `assetsMissing` in the manifest and in the diagnostics. Links to
+pages (`<a href="/">`) are left alone.
 
 ## Switches
 

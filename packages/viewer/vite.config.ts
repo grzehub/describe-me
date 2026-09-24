@@ -1,6 +1,30 @@
 import { cpSync, existsSync, readFileSync, statSync, watch } from 'node:fs'
-import { dirname, join, resolve, sep } from 'node:path'
+import { dirname, extname, join, resolve, sep } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
+
+/** Content types of what the data directory holds: the manifest, snapshots and copied project assets. */
+const CONTENT_TYPES: Record<string, string> = {
+  '.json': 'application/json',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+}
+
+function contentType(file: string): string {
+  return CONTENT_TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream'
+}
 
 /** Where the manifest and snapshots live. The CLI sets this; the default is the example project. */
 function dataDir(): string {
@@ -60,7 +84,7 @@ function describeMeData(): Plugin {
           return next()
         }
 
-        response.setHeader('Content-Type', 'application/json')
+        response.setHeader('Content-Type', contentType(absolute))
         response.setHeader('Cache-Control', 'no-store')
         response.end(readFileSync(absolute))
       })

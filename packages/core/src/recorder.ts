@@ -92,7 +92,14 @@ class Recorder {
 
   end(): TestRecord {
     this.active = false
-    return { frames: this.frames, component: this.component }
+
+    // The reporter needs the origin rrweb resolved every URL against. Optional
+    // chaining, because a DOM environment is not guaranteed to define `location`.
+    return {
+      frames: this.frames,
+      component: this.component,
+      origin: globalThis.location?.origin,
+    }
   }
 
   /**

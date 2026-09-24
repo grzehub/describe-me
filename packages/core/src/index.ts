@@ -1,4 +1,6 @@
 export * from './types.js'
+export { describeComponentType } from './describe-component-type.js'
+export { manifestDiagnostics } from './manifest-diagnostics.js'
 export { recorder } from './recorder.js'
 export { serializeValue } from './serialize-value.js'
 export { step } from './step.js'

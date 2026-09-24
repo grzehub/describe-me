@@ -9,7 +9,11 @@ export function componentEntries(modules: ManifestModule[], root: string): Compo
   for (const mod of modules) {
     for (const test of mod.tests) {
       if (test.component) {
-        entries.push({ testFile: resolve(root, mod.id), componentName: test.component.name })
+        entries.push({
+          testFile: resolve(root, mod.id),
+          componentName: test.component.name,
+          componentFile: test.component.file,
+        })
       }
     }
   }

@@ -1,0 +1,27 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+}
+.chip-neutral {
+  background: var(--hover);
+  color: var(--ink);
+}
+.chip-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
+.chip-remove {
+  font: inherit;
+  line-height: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
