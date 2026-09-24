@@ -1,5 +1,8 @@
 import type { ViteUserConfig } from 'vitest/config'
+import { projectModulePath } from './project-module-path.js'
+import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
+import { styledComponentsBrowserBuild } from './styled-components-browser-build.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
 export type DescribeMeEnvironment = 'browser' | 'dom'
@@ -16,6 +19,20 @@ export interface DescribeMeOptions {
   environment?: DescribeMeEnvironment
   /** Output directory, relative to the Vitest root. Default: `.describe-me`. */
   outDir?: string
+  /**
+   * Register the top-level exports of project modules, so a component is named
+   * after its export (`Button`) even when it is an anonymous `forwardRef`,
+   * `memo` or styled component, and its props are read from the right file.
+   * Default: true.
+   */
+  registerExports?: boolean
+  /**
+   * DOM environments only. Load the browser build of styled-components (v5+)
+   * instead of the Node one, whose `createGlobalStyle` never inserts its CSS on
+   * the client: global resets and fonts would be missing from every snapshot.
+   * Applied when styled-components is installed. Default: true.
+   */
+  styledComponentsBrowserBuild?: boolean
 }
 
 interface RenderModule {
@@ -59,7 +76,8 @@ function browserConfig(renderModule: RenderModule): ViteUserConfig {
   }
 }
 
-function domConfig(userTest: TestConfig | undefined): ViteUserConfig {
+function domConfig(userConfig: ViteUserConfig, options: DescribeMeOptions): ViteUserConfig {
+  const userTest = userConfig.test
   const test: TestConfig = {
     setupFiles: ['@describe-me/vitest/setup-dom'],
     // Testing Library would otherwise unmount in its own afterEach, before the
@@ -77,7 +95,18 @@ function domConfig(userTest: TestConfig | undefined): ViteUserConfig {
     )
   }
 
-  return { test }
+  const styledComponents =
+    options.styledComponentsBrowserBuild === false
+      ? undefined
+      : styledComponentsBrowserBuild(userConfig.root ?? process.cwd())
+
+  if (!styledComponents) {
+    return { test }
+  }
+
+  console.info('describe-me: using the browser build of styled-components, for createGlobalStyle')
+
+  return { resolve: styledComponents.resolve, test: { ...test, ...styledComponents.test } }
 }
 
 /**
@@ -92,6 +121,10 @@ function domConfig(userTest: TestConfig | undefined): ViteUserConfig {
 export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   const { enabled = true, framework = 'react', outDir } = options
   let renderModule: RenderModule = RENDER_MODULES[framework].browser
+  // Known once Vite has resolved its config. Vitest always serves; a production
+  // build that shares the config must not carry the export registration.
+  let root = ''
+  let serving = false
 
   return {
     name: 'describe-me',
@@ -111,7 +144,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const reporters = userConfig.test?.reporters ? [reporter] : ['default', reporter]
 
       const config =
-        environment === 'browser' ? browserConfig(renderModule) : domConfig(userConfig.test)
+        environment === 'browser' ? browserConfig(renderModule) : domConfig(userConfig, options)
 
       return { ...config, test: { ...config.test, reporters } }
     },
@@ -142,6 +175,49 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       }
 
       return resolved
+    },
+
+    configResolved(config) {
+      root = config.root
+      serving = config.command === 'serve'
+    },
+
+    // Names components after their export (see registerExports). `order: 'post'`
+    // runs it after the TypeScript and JSX transforms, so it parses plain
+    // JavaScript, while the plugin as a whole stays `enforce: 'pre'` for the
+    // render redirect above.
+    transform: {
+      order: 'post',
+      handler(code, id) {
+        if (!enabled || options.registerExports === false || !serving) {
+          return null
+        }
+
+        const file = projectModulePath(id, root)
+
+        // Without the word `export` there is nothing to register: skip the parse.
+        if (file === null || !code.includes('export')) {
+          return null
+        }
+
+        let snippet: string | null
+
+        // Parse errors are for the user's own tooling to report, and an older
+        // Vite may lack `this.parse`. This transform must never be the reason a
+        // module fails, so it steps aside instead.
+        try {
+          snippet = registerExports(this.parse(code), file)
+        } catch {
+          return null
+        }
+
+        if (snippet === null) {
+          return null
+        }
+
+        // Appending moves no code, so the source maps of earlier transforms stay valid.
+        return { code: code + snippet, map: null }
+      },
     },
   }
 }

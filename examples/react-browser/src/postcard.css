@@ -1,0 +1,20 @@
+/* Both images are above Vite's 4 kB inline limit, so they stay URLs instead of
+   becoming data: URIs, and the snapshot points at the test page's server. */
+.postcard {
+  display: inline-block;
+  margin: 0;
+  padding: 14px;
+  border-radius: 4px;
+  background: url('./assets/stamp-dots.png') repeat;
+}
+.postcard-photo {
+  display: block;
+  width: 320px;
+  height: auto;
+  border: 6px solid var(--paper);
+}
+.postcard-caption {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--ink);
+}

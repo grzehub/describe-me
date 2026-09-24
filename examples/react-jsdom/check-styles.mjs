@@ -1,5 +1,4 @@
 /**
- * The point of the spike: did the CSS survive into the snapshot?
  * Reads `.describe-me/`, then for each styling technique reports whether its
  * selector and its declared colour are present anywhere in the serialized DOM.
  * Exits non-zero when anything but adoptedStyleSheets (unsupported by jsdom) is lost.
@@ -26,6 +25,11 @@ const TECHNIQUES = [
     name: 'styled-components + theme',
     selector: 'letter-spacing: -0.01em',
     value: 'rgb(17, 17, 17)',
+  },
+  {
+    name: 'styled-components createGlobalStyle',
+    selector: 'box-sizing: border-box',
+    value: '--global-styles: applied',
   },
 ]
 

@@ -1,3 +1,4 @@
+import { renderDiagnosticsMenu } from './diagnostics-menu.js'
 import { el } from './el.js'
 import { allTests, state } from './state.js'
 
@@ -5,7 +6,7 @@ function stat(count: number, label: string, tone?: 'pass' | 'fail'): HTMLElement
   return el('span', { class: tone ? `stat ${tone}` : 'stat' }, el('b', {}, String(count)), label)
 }
 
-/** Wordmark, pass/fail counts and the time of the last run. */
+/** Wordmark, pass/fail counts, what could not be documented and the time of the last run. */
 export function renderHeader(): HTMLElement {
   const manifest = state.manifest
   const tests = manifest ? allTests(manifest) : []
@@ -26,6 +27,7 @@ export function renderHeader(): HTMLElement {
     { class: 'header' },
     wordmark,
     summary,
+    manifest && renderDiagnosticsMenu(manifest),
     el('span', { class: 'right live' }, 'updated ', el('span', { class: 'mono' }, when)),
   )
 }

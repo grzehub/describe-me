@@ -208,6 +208,104 @@ a {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pass) 18%, transparent);
 }
 
+/* ---------------------------------------------------------- diagnostics -- */
+
+.issues {
+  position: relative;
+  font-size: 12px;
+}
+.issues > summary {
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+  cursor: pointer;
+  list-style: none;
+}
+.issues > summary::-webkit-details-marker {
+  display: none;
+}
+.issues > summary b {
+  color: inherit;
+}
+.issues[open] > summary {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.issues-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: 440px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow-md);
+}
+.issues-section {
+  padding: 10px 16px;
+}
+.issues-section + .issues-section {
+  border-top: 1px solid var(--line-soft);
+}
+.issues-section h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.issues-count {
+  color: var(--ink-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.issues-hint {
+  margin: 4px 0 8px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+.issues-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.issues-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.issues-link {
+  overflow: hidden;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.issues-link:hover {
+  text-decoration: underline;
+}
+.issues-meta,
+.issues-more {
+  color: var(--ink-3);
+}
+
 /* -------------------------------------------------------------- sidebar -- */
 
 .sidebar {

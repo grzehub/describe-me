@@ -1,3 +1,5 @@
+import { describeComponentType } from './describe-component-type.js'
+
 /** Turn arbitrary props into something JSON-safe and readable. */
 export function serializeValue(value: unknown, depth = 0): unknown {
   if (depth > 3) {
@@ -29,13 +31,7 @@ export function serializeValue(value: unknown, depth = 0): unknown {
     const record = value as Record<string, unknown>
     // React element
     if ('$$typeof' in record && 'type' in record) {
-      const type = record.type as unknown
-      const name =
-        typeof type === 'string'
-          ? type
-          : ((type as { displayName?: string; name?: string })?.displayName ??
-            (type as { name?: string })?.name ??
-            'Anonymous')
+      const { name } = describeComponentType(record.type)
 
       return `<${name} />`
     }
