@@ -50,9 +50,9 @@
     "@describe-me/core": "workspace:^"
   },
   "peerDependencies": {
-    "@testing-library/react": ">=16",
-    "react": ">=18",
-    "vitest-browser-react": ">=2"
+    "@testing-library/react": "^16.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "vitest-browser-react": "^2.0.0"
   },
   "peerDependenciesMeta": {
     "@testing-library/react": {
