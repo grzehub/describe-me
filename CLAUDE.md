@@ -21,7 +21,9 @@ cd examples/react-browser && pnpm test          # 19 tests, browser mode
 cd examples/react-jsdom && pnpm test          # 13 tests, jsdom
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 pnpm check-manifest   # both examples' manifests, after running their tests
+pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
+cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
 pnpm smoke            # pack + install tarballs in a fresh project (Node ^20.19 || >=22.12)
 ```

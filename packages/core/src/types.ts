@@ -43,12 +43,13 @@ export interface CaptureOptions {
    * Wait one macrotask for the framework to flush before looking at the DOM.
    * Default: true. Pass false when the caller knows the DOM is already
    * committed (e.g. right after Testing Library's `act()`-wrapped `rerender`):
-   * the snapshot is then taken synchronously, before the caller moves on.
+   * the snapshot is then taken and the frame recorded before `capture()`
+   * returns, so the caller can move on without awaiting it.
    */
   settle?: boolean
 }
 
-/** A frame as captured in the browser. `snapshot` is an rrweb serialized document. */
+/** A frame as captured by the recorder. `snapshot` is the DOM, already serialized to JSON. */
 export interface Frame {
   id: string
   kind: FrameKind
@@ -56,7 +57,8 @@ export interface Frame {
   /** ms since the test began */
   at: number
   meta?: Record<string, unknown>
-  snapshot: unknown
+  /** rrweb serialized document, as JSON text */
+  snapshot: string
 }
 
 /** What a single test hands over to the reporter via task.meta[META_KEY]. */
