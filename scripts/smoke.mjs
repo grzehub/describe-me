@@ -555,7 +555,7 @@ function verifyDom(manifest) {
   )
 
   assert(
-    headHosts.includes('fonts.googleapis.com'),
+    headHosts.some((host) => host === 'fonts.googleapis.com'),
     `the preview head did not reach the manifest: ${manifest.head}`,
   )
 }
