@@ -28,6 +28,7 @@ jobs:
       - run: pnpm --filter react-jsdom test
       - run: pnpm --filter react-jsdom check-styles
       - run: pnpm check-manifest
+      - run: pnpm check-style-store
 
   smoke:
     name: smoke (${{ matrix.name }})

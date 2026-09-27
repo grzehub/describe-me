@@ -1,8 +1,11 @@
 /**
  * Measures what an output directory weighs: snapshot files against distinct
- * DOMs, the bytes rrweb's `rootId` takes, and how much CSS the snapshots
- * inline, split into styled-components sheets (`<style data-styled>`) and the
- * rest. Plain Node without a build, so it also reads output of older versions.
+ * DOMs, the bytes rrweb's `rootId` takes, the style chunks in `styles/` the
+ * snapshots refer to, and how much CSS the snapshots carry, split into
+ * styled-components sheets (`<style data-styled>`) and the rest. A sheet stored
+ * in `styles/` is counted as if it were inlined, so the CSS figures compare
+ * with output written before stylesheets moved out of the snapshots. Plain
+ * Node without a build, so it also reads output of older versions.
  * Usage: `node scripts/measure-output.mjs <outDir|manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
@@ -18,6 +21,7 @@ if (inputs.length === 0) {
 
 const ROOT_ID_MEMBER = /,?"rootId":\d+/g
 const SPLIT_MARKER = '/* rr_split */'
+const STYLE_PREFIX = 'describe-me-style:'
 
 function manifestPathOf(input) {
   if (existsSync(input) && statSync(input).isDirectory()) {
@@ -111,7 +115,7 @@ function sumBytes(texts) {
   return bytes
 }
 
-function newMeasurement(manifest) {
+function newMeasurement(manifest, stylesDir) {
   const tests = manifest.modules.flatMap((module) => module.tests)
   const frames = tests.flatMap((test) => test.frames)
 
@@ -123,19 +127,51 @@ function newMeasurement(manifest) {
     doms: new Set(),
     bytes: 0,
     rootIdBytes: 0,
+    stylesDir,
+    /** Text of every style chunk the snapshots refer to, by hash; null when the file is missing. */
+    chunks: new Map(),
     inlined: { styled: 0, other: 0 },
     sheets: newSplitSets(),
     rules: newSplitSets(),
   }
 }
 
-function addSheets(measurement, serialized) {
+/** One style chunk's text, read once. A missing chunk warns, is counted and reads as empty. */
+function chunkText(measurement, label, hash) {
+  if (!measurement.chunks.has(hash)) {
+    const abs = join(measurement.stylesDir, `${hash}.css`)
+    const exists = existsSync(abs)
+    if (!exists) {
+      console.warn(`measure-output: ${label}: styles/${hash}.css referenced but missing`)
+    }
+
+    measurement.chunks.set(hash, exists ? readFileSync(abs, 'utf8') : null)
+  }
+
+  return measurement.chunks.get(hash) ?? ''
+}
+
+/** A sheet as the viewer replays it: a style reference is replaced by its joined chunks. */
+function sheetText(measurement, label, css) {
+  if (!css.startsWith(STYLE_PREFIX)) {
+    return css
+  }
+
+  return css
+    .slice(STYLE_PREFIX.length)
+    .split('+')
+    .map((hash) => chunkText(measurement, label, hash))
+    .join('')
+}
+
+function addSheets(measurement, label, serialized) {
   for (const sheet of collectSheets(serialized)) {
     const side = sheet.styled ? 'styled' : 'other'
-    measurement.inlined[side] += byteLength(sheet.css)
-    measurement.sheets[side].add(sheet.css)
+    const css = sheetText(measurement, label, sheet.css)
+    measurement.inlined[side] += byteLength(css)
+    measurement.sheets[side].add(css)
 
-    for (const rule of topLevelRules(sheet.css.replaceAll(SPLIT_MARKER, ''))) {
+    for (const rule of topLevelRules(css.replaceAll(SPLIT_MARKER, ''))) {
       measurement.rules[side].add(rule)
     }
   }
@@ -161,13 +197,14 @@ function addSnapshot(measurement, label, json) {
     return
   }
 
-  addSheets(measurement, serialized)
+  addSheets(measurement, label, serialized)
   stripNodeIds(serialized)
   measurement.doms.add(createHash('sha1').update(JSON.stringify(serialized)).digest('hex'))
 }
 
 function measure(manifestPath) {
-  const measurement = newMeasurement(JSON.parse(readFileSync(manifestPath, 'utf8')))
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const measurement = newMeasurement(manifest, join(dirname(manifestPath), 'styles'))
 
   for (const file of measurement.files) {
     const abs = resolve(dirname(manifestPath), file)
@@ -242,13 +279,30 @@ function countsLine(measurement) {
   ].join(' · ')
 }
 
+/** The style chunks the snapshots refer to, as files on disk. */
+function stylesSummary(measurement) {
+  const texts = [...measurement.chunks.values()]
+  const stored = texts.filter((text) => text !== null)
+
+  return { files: stored.length, missing: texts.length - stored.length, bytes: sumBytes(stored) }
+}
+
+function stylesLine(styles) {
+  const missing = styles.missing > 0 ? ` (${styles.missing} missing)` : ''
+
+  return `styles/ files ${styles.files}${missing} · ${formatBytes(styles.bytes)}`
+}
+
 function report(manifestPath, measurement) {
   const rootId = share(measurement.rootIdBytes, measurement.bytes)
+  const styles = stylesSummary(measurement)
 
   return [
     manifestPath,
     `  ${countsLine(measurement)}`,
     `  snapshot bytes ${formatBytes(measurement.bytes)} · rootId ${rootId}`,
+    `  ${stylesLine(styles)}`,
+    `  total on disk ${formatBytes(measurement.bytes + styles.bytes)}`,
     `  CSS as if inlined: ${inlinedLine(measurement.inlined)}`,
     `  distinct sheets: ${distinctLine(measurement.sheets)}`,
     `  distinct rules: ${distinctLine(measurement.rules)}`,

@@ -24,6 +24,8 @@ Prototype. React, Vitest in browser mode or jsdom, static snapshots (no live mou
  │ @describe-me/vitest  userEvent│───────────▶│  writes .describe-me/        │
  │ @describe-me/core    recorder│             │    manifest.json             │
  │   rrweb-snapshot(document)   │             │    snapshots/<hash>.json     │
+ │                              │             │    styles/<hash>.css         │
+ │                              │             │    assets/<hash>.<ext>       │
  └──────────────────────────────┘             └──────────────┬───────────────┘
                                                              │ fs.watch → HMR
                                               ┌──────────────▼───────────────┐
@@ -54,7 +56,9 @@ Frames are captured after `render`, after every interaction, after each
 `step()`, and at the end of the test if the DOM changed since the last frame.
 A `step()` whose body already produced the current DOM just names that frame.
 rrweb's node ids restart at 1 for every capture, so identical DOM serializes
-to identical JSON and is stored in one snapshot file.
+to identical JSON and is stored in one snapshot file. Stylesheets of 256
+characters or more are stored once in `styles/` and referenced from the
+snapshots.
 
 A test that records no frame before the closing one (no recording `render`,
 no interaction, no `step()`) is left out of the manifest, even if it failed,
@@ -378,6 +382,36 @@ server in browser mode), which stop working once the tests end. A file is
 looked up under the project root, then `public/`; paths that cannot be found
 are listed as `assetsMissing` in the manifest and in the diagnostics. Links to
 pages (`<a href="/">`) are left alone.
+
+## Output directory
+
+The reporter writes everything the viewer shows into `.describe-me/` (the
+plugin's `outDir` option):
+
+- `manifest.json`: modules, tests and frames, component docs and diagnostics.
+- `snapshots/<hash>.json`: the serialized DOM of each frame.
+- `styles/<hash>.css`: the stylesheets of the snapshots, in chunks.
+- `assets/<hash>.<ext>`: project files that snapshots and stylesheets point at.
+
+Everything but the manifest is content-addressed: a file is named after the
+hash of its content, so identical DOM is stored once, however many frames,
+tests and runs produce it. A stylesheet of 256 characters or more is moved
+out of the snapshot, which keeps a reference (`describe-me-style:<hash>+<hash>…`).
+The sheet is split between top-level rules into chunks of about 4 KB, and
+where a chunk ends depends on the rules, not on their position. A large
+styled-components sheet that grows from test to test therefore shares most of
+its chunks with the previous version, and each rule is stored about once.
+Shorter sheets stay inline.
+
+After every run the reporter collects garbage: first the snapshots no frame
+points at, then the style chunks no kept snapshot refers to, then the assets
+that neither a kept snapshot nor a kept chunk refers to, so a font or image
+used only from CSS stays. `describe-me build` copies the directory into the
+static site as `__data/`.
+
+The viewer reads output written by 0.4. A 0.4 viewer cannot read this output
+(frames show without their stylesheets), so upgrade `describe-me` together with
+`@describe-me/vitest`.
 
 ## Switches
 

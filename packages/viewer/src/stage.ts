@@ -1,7 +1,8 @@
-import { createCache, createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
+import { createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
 import type { ManifestFrame } from '@describe-me/core/types'
 import { loadSnapshot } from './data.js'
 import { fitStage } from './fit-stage.js'
+import { replayCache } from './replay-cache.js'
 import { state } from './state.js'
 
 let paintToken = 0
@@ -18,7 +19,7 @@ export async function paintFrame(stage: HTMLElement, frame: ManifestFrame): Prom
   const { iframe } = rebuildIntoSandboxedIframe(node, {
     root: stage,
     iframeAttributes: { title: 'snapshot' },
-    cache: createCache(),
+    cache: replayCache,
     mirror: createMirror(),
     hackCss: true,
   })

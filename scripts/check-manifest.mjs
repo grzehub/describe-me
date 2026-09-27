@@ -10,12 +10,25 @@
  * without rrweb's node ids). `--structure-only` runs just these guarantees and
  * snapshot checks, which is what a real project can promise.
  *
+ * In both modes the stores must be complete: every style chunk a snapshot
+ * refers to exists in `styles/`, no chunk there is left unreferenced, and every
+ * asset a snapshot or a chunk names exists in `assets/`. The full check also
+ * makes sure stylesheet extraction is on: no snapshot inlines a sheet of 256+
+ * characters, and at least one refers to a chunk.
+ *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { manifestDiagnostics } from '../packages/core/dist/manifest-diagnostics.js'
+
+const STYLE_PREFIX = 'describe-me-style:'
+const STYLE_REFERENCE = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
+// The same pattern as ASSET_REFERENCE in packages/vitest/src/asset-store.ts.
+const ASSET_REFERENCE = /describe-me-asset:([0-9a-f]{16}(?:\.[a-z0-9]+)?)/g
+// A copy of MIN_EXTRACTED_LENGTH in packages/vitest/src/style-store.ts.
+const MIN_EXTRACTED_LENGTH = 256
 
 const STRUCTURE_ONLY = '--structure-only'
 const structureOnly = process.argv.includes(STRUCTURE_ONLY)
@@ -189,18 +202,149 @@ function snapshotProblemsIn(manifest, manifestPath) {
   return { files, problems }
 }
 
+/** File names in one of the output's folders. Output older than `styles/` counts as empty. */
+function filesIn(dir) {
+  return existsSync(dir) ? readdirSync(dir) : []
+}
+
+/** Texts of the files that exist, by path relative to the output directory. */
+function textsOf(outDir, files) {
+  const texts = new Map()
+  for (const file of files) {
+    const abs = resolve(outDir, file)
+    if (existsSync(abs)) {
+      texts.set(file, readFileSync(abs, 'utf8'))
+    }
+  }
+
+  return texts
+}
+
+/** Style chunk names (`<hash>.css`) the texts refer to, each with the first file that does. */
+function styleChunksIn(texts) {
+  const chunks = new Map()
+  for (const [file, text] of texts) {
+    for (const match of text.matchAll(STYLE_REFERENCE)) {
+      for (const hash of match[1].split('+')) {
+        if (!chunks.has(`${hash}.css`)) {
+          chunks.set(`${hash}.css`, file)
+        }
+      }
+    }
+  }
+
+  return chunks
+}
+
+/** Asset names the texts refer to that `assets/` does not hold. */
+function assetProblemsIn(outDir, texts) {
+  const stored = new Set(filesIn(join(outDir, 'assets')))
+  const problems = new Set()
+  for (const [file, text] of texts) {
+    for (const match of text.matchAll(ASSET_REFERENCE)) {
+      if (!stored.has(match[1])) {
+        problems.add(`${file}: asset assets/${match[1]} missing`)
+      }
+    }
+  }
+
+  return [...problems]
+}
+
+/**
+ * Missing and orphaned style chunks, and assets missing for the snapshots or
+ * the chunks. Missing snapshot files are left to the snapshot checks.
+ */
+function storeProblemsIn(manifest, manifestPath) {
+  const outDir = dirname(manifestPath)
+  const snapshots = textsOf(outDir, snapshotFilesOf(manifest))
+  const referenced = styleChunksIn(snapshots)
+  const stored = new Set(filesIn(join(outDir, 'styles')))
+  const problems = []
+
+  for (const [chunk, file] of referenced) {
+    if (!stored.has(chunk)) {
+      problems.push(`${file}: style chunk styles/${chunk} missing`)
+    }
+  }
+
+  for (const chunk of stored) {
+    if (!referenced.has(chunk)) {
+      problems.push(`styles/${chunk}: no snapshot refers to it`)
+    }
+  }
+
+  const chunkFiles = [...referenced.keys()].map((chunk) => `styles/${chunk}`)
+  problems.push(...assetProblemsIn(outDir, [...snapshots, ...textsOf(outDir, chunkFiles)]))
+
+  return { snapshots, chunks: referenced.size, problems }
+}
+
+/** Lengths of the stylesheets a serialized tree still inlines at a length the reporter extracts. */
+function inlinedSheetLengths(node, lengths = []) {
+  const cssText = node.attributes?._cssText
+  if (
+    typeof cssText === 'string' &&
+    cssText.length >= MIN_EXTRACTED_LENGTH &&
+    !cssText.startsWith(STYLE_PREFIX)
+  ) {
+    lengths.push(cssText.length)
+  }
+
+  for (const child of childrenOf(node)) {
+    inlinedSheetLengths(child, lengths)
+  }
+
+  return lengths
+}
+
+/**
+ * Stylesheet extraction must be on in a full run: no snapshot inlines a sheet
+ * the reporter moves to `styles/`, and some snapshot refers to a chunk. A
+ * filtered run after an upgrade can keep older snapshots, so this is not
+ * part of `--structure-only`.
+ */
+function extractionProblemsIn(store) {
+  const problems = []
+  for (const [file, json] of store.snapshots) {
+    let serialized
+    try {
+      serialized = JSON.parse(json)
+    } catch {
+      continue
+    }
+
+    if (!isSerializedDocument(serialized)) {
+      continue
+    }
+
+    for (const length of inlinedSheetLengths(serialized)) {
+      problems.push(`${file}: inlines a stylesheet of ${length} characters`)
+    }
+  }
+
+  if (store.chunks === 0) {
+    problems.push('no snapshot refers to a style chunk')
+  }
+
+  return problems
+}
+
 let failed = false
 
 for (const path of paths) {
   const manifest = JSON.parse(readFileSync(path, 'utf8'))
   const tests = manifest.modules.flatMap((module) => module.tests)
   const snapshots = snapshotProblemsIn(manifest, path)
+  const store = storeProblemsIn(manifest, path)
   const problems = emptinessProblemsIn(manifest)
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
+    problems.push(...extractionProblemsIn(store))
   }
 
   problems.push(...snapshots.problems)
+  problems.push(...store.problems)
 
   if (problems.length > 0) {
     failed = true
@@ -213,7 +357,8 @@ for (const path of paths) {
   }
 
   const frames = tests.flatMap((test) => test.frames).length
-  const counts = `${tests.length} tests, ${frames} frames, ${snapshots.files.length} snapshot files`
+  const files = `${snapshots.files.length} snapshot files, ${store.chunks} style chunks`
+  const counts = `${tests.length} tests, ${frames} frames, ${files}`
 
   if (structureOnly) {
     console.log(`check-manifest: ok — ${path}: ${counts} (structure only)`)
