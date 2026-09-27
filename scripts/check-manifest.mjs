@@ -3,10 +3,12 @@
  * have a `render` frame with a named component, every component must have its
  * props docs, and every asset must have been found. Run after `pnpm build`.
  *
- * Every referenced snapshot file must also exist and hold an rrweb serialized
- * document whose ids start at 1 and carry no `rootId`, and no two files may
- * hold the same DOM (compared without rrweb's node ids). `--structure-only`
- * runs just these snapshot checks, which is what a real project can promise.
+ * What the reporter guarantees is checked too: every module has a test, and
+ * every test has a frame besides the closing one. Every referenced snapshot
+ * file must also exist and hold an rrweb serialized document whose ids start
+ * at 1 and carry no `rootId`, and no two files may hold the same DOM (compared
+ * without rrweb's node ids). `--structure-only` runs just these guarantees and
+ * snapshot checks, which is what a real project can promise.
  *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] <path/to/manifest.json> [...more]`
  */
@@ -54,6 +56,25 @@ function problemsIn(manifest) {
 
   for (const path of assetsMissing) {
     problems.push(`${path}: asset not found`)
+  }
+
+  return problems
+}
+
+/** What the reporter guarantees: no module without tests, no test that recorded nothing. */
+function emptinessProblemsIn(manifest) {
+  const problems = []
+
+  for (const module of manifest.modules) {
+    if (module.tests.length === 0) {
+      problems.push(`${module.id}: no tests`)
+    }
+
+    for (const test of module.tests) {
+      if (!test.frames.some((frame) => frame.kind !== 'end')) {
+        problems.push(`${test.fullName}: no frame besides the closing one`)
+      }
+    }
   }
 
   return problems
@@ -174,7 +195,11 @@ for (const path of paths) {
   const manifest = JSON.parse(readFileSync(path, 'utf8'))
   const tests = manifest.modules.flatMap((module) => module.tests)
   const snapshots = snapshotProblemsIn(manifest, path)
-  const problems = structureOnly ? [] : problemsIn(manifest)
+  const problems = emptinessProblemsIn(manifest)
+  if (!structureOnly) {
+    problems.push(...problemsIn(manifest))
+  }
+
   problems.push(...snapshots.problems)
 
   if (problems.length > 0) {

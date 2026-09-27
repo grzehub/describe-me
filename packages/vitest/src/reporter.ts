@@ -3,7 +3,7 @@
  * `.describe-me/manifest.json` plus one file per snapshot.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 import type { Reporter, TestCase, TestModule, Vitest } from 'vitest/node'
 import {
   META_KEY,
@@ -16,7 +16,10 @@ import {
 } from '@describe-me/core/types'
 import { AssetStore } from './asset-store.js'
 import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
+import { compileGlobs } from './compile-globs.js'
 import { componentEntries } from './component-entries.js'
+import { fileFilter } from './file-filter.js'
+import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { testPath } from './test-path.js'
@@ -24,10 +27,25 @@ import { testPath } from './test-path.js'
 export interface DescribeMeReporterOptions {
   /** Output directory, relative to the Vitest root. Default: `.describe-me` */
   outDir?: string
+  /**
+   * Which test files appear in the manifest: globs relative to the Vitest
+   * root, matched with picomatch, dotfiles included. Default: every test file.
+   */
+  include?: string | string[]
+  /**
+   * Test files to leave out of the manifest, as globs like `include`. Wins over
+   * `include`. Default: none.
+   */
+  exclude?: string | string[]
+}
+
+function recordOf(tc: TestCase): TestRecord | undefined {
+  return (tc.meta() as Record<string, unknown>)[META_KEY] as TestRecord | undefined
 }
 
 export default class DescribeMeReporter implements Reporter {
   private readonly outDirOption: string
+  private readonly isRecordedFile: (fileName: string) => boolean
   private root = process.cwd()
   private outDir = ''
   private snapshots!: SnapshotStore
@@ -36,6 +54,10 @@ export default class DescribeMeReporter implements Reporter {
 
   constructor(options: DescribeMeReporterOptions = {}) {
     this.outDirOption = options.outDir ?? '.describe-me'
+    this.isRecordedFile = fileFilter({
+      include: compileGlobs(options.include),
+      exclude: compileGlobs(options.exclude),
+    })
   }
 
   onInit(vitest: Vitest): void {
@@ -53,7 +75,8 @@ export default class DescribeMeReporter implements Reporter {
   /**
    * A filtered run (`vitest run Button.test.tsx`) must not wipe the other
    * modules from the manifest, so start from whatever the last run wrote.
-   * Modules whose file no longer exists are dropped.
+   * Modules whose file is gone or no longer selected by `include` / `exclude`
+   * are dropped, and so are the empty tests that 0.4 still wrote.
    */
   private seedFromPreviousRun(): void {
     const file = join(this.outDir, 'manifest.json')
@@ -64,8 +87,14 @@ export default class DescribeMeReporter implements Reporter {
     try {
       const previous = JSON.parse(readFileSync(file, 'utf8')) as Manifest
       for (const mod of previous.modules ?? []) {
-        if (existsSync(resolve(this.root, mod.id))) {
-          this.modules.set(mod.id, mod)
+        const tests = mod.tests.filter((test) => isRecordedTest(test))
+
+        if (
+          tests.length > 0 &&
+          this.isRecordedModule(mod.id) &&
+          existsSync(resolve(this.root, mod.id))
+        ) {
+          this.modules.set(mod.id, { ...mod, tests })
         }
       }
     } catch {
@@ -73,9 +102,34 @@ export default class DescribeMeReporter implements Reporter {
     }
   }
 
+  /**
+   * A test skipped in this run keeps its previous entry, so a filtered run does
+   * not erase documentation.
+   */
   onTestModuleEnd(module: TestModule): void {
     const id = relative(this.root, module.moduleId)
-    const tests = Array.from(module.children.allTests()).map((tc) => this.toManifestTest(tc))
+
+    if (!this.isRecordedModule(id)) {
+      this.modules.delete(id)
+      return
+    }
+
+    const previous = this.modules.get(id)
+    const tests: ManifestTest[] = []
+
+    for (const tc of module.children.allTests()) {
+      const test = this.manifestTestOf(tc, previous)
+
+      if (test) {
+        tests.push(test)
+      }
+    }
+
+    if (tests.length === 0) {
+      this.modules.delete(id)
+      return
+    }
+
     this.modules.set(id, { id, tests })
   }
 
@@ -112,16 +166,40 @@ export default class DescribeMeReporter implements Reporter {
     printDiagnostics(manifest)
   }
 
-  private toManifestTest(tc: TestCase): ManifestTest {
-    const record = (tc.meta() as Record<string, unknown>)[META_KEY] as TestRecord | undefined
+  /** Module ids use the platform's separators. Globs expect posix ones. */
+  private isRecordedModule(id: string): boolean {
+    return this.isRecordedFile(id.split(sep).join('/'))
+  }
+
+  /** Decided before any snapshot is written, so a dropped test writes no file. */
+  private manifestTestOf(
+    tc: TestCase,
+    previous: ManifestModule | undefined,
+  ): ManifestTest | undefined {
+    const record = recordOf(tc)
+
+    if (record && isRecordedTest(record)) {
+      return this.toManifestTest(tc, record)
+    }
+
+    if (tc.result().state !== 'skipped') {
+      return undefined
+    }
+
+    return previous?.tests.find(
+      (test) => test.id === tc.id && test.fullName === tc.fullName && isRecordedTest(test),
+    )
+  }
+
+  private toManifestTest(tc: TestCase, record: TestRecord): ManifestTest {
     const result = tc.result()
-    const frames: ManifestFrame[] = (record?.frames ?? []).map((frame) => ({
+    const frames: ManifestFrame[] = record.frames.map((frame) => ({
       id: frame.id,
       kind: frame.kind,
       label: frame.label,
       at: frame.at,
       meta: frame.meta,
-      snapshot: this.writeSnapshot(frame.snapshot, record?.origin),
+      snapshot: this.writeSnapshot(frame.snapshot, record.origin),
     }))
 
     return {
@@ -132,7 +210,7 @@ export default class DescribeMeReporter implements Reporter {
       state: (result.state as TestState) ?? 'pending',
       duration: tc.diagnostic()?.duration,
       errors: result.errors?.map((error) => ({ message: error.message, stack: error.stack })),
-      component: record?.component,
+      component: record.component,
       frames,
     }
   }

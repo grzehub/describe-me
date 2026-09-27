@@ -47,6 +47,10 @@ class Recorder {
       return
     }
 
+    if (kind === 'end' && this.frames.length === 0) {
+      return
+    }
+
     if (options.settle !== false) {
       await settle()
     }

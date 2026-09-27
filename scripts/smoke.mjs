@@ -4,7 +4,10 @@
  * same component through the plugin in browser mode and in jsdom, and builds
  * the static site. Right after the install it checks that exactly one Vite
  * version landed in the project: `describe-me` peers on the host's Vite
- * instead of nesting its own.
+ * instead of nesting its own. In both environments one test file is excluded
+ * and one renders nothing: each asserts `recorder.isActive` inside the test,
+ * which proves that the plugin's options reach the test runtime, and neither
+ * may appear in the manifest.
  * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
  * the temp project for inspection; `--vite` and `--vitest` pin older versions
  * of the user's toolchain).
@@ -239,7 +242,7 @@ import { playwright } from '@vitest/browser-playwright'
 import { describeMe } from '@describe-me/vitest/plugin'
 
 export default defineConfig({
-  plugins: [react(), describeMe()],
+  plugins: [react(), describeMe({ exclude: ['src/Excluded.test.tsx'] })],
   test: {
     include: ['src/**/*.test.tsx'],
     browser: {
@@ -262,7 +265,10 @@ import react from '@vitejs/plugin-react'
 import { describeMe } from '@describe-me/vitest/plugin'
 
 export default defineConfig({
-  plugins: [react(), describeMe({ outDir: '.describe-me-dom' })],
+  plugins: [
+    react(),
+    describeMe({ outDir: '.describe-me-dom', exclude: ['dom/Excluded.test.tsx'] }),
+  ],
   test: {
     environment: 'jsdom',
     include: ['dom/**/*.test.tsx'],
@@ -291,6 +297,36 @@ describe('Hello', () => {
   it('can be loud', () => {
     const screen = render(<Hello name="Ada" tone="loud" />)
     expect(screen.getByText('HELLO ADA')).toBeDefined()
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'dom', 'pure.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { recorder } from '@describe-me/vitest'
+
+describe('pure', () => {
+  it('records in an included file', () => {
+    expect(recorder.isActive).toBe(true)
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'dom', 'Excluded.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { recorder } from '@describe-me/vitest'
+import { Hello } from '../src/Hello'
+
+describe('Excluded', () => {
+  it('renders without recording', () => {
+    const screen = render(<Hello name="Ada" />)
+    expect(screen.getByText('Hello Ada')).toBeDefined()
+    expect(recorder.isActive).toBe(false)
   })
 })
 `,
@@ -343,6 +379,36 @@ describe('Hello', () => {
 })
 `,
   )
+
+  writeFileSync(
+    join(app, 'src', 'Excluded.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { recorder } from '@describe-me/vitest'
+import { Hello } from './Hello'
+
+describe('Excluded', () => {
+  it('renders without recording', async () => {
+    const screen = await render(<Hello name="Ada" />)
+    await expect.element(screen.getByText('Hello Ada')).toBeVisible()
+    expect(recorder.isActive).toBe(false)
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'src', 'pure.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { recorder } from '@describe-me/vitest'
+
+describe('pure', () => {
+  it('records in an included file', () => {
+    expect(recorder.isActive).toBe(true)
+  })
+})
+`,
+  )
 }
 
 function assert(condition, message) {
@@ -389,6 +455,13 @@ function verify(outDir, environment) {
   const labels = frames.map((frame) => `${frame.kind}:${frame.label}`)
 
   assert(tests.length === 2, `expected 2 tests in the manifest, got ${tests.length}`)
+
+  const ids = manifest.modules.map((module) => module.id)
+  assert(
+    !ids.some((id) => id.includes('Excluded') || id.includes('pure')),
+    `an excluded or empty module is in the manifest (${environment}): ${ids.join(', ')}`,
+  )
+
   assert(
     tests.every((test) => test.state === 'passed'),
     'a test did not pass',

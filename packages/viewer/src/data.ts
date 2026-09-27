@@ -2,6 +2,7 @@ import type { rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
 import { ASSET_URL_PREFIX, type Manifest } from '@describe-me/core/types'
 import { allTests, currentTest, state } from './state.js'
 import { rerender } from './rerender.js'
+import { withoutEmptyTests } from './without-empty-tests.js'
 
 /** rrweb's serialized document node; the package does not re-export the type. */
 type SerializedNode = Parameters<typeof rebuildIntoSandboxedIframe>[0]
@@ -18,7 +19,7 @@ export async function loadManifest(): Promise<void> {
     throw new Error(`manifest: ${response.status}`)
   }
 
-  const next = (await response.json()) as Manifest
+  const next = withoutEmptyTests((await response.json()) as Manifest)
   if (state.manifest?.generatedAt === next.generatedAt) {
     return
   }
