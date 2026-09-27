@@ -1,6 +1,6 @@
 # Code style
 
-Code here is written for people first. Machines read anything; humans need
+Code here is written for people first. Machines read anything. Humans need
 light, rhythm and visible structure. Most of this is enforced by Prettier and
 ESLint (`pnpm lint:fix`), the rest is judgement.
 
@@ -13,10 +13,10 @@ ESLint (`pnpm lint:fix`), the rest is judgement.
   export. (`padding-line-between-statements`)
 - **One blank line between class members**, one-line fields may sit together.
 - **No nested ternaries.** Use `if`/`else` or a lookup table.
-- **No single-letter names.** `pending`, not `p`; `frame`, not `f`; `(key, value)`,
-  not `(k, v)`. A name should still mean something twenty lines below its
-  declaration. Loop counters `i`/`j` and the throwaway `_` are the only
-  exceptions. (`id-length`)
+- **No single-letter names.** `pending` instead of `p`, `frame` instead of `f`,
+  `(key, value)` instead of `(k, v)`. A name should still mean something twenty
+  lines below its declaration. Loop counters `i`/`j` and the throwaway `_` are
+  the only exceptions. (`id-length`)
 - **`import type` for types.** The runtime dependency graph stays honest.
 - Prettier: no semicolons, single quotes, 100 columns, trailing commas.
 
@@ -31,11 +31,25 @@ ESLint (`pnpm lint:fix`), the rest is judgement.
 - **Short functions, flat bodies.** Prefer an early `return` over nesting.
   If a function needs a second screen, it wants to be two functions.
 - **Names over comments.** `settle()` beats `// wait for React`.
-- **No cleverness in the hot path.** The recorder runs inside every test;
+- **No cleverness in the hot path.** The recorder runs inside every test, so
   it should read like a checklist.
 - English everywhere in code, comments and docs.
 
+## Prose
+
+Comments, docs, changesets and PR descriptions follow the same idea: they are
+written for people and are no longer than they need to be.
+
+- **Comment the why, not the what.** A comment earns its place by explaining a
+  decision, a constraint or a gotcha that the code cannot show. Never restate
+  the code or narrate the change ("added", "now", "new"). If a reader would
+  delete the comment, leave it out.
+- **Short sentences, plain words.** A doc comment is one or two sentences
+  unless the API really needs more.
+- **Periods, not semicolons.** End the sentence and start a new one, or use a
+  comma or a list.
+
 ## Public API
 
-The exports of each entry point are the contract. Adding is fine; renaming or
+The exports of each entry point are the contract. Adding is fine. Renaming or
 removing needs a note in the PR and a changelog line.
