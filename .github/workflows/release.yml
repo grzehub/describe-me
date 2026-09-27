@@ -1,6 +1,7 @@
 # On every push to main, refresh the "Version Packages" pull request from the
 # pending changesets. When that PR has just been merged, a second job
-# publishes the bumped packages to npm.
+# publishes the bumped packages to npm. While .changeset/pre.json is in pre
+# mode, versions are prereleases (0.5.0-next.N) published under the `next` tag.
 #
 # Publishing authenticates through npm trusted publishing (OIDC), configured
 # per package on npmjs.com for this workflow and the `npm` environment. No npm
@@ -24,7 +25,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      hasChangesets: ${{ steps.changesets.outputs.hasChangesets }}
+      hasChangesets: ${{ steps.changesets.outputs.has-changesets }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,19 +36,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: changesets/action@v1
+      # v2 is the action line for the Changesets CLI v3 used here. It pushes the
+      # release commit through the GitHub API, so the commit is signed by GitHub.
+      - uses: changesets/action@v2
         id: changesets
         with:
-          version: pnpm version-packages
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          version-script: pnpm version-packages
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
 
   publish:
     needs: version
-    # Nothing is pending and the push is the merged Version Packages PR, or a
-    # maintainer started the workflow by hand.
+    # Nothing is pending and the push is the merged Version Packages PR (its
+    # title gains " (next)" in pre mode), or a maintainer started the run.
     if: >-
       needs.version.outputs.hasChangesets == 'false' &&
       (github.event_name == 'workflow_dispatch' ||
@@ -70,8 +71,6 @@ jobs:
       # OIDC publishing needs npm >= 11.5.1; the runner's Node ships an older one.
       - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
-      - uses: changesets/action@v1
+      - uses: changesets/action@v2
         with:
-          publish: pnpm release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          publish-script: pnpm release
