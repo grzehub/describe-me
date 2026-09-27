@@ -44,6 +44,14 @@ export default defineConfig({
 
 Pass `describeMe({ environment: 'browser' | 'dom' })` to override the detection.
 
+A test that records no frame before the closing one (no recording `render`,
+no interaction, no `step()`) costs no snapshot and is left out of the
+manifest. `describeMe({ include, exclude })` chooses which test files are
+recorded, with picomatch globs relative to the Vitest root; `exclude` wins.
+Tests in other files still run, but record nothing. The reporter takes the
+same two options, but on its own it only filters the manifest: without the
+plugin the setup file does not know them.
+
 The pieces can also be wired by hand, in which case tests import `render` from
 the adapter themselves (`@describe-me/react` in browser mode,
 `@describe-me/react/testing-library` in jsdom):

@@ -56,6 +56,14 @@ A `step()` whose body already produced the current DOM just names that frame.
 rrweb's node ids restart at 1 for every capture, so identical DOM serializes
 to identical JSON and is stored in one snapshot file.
 
+A test that records no frame before the closing one (no recording `render`,
+no interaction, no `step()`) is left out of the manifest, even if it failed,
+and costs no snapshot, so pure logic tests next to your components are free.
+A test that renders outside the recording `render` (for example with
+`createRoot` by hand) is therefore left out too; call `step()` to keep it. A
+test skipped in a filtered run (`-t`, `.only`, `.skip`) keeps what the last
+run recorded for it.
+
 Interactions are intercepted at the source: the setup file patches Vitest's
 `Locator` action methods (`click`, `dblClick`, `tripleClick`, `fill`, `clear`,
 `hover`, `unhover`, `wheel`, `dropTo`, `selectOptions`, `upload`) and the
@@ -194,6 +202,38 @@ shows up only when the component puts it into the DOM.
 `examples/react-jsdom` is the jsdom counterpart of `examples/react-browser`. Only
 jsdom is tested; happy-dom is untested.
 
+## Plugin options
+
+| Option                         | Default          | Effect                                                                                                        |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| `enabled`                      | `true`           | `false` runs the same tests without recording, e.g. for benchmarks.                                           |
+| `framework`                    | `'react'`        | Which framework adapter replaces the test library's `render`.                                                 |
+| `environment`                  | detected         | `'browser'` or `'dom'`: `browser` when `test.browser.enabled` is set, `dom` otherwise.                        |
+| `outDir`                       | `'.describe-me'` | Output directory, relative to the Vitest root.                                                                |
+| `registerExports`              | `true`           | Name components after their export, see [Component overview](#component-overview).                            |
+| `styledComponentsBrowserBuild` | `true`           | DOM environments: load the browser build of styled-components, see [Global styles](#global-styles-and-fonts). |
+| `include`                      | every test file  | Test files to record.                                                                                         |
+| `exclude`                      | none             | Test files never to record; wins over `include`.                                                              |
+
+`include` and `exclude` take a glob or a list of globs, matched with
+[picomatch](https://github.com/micromatch/picomatch) against the test file's
+path relative to the Vitest root, dotfiles included. A leading `./` is
+ignored, and `exclude` wins over `include`. Tests in other files still run
+and report as usual, but record nothing, and their modules leave the
+manifest, including ones kept from an earlier run.
+
+Concurrent tests (`test.concurrent`, `describe.concurrent`,
+`sequence.concurrent`) are never recorded, because they would share one
+recorder; the setup file warns once per file.
+
+```ts
+describeMe({
+  // document the components, not the slow integration suites
+  include: 'src/components/**',
+  exclude: ['**/*.integration.test.tsx'],
+})
+```
+
 ## Without the plugin
 
 The pieces can be wired by hand if you prefer explicit config:
@@ -213,6 +253,11 @@ Then import `render` from `@describe-me/react` instead of `vitest-browser-react`
 For jsdom, use `@describe-me/vitest/setup-dom`, import `render` from
 `@describe-me/react/testing-library`, and set `css: true` and
 `env: { RTL_SKIP_AUTO_CLEANUP: 'true' }` yourself.
+
+The reporter accepts the same `include` and `exclude`
+(`new DescribeMeReporter({ exclude: '**/*.integration.test.tsx' })`) and
+filters the manifest with them. Only the plugin hands them to the setup file,
+so a hand-wired setup still records, and pays for, every test.
 
 ## Open questions / next
 

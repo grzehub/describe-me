@@ -61,7 +61,8 @@
     "build": "rimraf dist && tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@describe-me/core": "workspace:^"
+    "@describe-me/core": "workspace:^",
+    "picomatch": "^4.0.3"
   },
   "peerDependencies": {
     "vitest": "^4.0.0 || ^5.0.0",
@@ -81,6 +82,7 @@
     "@types/node": "^22",
     "typescript": "^6",
     "@testing-library/user-event": "^14.6.1",
-    "@testing-library/dom": "^10.4.0"
+    "@testing-library/dom": "^10.4.0",
+    "@types/picomatch": "^4.0.3"
   }
 }

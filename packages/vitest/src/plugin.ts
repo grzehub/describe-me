@@ -1,7 +1,9 @@
 import type { ViteUserConfig } from 'vitest/config'
+import { compileGlobs } from './compile-globs.js'
 import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
+import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
 import { styledComponentsBrowserBuild } from './styled-components-browser-build.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
@@ -33,6 +35,17 @@ export interface DescribeMeOptions {
    * Applied when styled-components is installed. Default: true.
    */
   styledComponentsBrowserBuild?: boolean
+  /**
+   * Test files to record, as globs relative to the Vitest root, matched with
+   * picomatch, dotfiles included. Tests in other files still run, but record
+   * nothing and leave the manifest. Default: every test file.
+   */
+  include?: string | string[]
+  /**
+   * Test files never to record, as globs like `include`; `exclude` wins over
+   * `include`. Default: none.
+   */
+  exclude?: string | string[]
 }
 
 interface RenderModule {
@@ -112,8 +125,9 @@ function domConfig(userConfig: ViteUserConfig, options: DescribeMeOptions): Vite
 /**
  * One-line integration: `plugins: [describeMe()]`.
  *
- * Registers the setup file and the reporter, and redirects the framework's
- * `render` import to our adapter so existing tests record frames unchanged.
+ * Registers the setup file and the reporter, hands both of them the
+ * `include` / `exclude` globs, and redirects the framework's `render` import
+ * to our adapter so existing tests record frames unchanged.
  * Works in browser mode and in DOM environments such as jsdom; the adapter
  * itself still needs the real module, so imports coming from inside it are
  * left alone.
@@ -138,7 +152,22 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const environment = options.environment ?? detectEnvironment(userConfig)
       renderModule = RENDER_MODULES[framework][environment]
 
-      const reporter = new DescribeMeReporter({ outDir })
+      // Compiled here, so invalid globs fail before any test runs. The setup
+      // files read them through `inject`; Vite deep-merges `provide`, so the
+      // user's own keys survive.
+      const runtimeOptions: RuntimeOptions = {
+        include: compileGlobs(options.include),
+        exclude: compileGlobs(options.exclude),
+      }
+
+      const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
+
+      const reporter = new DescribeMeReporter({
+        outDir,
+        include: options.include,
+        exclude: options.exclude,
+      })
+
       // Vite concatenates arrays when merging, so only add `default` when the
       // user has not chosen their own reporters; otherwise they would lose it.
       const reporters = userConfig.test?.reporters ? [reporter] : ['default', reporter]
@@ -146,7 +175,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const config =
         environment === 'browser' ? browserConfig(renderModule) : domConfig(userConfig, options)
 
-      return { ...config, test: { ...config.test, reporters } }
+      return { ...config, test: { ...config.test, reporters, provide } }
     },
 
     async resolveId(source: string, importer: string | undefined) {

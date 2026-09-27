@@ -47,6 +47,11 @@ class Recorder {
       return
     }
 
+    // Nothing was recorded, so there is nothing to close.
+    if (kind === 'end' && this.frames.length === 0) {
+      return
+    }
+
     if (options.settle !== false) {
       await settle()
     }
