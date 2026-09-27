@@ -53,6 +53,8 @@ Prototype. React, Vitest in browser mode or jsdom, static snapshots (no live mou
 Frames are captured after `render`, after every interaction, after each
 `step()`, and at the end of the test if the DOM changed since the last frame.
 A `step()` whose body already produced the current DOM just names that frame.
+rrweb's node ids restart at 1 for every capture, so identical DOM serializes
+to identical JSON and is stored in one snapshot file.
 
 Interactions are intercepted at the source: the setup file patches Vitest's
 `Locator` action methods (`click`, `dblClick`, `tripleClick`, `fill`, `clear`,
@@ -318,14 +320,15 @@ pages (`<a href="/">`) are left alone.
 ## Switches
 
 There is no `.env`: nothing here is per-environment configuration or a secret.
-The variables below are one-shot switches for the example's benchmarks, set
-inline for a single run.
+The variables below are one-shot switches for the examples' benchmarks, set
+inline for a single run. `BENCH_MICRO` works in both examples, the other two in
+`examples/react-browser`.
 
-| Variable           | Effect                                                       |
-| ------------------ | ------------------------------------------------------------ |
-| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`). |
-| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.   |
-| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size).   |
+| Variable           | Effect                                                                        |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`).                  |
+| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.                    |
+| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size), in either example. |
 
 `DESCRIBE_ME_DIR` is set by the `describe-me` CLI for the viewer; use `--data`
 instead of setting it yourself.
@@ -334,16 +337,20 @@ instead of setting it yourself.
 
 Measured on the example suite (12 tests, 24 frames) in headless Chromium,
 5 runs per variant, medians. `pnpm bench:micro` / `pnpm bench:macro` in
-`examples/react-browser`.
+`examples/react-browser`; `pnpm bench:micro` in `examples/react-jsdom` measures
+the same captures in jsdom.
 
 |                            | recording off | recording on | overhead               |
 | -------------------------- | ------------- | ------------ | ---------------------- |
 | sum of test durations      | 682 ms        | 689 ms       | +7 ms (0.3 ms / frame) |
 | wall clock of `vitest run` | 1773 ms       | 1837 ms      | +64 ms (reporter I/O)  |
 
-Per capture, by DOM size (median): 48 nodes 0.5 ms · 318 nodes 2 ms ·
-3 000 nodes 11 ms · 15 000 nodes 60 ms. Above a few thousand nodes the
-rrweb serialization dominates and hashing the JSON adds ~20 % on top.
+Per `step()` capture, by DOM size (median): 48 nodes 0.5 ms · 318 nodes 1.5 ms ·
+3 000 nodes 10 ms · 15 000 nodes 58 ms in Chromium; 35 nodes 2 ms · 305 nodes
+3.4 ms · 3 000 nodes 26 ms · 15 000 nodes 135 ms in jsdom, where the 1 ms
+`setTimeout(0)` of the settle is part of every capture. Most of it is rrweb's
+serialization; `JSON.stringify` of the result is another 10–15 %, and comparing
+that text with the previous frame's takes at most about 0.5 ms at 15 000 nodes.
 
 The first version waited for `requestAnimationFrame` before every capture,
 which cost a full vsync (~16 ms) per frame and made tests 1.8× slower.

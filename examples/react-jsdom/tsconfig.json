@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src", "vitest.config.ts"]
+  "include": ["src", "bench", "vitest.config.ts"]
 }

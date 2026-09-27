@@ -1,5 +1,5 @@
 import { describe, it } from 'vitest'
-import { render } from 'vitest-browser-react'
+import { render } from '@testing-library/react'
 import { step } from '@describe-me/vitest'
 import { cleanupSnapshot, snapshot, createMirror } from 'rrweb-snapshot'
 
@@ -33,10 +33,12 @@ const time = async (fn: () => Promise<unknown> | unknown) => {
   return performance.now() - t0
 }
 
+// Same cases as the browser bench. jsdom has no requestAnimationFrame worth
+// measuring, so `settle` is only the macrotask core's settle() waits for.
 describe('capture cost', () => {
   for (const rows of [10, 100, 1000, 5000]) {
-    it(`${rows} rows`, async () => {
-      await render(<List n={rows} />)
+    it(`${rows} rows`, { timeout: 120_000 }, async () => {
+      render(<List n={rows} />)
       const nodes = document.querySelectorAll('*').length
 
       const stepT: number[] = []
@@ -47,12 +49,7 @@ describe('capture cost', () => {
       let previousJson = ''
       for (let i = 0; i < ROUNDS; i++) {
         stepT.push(await time(() => step(`round ${i}`, () => {})))
-        settleT.push(
-          await time(async () => {
-            await new Promise<void>((resolve) => setTimeout(resolve, 0))
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-          }),
-        )
+        settleT.push(await time(() => new Promise<void>((resolve) => setTimeout(resolve, 0))))
 
         let node: unknown
         snapT.push(

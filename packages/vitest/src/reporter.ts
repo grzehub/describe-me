@@ -139,6 +139,9 @@ export default class DescribeMeReporter implements Reporter {
 
   /** Store one frame's DOM, with its project asset URLs pointing into the asset store. */
   private writeSnapshot(snapshot: unknown, origin: string | undefined): string {
-    return this.snapshots.write(this.assets.rewrite(JSON.stringify(snapshot), origin))
+    // A mixed install, where an older core created the global recorder, still hands over objects.
+    const json = typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot)
+
+    return this.snapshots.write(this.assets.rewrite(json, origin))
   }
 }
