@@ -42,7 +42,9 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/render-testing-library.js"
+  ],
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json"
   },

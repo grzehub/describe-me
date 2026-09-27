@@ -25,6 +25,9 @@ import { step } from '@describe-me/core'
 await step('open the menu', () => screen.getByRole('button', { name: 'Menu' }).click())
 ```
 
+`elementLabel()` names a DOM element the way frame labels do, e.g.
+`button "Save"`, for adapters that record their own interactions.
+
 The manifest types live in `@describe-me/core/types`, for tools that want to
 read `.describe-me/manifest.json` themselves. Stored snapshots point into
 `assets/` and `styles/` through `ASSET_URL_PREFIX` and `STYLE_URL_PREFIX`

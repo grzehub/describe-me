@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { step } from '@describe-me/vitest'
 import { Disclosure } from './Disclosure'
@@ -37,6 +37,14 @@ describe('Disclosure', () => {
     screen.rerender(<Disclosure label="second label">the details</Disclosure>)
 
     await user.click(screen.getByRole('button', { name: 'second label' }))
+
+    expect(screen.getByText('the details')).toBeDefined()
+  })
+
+  it('opens with fireEvent', () => {
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'show details' }))
 
     expect(screen.getByText('the details')).toBeDefined()
   })

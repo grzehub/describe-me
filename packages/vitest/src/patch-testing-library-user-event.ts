@@ -1,6 +1,5 @@
-import userEvent from '@testing-library/user-event'
+import { elementLabel } from '@describe-me/core'
 import { describeArg } from './describe-arg.js'
-import { elementLabel } from './element-label.js'
 import { recordAction } from './record-action.js'
 
 /** Every interaction of user-event 14 that can change what the page shows. */
@@ -55,10 +54,19 @@ function patchMethods(target: Patchable): void {
  * It comes in two shapes, the direct API (`userEvent.click(el)`) and an
  * instance from `userEvent.setup()`, and the first delegates to the second,
  * so both are patched and `recordAction`'s depth guard keeps one gesture to
- * one frame. Safe to call more than once.
+ * one frame. When the optional peer is not installed, there is nothing to
+ * patch. Safe to call more than once.
  */
-export function patchTestingLibraryUserEvent(): void {
-  const direct = userEvent as unknown as Patchable
+export async function patchTestingLibraryUserEvent(): Promise<void> {
+  let userEvent: unknown
+
+  try {
+    userEvent = (await import('@testing-library/user-event')).default
+  } catch {
+    return
+  }
+
+  const direct = userEvent as Patchable
 
   patchMethods(direct)
 

@@ -1,3 +1,5 @@
+import { pageHasContent } from './page-has-content.js'
+import { realTimers } from './real-timers.js'
 import { serializeDocument } from './serialize-document.js'
 import { settle } from './settle.js'
 import type { CaptureOptions, ComponentInfo, Frame, FrameKind, TestRecord } from './types.js'
@@ -14,6 +16,8 @@ class Recorder {
   private component?: ComponentInfo
   private startedAt = 0
   private active = false
+  // Once `cleanup()` or the setup file took the closing frame, a second one is skipped.
+  private closed = false
   private lastJson = ''
   private seq = 0
   private teardowns = new Set<Teardown>()
@@ -21,8 +25,9 @@ class Recorder {
   begin(): void {
     this.frames = []
     this.component = undefined
-    this.startedAt = performance.now()
+    this.startedAt = realTimers.now()
     this.active = true
+    this.closed = false
     this.lastJson = ''
     this.seq = 0
   }
@@ -47,12 +52,25 @@ class Recorder {
       return
     }
 
-    if (kind === 'end' && this.frames.length === 0) {
+    if (kind !== 'end' && this.closed) {
+      this.reopen()
+    }
+
+    if (kind === 'end' && (this.frames.length === 0 || this.closed)) {
       return
     }
 
     if (options.settle !== false) {
       await settle()
+    }
+
+    if (kind === 'end') {
+      this.closed = true
+
+      // After `cleanup()` or `unmount()` there is nothing left to show.
+      if (!pageHasContent()) {
+        return
+      }
     }
 
     const json = serializeDocument()
@@ -79,10 +97,22 @@ class Recorder {
       id: `f${this.seq++}`,
       kind,
       label,
-      at: Math.round(performance.now() - this.startedAt),
+      at: Math.round(realTimers.now() - this.startedAt),
       meta,
       snapshot: json,
     })
+  }
+
+  /** The test went on after `cleanup()`, so the closing frame it took names the state before it. */
+  private reopen(): void {
+    this.closed = false
+
+    const last = this.frames[this.frames.length - 1]
+
+    if (last?.kind === 'end') {
+      last.kind = 'step'
+      last.label = 'before cleanup()'
+    }
   }
 
   end(): TestRecord {

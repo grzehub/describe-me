@@ -19,10 +19,13 @@ plugin detects where the tests run:
 - **Browser mode** (`test.browser.enabled`): redirects `vitest-browser-react`,
   records a frame after every `Locator` action and keyboard-level `userEvent`.
 - **DOM environments** such as jsdom (anything else): redirects
-  `@testing-library/react`, records a frame after every
+  `@testing-library/react`, records a frame after every `fireEvent` and every
   `@testing-library/user-event` call, turns on `test.css` so imported
   stylesheets reach the snapshots, and sets `RTL_SKIP_AUTO_CLEANUP` so the
-  component is unmounted only after the closing frame.
+  component is unmounted only after the closing frame. The setup file sets
+  React's `IS_REACT_ACT_ENVIRONMENT` where Testing Library would, so act
+  warnings match a run without describe-me. It also works without user-event
+  installed.
 
 ```ts
 import { describeMe } from '@describe-me/vitest/plugin'
@@ -52,9 +55,9 @@ Tests in other files still run, but record nothing. The reporter takes the
 same two options, but on its own it only filters the manifest: without the
 plugin the setup file does not know them.
 
-The pieces can also be wired by hand, in which case tests import `render` from
-the adapter themselves (`@describe-me/react` in browser mode,
-`@describe-me/react/testing-library` in jsdom):
+The pieces can also be wired by hand. Tests then import from the adapter
+themselves: `render` from `@describe-me/react` in browser mode, and `render`,
+`fireEvent` and `cleanup` from `@describe-me/react/testing-library` in jsdom:
 
 ```ts
 import DescribeMeReporter from '@describe-me/vitest/reporter'
