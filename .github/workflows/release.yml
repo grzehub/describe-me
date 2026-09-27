@@ -1,27 +1,62 @@
-# On every push to main: either refresh the "Version Packages" pull request
-# from the pending changesets, or, when that PR was just merged, publish the
-# bumped packages to npm.
+# On every push to main, refresh the "Version Packages" pull request from the
+# pending changesets. When that PR has just been merged, a second job
+# publishes the bumped packages to npm.
 #
 # Publishing authenticates through npm trusted publishing (OIDC), configured
-# per package on npmjs.com to point at this workflow. No npm token is stored
-# in the repository. Until trusted publishers are set up (that needs the
-# packages to exist), a classic NPM_TOKEN secret is used as the fallback.
+# per package on npmjs.com for this workflow and the `npm` environment. No npm
+# token is stored in the repository. The environment deploys only from main
+# and waits for a maintainer's approval, so only the publish job uses it:
+# refreshing the pull request never waits.
 name: release
 
 on:
   push:
     branches: [main]
+  # Re-runs a publish that failed, from main only (the environment enforces it).
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
-
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      hasChangesets: ${{ steps.changesets.outputs.hasChangesets }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: changesets/action@v1
+        id: changesets
+        with:
+          version: pnpm version-packages
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: version
+    # Nothing is pending and the push is the merged Version Packages PR, or a
+    # maintainer started the workflow by hand.
+    if: >-
+      needs.version.outputs.hasChangesets == 'false' &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.event.head_commit.message, 'chore: version packages'))
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,10 +72,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: changesets/action@v1
         with:
-          version: pnpm version-packages
           publish: pnpm release
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
