@@ -121,8 +121,11 @@ export class AssetStore {
   /** Stored name per URL pathname in this run, or null when it is not a project file. */
   private readonly names = new Map<string, string | null>()
   private readonly notFound = new Set<string>()
-  /** Asset names per snapshot file. Snapshots are content-addressed, so an entry never goes stale. */
-  private readonly referencesBySnapshot = new Map<string, string[]>()
+  /**
+   * Asset names per snapshot or style chunk. Both are content-addressed, so an
+   * entry never goes stale.
+   */
+  private readonly referencesByFile = new Map<string, string[]>()
 
   constructor(outDir: string, root: string) {
     this.outDir = outDir
@@ -178,20 +181,20 @@ export class AssetStore {
   }
 
   /**
-   * Drop the assets no kept snapshot refers to. Paths are relative to the
-   * output directory, as the manifest stores them. Every kept file is scanned,
-   * not only the ones written now: snapshots of modules that were not re-run
-   * were rewritten by an earlier run.
+   * Drop the assets no kept snapshot or style chunk refers to. Paths are
+   * relative to the output directory, as the manifest stores them. Every kept
+   * file is scanned, not only the ones written now: snapshots of modules that
+   * were not re-run were rewritten by an earlier run.
    */
-  collectGarbage(snapshotFiles: Iterable<string>): void {
+  collectGarbage(files: Iterable<string>): void {
     const stored = readdirSync(this.dir)
     if (stored.length === 0) {
       return
     }
 
     const keep = new Set<string>()
-    for (const snapshotFile of snapshotFiles) {
-      for (const name of this.referencesIn(snapshotFile)) {
+    for (const file of files) {
+      for (const name of this.referencesIn(file)) {
         keep.add(name)
       }
     }
@@ -203,20 +206,20 @@ export class AssetStore {
     }
   }
 
-  private referencesIn(snapshotFile: string): string[] {
-    const cached = this.referencesBySnapshot.get(snapshotFile)
+  private referencesIn(file: string): string[] {
+    const cached = this.referencesByFile.get(file)
     if (cached) {
       return cached
     }
 
-    const path = join(this.outDir, snapshotFile)
+    const path = join(this.outDir, file)
     if (!isFile(path)) {
       return []
     }
 
-    const json = readFileSync(path, 'utf8')
-    const names = Array.from(json.matchAll(ASSET_REFERENCE), (match) => match[1])
-    this.referencesBySnapshot.set(snapshotFile, names)
+    const text = readFileSync(path, 'utf8')
+    const names = Array.from(text.matchAll(ASSET_REFERENCE), (match) => match[1])
+    this.referencesByFile.set(file, names)
 
     return names
   }

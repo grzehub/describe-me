@@ -1,8 +1,9 @@
-import { createCache, createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
+import { createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
 import type { ManifestFrame, ManifestTest } from '@describe-me/core/types'
 import { contentBox } from './content-box.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
+import { replayCache } from './replay-cache.js'
 import { select } from './state.js'
 
 /** Bumped on every gallery render, so snapshots that arrive late are dropped. */
@@ -17,7 +18,7 @@ async function paintThumb(thumb: HTMLElement, frame: ManifestFrame, token: numbe
   const { iframe } = rebuildIntoSandboxedIframe(node, {
     root: thumb,
     iframeAttributes: { title: frame.label },
-    cache: createCache(),
+    cache: replayCache,
     mirror: createMirror(),
     hackCss: true,
   })

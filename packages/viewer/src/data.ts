@@ -1,11 +1,10 @@
-import type { rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
-import { ASSET_URL_PREFIX, type Manifest } from '@describe-me/core/types'
+import type { Manifest } from '@describe-me/core/types'
 import { allTests, currentTest, state } from './state.js'
 import { rerender } from './rerender.js'
+import { resolveAssetUrls } from './resolve-asset-urls.js'
+import { restoreStyles } from './restore-styles.js'
+import type { SerializedNode } from './serialized-node.js'
 import { withoutEmptyTests } from './without-empty-tests.js'
-
-/** rrweb's serialized document node; the package does not re-export the type. */
-type SerializedNode = Parameters<typeof rebuildIntoSandboxedIframe>[0]
 
 const snapshotCache = new Map<string, Promise<SerializedNode>>()
 
@@ -41,10 +40,10 @@ export async function loadManifest(): Promise<void> {
 }
 
 /**
- * Fetch one serialized DOM, memoized until the next manifest load. Asset URLs
- * are made absolute here, against the page, because the snapshot replays in a
- * sandboxed iframe that has no base URL of its own. The stage and the gallery
- * thumbnails both load through this.
+ * Fetch one serialized DOM, memoized until the next manifest load. The promise
+ * resolves with asset URLs made absolute and stored stylesheets put back, so
+ * the stage and the gallery thumbnails always rebuild complete CSS and measure
+ * styled boxes.
  */
 export function loadSnapshot(path: string): Promise<SerializedNode> {
   let pending = snapshotCache.get(path)
@@ -52,6 +51,11 @@ export function loadSnapshot(path: string): Promise<SerializedNode> {
     pending = fetch(`__data/${path}`, { cache: 'no-store' })
       .then((response) => response.text())
       .then((json) => parseSnapshot(json))
+      .then(async (node) => {
+        await restoreStyles(node)
+
+        return node
+      })
 
     snapshotCache.set(path, pending)
   }
@@ -60,7 +64,5 @@ export function loadSnapshot(path: string): Promise<SerializedNode> {
 }
 
 function parseSnapshot(json: string): SerializedNode {
-  const assetsUrl = new URL('__data/assets/', location.href).href
-
-  return JSON.parse(json.replaceAll(ASSET_URL_PREFIX, assetsUrl)) as SerializedNode
+  return JSON.parse(resolveAssetUrls(json)) as SerializedNode
 }

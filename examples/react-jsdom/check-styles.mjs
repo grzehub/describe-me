@@ -1,13 +1,15 @@
 /**
  * Reads `.describe-me/`, then for each styling technique reports whether its
- * selector and its declared colour are present anywhere in the serialized DOM.
- * Exits non-zero when anything but adoptedStyleSheets (unsupported by jsdom) is lost.
+ * selector and its declared colour are present anywhere in the serialized DOM,
+ * with stylesheets from `styles/` put back. Exits non-zero when anything but
+ * adoptedStyleSheets (unsupported by jsdom) is lost, or a chunk is missing.
  * Usage: `node check-styles.mjs`
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DATA = '.describe-me'
+const STYLE_REFERENCE = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
 
 const TECHNIQUES = [
   { name: 'inline style attribute', selector: 'styled-inline', value: 'rgb(255, 0, 0)' },
@@ -33,10 +35,31 @@ const TECHNIQUES = [
   },
 ]
 
+function chunkText(hash) {
+  const file = join(DATA, 'styles', `${hash}.css`)
+  if (!existsSync(file)) {
+    console.error(`check-styles: style chunk ${file} is missing`)
+    process.exit(1)
+  }
+
+  return readFileSync(file, 'utf8')
+}
+
+function withStyles(json) {
+  return json.replace(STYLE_REFERENCE, (_reference, hashes) =>
+    hashes
+      .split('+')
+      .map((hash) => chunkText(hash))
+      .join(''),
+  )
+}
+
 const manifest = JSON.parse(readFileSync(join(DATA, 'manifest.json'), 'utf8'))
 const tests = manifest.modules.flatMap((module) => module.tests)
 const frames = tests.flatMap((test) => test.frames)
-const haystack = frames.map((frame) => readFileSync(join(DATA, frame.snapshot), 'utf8')).join('\n')
+const haystack = frames
+  .map((frame) => withStyles(readFileSync(join(DATA, frame.snapshot), 'utf8')))
+  .join('\n')
 
 console.log(
   `snapshot corpus: ${tests.length} tests, ${frames.length} frames, ` +

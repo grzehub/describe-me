@@ -1,6 +1,6 @@
 /**
  * Node-side Vitest reporter. Collects frames from task.meta and writes
- * `.describe-me/manifest.json` plus one file per snapshot.
+ * `.describe-me/`: `manifest.json`, `snapshots/`, `styles/` and `assets/`.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
@@ -22,6 +22,7 @@ import { fileFilter } from './file-filter.js'
 import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
 import { SnapshotStore } from './snapshot-store.js'
+import { StyleStore } from './style-store.js'
 import { testPath } from './test-path.js'
 
 export interface DescribeMeReporterOptions {
@@ -50,6 +51,7 @@ export default class DescribeMeReporter implements Reporter {
   private outDir = ''
   private snapshots!: SnapshotStore
   private assets!: AssetStore
+  private styles!: StyleStore
   private modules = new Map<string, ManifestModule>()
 
   constructor(options: DescribeMeReporterOptions = {}) {
@@ -65,6 +67,7 @@ export default class DescribeMeReporter implements Reporter {
     this.outDir = resolve(this.root, this.outDirOption)
     this.snapshots = new SnapshotStore(this.outDir)
     this.assets = new AssetStore(this.outDir, this.root)
+    this.styles = new StyleStore(this.outDir)
     this.seedFromPreviousRun()
   }
 
@@ -161,7 +164,8 @@ export default class DescribeMeReporter implements Reporter {
     )
 
     this.snapshots.collectGarbage(snapshotFiles)
-    this.assets.collectGarbage(snapshotFiles)
+    const styleFiles = this.styles.collectGarbage(snapshotFiles)
+    this.assets.collectGarbage([...snapshotFiles, ...styleFiles])
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
     printDiagnostics(manifest)
   }
@@ -215,11 +219,15 @@ export default class DescribeMeReporter implements Reporter {
     }
   }
 
-  /** Store one frame's DOM, with its project asset URLs pointing into the asset store. */
+  /**
+   * Store one frame's DOM, with asset URLs pointing into the asset store and
+   * long stylesheets moved to the style store. Assets go first, so stored CSS
+   * carries asset URLs too.
+   */
   private writeSnapshot(snapshot: unknown, origin: string | undefined): string {
     // A mixed install, where an older core created the global recorder, still hands over objects.
     const json = typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot)
 
-    return this.snapshots.write(this.assets.rewrite(json, origin))
+    return this.snapshots.write(this.styles.extract(this.assets.rewrite(json, origin)))
   }
 }
