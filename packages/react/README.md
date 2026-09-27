@@ -20,8 +20,11 @@ pnpm add -D @describe-me/react
 
 ## Usage
 
-Each entry point re-exports everything its test library offers, with `render`
-swapped for the recording one, so switching an existing test is one import.
+Each entry point re-exports everything its test library offers, with the
+recording functions swapped in, so switching an existing test is one import.
+`@describe-me/react` swaps `render`. The Testing Library entry swaps `render`,
+`fireEvent` and `cleanup`: every `fireEvent` call records a frame, and
+`cleanup` takes the closing frame before it unmounts.
 
 ```tsx
 import { render, step } from '@describe-me/react'

@@ -7,7 +7,8 @@ import { describeMe } from '@describe-me/vitest/plugin'
 // registers the jsdom setup file, redirects @testing-library/react to the
 // recording adapter and turns on CSS processing.
 export default defineConfig({
-  plugins: [react(), describeMe()],
+  // DESCRIBE_ME=off runs the same tests without recording, e.g. to compare act warnings.
+  plugins: [react(), describeMe({ enabled: process.env.DESCRIBE_ME !== 'off' })],
   test: {
     environment: 'jsdom',
     globals: true,

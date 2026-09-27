@@ -1,4 +1,5 @@
 import type { ViteUserConfig } from 'vitest/config'
+import { adapterPackageRoot } from './adapter-package-root.js'
 import { compileGlobs } from './compile-globs.js'
 import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
@@ -60,11 +61,29 @@ const RENDER_MODULES: Record<'react', Record<DescribeMeEnvironment, RenderModule
   },
 }
 
-/** Paths an adapter's own files live under, published or in this workspace. */
-const ADAPTER_PATHS = ['/@describe-me/react/', '/packages/react/']
-
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
 type TestConfig = NonNullable<ViteUserConfig['test']>
+
+/**
+ * The package an adapter entry point belongs to, e.g.
+ * `@describe-me/react/testing-library` → `@describe-me/react`.
+ */
+function packageNameOf(specifier: string): string {
+  return specifier.split('/').slice(0, 2).join('/')
+}
+
+/**
+ * Whether a module is one of the adapter's own files, whose imports of the
+ * original module must stay unredirected. `/node_modules/<package>/` is the
+ * fallback for when the project root could not resolve the package.
+ */
+function isAdapterModule(id: string, adapterRoot: string | null, adapterPackage: string): boolean {
+  if (adapterRoot !== null && id.startsWith(adapterRoot)) {
+    return true
+  }
+
+  return id.includes(`/node_modules/${adapterPackage}/`)
+}
 
 function detectEnvironment(userConfig: ViteUserConfig): DescribeMeEnvironment {
   return userConfig.test?.browser?.enabled ? 'browser' : 'dom'
@@ -135,6 +154,9 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   // build that shares the config must not carry the export registration.
   let root = ''
   let serving = false
+  // Where the installed adapter lives, so a user path that merely looks like
+  // it (`packages/react/` in a monorepo) is still redirected.
+  let adapterRoot: string | null = null
 
   return {
     name: 'describe-me',
@@ -180,8 +202,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
 
       const fromAdapter =
         importer !== undefined &&
-        (importer.includes(renderModule.adapter) ||
-          ADAPTER_PATHS.some((path) => importer.includes(path)))
+        isAdapterModule(importer, adapterRoot, packageNameOf(renderModule.adapter))
 
       if (fromAdapter) {
         return null
@@ -194,7 +215,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       // test mounted, because Testing Library's auto-cleanup is switched off.
       if (!resolved) {
         throw new Error(
-          `describe-me: cannot resolve ${renderModule.adapter} (the recording replacement for ${renderModule.original}). Install ${renderModule.adapter.split('/').slice(0, 2).join('/')}.`,
+          `describe-me: cannot resolve ${renderModule.adapter} (the recording replacement for ${renderModule.original}). Install ${packageNameOf(renderModule.adapter)}.`,
         )
       }
 
@@ -204,6 +225,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
     configResolved(config) {
       root = config.root
       serving = config.command === 'serve'
+      adapterRoot = adapterPackageRoot(config.root, packageNameOf(renderModule.adapter))
     },
 
     // Names components after their export (see registerExports). `order: 'post'`

@@ -8,6 +8,10 @@
  * and one renders nothing: each asserts `recorder.isActive` inside the test,
  * which proves that the plugin's options reach the test runtime, and neither
  * may appear in the manifest.
+ * The DOM scenario also checks the Testing Library adapter: `fireEvent` under
+ * a file-level `afterEach(cleanup)` records exactly its render and click
+ * frames, a `renderHook` file is unmounted after each test and stays out of
+ * the manifest, and a test file under `packages/react/` is still redirected.
  * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
  * the temp project for inspection; `--vite` and `--vitest` pin older versions
  * of the user's toolchain).
@@ -277,7 +281,7 @@ export default defineConfig({
 `,
   )
 
-  mkdirSync(join(app, 'dom'), { recursive: true })
+  mkdirSync(join(app, 'dom', 'packages', 'react'), { recursive: true })
 
   writeFileSync(
     join(app, 'dom', 'Hello.test.tsx'),
@@ -310,6 +314,62 @@ import { recorder } from '@describe-me/vitest'
 describe('pure', () => {
   it('records in an included file', () => {
     expect(recorder.isActive).toBe(true)
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'dom', 'FireEvent.test.tsx'),
+    `import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { Hello } from '../src/Hello'
+
+afterEach(cleanup)
+
+describe('FireEvent', () => {
+  it('counts a fired click', () => {
+    render(<Hello name="Ada" />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('button').textContent).toBe('waved 1 times')
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'dom', 'hook.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { useState } from 'react'
+
+describe('hook', () => {
+  it('updates its state', () => {
+    const { result } = renderHook(() => useState(false))
+    act(() => {
+      result.current[1](true)
+    })
+    expect(result.current[0]).toBe(true)
+  })
+
+  it('is unmounted after each test', () => {
+    expect(document.body.childElementCount).toBe(0)
+  })
+})
+`,
+  )
+
+  // A path containing `/packages/react/` must still count as a user test file.
+  writeFileSync(
+    join(app, 'dom', 'packages', 'react', 'Monorepo.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { Hello } from '../../../src/Hello'
+
+describe('Monorepo', () => {
+  it('records under a packages/react directory', () => {
+    const screen = render(<Hello name="Ada" />)
+    expect(screen.getByText('Hello Ada')).toBeDefined()
   })
 })
 `,
@@ -448,17 +508,55 @@ function verifySingleVite(pinned) {
   console.log(`\nvite: ${versions[0]} (single copy)`)
 }
 
+/** Per environment: how many tests the manifest holds, and which modules must stay out of it. */
+const EXPECTED = {
+  browser: { tests: 2, absent: ['Excluded', 'pure'] },
+  dom: { tests: 4, absent: ['Excluded', 'pure', 'hook'] },
+}
+
+function labelsOf(test) {
+  return test.frames.map((frame) => `${frame.kind}:${frame.label}`)
+}
+
+/**
+ * The frames of the fireEvent test. Its `afterEach(cleanup)` adds no closing
+ * frame, and the label names the button as it was before the click.
+ */
+const FIRE_EVENT_FRAMES = 'render:<Hello name="Ada" /> | action:click(button "waved 0 times")'
+
+/** What only the Testing Library adapter records: `fireEvent` frames and the monorepo path. */
+function verifyDom(manifest) {
+  const moduleById = new Map(manifest.modules.map((module) => [module.id, module]))
+  const fireEvent = moduleById.get('dom/FireEvent.test.tsx')?.tests ?? []
+  const fired = fireEvent.map((test) => labelsOf(test).join(' | '))
+
+  assert(
+    fired.length === 1 && fired[0] === FIRE_EVENT_FRAMES,
+    `expected the fireEvent test to record ${FIRE_EVENT_FRAMES}, got ${fired.join(' / ')}`,
+  )
+
+  const monorepo = moduleById.get('dom/packages/react/Monorepo.test.tsx')?.tests ?? []
+
+  assert(
+    monorepo.some((test) => labelsOf(test).some((label) => label.startsWith('render:<Hello'))),
+    'the test under dom/packages/react/ was not redirected: no render frame',
+  )
+}
+
 function verify(outDir, environment) {
   const manifest = readJson(join(app, outDir, 'manifest.json'))
   const tests = manifest.modules.flatMap((module) => module.tests)
-  const frames = tests.flatMap((test) => test.frames)
-  const labels = frames.map((frame) => `${frame.kind}:${frame.label}`)
+  const labels = tests.flatMap(labelsOf)
+  const expected = EXPECTED[environment]
 
-  assert(tests.length === 2, `expected 2 tests in the manifest, got ${tests.length}`)
+  assert(
+    tests.length === expected.tests,
+    `expected ${expected.tests} tests in the manifest (${environment}), got ${tests.length}`,
+  )
 
   const ids = manifest.modules.map((module) => module.id)
   assert(
-    !ids.some((id) => id.includes('Excluded') || id.includes('pure')),
+    !ids.some((id) => expected.absent.some((name) => id.includes(name))),
     `an excluded or empty module is in the manifest (${environment}): ${ids.join(', ')}`,
   )
 
@@ -486,6 +584,10 @@ function verify(outDir, environment) {
     tone?.kind === 'literals' && tone.values.length === 2,
     'tone prop was not read as two literals',
   )
+
+  if (environment === 'dom') {
+    verifyDom(manifest)
+  }
 
   console.log(`\n${environment} frames:`, labels.join(' | '))
   console.log('props of Hello:', hello.props.map((prop) => `${prop.name}: ${prop.type}`).join(', '))

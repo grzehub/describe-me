@@ -53,7 +53,8 @@ Prototype. React, Vitest in browser mode or jsdom, static snapshots (no live mou
   Snapshots replay into a sandboxed iframe.
 
 Frames are captured after `render`, after every interaction, after each
-`step()`, and at the end of the test if the DOM changed since the last frame.
+`step()`, and at the end of the test if the DOM changed since the last frame
+and the page still shows something.
 A `step()` whose body already produced the current DOM just names that frame.
 rrweb's node ids restart at 1 for every capture, so identical DOM serializes
 to identical JSON and is stored in one snapshot file. Stylesheets of 256
@@ -77,6 +78,8 @@ keyboard-level `userEvent` methods (`type`, `keyboard`, `tab`, `copy`, `cut`,
 → `locator.click`) records it once. In jsdom the same holds for
 `@testing-library/user-event`: its direct API and `userEvent.setup()` instances
 are patched, and `userEvent.click(el)` delegating to an instance records once.
+`fireEvent` from `@testing-library/react` records one frame per call too,
+labelled like `click(button "Save")` or `change(text "Name", "hello")`.
 
 ## Try it
 
@@ -166,12 +169,12 @@ test. Same primitive.
 
 The plugin detects where the tests run and wires the matching pieces:
 
-|                     | browser mode (`test.browser.enabled`) | DOM (`environment: 'jsdom'`)              |
-| ------------------- | ------------------------------------- | ----------------------------------------- |
-| redirected `render` | `vitest-browser-react`                | `@testing-library/react`                  |
-| interactions        | `Locator` actions, `userEvent`        | `@testing-library/user-event`             |
-| setup file          | `@describe-me/vitest/setup`           | `@describe-me/vitest/setup-dom`           |
-| also sets           | —                                     | `test.css: true`, `RTL_SKIP_AUTO_CLEANUP` |
+|                     | browser mode (`test.browser.enabled`) | DOM (`environment: 'jsdom'`)               |
+| ------------------- | ------------------------------------- | ------------------------------------------ |
+| redirected `render` | `vitest-browser-react`                | `@testing-library/react`                   |
+| interactions        | `Locator` actions, `userEvent`        | `@testing-library/user-event`, `fireEvent` |
+| setup file          | `@describe-me/vitest/setup`           | `@describe-me/vitest/setup-dom`            |
+| also sets           | —                                     | `test.css: true`, `RTL_SKIP_AUTO_CLEANUP`  |
 
 ```sh
 pnpm add -D describe-me @describe-me/vitest @describe-me/react \
@@ -190,9 +193,25 @@ In jsdom the recording `render` stays synchronous, so
 covers a custom `render` in your own `test-utils` that imports
 `@testing-library/react`. `test.css` is switched on because Vitest stubs CSS
 imports by default and every imported stylesheet would be missing from the
-snapshots; an explicit `css: false` wins, with a warning. Testing Library's
-auto-cleanup is switched off so the component is unmounted only after the
-closing frame; describe-me unmounts it instead.
+snapshots. An explicit `css: false` wins, with a warning.
+
+Testing Library's auto-cleanup is switched off so the component is unmounted
+only after the closing frame. describe-me unmounts it instead, after every
+test. Everything else behaves as with plain Testing Library:
+
+- `renderHook` records no frames, but its tree is unmounted after each test too.
+- `afterEach(cleanup)` in a test file is safe. `cleanup` records the last state
+  before it unmounts.
+- Fake timers are safe. The recorder keeps the real `setTimeout`, so
+  `vi.useFakeTimers()` left on never hangs a capture.
+- Switching auto-cleanup off also skips Testing Library's
+  `IS_REACT_ACT_ENVIRONMENT` setup, so `setup-dom` sets the flag where Testing
+  Library would (with Vitest globals). React's act warnings match a run
+  without describe-me.
+- `@testing-library/user-event` is optional.
+
+One known limit: `fireEvent` inside your own `act()` records before React
+flushes, so its frame shows the DOM from before the update.
 
 What differs is what happens **inside the test**. jsdom has no layout engine,
 so anything the test measures, scrolls or observes (`IntersectionObserver`,
@@ -254,9 +273,9 @@ export default defineConfig({
 ```
 
 Then import `render` from `@describe-me/react` instead of `vitest-browser-react`.
-For jsdom, use `@describe-me/vitest/setup-dom`, import `render` from
-`@describe-me/react/testing-library`, and set `css: true` and
-`env: { RTL_SKIP_AUTO_CLEANUP: 'true' }` yourself.
+For jsdom, use `@describe-me/vitest/setup-dom`, import `render`, `fireEvent`
+and `cleanup` from `@describe-me/react/testing-library`, and set `css: true`
+and `env: { RTL_SKIP_AUTO_CLEANUP: 'true' }` yourself.
 
 The reporter accepts the same `include` and `exclude`
 (`new DescribeMeReporter({ exclude: '**/*.integration.test.tsx' })`) and
@@ -416,8 +435,8 @@ The viewer reads output written by 0.4. A 0.4 viewer cannot read this output
 
 There is no `.env`: nothing here is per-environment configuration or a secret.
 The variables below are one-shot switches for the examples' benchmarks, set
-inline for a single run. `BENCH_MICRO` works in both examples, the other two in
-`examples/react-browser`.
+inline for a single run. `BENCH_MICRO` and `DESCRIBE_ME=off` work in both
+examples, `BENCH_OUT` only in `examples/react-browser`.
 
 | Variable           | Effect                                                                        |
 | ------------------ | ----------------------------------------------------------------------------- |

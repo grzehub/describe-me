@@ -3,12 +3,13 @@
  * have a `render` frame with a named component, every component must have its
  * props docs, and every asset must have been found. Run after `pnpm build`.
  *
- * What the reporter guarantees is checked too: every module has a test, and
- * every test has a frame besides the closing one. Every referenced snapshot
- * file must also exist and hold an rrweb serialized document whose ids start
- * at 1 and carry no `rootId`, and no two files may hold the same DOM (compared
- * without rrweb's node ids). `--structure-only` runs just these guarantees and
- * snapshot checks, which is what a real project can promise.
+ * What the reporter and the recorder guarantee is checked too: every module
+ * has a test, every test has a frame besides the closing one, and no closing
+ * frame shows an empty page. Every referenced snapshot file must also exist
+ * and hold an rrweb serialized document whose ids start at 1 and carry no
+ * `rootId`, and no two files may hold the same DOM (compared without rrweb's
+ * node ids). `--structure-only` runs just these guarantees and snapshot
+ * checks, which is what a real project can promise.
  *
  * Both modes also check the stores: every style chunk a snapshot refers to
  * exists, no chunk in `styles/` is orphaned, and every asset named in a
@@ -86,6 +87,82 @@ function emptinessProblemsIn(manifest) {
     for (const test of module.tests) {
       if (!test.frames.some((frame) => frame.kind !== 'end')) {
         problems.push(`${test.fullName}: no frame besides the closing one`)
+      }
+    }
+  }
+
+  return problems
+}
+
+/** rrweb node types, from `NodeType` in rrweb-snapshot. */
+const ELEMENT_NODE = 2
+const TEXT_NODE = 3
+
+function findBody(node) {
+  if (node.type === ELEMENT_NODE && node.tagName === 'body') {
+    return node
+  }
+
+  for (const child of childrenOf(node)) {
+    const body = findBody(child)
+
+    if (body) {
+      return body
+    }
+  }
+
+  return undefined
+}
+
+function isBareDiv(node) {
+  return node.tagName === 'div' && Object.keys(node.attributes ?? {}).length === 0
+}
+
+/** Any text that is not whitespace, or any element but a `div` without attributes. */
+function showsSomething(node) {
+  if (node.type === TEXT_NODE) {
+    return (node.textContent ?? '').trim() !== ''
+  }
+
+  if (node.type === ELEMENT_NODE && !isBareDiv(node)) {
+    return true
+  }
+
+  return childrenOf(node).some(showsSomething)
+}
+
+/** The rule of `pageHasContent()` in core, applied to a serialized document. */
+function isEmptyPage(serialized) {
+  const body = findBody(serialized)
+
+  return body === undefined || !childrenOf(body).some(showsSomething)
+}
+
+/** A snapshot file's document, or null when it is missing or broken: `inspectSnapshot` reports those. */
+function readSnapshot(abs) {
+  try {
+    return JSON.parse(readFileSync(abs, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/** What the recorder guarantees: the closing frame is skipped when the page shows nothing. */
+function closingFrameProblemsIn(manifest, manifestPath) {
+  const problems = []
+
+  for (const module of manifest.modules) {
+    for (const test of module.tests) {
+      for (const frame of test.frames) {
+        if (frame.kind !== 'end') {
+          continue
+        }
+
+        const serialized = readSnapshot(resolve(dirname(manifestPath), frame.snapshot))
+
+        if (isSerializedDocument(serialized) && isEmptyPage(serialized)) {
+          problems.push(`${test.fullName}: closing frame shows an empty page`)
+        }
       }
     }
   }
@@ -327,6 +404,7 @@ for (const path of paths) {
   const snapshots = snapshotProblemsIn(manifest, path)
   const store = storeProblemsIn(manifest, path)
   const problems = emptinessProblemsIn(manifest)
+  problems.push(...closingFrameProblemsIn(manifest, path))
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
     problems.push(...extractionProblemsIn(store))
