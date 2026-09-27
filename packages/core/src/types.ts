@@ -45,6 +45,21 @@ export const ASSET_URL_PREFIX = 'describe-me-asset:' as const
  */
 export const STYLE_URL_PREFIX = 'describe-me-style:' as const
 
+/**
+ * When the render frame is taken. `'eager'`: right after mount. `'lazy'`:
+ * right before the test's next interaction, or at the end of the test.
+ * `{ pending, timeout }`: as soon as nothing matches the CSS selector
+ * `pending` and the page shows content, falling back to `'lazy'` after
+ * `timeout` ms (default 2000) or at an earlier interaction.
+ */
+export type RenderFrameMode = 'eager' | 'lazy' | { pending: string; timeout?: number }
+
+/** Options for `recorder.configure()`. */
+export interface RecorderOptions {
+  /** When the render frame is taken. Default: `'eager'`. */
+  renderFrame?: RenderFrameMode
+}
+
 /** Options for `recorder.capture()`. */
 export interface CaptureOptions {
   /**
@@ -52,9 +67,15 @@ export interface CaptureOptions {
    * Default: true. Pass false when the caller knows the DOM is already
    * committed (e.g. right after Testing Library's `act()`-wrapped `rerender`):
    * the snapshot is then taken and the frame recorded before `capture()`
-   * returns, so the caller can move on without awaiting it.
+   * returns, so the caller can move on without awaiting it. Render frames
+   * follow `renderFrame` (see `RecorderOptions`), which may defer them.
    */
   settle?: boolean
+  /**
+   * `recorder.generation` as read when the interaction began. A capture from
+   * an earlier test is dropped. Default: the current generation.
+   */
+  generation?: number
 }
 
 /** A frame as captured by the recorder. `snapshot` is the DOM, already serialized to JSON. */
@@ -62,7 +83,7 @@ export interface Frame {
   id: string
   kind: FrameKind
   label: string
-  /** ms since the test began */
+  /** when the snapshot was taken, in ms since the test began */
   at: number
   meta?: Record<string, unknown>
   /** rrweb serialized document, as JSON text */

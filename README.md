@@ -54,8 +54,12 @@ Prototype. React, Vitest in browser mode or jsdom, static snapshots (no live mou
 
 Frames are captured after `render`, after every interaction, after each
 `step()`, and at the end of the test if the DOM changed since the last frame
-and the page still shows something.
+and the page still shows something. The render frame can also wait for async
+content, see [Render frame timing](#render-frame-timing).
 A `step()` whose body already produced the current DOM just names that frame.
+Frames keep the order the test asked for them in. A capture still running
+when its test ends, such as an interaction the test did not await, is
+dropped.
 rrweb's node ids restart at 1 for every capture, so identical DOM serializes
 to identical JSON and is stored in one snapshot file. Stylesheets of 256
 characters or more are stored once in `styles/` and referenced from the
@@ -238,6 +242,7 @@ jsdom is tested; happy-dom is untested.
 | `include`                      | every test file  | Test files to record.                                                                                         |
 | `exclude`                      | none             | Test files never to record. Wins over `include`.                                                              |
 | `previewHead`                  | none             | HTML the viewer adds to the start of every frame's `<head>`, see [Fonts](#fonts).                             |
+| `renderFrame`                  | `'eager'`        | When the render frame is taken, see [Render frame timing](#render-frame-timing).                              |
 
 `include` and `exclude` take a glob or a list of globs, matched with
 [picomatch](https://github.com/micromatch/picomatch) against the test file's
@@ -257,6 +262,36 @@ describeMe({
   exclude: ['**/*.integration.test.tsx'],
 })
 ```
+
+## Render frame timing
+
+A component behind async providers or data loading shows a loader first. The
+render frame is taken right after mount by default, so the docs show that
+loader. `renderFrame` takes the frame later:
+
+| `renderFrame`           | The render frame is taken                                                      |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `'eager'` (default)     | right after mount                                                              |
+| `'lazy'`                | right before the test's next interaction, or at the end of the test            |
+| `{ pending, timeout? }` | as soon as nothing matches the CSS selector `pending` and the page has content |
+
+```ts
+describeMe({
+  // the loader the app's providers show until they are ready
+  renderFrame: { pending: '[data-testid="app-loader"]' },
+})
+```
+
+Every `render` frame follows the option, `rerender` included. An interaction
+is a user event, `fireEvent`, `step()`, another `render`, `rerender`,
+`unmount` or `cleanup`. `pending` watches the page with a `MutationObserver`.
+It falls back to `'lazy'` after `timeout` ms (default 2000), or at the next
+interaction if that comes first.
+
+In browser mode, `await render()` returns before a deferred frame is taken.
+Polling with `expect.element` is not an interaction, so the frame waits for
+the next one. `await recorder.flush()` (from `@describe-me/vitest`) takes a
+deferred frame after one settle, for a test that needs it earlier.
 
 ## Without the plugin
 
@@ -283,6 +318,21 @@ The reporter accepts the same `include` and `exclude`
 filters the manifest with them. Only the plugin hands them to the setup file,
 so a hand-wired setup still records, and pays for, every test. The reporter
 takes `previewHead` too, and nothing else needs it.
+
+`renderFrame` also reaches the setup file only through the plugin. Without
+it, call `recorder.configure({ renderFrame })` in a setup file of your own,
+listed after describe-me's:
+
+```ts
+// describe-me-timing.ts
+import { recorder } from '@describe-me/vitest'
+
+recorder.configure({ renderFrame: 'lazy' })
+```
+
+```ts
+setupFiles: ['@describe-me/vitest/setup-dom', './describe-me-timing.ts'],
+```
 
 ## Open questions / next
 

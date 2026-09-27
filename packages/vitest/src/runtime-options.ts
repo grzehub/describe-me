@@ -2,8 +2,10 @@
  * Travels from the plugin to the setup files through Vitest's `provide` /
  * `inject`. Keep it plain JSON: the browser receives it serialized, so a
  * RegExp would not survive. The test runtime imports this file, so it imports
- * nothing itself.
+ * only types.
  */
+
+import type { RenderFrameMode } from '@describe-me/core/types'
 
 export interface CompiledGlob {
   source: string
@@ -15,6 +17,7 @@ export interface RuntimeOptions {
   include: CompiledGlob[]
   /** Wins over `include`. */
   exclude: CompiledGlob[]
+  renderFrame: RenderFrameMode
 }
 
 export const RUNTIME_OPTIONS_KEY = 'describe-me' as const

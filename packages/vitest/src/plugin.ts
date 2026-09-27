@@ -1,4 +1,5 @@
 import type { ViteUserConfig } from 'vitest/config'
+import type { RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
 import { compileGlobs } from './compile-globs.js'
 import { projectModulePath } from './project-module-path.js'
@@ -6,6 +7,7 @@ import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
 import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
 import { styledComponentsBrowserBuild } from './styled-components-browser-build.js'
+import { validateRenderFrame } from './validate-render-frame.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
 export type DescribeMeEnvironment = 'browser' | 'dom'
@@ -50,6 +52,12 @@ export interface DescribeMeOptions {
    * Project files it links are copied into the output directory. Default: none.
    */
   previewHead?: string
+  /**
+   * When the render frame is taken: `'eager'` right after mount, `'lazy'`
+   * before the next interaction, `{ pending }` once nothing matches the
+   * selector. Default: `'eager'`.
+   */
+  renderFrame?: RenderFrameMode
 }
 
 interface RenderModule {
@@ -176,11 +184,12 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const environment = options.environment ?? detectEnvironment(userConfig)
       renderModule = RENDER_MODULES[framework][environment]
 
-      // Compiled here, so invalid globs fail before any test runs. Vite
+      // Checked here, so invalid options fail before any test runs. Vite
       // deep-merges `provide`, so the user's own keys survive.
       const runtimeOptions: RuntimeOptions = {
         include: compileGlobs(options.include),
         exclude: compileGlobs(options.exclude),
+        renderFrame: validateRenderFrame(options.renderFrame),
       }
 
       const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
