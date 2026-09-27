@@ -26,23 +26,44 @@ How describe-me gets to npm. Four packages ship together under one version:
 [Changesets](https://github.com/changesets/changesets) with a `fixed` group
 covering all four packages, so users see a single version everywhere.
 
-- `pnpm changeset` in a feature branch writes the changeset file; the PR
+- `pnpm changeset` in a feature branch writes the changeset file, and the PR
   carries it. Every user-visible change needs one.
-- On merge to `main`, `release.yml` runs `changesets/action`. With pending
-  changesets it opens or refreshes the "Version Packages" PR
-  (`pnpm version-packages`: bumps versions, writes CHANGELOGs from the
-  changeset texts with PR links, refreshes the lockfile, formats).
-- Merging that PR runs the same workflow again, now with no pending
-  changesets, so the action publishes (`pnpm release`: build, then
+- On every push to `main`, the `version` job of `release.yml` runs
+  `changesets/action`. With pending changesets it opens or refreshes the
+  "Version Packages" PR (`pnpm version-packages`: bumps versions, writes
+  CHANGELOGs from the changeset texts with PR links, refreshes the lockfile,
+  formats). The action pushes that commit through the GitHub API, so it is
+  signed by GitHub.
+- Merging that PR starts the `publish` job (`pnpm release`: build, then
   `changeset publish`, which uses `pnpm publish` under the hood and therefore
-  resolves the `workspace:` protocol).
-- The "Version Packages" PR is opened with the default `GITHUB_TOKEN`, and
-  GitHub does not run CI on PRs created by that token. Review it by eye or, if
-  CI on it matters, give the action a fine-grained PAT or a GitHub App token.
-  Branch protection still requires an approving review before merging it.
+  resolves the `workspace:` protocol). The job runs in the `npm` environment,
+  which deploys only from `main` and waits for a maintainer's approval in
+  Actions. Nothing is published before that approval.
+- The publish job can be started again by hand (`workflow_dispatch`) when a
+  publish failed.
+- CI on the "Version Packages" PR does not start by itself, because the PR is
+  pushed with the default `GITHUB_TOKEN`. Approve the run on the PR ("Approve
+  and run") before merging. The PR also needs a code owner's review.
 
 Start at `0.1.0` (the `first-release` changeset). Anything below `1.0.0` may
-change its public exports between minors; say so in the changelog entry.
+change its public exports between minors. Say so in the changelog entry.
+
+## Prereleases
+
+A release made of several PRs can ship prereleases on the way. In pre mode
+every "Version Packages" PR bumps to the next prerelease (`0.5.0-next.0`,
+`0.5.0-next.1`, …) and publishes under the `next` dist-tag. `latest` stays on
+the last stable version, so nobody gets a prerelease by accident.
+
+- **Enter**: `pnpm changeset pre enter next` writes `.changeset/pre.json`.
+  Merge it to `main` in its own PR.
+- **Ship a prerelease**: merge the "Version Packages (next)" PR and approve the
+  deployment. Consumed changesets move to `.changeset/pre/` and stay there
+  until the stable release, which builds its CHANGELOG from them.
+- **Try it**: `pnpm add -D describe-me@next @describe-me/vitest@next` (plus
+  `@describe-me/react@next`) in a real project.
+- **Exit**: `pnpm changeset pre exit` in a PR. The next "Version Packages" PR
+  bumps to the stable version (`0.5.0`) and publishes it as `latest`.
 
 ## Publishing
 
@@ -64,10 +85,9 @@ change its public exports between minors; say so in the changelog entry.
 
 - **After the first publish**, on npmjs.com set a _trusted publisher_ on each
   of the four packages: repository `grzehub/describe-me`, workflow
-  `release.yml`, environment empty. From then on CI publishes through OIDC
-  (pnpm delegates to the npm CLI, which needs `npm >= 11.5.1`; the workflow
-  upgrades it). Once all four are configured, delete the `NPM_TOKEN` secret;
-  it exists only as the fallback before trusted publishers can be created.
+  `release.yml`, environment `npm`. CI then publishes through OIDC (pnpm
+  delegates to the npm CLI, which needs `npm >= 11.5.1`, and the workflow
+  upgrades it). No npm token is stored in the repository.
 
 ## Manifest rules
 
@@ -79,7 +99,7 @@ change its public exports between minors; say so in the changelog entry.
   source never leaves a stale file in a tarball.
 - `typescript` is an optional peer of `@describe-me/vitest`: without it the
   reporter still runs, it just skips the props documentation.
-- `engines.node >= 20` for the libraries; `describe-me` declares
+- `engines.node >= 20` for the libraries. `describe-me` declares
   `^20.16.0 || >=22.4.0`, the first versions whose `parseArgs` supports
   `allowNegative`. The effective floor comes from the user's Vite: Vite 8's
   native rolldown bindings declare `^20.19.0 || >=22.12.0`, and package
@@ -88,10 +108,10 @@ change its public exports between minors; say so in the changelog entry.
 
 ## Known caveats
 
-- `vitest ^4 || ^5` is declared. `5.x` is what the examples run on; 4.1 is
+- `vitest ^4 || ^5` is declared. `5.x` is what the examples run on, and 4.1 is
   covered by the `--vitest 4.1.11 --vite 6.4.3` smoke variant.
 - `vite` is a peer of `describe-me` because the viewer is built from source in
   the user's project, with their own Vite and plugins. yarn does not install
   peers automatically.
 - The repo pins TypeScript 6 because typescript-eslint does not support 7 yet.
-  That affects contributors only; users need `typescript ^5 || ^6`.
+  That affects contributors only. Users need `typescript ^5 || ^6`.
