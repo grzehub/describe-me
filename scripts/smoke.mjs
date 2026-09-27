@@ -12,6 +12,8 @@
  * a file-level `afterEach(cleanup)` records exactly its render and click
  * frames, a `renderHook` file is unmounted after each test and stays out of
  * the manifest, and a test file under `packages/react/` is still redirected.
+ * Its `previewHead` must reach the manifest. The reporter that writes it
+ * imports `@describe-me/core/css-references`, so the packed core must export it.
  * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
  * the temp project for inspection; `--vite` and `--vitest` pin older versions
  * of the user's toolchain).
@@ -271,7 +273,12 @@ import { describeMe } from '@describe-me/vitest/plugin'
 export default defineConfig({
   plugins: [
     react(),
-    describeMe({ outDir: '.describe-me-dom', exclude: ['dom/Excluded.test.tsx'] }),
+    describeMe({
+      outDir: '.describe-me-dom',
+      exclude: ['dom/Excluded.test.tsx'],
+      previewHead:
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter&display=swap">',
+    }),
   ],
   test: {
     environment: 'jsdom',
@@ -524,7 +531,7 @@ function labelsOf(test) {
  */
 const FIRE_EVENT_FRAMES = 'render:<Hello name="Ada" /> | action:click(button "waved 0 times")'
 
-/** What only the Testing Library adapter records: `fireEvent` frames and the monorepo path. */
+/** What only the DOM scenario checks: `fireEvent` frames, the monorepo path and the preview head. */
 function verifyDom(manifest) {
   const moduleById = new Map(manifest.modules.map((module) => [module.id, module]))
   const fireEvent = moduleById.get('dom/FireEvent.test.tsx')?.tests ?? []
@@ -540,6 +547,11 @@ function verifyDom(manifest) {
   assert(
     monorepo.some((test) => labelsOf(test).some((label) => label.startsWith('render:<Hello'))),
     'the test under dom/packages/react/ was not redirected: no render frame',
+  )
+
+  assert(
+    manifest.head?.includes('fonts.googleapis.com'),
+    `the preview head did not reach the manifest: ${manifest.head}`,
   )
 }
 

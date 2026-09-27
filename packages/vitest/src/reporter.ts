@@ -38,6 +38,12 @@ export interface DescribeMeReporterOptions {
    * `include`. Default: none.
    */
   exclude?: string | string[]
+  /**
+   * HTML the viewer adds to the start of the `<head>` of every replayed frame,
+   * like Storybook's `preview-head.html`. It never reaches the test page.
+   * Project files it links are copied into the output directory. Default: none.
+   */
+  previewHead?: string
 }
 
 function recordOf(tc: TestCase): TestRecord | undefined {
@@ -47,6 +53,7 @@ function recordOf(tc: TestCase): TestRecord | undefined {
 export default class DescribeMeReporter implements Reporter {
   private readonly outDirOption: string
   private readonly isRecordedFile: (fileName: string) => boolean
+  private readonly previewHead: string | undefined
   private root = process.cwd()
   private outDir = ''
   private snapshots!: SnapshotStore
@@ -60,6 +67,9 @@ export default class DescribeMeReporter implements Reporter {
       include: compileGlobs(options.include),
       exclude: compileGlobs(options.exclude),
     })
+
+    // A blank head, such as an empty preview-head.html, is the same as none.
+    this.previewHead = options.previewHead?.trim() ? options.previewHead : undefined
   }
 
   onInit(vitest: Vitest): void {
@@ -69,6 +79,10 @@ export default class DescribeMeReporter implements Reporter {
     this.assets = new AssetStore(this.outDir, this.root)
     this.styles = new StyleStore(this.outDir)
     this.seedFromPreviousRun()
+
+    if (this.previewHead !== undefined && /<script\b/i.test(this.previewHead)) {
+      console.warn('describe-me: previewHead contains a <script>, which the viewer never runs.')
+    }
   }
 
   onTestRunStart(): void {
@@ -146,6 +160,10 @@ export default class DescribeMeReporter implements Reporter {
       componentEntries(modules, this.root),
     )
 
+    // Before `missing()`, so the files the head links that do not exist are listed too.
+    const head =
+      this.previewHead === undefined ? undefined : this.assets.rewriteHead(this.previewHead)
+
     // Only what this run found: a filtered run does not know which of the
     // previous run's missing assets belonged to the modules it skipped.
     const assetsMissing = this.assets.missing()
@@ -159,13 +177,17 @@ export default class DescribeMeReporter implements Reporter {
       assetsMissing,
     }
 
+    if (head !== undefined) {
+      manifest.head = head
+    }
+
     const snapshotFiles = manifest.modules.flatMap((mod) =>
       mod.tests.flatMap((test) => test.frames.map((frame) => frame.snapshot)),
     )
 
     this.snapshots.collectGarbage(snapshotFiles)
     const styleFiles = this.styles.collectGarbage(snapshotFiles)
-    this.assets.collectGarbage([...snapshotFiles, ...styleFiles])
+    this.assets.collectGarbage([...snapshotFiles, ...styleFiles], head === undefined ? [] : [head])
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
     printDiagnostics(manifest)
   }

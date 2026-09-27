@@ -32,7 +32,8 @@ The manifest types live in `@describe-me/core/types`, for tools that want to
 read `.describe-me/manifest.json` themselves. Stored snapshots point into
 `assets/` and `styles/` through `ASSET_URL_PREFIX` and `STYLE_URL_PREFIX`
 ([Output directory](https://github.com/grzehub/describe-me#output-directory) in
-the root README).
+the root README). `@describe-me/core/css-references` lists the `url()` and
+`@import` references in CSS text.
 
 See the [root README](https://github.com/grzehub/describe-me#readme) for the
 full picture.

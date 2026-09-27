@@ -153,11 +153,17 @@ export interface Manifest {
   /** Keyed by component name, as reported by the framework adapter. */
   components: Record<string, ComponentDoc>
   /**
-   * Asset URLs the snapshots point at on the test page's origin that could not
-   * be found in the project, as root-relative paths (`/lib/images/logo.svg`).
+   * Asset URLs the snapshots, the preview head or copied CSS files point at
+   * that could not be found in the project, as root-relative paths
+   * (`/lib/images/logo.svg`). Paths outside the root use the `/@fs/` form.
    * They will not load in the viewer. Absent in manifests written before 0.4.
    */
   assetsMissing?: string[]
+  /**
+   * The preview head HTML, with project files as `describe-me-asset:` URLs.
+   * Absent when `previewHead` is not set.
+   */
+  head?: string
 }
 
 /** The name adapters fall back to when a component has no usable name. */
@@ -169,6 +175,6 @@ export interface ManifestDiagnostics {
   anonymous: { testId: string; fullName: string }[]
   /** Named components without a props doc, with how many tests rendered each. */
   undocumented: { name: string; tests: number }[]
-  /** Root-relative asset paths that will not load in the viewer. */
+  /** Asset paths that will not load in the viewer, root-relative or in the `/@fs/` form. */
   assetsMissing: string[]
 }

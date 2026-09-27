@@ -1,8 +1,8 @@
-import { createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
 import type { ManifestFrame } from '@describe-me/core/types'
 import { loadSnapshot } from './data.js'
 import { fitStage } from './fit-stage.js'
-import { replayCache } from './replay-cache.js'
+import { fontsSettled } from './fonts-settled.js'
+import { replaySnapshot } from './replay-snapshot.js'
 import { state } from './state.js'
 
 let paintToken = 0
@@ -16,13 +16,8 @@ export async function paintFrame(stage: HTMLElement, frame: ManifestFrame): Prom
   }
 
   stage.replaceChildren()
-  const { iframe } = rebuildIntoSandboxedIframe(node, {
-    root: stage,
-    iframeAttributes: { title: 'snapshot' },
-    cache: replayCache,
-    mirror: createMirror(),
-    hackCss: true,
-  })
+  const iframe = replaySnapshot(stage, node, 'snapshot')
+  const fonts = fontsSettled(iframe)
 
   if (state.width !== 'auto') {
     iframe.style.width = `${state.width}px`
@@ -34,4 +29,10 @@ export async function paintFrame(stage: HTMLElement, frame: ManifestFrame): Prom
       fitStage(iframe)
     }
   })
+
+  // Web fonts arrive later and change the text's size.
+  await fonts
+  if (token === paintToken) {
+    fitStage(iframe)
+  }
 }

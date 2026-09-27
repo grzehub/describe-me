@@ -15,6 +15,7 @@
 }
 .postcard-caption {
   margin-top: 10px;
+  font-family: 'Lora', Georgia, serif;
   font-size: 14px;
   color: var(--ink);
 }

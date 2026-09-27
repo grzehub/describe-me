@@ -1,9 +1,9 @@
-import { createMirror, rebuildIntoSandboxedIframe } from 'rrweb-snapshot'
 import type { ManifestFrame, ManifestTest } from '@describe-me/core/types'
 import { contentBox } from './content-box.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
-import { replayCache } from './replay-cache.js'
+import { fontsSettled } from './fonts-settled.js'
+import { replaySnapshot } from './replay-snapshot.js'
 import { select } from './state.js'
 
 /** Bumped on every gallery render, so snapshots that arrive late are dropped. */
@@ -15,16 +15,17 @@ async function paintThumb(thumb: HTMLElement, frame: ManifestFrame, token: numbe
     return
   }
 
-  const { iframe } = rebuildIntoSandboxedIframe(node, {
-    root: thumb,
-    iframeAttributes: { title: frame.label },
-    cache: replayCache,
-    mirror: createMirror(),
-    hackCss: true,
-  })
+  const iframe = replaySnapshot(thumb, node, frame.label)
+  const fonts = fontsSettled(iframe)
 
   // Styles are in place after a frame; only then do the boxes have their final size.
   requestAnimationFrame(() => fitThumb(thumb, iframe))
+
+  // Web fonts arrive later and change the text's size.
+  await fonts
+  if (token === galleryToken && thumb.isConnected) {
+    fitThumb(thumb, iframe)
+  }
 }
 
 const THUMB_PADDING = 16

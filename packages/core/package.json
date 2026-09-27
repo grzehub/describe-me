@@ -38,6 +38,10 @@
     "./diagnostics": {
       "types": "./dist/manifest-diagnostics.d.ts",
       "default": "./dist/manifest-diagnostics.js"
+    },
+    "./css-references": {
+      "types": "./dist/css-references.d.ts",
+      "default": "./dist/css-references.js"
     }
   },
   "files": [

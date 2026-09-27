@@ -14,8 +14,9 @@
     "changeset": "changeset",
     "version-packages": "changeset version && pnpm install --lockfile-only && pnpm format",
     "release": "pnpm build && changeset publish",
-    "check-manifest": "node scripts/check-manifest.mjs examples/react-browser/.describe-me/manifest.json examples/react-jsdom/.describe-me/manifest.json",
+    "check-manifest": "node scripts/check-manifest.mjs --require-fonts examples/react-browser/.describe-me/manifest.json examples/react-jsdom/.describe-me/manifest.json",
     "check-style-store": "node scripts/check-style-store.mjs",
+    "check-asset-store": "node scripts/check-asset-store.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me"
   },
   "devDependencies": {
