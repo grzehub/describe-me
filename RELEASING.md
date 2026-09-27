@@ -13,8 +13,12 @@ How describe-me gets to npm. Four packages ship together under one version:
    plugin and builds the static site. This catches what the workspace hides:
    `workspace:` protocol left unresolved, files missing from `files`, wrong
    peer dependencies, dependency-optimizer reloads, imports that only resolve
-   through symlinks. Needs Node `^20.19.0 || >=22.12.0` (Vite 8). Pass
-   `--keep` to inspect the temp project afterwards.
+   through symlinks. Right after the install it checks that exactly one Vite
+   version is in the project, so no package nests its own. Needs Node
+   `^20.19.0 || >=22.12.0` (Vite 8). Pass `--keep` to inspect the temp project
+   afterwards, and `--vite <x.y.z>` / `--vitest <x.y.z>` to pin older versions
+   of the user's toolchain. CI runs three variants: the default toolchain,
+   `--vite 8.2.2`, and `--vitest 4.1.11 --vite 6.4.3`.
 3. A changeset exists for every user-visible change (`pnpm changeset`).
 
 ## Versioning
@@ -75,17 +79,19 @@ change its public exports between minors; say so in the changelog entry.
   source never leaves a stale file in a tarball.
 - `typescript` is an optional peer of `@describe-me/vitest`: without it the
   reporter still runs, it just skips the props documentation.
-- `engines.node >= 20` for the libraries; the `describe-me` CLI requires
-  `^20.19.0 || >=22.12.0` because it depends on Vite 8, whose native rolldown
-  bindings declare that range. Package managers silently skip optional
-  dependencies that do not match `engines`, which surfaces as
-  "Cannot find native binding" at startup.
+- `engines.node >= 20` for the libraries; `describe-me` declares
+  `^20.16.0 || >=22.4.0`, the first versions whose `parseArgs` supports
+  `allowNegative`. The effective floor comes from the user's Vite: Vite 8's
+  native rolldown bindings declare `^20.19.0 || >=22.12.0`, and package
+  managers silently skip optional dependencies that do not match `engines`,
+  which surfaces as "Cannot find native binding" at startup.
 
 ## Known caveats
 
-- `vitest >= 4` is declared, `5.x` is what the example runs on.
-- `describe-me` depends on `vite` at runtime because the viewer is built from
-  source in the user's project (their Vite, their plugins). That dependency is
-  deliberate and heavy.
+- `vitest ^4 || ^5` is declared. `5.x` is what the examples run on; 4.1 is
+  covered by the `--vitest 4.1.11 --vite 6.4.3` smoke variant.
+- `vite` is a peer of `describe-me` because the viewer is built from source in
+  the user's project, with their own Vite and plugins. yarn does not install
+  peers automatically.
 - The repo pins TypeScript 6 because typescript-eslint does not support 7 yet.
-  That affects contributors only; users need `typescript >= 5`.
+  That affects contributors only; users need `typescript ^5 || ^6`.

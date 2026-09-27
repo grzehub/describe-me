@@ -26,6 +26,7 @@
     "describe-me": "workspace:*",
     "playwright": "^1.63.0",
     "rrweb-snapshot": "^2.1.6",
+    "vite": "^8.3.0",
     "vitest": "^5.0.1",
     "vitest-browser-react": "^2.3.0"
   }

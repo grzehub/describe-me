@@ -14,6 +14,9 @@ writes, and replays the snapshots in a sandboxed iframe.
 pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
+`vite` is a peer dependency (Vitest requires it anyway): pnpm and npm install
+it automatically; with yarn, add `vite` to your `devDependencies`.
+
 ## Usage
 
 ```sh

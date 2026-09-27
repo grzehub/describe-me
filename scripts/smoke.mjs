@@ -2,14 +2,27 @@
  * Verifies the published artifact, not the sources: packs every package,
  * installs the tarballs into a fresh project outside the monorepo, runs the
  * same component through the plugin in browser mode and in jsdom, and builds
- * the static site.
- * Usage: `pnpm smoke [--keep]` (keep leaves the temp project for inspection).
+ * the static site. Right after the install it checks that exactly one Vite
+ * version landed in the project: `describe-me` peers on the host's Vite
+ * instead of nesting its own.
+ * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
+ * the temp project for inspection; `--vite` and `--vitest` pin older versions
+ * of the user's toolchain).
  */
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -29,7 +42,46 @@ function assertNodeVersion() {
   }
 }
 
-const keep = process.argv.includes('--keep')
+const EXACT_VERSION = /^\d+\.\d+\.\d+$/
+
+/** The raw flags; unknown flags and positionals are rejected with a `smoke:` error. */
+function readFlags() {
+  try {
+    const { values } = parseArgs({
+      strict: true,
+      allowPositionals: false,
+      options: {
+        keep: { type: 'boolean', default: false },
+        vite: { type: 'string' },
+        vitest: { type: 'string' },
+      },
+    })
+
+    return values
+  } catch (error) {
+    throw new Error(`smoke: ${error.message}`)
+  }
+}
+
+/**
+ * Reads the command line strictly, so a typo fails here, before anything is
+ * packed or a temp directory is created.
+ */
+function parseOptions() {
+  const values = readFlags()
+
+  for (const name of ['vite', 'vitest']) {
+    const version = values[name]
+
+    if (version !== undefined && !EXACT_VERSION.test(version)) {
+      throw new Error(`smoke: --${name} expects an exact version like 6.4.3, got "${version}"`)
+    }
+  }
+
+  return { keep: values.keep, vite: values.vite, vitest: values.vitest }
+}
+
+const { keep, vite, vitest } = parseOptions()
 const work = mkdtempSync(join(tmpdir(), 'describe-me-smoke-'))
 const tarballs = join(work, 'tarballs')
 const app = join(work, 'app')
@@ -94,12 +146,33 @@ function pack() {
   }
 }
 
+/**
+ * The toolchain with the command-line pins applied. The playwright provider
+ * peers the exact matching Vitest, so `--vitest` moves both.
+ */
+function pinnedToolchain(names) {
+  const picked = toolchain(names)
+
+  if (vite) {
+    picked.vite = vite
+  }
+
+  if (vitest) {
+    picked.vitest = vitest
+    picked['@vitest/browser-playwright'] = vitest
+  }
+
+  return picked
+}
+
 function scaffold() {
   mkdirSync(join(app, 'src'), { recursive: true })
 
   // Every package points at its tarball, and the overrides make pnpm resolve
   // the packages' own `@describe-me/core` dependency to the tarball too,
   // instead of asking the registry for a version that is not published yet.
+  // Vite is deliberately not overridden: the single-Vite check has to prove
+  // that the peer lets pnpm reuse the project's own Vite.
   const local = Object.fromEntries(
     manifests.map((manifest) => [manifest.name, `file:${join(tarballs, tarballName(manifest))}`]),
   )
@@ -113,7 +186,7 @@ function scaffold() {
         type: 'module',
         devDependencies: {
           ...local,
-          ...toolchain([
+          ...pinnedToolchain([
             'react',
             'react-dom',
             '@types/react',
@@ -128,6 +201,7 @@ function scaffold() {
             '@testing-library/dom',
             '@testing-library/user-event',
             'jsdom',
+            'vite',
           ]),
         },
         pnpm: { overrides: local },
@@ -277,6 +351,37 @@ function assert(condition, message) {
   }
 }
 
+/** Every Vite version pnpm installed, from the `vite@<version>(_<peers>)` store directories. */
+function installedViteVersions() {
+  const entries = readdirSync(join(app, 'node_modules', '.pnpm'))
+  const versions = entries
+    .filter((entry) => entry.startsWith('vite@'))
+    .map((entry) => entry.slice('vite@'.length).split('_')[0])
+
+  return [...new Set(versions)].sort()
+}
+
+/**
+ * A second, nested Vite means a package ships its own instead of peering on
+ * the project's. Directories that differ only in their peer suffix are the
+ * same Vite.
+ */
+function verifySingleVite(pinned) {
+  const versions = installedViteVersions()
+
+  assert(
+    versions.length === 1,
+    `expected exactly one Vite version, found ${versions.length}: ${versions.join(', ')}`,
+  )
+
+  assert(
+    !pinned || versions[0] === pinned,
+    `expected Vite ${pinned} (from --vite), found ${versions[0]}`,
+  )
+
+  console.log(`\nvite: ${versions[0]} (single copy)`)
+}
+
 function verify(outDir, environment) {
   const manifest = readJson(join(app, outDir, 'manifest.json'))
   const tests = manifest.modules.flatMap((module) => module.tests)
@@ -321,6 +426,7 @@ try {
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
+  verifySingleVite(vite)
   run('pnpm exec vitest run', app)
   run('pnpm exec vitest run --config vitest.dom.config.ts', app)
   run('pnpm exec describe-me build --data .describe-me --out site', app)

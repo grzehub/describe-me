@@ -84,6 +84,23 @@ pnpm docs:build                  # static site in docs-dist/, deploy anywhere
 pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
+`vite` is a peer dependency of `describe-me` (Vitest requires it anyway). pnpm
+and npm install peers automatically; with yarn, add `vite` to your
+`devDependencies`.
+
+Supported versions:
+
+- Vite `^6.4 || ^7 || ^8`
+- Vitest `^4 || ^5`
+- React `^18 || ^19`
+- `vitest-browser-react` `^2` (browser mode) or `@testing-library/react` `^16`
+  (jsdom), whichever your tests use
+- `@testing-library/user-event` `^14` (optional, DOM environments)
+- TypeScript `^5 || ^6` (optional, used for props docs)
+- Node: whatever your Vite and Vitest require. Vite 8 needs
+  `^20.19.0 || >=22.12.0`; the `describe-me` CLI itself needs
+  `^20.16.0 || >=22.4.0`.
+
 ```ts
 // vitest.config.ts
 import { describeMe } from '@describe-me/vitest/plugin'
