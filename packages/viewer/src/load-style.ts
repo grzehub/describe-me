@@ -1,16 +1,14 @@
 import { resolveAssetUrls } from './resolve-asset-urls.js'
 
 /**
- * Chunk texts by hash, as promises, so parallel thumbnails share one request.
- * Never cleared: a content hash names the same text forever. A failed chunk
- * resolves to null and removes itself, so the next load asks again.
+ * Chunk texts by hash, kept as promises so parallel thumbnails share one
+ * request. Never cleared, because a hash always names the same text.
  */
 const chunks = new Map<string, Promise<string | null>>()
 
-/** Joined stylesheets by reference, so every snapshot using a sheet gets the same string. */
+/** Joined sheets by reference, so every snapshot using a sheet shares one string. */
 const sheets = new Map<string, Promise<string>>()
 
-/** One chunk's text with its asset URLs resolved, or null when it cannot be fetched. */
 async function fetchChunk(hash: string): Promise<string | null> {
   try {
     // Default caching: the name is a content hash, so a cached copy is always right.
@@ -43,9 +41,8 @@ function loadChunk(hash: string): Promise<string | null> {
 }
 
 /**
- * The stylesheet behind a style reference, the text after `STYLE_URL_PREFIX`:
- * its chunks, fetched in parallel and joined in order. A chunk that does not
- * load leaves a gap instead of failing the frame, and the reference is loaded
+ * The stylesheet behind a reference, the text after `STYLE_URL_PREFIX`. A chunk
+ * that fails to load leaves a gap rather than failing the frame, and is fetched
  * again next time.
  */
 export function loadStyle(reference: string): Promise<string> {

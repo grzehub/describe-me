@@ -388,26 +388,25 @@ pages (`<a href="/">`) are left alone.
 The reporter writes everything the viewer shows into `.describe-me/` (the
 plugin's `outDir` option):
 
-- `manifest.json`: modules, tests and frames, component docs and diagnostics.
+- `manifest.json`: modules, tests, frames, component docs and diagnostics.
 - `snapshots/<hash>.json`: the serialized DOM of each frame.
-- `styles/<hash>.css`: the stylesheets of the snapshots, in chunks.
+- `styles/<hash>.css`: the snapshots' stylesheets, in chunks.
 - `assets/<hash>.<ext>`: project files that snapshots and stylesheets point at.
 
-Everything but the manifest is content-addressed: a file is named after the
-hash of its content, so identical DOM is stored once, however many frames,
-tests and runs produce it. A stylesheet of 256 characters or more is moved
-out of the snapshot, which keeps a reference (`describe-me-style:<hash>+<hash>…`).
-The sheet is split between top-level rules into chunks of about 4 KB, and
-where a chunk ends depends on the rules, not on their position. A large
-styled-components sheet that grows from test to test therefore shares most of
-its chunks with the previous version, and each rule is stored about once.
-Shorter sheets stay inline.
+Every file but the manifest is named after a hash of its content, so identical
+DOM is stored once, however many frames, tests and runs produce it. A
+stylesheet of 256 characters or more moves out of the snapshot, which keeps a
+reference (`describe-me-style:<hash>+<hash>…`). The sheet is split between
+top-level rules into chunks of about 4 KB, and the rules decide where a chunk
+ends. A large styled-components sheet that grows from test to test therefore
+shares most of its chunks, and each rule is stored about once. Shorter sheets
+stay inline.
 
-After every run the reporter collects garbage: first the snapshots no frame
-points at, then the style chunks no kept snapshot refers to, then the assets
-that neither a kept snapshot nor a kept chunk refers to, so a font or image
-used only from CSS stays. `describe-me build` copies the directory into the
-static site as `__data/`.
+After every test run, garbage collection deletes the snapshots no frame points
+at, then the style chunks no kept snapshot refers to, then the assets no kept
+snapshot or chunk refers to. A font or image used only from CSS is therefore
+kept. `describe-me build` copies the directory into the static site as
+`__data/`.
 
 The viewer reads output written by 0.4. A 0.4 viewer cannot read this output
 (frames show without their stylesheets), so upgrade `describe-me` together with

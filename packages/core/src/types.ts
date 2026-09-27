@@ -39,9 +39,9 @@ export const ASSET_URL_PREFIX = 'describe-me-asset:' as const
 
 /**
  * Prefix of stylesheet references inside stored snapshots, e.g.
- * `describe-me-style:3f2a9c1d0b7e4a55+9c1d…`: an rrweb `_cssText` of 256+
- * characters is stored as content-addressed chunks in `<outDir>/styles/<hash>.css`
- * and the viewer joins them back, in order, before replaying the snapshot.
+ * `describe-me-style:3f2a9c1d0b7e4a55+9c1d…`. The reporter stores an rrweb
+ * `_cssText` of 256+ characters as chunks in `<outDir>/styles/<hash>.css`, and
+ * the viewer joins them back in order before replaying.
  */
 export const STYLE_URL_PREFIX = 'describe-me-style:' as const
 

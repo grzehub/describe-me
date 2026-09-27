@@ -1,11 +1,10 @@
 /**
  * Measures what an output directory weighs: snapshot files against distinct
- * DOMs, the bytes rrweb's `rootId` takes, the style chunks in `styles/` the
- * snapshots refer to, and how much CSS the snapshots carry, split into
- * styled-components sheets (`<style data-styled>`) and the rest. A sheet stored
- * in `styles/` is counted as if it were inlined, so the CSS figures compare
- * with output written before stylesheets moved out of the snapshots. Plain
- * Node without a build, so it also reads output of older versions.
+ * DOMs, the bytes rrweb's `rootId` takes, the chunks in `styles/`, and how much
+ * CSS the snapshots inline, split into styled-components sheets
+ * (`<style data-styled>`) and the rest. A sheet in `styles/` counts as inlined,
+ * so the figures compare with older output. Plain Node without a build, so it
+ * also reads output of older versions.
  * Usage: `node scripts/measure-output.mjs <outDir|manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
@@ -128,7 +127,7 @@ function newMeasurement(manifest, stylesDir) {
     bytes: 0,
     rootIdBytes: 0,
     stylesDir,
-    /** Text of every style chunk the snapshots refer to, by hash; null when the file is missing. */
+    /** Chunk texts by hash, null when the file is missing. */
     chunks: new Map(),
     inlined: { styled: 0, other: 0 },
     sheets: newSplitSets(),
@@ -136,7 +135,7 @@ function newMeasurement(manifest, stylesDir) {
   }
 }
 
-/** One style chunk's text, read once. A missing chunk warns, is counted and reads as empty. */
+/** A missing chunk warns once, is counted, and reads as empty. */
 function chunkText(measurement, label, hash) {
   if (!measurement.chunks.has(hash)) {
     const abs = join(measurement.stylesDir, `${hash}.css`)
@@ -151,7 +150,6 @@ function chunkText(measurement, label, hash) {
   return measurement.chunks.get(hash) ?? ''
 }
 
-/** A sheet as the viewer replays it: a style reference is replaced by its joined chunks. */
 function sheetText(measurement, label, css) {
   if (!css.startsWith(STYLE_PREFIX)) {
     return css
@@ -279,7 +277,6 @@ function countsLine(measurement) {
   ].join(' · ')
 }
 
-/** The style chunks the snapshots refer to, as files on disk. */
 function stylesSummary(measurement) {
   const texts = [...measurement.chunks.values()]
   const stored = texts.filter((text) => text !== null)

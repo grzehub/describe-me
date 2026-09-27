@@ -1,25 +1,20 @@
-/**
- * A chunk is never closed before it holds this many characters, so a run of
- * small rules does not turn into a run of tiny files.
- */
+/** A chunk is never closed below this length, so small rules do not end up in tiny files. */
 const MIN_CHUNK = 1024
 
 /**
- * A chunk is closed as soon as it holds this many characters, so no file grows
- * without bound. Only its last rule can take it past the limit: a rule is never
- * split.
+ * A chunk is closed once it reaches this length. Only its last rule can take it
+ * past the limit, because a rule is never split.
  */
 const MAX_CHUNK = 16384
 
 /**
- * Past `MIN_CHUNK`, a rule of `n` characters closes its chunk when a hash of its
- * text says so, which happens for about `n` in `BOUNDARY_SPACING` rules. Chunks
- * then average about 4 KB, and where they end depends on the rules, not on
- * their offsets.
+ * Past `MIN_CHUNK`, a rule of `n` characters ends its chunk with a probability
+ * of about `n / BOUNDARY_SPACING`, decided by a hash of its text. Chunks then
+ * average about 4 KB, and where they end depends on content, not on offsets.
  */
 const BOUNDARY_SPACING = 3072
 
-/** 32-bit FNV-1a over UTF-16 code units: cheap, and the same for the same text on every run. */
+/** Boundaries only need a cheap, stable hash, not sha1. */
 function fnv1a32(text: string): number {
   let hash = 0x811c9dc5
   for (let i = 0; i < text.length; i++) {
@@ -29,19 +24,16 @@ function fnv1a32(text: string): number {
   return hash >>> 0
 }
 
-/** Whether a top-level rule closes the chunk it ends, once the chunk is long enough. */
 function isBoundary(piece: string): boolean {
   return fnv1a32(piece) % BOUNDARY_SPACING < piece.length
 }
 
-/** Index just past the comment that starts at `start`, or the end of the text when it is never closed. */
 function endOfComment(css: string, start: number): number {
   const close = css.indexOf('*/', start + 2)
 
   return close === -1 ? css.length : close + 2
 }
 
-/** Index just past the string that starts at `start`, or the end of the text when it is never closed. */
 function endOfString(css: string, start: number): number {
   const quote = css[start]
   let i = start + 1
@@ -59,13 +51,10 @@ function endOfString(css: string, start: number): number {
 }
 
 /**
- * Cut a stylesheet right after every top-level rule: after a `}` that brings the
- * brace depth back to 0, or after a `;` at depth 0 (`@import`, `@charset`).
- * Strings, comments and backslash escapes are skipped, and nothing inside
- * parentheses counts, so `content: "}"`, `url(data:…;…)` and the `;` of an
- * unquoted font URL never end a rule. Whitespace and comments between rules,
- * rrweb's `rr_split` markers included, open the next piece; whatever follows
- * the last rule is the last piece.
+ * Cut a stylesheet after every top-level rule: after the `}` that closes a
+ * top-level block, or after a semicolon at depth 0 (`@import`). Strings,
+ * comments and escapes are skipped and nothing in parentheses counts, so
+ * `content: "}"` or an unquoted font URL with semicolons never ends a rule.
  */
 function topLevelPieces(css: string): string[] {
   const pieces: string[] = []
@@ -118,12 +107,10 @@ function topLevelPieces(css: string): string[] {
 }
 
 /**
- * Split a stylesheet into chunks of about 4 KB for content-addressed storage.
- * A chunk only ever ends between two top-level rules, where the rule's content
- * decides, so inserting a rule leaves every chunk before it and most chunks
- * after it unchanged: a sheet that grows from test to test shares most of its
- * chunks with the previous version. `chunks.join('')` is always the input,
- * byte for byte, even when the CSS is malformed.
+ * Split a stylesheet into chunks of about 4 KB, cut between top-level rules
+ * where their content decides, so a sheet that grows from test to test keeps
+ * most of its chunks. `chunks.join('')` is always the input, even for
+ * malformed CSS.
  */
 export function splitStylesheet(css: string): string[] {
   const chunks: string[] = []

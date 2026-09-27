@@ -12,33 +12,27 @@ import { join } from 'node:path'
 import { STYLE_URL_PREFIX } from '@describe-me/core/types'
 import { splitStylesheet } from './split-stylesheet.js'
 
-/**
- * Sheets shorter than this stay inline: a reset or a handful of rules costs the
- * snapshot less than a reference and a file of its own would.
- */
+/** Shorter sheets stay inline, where they cost less than a reference and a file of their own. */
 const MIN_EXTRACTED_LENGTH = 256
 
 /**
- * rrweb's `_cssText` member in serialized JSON, its value still escaped. Inside
- * JSON string content every `"` is escaped, so only the real key matches. The
- * unrolled form is much faster than `(?:[^"\\]|\\.)*` on megabyte-long sheets.
+ * Inside a JSON string every `"` is escaped, so only a real `_cssText` key
+ * matches. Unrolled, because `(?:[^"\\]|\\.)*` is much slower on
+ * megabyte-long sheets.
  */
 const CSS_TEXT_MEMBER = /"_cssText":"([^"\\]*(?:\\.[^"\\]*)*)"/g
 
-/** A stored reference: the hashes of its chunks, in order, joined by `+`. */
 const STYLE_REFERENCE = new RegExp(`${STYLE_URL_PREFIX}([0-9a-f]{16}(?:\\+[0-9a-f]{16})*)`, 'g')
 
 /**
- * Content-addressed store for the stylesheets snapshots carry, living in
- * `<outDir>/styles`. rrweb inlines the full text of every sheet on the page into
- * every capture; `extract()` moves each long one into chunk files named after
- * their hash and leaves a `STYLE_URL_PREFIX` reference in the snapshot, so a
- * sheet, or most of one that grew, is stored once however many snapshots use it.
+ * Content-addressed store for the stylesheets rrweb copies into every capture,
+ * living in `<outDir>/styles`. A sheet is stored once, in chunks, so one that
+ * grows from test to test shares most of them.
  */
 export class StyleStore {
   private readonly outDir: string
   private readonly dir: string
-  /** Chunk hashes per snapshot file. Snapshots are content-addressed, so an entry never goes stale. */
+  /** Snapshots are content-addressed, so a cached entry never goes stale. */
   private readonly referencesBySnapshot = new Map<string, string[]>()
 
   constructor(outDir: string) {
@@ -48,9 +42,8 @@ export class StyleStore {
   }
 
   /**
-   * Replace every rrweb `_cssText` of `MIN_EXTRACTED_LENGTH` or more characters
-   * in a serialized snapshot with a reference to its chunks, writing the chunks
-   * that are not stored yet. Running it on its own output changes nothing.
+   * Replace each long `_cssText` in a serialized snapshot with a reference to
+   * its chunks, writing the ones not stored yet. Idempotent.
    */
   extract(json: string): string {
     return json.replace(CSS_TEXT_MEMBER, (member: string, escaped: string) => {
@@ -66,9 +59,9 @@ export class StyleStore {
   }
 
   /**
-   * Drop the chunks no kept snapshot refers to. Paths are relative to the output
-   * directory, as the manifest stores them. Returns the kept chunks the same way
-   * (`styles/<hash>.css`), sorted, so the asset store can scan them too.
+   * Drop the chunks no kept snapshot refers to, and return the kept ones as
+   * sorted `styles/<hash>.css` paths for the asset store. Paths are relative to
+   * the output directory, as the manifest stores them.
    */
   collectGarbage(snapshotFiles: Iterable<string>): string[] {
     const keep = new Set<string>()
@@ -90,10 +83,10 @@ export class StyleStore {
     return kept.sort()
   }
 
-  /** Store one chunk under its hash, unless it is there already, and return the hash. */
   private write(chunk: string): string {
     const hash = createHash('sha1').update(chunk).digest('hex').slice(0, 16)
     const file = join(this.dir, `${hash}.css`)
+    // Not remembered in memory: in watch mode, GC can delete the file between runs.
     if (!existsSync(file)) {
       writeFileSync(file, chunk)
     }

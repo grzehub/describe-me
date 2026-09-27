@@ -1,10 +1,6 @@
 /**
- * Checks how @describe-me/vitest stores stylesheets, on its built output:
- * `splitStylesheet` keeps every byte, cuts only between top-level rules, keeps
- * its cuts when a rule is inserted and sizes chunks as promised;
- * `StyleStore.extract` is lossless and idempotent; style and asset garbage
- * collection keep exactly what snapshots and chunks refer to.
- * Prints one line per check and exits 1 when any fails. Run after `pnpm build`.
+ * Checks how @describe-me/vitest chunks, extracts and garbage-collects
+ * stylesheets, on its built output. Run after `pnpm build`.
  *
  * Usage: `node scripts/check-style-store.mjs`
  */
@@ -15,8 +11,7 @@ import { AssetStore } from '../packages/vitest/dist/asset-store.js'
 import { splitStylesheet } from '../packages/vitest/dist/split-stylesheet.js'
 import { StyleStore } from '../packages/vitest/dist/style-store.js'
 
-// Copies of MIN_CHUNK and MAX_CHUNK in packages/vitest/src/split-stylesheet.ts and of
-// MIN_EXTRACTED_LENGTH in packages/vitest/src/style-store.ts. Keep them in sync.
+// Copied from packages/vitest/src/split-stylesheet.ts and style-store.ts. Keep in sync.
 const MIN_CHUNK = 1024
 const MAX_CHUNK = 16384
 const MIN_EXTRACTED_LENGTH = 256
@@ -25,17 +20,15 @@ const SPLIT_MARKER = '/* rr_split */'
 const STYLE_PREFIX = 'describe-me-style:'
 const STYLE_MEMBER = /"_cssText":"describe-me-style:([0-9a-f+]+)"/g
 
-/** Items in the boundary fixture: about 60 KB of them, well over the 40 KB it needs. */
+/** About 60 KB of CSS. */
 const FIXTURE_ITEMS = 1200
 
-/** Items in the large sheet: a little over 1 MB of them. */
+/** A little over 1 MB of CSS. */
 const LARGE_SHEET_ITEMS = 20_000
 
 /**
- * Top-level items the fixtures are built from, each varied by its index. An item
- * brings its own leading whitespace or comment and ends with the `}` or `;` that
- * closes it, and holds exactly one top-level rule, so item ends are the only
- * places where a chunk may end.
+ * Each item, varied by its index, holds exactly one top-level rule with its
+ * leading whitespace or comment, so a chunk may only end where an item ends.
  */
 const ITEM_KINDS = [
   (i) => `\n.rule-${i} { color: #${(i * 4099).toString(16).padStart(6, '0').slice(-6)}; }`,
@@ -67,10 +60,7 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-/**
- * Run one check and print its line. `run` returns a boolean or
- * `{ passed, detail }`; a check that throws has failed.
- */
+/** `run` returns a boolean or `{ passed, detail }`. A check that throws fails. */
 function check(name, run) {
   let outcome
   try {
@@ -104,7 +94,6 @@ function generateItems(count) {
   return Array.from({ length: count }, (_, i) => ITEM_KINDS[i % ITEM_KINDS.length](i))
 }
 
-/** The sheet made of `items`, and the offset right after each item. */
 function sheetOf(items) {
   const ends = []
   let length = 0
@@ -116,12 +105,10 @@ function sheetOf(items) {
   return { css: items.join(''), ends }
 }
 
-/** Offsets right after each chunk. */
 function chunkEnds(chunks) {
   return sheetOf(chunks).ends
 }
 
-/** Non-final chunks that end anywhere but at an item end. */
 function strayCuts(chunks, itemEnds) {
   const allowed = new Set(itemEnds)
 
@@ -130,7 +117,6 @@ function strayCuts(chunks, itemEnds) {
     .filter((end) => !allowed.has(end))
 }
 
-/** Check that every cut between `chunks` lands on one of `itemEnds`. */
 function checkCuts(name, chunks, itemEnds) {
   check(name, () => {
     const stray = strayCuts(chunks, itemEnds)
@@ -280,7 +266,6 @@ function checkSplitSizes() {
   })
 }
 
-/** JSON of a small rrweb-like document: one `<style>` per sheet, one text node. */
 function snapshotJson(sheets, text = 'hello') {
   const styles = sheets.map((css, i) => ({
     type: 2,
@@ -314,7 +299,10 @@ function snapshotJson(sheets, text = 'hello') {
   })
 }
 
-/** A rule of exactly `length` characters, with a quote and a backslash that JSON escapes. */
+/**
+ * A rule of exactly `length` characters. Its quote and backslash make the JSON
+ * longer, which the threshold must not count.
+ */
 function ruleOfLength(length) {
   const head = '.t::before { content: "\\"'
   const tail = '"; }'
@@ -322,7 +310,7 @@ function ruleOfLength(length) {
   return `${head}${'x'.repeat(length - head.length - tail.length)}${tail}`
 }
 
-/** At least `length` characters of rules with quotes, backslashes, non-ASCII text and an asset URL. */
+/** Rules whose quotes, backslashes, non-ASCII text and asset URL test JSON escaping. */
 function richSheet(length, prefix = 'rich', asset = '0123456789abcdef.png') {
   const kinds = [
     (i) => `.${prefix}-quote-${i}::before { content: "\\201C"; }`,
@@ -339,12 +327,10 @@ function richSheet(length, prefix = 'rich', asset = '0123456789abcdef.png') {
   return css
 }
 
-/** Every style reference in extracted JSON, as the list of its chunk hashes. */
 function referencesIn(json) {
   return Array.from(json.matchAll(STYLE_MEMBER), (match) => match[1].split('+'))
 }
 
-/** Extracted JSON with every reference replaced by its chunks, joined and escaped again. */
 function restored(json, outDir) {
   return json.replace(STYLE_MEMBER, (_member, hashes) => {
     const css = hashes

@@ -1,9 +1,8 @@
 /**
  * Reads `.describe-me/`, then for each styling technique reports whether its
  * selector and its declared colour are present anywhere in the serialized DOM,
- * with every stylesheet the snapshots keep in `styles/` put back in place.
- * Exits non-zero when anything but adoptedStyleSheets (unsupported by jsdom) is
- * lost, or when a style chunk a snapshot refers to is missing.
+ * with stylesheets from `styles/` put back. Exits non-zero when anything but
+ * adoptedStyleSheets (unsupported by jsdom) is lost, or a chunk is missing.
  * Usage: `node check-styles.mjs`
  */
 import { existsSync, readFileSync } from 'node:fs'
@@ -46,7 +45,6 @@ function chunkText(hash) {
   return readFileSync(file, 'utf8')
 }
 
-/** A snapshot's text with every style reference replaced by the stylesheet it stands for. */
 function withStyles(json) {
   return json.replace(STYLE_REFERENCE, (_reference, hashes) =>
     hashes

@@ -1,8 +1,6 @@
 /**
  * Node-side Vitest reporter. Collects frames from task.meta and writes
- * `.describe-me/`: `manifest.json`, one file per distinct snapshot in
- * `snapshots/`, the stylesheet chunks they refer to in `styles/` and the
- * project files they point at in `assets/`.
+ * `.describe-me/`: `manifest.json`, `snapshots/`, `styles/` and `assets/`.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
@@ -222,9 +220,9 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   /**
-   * Store one frame's DOM, with its project asset URLs pointing into the asset
-   * store and its long stylesheets moved into the style store. Assets go first,
-   * so the stored CSS already carries asset URLs.
+   * Store one frame's DOM, with asset URLs pointing into the asset store and
+   * long stylesheets moved to the style store. Assets go first, so stored CSS
+   * carries asset URLs too.
    */
   private writeSnapshot(snapshot: unknown, origin: string | undefined): string {
     // A mixed install, where an older core created the global recorder, still hands over objects.

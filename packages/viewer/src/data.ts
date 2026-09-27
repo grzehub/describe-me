@@ -40,12 +40,10 @@ export async function loadManifest(): Promise<void> {
 }
 
 /**
- * Fetch one serialized DOM, memoized until the next manifest load. Asset URLs
- * are made absolute here, against the page, because the snapshot replays in a
- * sandboxed iframe that has no base URL of its own, and stylesheets stored in
- * `styles/` are put back before the promise resolves, so the stage and the
- * gallery thumbnails, which both load through this, always rebuild with
- * complete CSS and measure styled boxes.
+ * Fetch one serialized DOM, memoized until the next manifest load. The promise
+ * resolves with asset URLs made absolute and stored stylesheets put back, so
+ * the stage and the gallery thumbnails always rebuild complete CSS and measure
+ * styled boxes.
  */
 export function loadSnapshot(path: string): Promise<SerializedNode> {
   let pending = snapshotCache.get(path)

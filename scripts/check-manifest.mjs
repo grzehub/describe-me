@@ -10,11 +10,11 @@
  * without rrweb's node ids). `--structure-only` runs just these guarantees and
  * snapshot checks, which is what a real project can promise.
  *
- * In both modes the stores must be complete: every style chunk a snapshot
- * refers to exists in `styles/`, no chunk there is left unreferenced, and every
- * asset a snapshot or a chunk names exists in `assets/`. The full check also
- * makes sure stylesheet extraction is on: no snapshot inlines a sheet of 256+
- * characters, and at least one refers to a chunk.
+ * Both modes also check the stores: every style chunk a snapshot refers to
+ * exists, no chunk in `styles/` is orphaned, and every asset named in a
+ * snapshot or chunk is in `assets/`. The full check also makes sure extraction
+ * is on: no snapshot inlines a sheet of 256+ characters, and some snapshot
+ * refers to a chunk.
  *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] <path/to/manifest.json> [...more]`
  */
@@ -202,12 +202,11 @@ function snapshotProblemsIn(manifest, manifestPath) {
   return { files, problems }
 }
 
-/** File names in one of the output's folders. Output older than `styles/` counts as empty. */
+/** Older output has no `styles/`, which counts as empty. */
 function filesIn(dir) {
   return existsSync(dir) ? readdirSync(dir) : []
 }
 
-/** Texts of the files that exist, by path relative to the output directory. */
 function textsOf(outDir, files) {
   const texts = new Map()
   for (const file of files) {
@@ -220,7 +219,7 @@ function textsOf(outDir, files) {
   return texts
 }
 
-/** Style chunk names (`<hash>.css`) the texts refer to, each with the first file that does. */
+/** Each referenced chunk (`<hash>.css`) with the first file that refers to it. */
 function styleChunksIn(texts) {
   const chunks = new Map()
   for (const [file, text] of texts) {
@@ -236,7 +235,6 @@ function styleChunksIn(texts) {
   return chunks
 }
 
-/** Asset names the texts refer to that `assets/` does not hold. */
 function assetProblemsIn(outDir, texts) {
   const stored = new Set(filesIn(join(outDir, 'assets')))
   const problems = new Set()
@@ -251,10 +249,7 @@ function assetProblemsIn(outDir, texts) {
   return [...problems]
 }
 
-/**
- * Missing and orphaned style chunks, and assets missing for the snapshots or
- * the chunks. Missing snapshot files are left to the snapshot checks.
- */
+/** Missing snapshot files are left to the snapshot checks. */
 function storeProblemsIn(manifest, manifestPath) {
   const outDir = dirname(manifestPath)
   const snapshots = textsOf(outDir, snapshotFilesOf(manifest))
@@ -280,7 +275,6 @@ function storeProblemsIn(manifest, manifestPath) {
   return { snapshots, chunks: referenced.size, problems }
 }
 
-/** Lengths of the stylesheets a serialized tree still inlines at a length the reporter extracts. */
 function inlinedSheetLengths(node, lengths = []) {
   const cssText = node.attributes?._cssText
   if (
@@ -298,12 +292,7 @@ function inlinedSheetLengths(node, lengths = []) {
   return lengths
 }
 
-/**
- * Stylesheet extraction must be on in a full run: no snapshot inlines a sheet
- * the reporter moves to `styles/`, and some snapshot refers to a chunk. A
- * filtered run after an upgrade can keep older snapshots, so this is not
- * part of `--structure-only`.
- */
+/** Not in `--structure-only`: a filtered run after an upgrade can keep older snapshots. */
 function extractionProblemsIn(store) {
   const problems = []
   for (const [file, json] of store.snapshots) {

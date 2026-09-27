@@ -122,8 +122,8 @@ export class AssetStore {
   private readonly names = new Map<string, string | null>()
   private readonly notFound = new Set<string>()
   /**
-   * Asset names per scanned file, a snapshot or a style chunk. Both are
-   * content-addressed, so an entry never goes stale.
+   * Asset names per snapshot or style chunk. Both are content-addressed, so an
+   * entry never goes stale.
    */
   private readonly referencesByFile = new Map<string, string[]>()
 
@@ -181,12 +181,10 @@ export class AssetStore {
   }
 
   /**
-   * Drop the assets no kept file refers to. `files` are paths relative to the
-   * output directory, as the manifest stores them: the snapshot files and the
-   * style chunks they reference, since a font or image used only from CSS is
-   * referenced from a chunk. Every kept file is scanned, not only the ones
-   * written now: snapshots of modules that were not re-run were rewritten by an
-   * earlier run.
+   * Drop the assets no kept snapshot or style chunk refers to. Paths are
+   * relative to the output directory, as the manifest stores them. Every kept
+   * file is scanned, not only the ones written now: snapshots of modules that
+   * were not re-run were rewritten by an earlier run.
    */
   collectGarbage(files: Iterable<string>): void {
     const stored = readdirSync(this.dir)

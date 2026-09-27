@@ -2,13 +2,15 @@ import { STYLE_URL_PREFIX } from '@describe-me/core/types'
 import { loadStyle } from './load-style.js'
 import type { SerializedNode } from './serialized-node.js'
 
-/** What the walk reads of a serialized node: an element's attributes and its children. */
+/**
+ * What the walk reads. `SerializedNode` is `any` here: rrweb-snapshot's types
+ * import `@rrweb/types`, which it does not install.
+ */
 interface WalkedNode {
   attributes?: Record<string, unknown>
   childNodes?: WalkedNode[]
 }
 
-/** A node whose stylesheet is stored in `styles/`, and the reference that points there. */
 interface StoredSheet {
   attributes: Record<string, unknown>
   reference: string
@@ -28,9 +30,8 @@ function storedSheets(node: WalkedNode, found: StoredSheet[] = []): StoredSheet[
 }
 
 /**
- * Put back, in place, every stylesheet a snapshot stores as a reference, so
- * rrweb rebuilds the frame with its CSS. Snapshots written before stylesheets
- * moved to `styles/` have no references and are left as they are.
+ * Put every stylesheet a snapshot keeps in `styles/` back in place, before
+ * rrweb rebuilds it. Snapshots without references pass through unchanged.
  */
 export async function restoreStyles(node: SerializedNode): Promise<void> {
   const stored = storedSheets(node)
