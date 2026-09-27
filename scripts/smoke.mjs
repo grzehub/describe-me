@@ -302,7 +302,6 @@ describe('Hello', () => {
 `,
   )
 
-  // Included but empty: the recorder runs, and the test leaves the manifest.
   writeFileSync(
     join(app, 'dom', 'pure.test.tsx'),
     `import { describe, expect, it } from 'vitest'
@@ -316,7 +315,6 @@ describe('pure', () => {
 `,
   )
 
-  // Excluded: the test runs and renders, but the recorder never starts.
   writeFileSync(
     join(app, 'dom', 'Excluded.test.tsx'),
     `import { describe, expect, it } from 'vitest'
@@ -382,7 +380,6 @@ describe('Hello', () => {
 `,
   )
 
-  // The browser counterparts, through the browser pool and its transport.
   writeFileSync(
     join(app, 'src', 'Excluded.test.tsx'),
     `import { describe, expect, it } from 'vitest'

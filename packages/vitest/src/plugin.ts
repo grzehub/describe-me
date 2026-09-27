@@ -41,10 +41,7 @@ export interface DescribeMeOptions {
    * nothing and leave the manifest. Default: every test file.
    */
   include?: string | string[]
-  /**
-   * Test files never to record, as globs like `include`; `exclude` wins over
-   * `include`. Default: none.
-   */
+  /** Test files never to record, as globs like `include`. Wins over `include`. Default: none. */
   exclude?: string | string[]
 }
 
@@ -125,9 +122,8 @@ function domConfig(userConfig: ViteUserConfig, options: DescribeMeOptions): Vite
 /**
  * One-line integration: `plugins: [describeMe()]`.
  *
- * Registers the setup file and the reporter, hands both of them the
- * `include` / `exclude` globs, and redirects the framework's `render` import
- * to our adapter so existing tests record frames unchanged.
+ * Registers the setup file and the reporter, and redirects the framework's
+ * `render` import to our adapter so existing tests record frames unchanged.
  * Works in browser mode and in DOM environments such as jsdom; the adapter
  * itself still needs the real module, so imports coming from inside it are
  * left alone.
@@ -152,9 +148,8 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const environment = options.environment ?? detectEnvironment(userConfig)
       renderModule = RENDER_MODULES[framework][environment]
 
-      // Compiled here, so invalid globs fail before any test runs. The setup
-      // files read them through `inject`; Vite deep-merges `provide`, so the
-      // user's own keys survive.
+      // Compiled here, so invalid globs fail before any test runs. Vite
+      // deep-merges `provide`, so the user's own keys survive.
       const runtimeOptions: RuntimeOptions = {
         include: compileGlobs(options.include),
         exclude: compileGlobs(options.exclude),

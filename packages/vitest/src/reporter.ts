@@ -33,8 +33,8 @@ export interface DescribeMeReporterOptions {
    */
   include?: string | string[]
   /**
-   * Which test files appear in the manifest: globs of files to leave out,
-   * matched like `include`, which they win over. Default: none.
+   * Test files to leave out of the manifest, as globs like `include`. Wins over
+   * `include`. Default: none.
    */
   exclude?: string | string[]
 }
@@ -75,9 +75,8 @@ export default class DescribeMeReporter implements Reporter {
   /**
    * A filtered run (`vitest run Button.test.tsx`) must not wipe the other
    * modules from the manifest, so start from whatever the last run wrote.
-   * Modules whose file no longer exists or is no longer selected by
-   * `include` / `exclude` are dropped, and so are tests that recorded nothing,
-   * which 0.4 still wrote.
+   * Modules whose file is gone or no longer selected by `include` / `exclude`
+   * are dropped, and so are the empty tests that 0.4 still wrote.
    */
   private seedFromPreviousRun(): void {
     const file = join(this.outDir, 'manifest.json')
@@ -104,9 +103,8 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   /**
-   * Tests that recorded nothing are left out, and a module left without tests
-   * leaves the manifest. A test skipped in this run keeps what an earlier run
-   * recorded for it.
+   * A test skipped in this run keeps its previous entry, so a filtered run does
+   * not erase documentation.
    */
   onTestModuleEnd(module: TestModule): void {
     const id = relative(this.root, module.moduleId)
@@ -168,16 +166,12 @@ export default class DescribeMeReporter implements Reporter {
     printDiagnostics(manifest)
   }
 
-  /** A module id is relative to the root with the platform's separators; globs expect posix ones. */
+  /** Module ids use the platform's separators. Globs expect posix ones. */
   private isRecordedModule(id: string): boolean {
     return this.isRecordedFile(id.split(sep).join('/'))
   }
 
-  /**
-   * The entry of one test case: built from what it recorded, or taken from
-   * the previous run when this run skipped it (`.only`, `-t`, `.skip`), or
-   * none. Decided before any snapshot is written, so a dropped test writes no file.
-   */
+  /** Decided before any snapshot is written, so a dropped test writes no file. */
   private manifestTestOf(
     tc: TestCase,
     previous: ManifestModule | undefined,

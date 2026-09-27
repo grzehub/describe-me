@@ -4,12 +4,11 @@ import { fileFilter } from './file-filter.js'
 import type { RuntimeOptions } from './runtime-options.js'
 
 /**
- * The per-test lifecycle shared by every environment: begin a recording
- * before each test of a file that `include` / `exclude` select, then take the
- * closing frame, hand the frames to the reporter via task.meta when there are
- * any, and only then let adapters unmount. Unmounting runs for every test,
- * recorded or not. Concurrent tests are never recorded: they would share the
- * one recorder.
+ * The per-test lifecycle shared by every environment: begin a recording, take
+ * the closing frame, hand the frames to the reporter via task.meta, and only
+ * then let adapters unmount. Teardown runs for unrecorded tests too, because
+ * Testing Library's auto-cleanup is off in jsdom. Concurrent tests would share
+ * the one recorder, so they are not recorded.
  */
 export function registerRecordingHooks(options: RuntimeOptions): void {
   const isRecordedFile = fileFilter(options)

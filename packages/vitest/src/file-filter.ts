@@ -5,10 +5,9 @@ function toRegExps(globs: CompiledGlob[]): RegExp[] {
 }
 
 /**
- * Whether a test file is recorded, by its path relative to the root with posix
- * separators: it must match `include` (when there is one) and no `exclude`.
- * Build it once and reuse the returned function, which remembers its answer
- * for every file name. Browser-safe.
+ * Takes a path relative to the root, with posix separators. Build it once and
+ * reuse the returned function, which memoizes per file name. The test runtime
+ * imports this file, so no Node imports.
  */
 export function fileFilter(
   options: Pick<RuntimeOptions, 'include' | 'exclude'>,

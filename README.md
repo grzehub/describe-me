@@ -60,7 +60,7 @@ A test that records no frame before the closing one (no recording `render`,
 no interaction, no `step()`) is left out of the manifest, even if it failed,
 and costs no snapshot, so pure logic tests next to your components are free.
 A test that renders outside the recording `render` (for example with
-`createRoot` by hand) is therefore left out too; call `step()` to keep it. A
+`createRoot` by hand) is therefore left out too. Call `step()` to keep it. A
 test skipped in a filtered run (`-t`, `.only`, `.skip`) keeps what the last
 run recorded for it.
 
@@ -213,7 +213,7 @@ jsdom is tested; happy-dom is untested.
 | `registerExports`              | `true`           | Name components after their export, see [Component overview](#component-overview).                            |
 | `styledComponentsBrowserBuild` | `true`           | DOM environments: load the browser build of styled-components, see [Global styles](#global-styles-and-fonts). |
 | `include`                      | every test file  | Test files to record.                                                                                         |
-| `exclude`                      | none             | Test files never to record; wins over `include`.                                                              |
+| `exclude`                      | none             | Test files never to record. Wins over `include`.                                                              |
 
 `include` and `exclude` take a glob or a list of globs, matched with
 [picomatch](https://github.com/micromatch/picomatch) against the test file's
@@ -224,7 +224,7 @@ manifest, including ones kept from an earlier run.
 
 Concurrent tests (`test.concurrent`, `describe.concurrent`,
 `sequence.concurrent`) are never recorded, because they would share one
-recorder; the setup file warns once per file.
+recorder. The setup file warns once per file.
 
 ```ts
 describeMe({

@@ -3,9 +3,8 @@ import picomatch from 'picomatch'
 import type { CompiledGlob } from './runtime-options.js'
 
 /**
- * Compile the `include` / `exclude` globs once, in Node, into plain
- * `{ source, flags }` pairs that can travel to the test runtime. Invalid input
- * fails here, with a `describe-me:` message, before any test runs.
+ * Plain `{ source, flags }` pairs, because the globs travel to the test
+ * runtime as JSON. Invalid input fails here, before any test runs.
  */
 export function compileGlobs(patterns: string | string[] | undefined): CompiledGlob[] {
   if (patterns === undefined) {
