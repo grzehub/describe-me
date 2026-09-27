@@ -39,6 +39,8 @@ const ASSET_NAME = /^[0-9a-f]{16}(?:\.[a-z0-9]+)?$/
 const MIN_EXTRACTED_LENGTH = 256
 
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i
+// Resolves protocol-relative head URLs, so their host can be read.
+const HEAD_BASE_URL = 'https://head.invalid/'
 // `href` and `src` values, double-quoted, single-quoted or bare. `data-src` is not `src`.
 const HEAD_URL = /(?<![\w-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi
 
@@ -409,11 +411,15 @@ function headProblemsIn(manifest) {
     .map((url) => `manifest.head: ${url} still points into the project`)
 }
 
+function hostOf(url) {
+  return URL.canParse(url, HEAD_BASE_URL) ? new URL(url, HEAD_BASE_URL).hostname : ''
+}
+
 /** `--require-fonts`: both examples load Inter from Google Fonts and Lora from a local file. */
 function fontProblemsIn(manifest, reached) {
   const problems = []
 
-  if (!headUrlsOf(manifest).some((url) => url.includes('//fonts.googleapis.com/'))) {
+  if (!headUrlsOf(manifest).some((url) => hostOf(url) === 'fonts.googleapis.com')) {
     problems.push('manifest.head does not link fonts.googleapis.com')
   }
 

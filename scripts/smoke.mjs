@@ -549,8 +549,13 @@ function verifyDom(manifest) {
     'the test under dom/packages/react/ was not redirected: no render frame',
   )
 
+  const headHosts = Array.from(
+    (manifest.head ?? '').matchAll(/href="([^"]*)"/g),
+    (match) => new URL(match[1]).hostname,
+  )
+
   assert(
-    manifest.head?.includes('fonts.googleapis.com'),
+    headHosts.includes('fonts.googleapis.com'),
     `the preview head did not reach the manifest: ${manifest.head}`,
   )
 }

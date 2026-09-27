@@ -5,10 +5,11 @@ type Resolve = (url: string) => string | null
 /**
  * Comments and `<script>` elements, which stay as written, and `<style>`
  * elements, whose CSS is rewritten. Tags between them are rewritten attribute
- * by attribute.
+ * by attribute. End tags and comment ends are matched as loosely as browsers
+ * read them: `</script foo>` and `--!>` count too.
  */
 const RAW_TEXT =
-  /<!--[\s\S]*?-->|<script\b[\s\S]*?<\/script\s*>|(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi
+  /<!--[\s\S]*?--!?>|<script\b[\s\S]*?<\/script\b[^>]*>|(<style\b[^>]*>)([\s\S]*?)(<\/style\b[^>]*>)/gi
 
 /** A start tag, split after its name. Quoted attribute values may contain `>`. */
 const START_TAG = /(<[a-z][^\s/>]*)((?:[^>"']|"[^"]*"|'[^']*')*>)/gi

@@ -399,6 +399,23 @@ function checkRewriteHead() {
     return { passed: rewritten === expected, detail: rewritten }
   })
 
+  check(
+    'rewriteHead leaves comments and <script> elements as written, also with loose ends',
+    () => {
+      const html = [
+        '<!-- <link rel="stylesheet" href="/site.css"> -->',
+        '<!-- <img src="/bg.png"> --!>',
+        '<script src="/bg.png">const src = "/bg.png"</script foo>',
+        '<link rel="icon" href="/icon.png">',
+      ].join('\n')
+
+      const expected = html.replace('href="/icon.png"', `href="describe-me-asset:${icon}"`)
+      const rewritten = store.rewriteHead(html)
+
+      return { passed: rewritten === expected, detail: rewritten.replaceAll('\n', ' ') }
+    },
+  )
+
   check('rewriteHead resolves ./ and ../ from the project root and lists missing files', () => {
     const html = '<link rel="stylesheet" href="./site.css"><link href="../gone.css">'
     const rewritten = store.rewriteHead(html)
