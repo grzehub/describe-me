@@ -1,5 +1,12 @@
 # @describe-me/react
 
+## 0.5.0-next.1
+
+### Patch Changes
+
+- Updated dependencies [[`26d38dc`](https://github.com/grzehub/describe-me/commit/26d38dc3561436e5bf4b4c27b48de2be81eb1bae)]:
+  - @describe-me/core@0.5.0-next.1
+
 ## 0.5.0-next.0
 
 ### Minor Changes
