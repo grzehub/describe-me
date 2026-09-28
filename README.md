@@ -237,6 +237,7 @@ jsdom is tested; happy-dom is untested.
 | `styledComponentsBrowserBuild` | `true`           | DOM environments: load the browser build of styled-components, see [Global styles](#global-styles-and-fonts). |
 | `include`                      | every test file  | Test files to record.                                                                                         |
 | `exclude`                      | none             | Test files never to record. Wins over `include`.                                                              |
+| `previewHead`                  | none             | HTML the viewer adds to the start of every frame's `<head>`, see [Fonts](#fonts).                             |
 
 `include` and `exclude` take a glob or a list of globs, matched with
 [picomatch](https://github.com/micromatch/picomatch) against the test file's
@@ -280,7 +281,8 @@ and `env: { RTL_SKIP_AUTO_CLEANUP: 'true' }` yourself.
 The reporter accepts the same `include` and `exclude`
 (`new DescribeMeReporter({ exclude: '**/*.integration.test.tsx' })`) and
 filters the manifest with them. Only the plugin hands them to the setup file,
-so a hand-wired setup still records, and pays for, every test.
+so a hand-wired setup still records, and pays for, every test. The reporter
+takes `previewHead` too, and nothing else needs it.
 
 ## Open questions / next
 
@@ -337,13 +339,14 @@ Verified by `StyledText.test.tsx` in both examples: the browser-mode replay is
 checked for computed colours, and `pnpm check-styles` in `examples/react-jsdom`
 checks that each rule is in the jsdom snapshots:
 
-| Technique                                  | Used by                                                                                          | Browser mode                                            | jsdom                                             |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------- |
-| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                     | yes                                               |
-| `<style>` / `<link>` in the document       | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                     | yes, CSS imports need `test.css` (plugin sets it) |
-| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                             | yes, simple rules verified                        |
-| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture | no: jsdom has no constructable stylesheets        |
-| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                 | no                                                |
+| Technique                                  | Used by                                                                                          | Browser mode                                                 | jsdom                                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                          | yes                                                                                                                                        |
+| `<style>` in the document                  | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                          | yes, CSS imports need `test.css` (plugin sets it)                                                                                          |
+| `<link rel="stylesheet">`                  | stylesheets and web fonts that a setup file or a library links                                   | same-origin sheets are inlined, cross-origin ones stay links | the link never loads during the test. Project files are copied with their `url()` targets, remote URLs load from the network in the viewer |
+| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                                  | yes, simple rules verified                                                                                                                 |
+| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture      | no: jsdom has no constructable stylesheets                                                                                                 |
+| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                      | no                                                                                                                                         |
 
 In jsdom, rules go through jsdom's own CSS parser, which drops what it does
 not understand. Simple rules are verified; nesting, `@layer` and `@container`
@@ -352,10 +355,11 @@ are not yet.
 ## Global styles and fonts
 
 The viewer shows the DOM and the CSS that were on the page during the test,
-nothing more. A reset, a `body { font-family }` or a web font that your app or
-Storybook adds around every component must therefore be there in the test too,
-or buttons show up with the browser's grey default and text in Times. Put them
-in the wrapper of your custom `render`, the same place as your providers:
+plus your `previewHead` (see [Fonts](#fonts)). A reset or a
+`body { font-family }` that your app or Storybook adds around every component
+must therefore be there in the test too, or buttons show up with the browser's
+grey default and text in Times. Put them in the wrapper of your custom
+`render`, the same place as your providers:
 
 ```tsx
 // test-utils.tsx
@@ -380,9 +384,6 @@ export * from '@testing-library/react'
 export { customRender as render }
 ```
 
-Fonts loaded with a `<link>` (Google Fonts and the like) can be added once in a
-setup file; the link is captured with the snapshot and loads in the viewer.
-
 **styled-components in jsdom.** Vitest loads the Node build of
 styled-components (5 and 6), whose `createGlobalStyle` never inserts its CSS
 on the client, so `<GlobalStyles />` silently does nothing in jsdom. The plugin
@@ -390,6 +391,56 @@ therefore points `styled-components` at its browser build and pre-bundles it
 together with `jest-styled-components`, so both share one instance and
 `toMatchSnapshot` output stays the same. Turn it off with
 `describeMe({ styledComponentsBrowserBuild: false })`.
+
+### Fonts
+
+Fonts usually go missing because the app shell loads them, and tests never run
+the shell: a Google Fonts `<link>` in `index.html`, a font loader called at
+startup, or a `fonts.css` that only the app entry imports. Give the viewer the
+same links with `previewHead`, like Storybook's `preview-head.html`:
+
+```ts
+describeMe({
+  previewHead: `
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+    <link rel="stylesheet" href="/src/fonts.css">
+  `,
+})
+```
+
+A project that already has a `preview-head.html` can pass it as it is:
+
+```ts
+import { readFileSync } from 'node:fs'
+
+describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') })
+```
+
+The head is stored once, in the manifest, and never reaches the test page. The
+viewer adds it to the start of every frame's `<head>`, so the captured styles
+win ties, and fits the frame again once the web fonts have loaded, waiting at
+most 3 seconds. Local files that the head links with `href` or `src`, and the
+`url()`s in its `<style>` blocks, are copied into `assets/`. A relative path
+counts from the project root. `/src/fonts.css` above is copied together with
+the fonts it points at.
+
+The alternative is to import the fonts CSS in a setup file. It then lands in
+every snapshot, and its fonts are copied into `assets/` too. Do not call the
+app's font loaders in tests. The `<link>` a loader adds lands in every
+snapshot, and in jsdom, where it never loads, every capture sets a timer for
+it.
+
+Keep in mind:
+
+- The viewer ignores scripts in the head. The reporter warns about a
+  `<script>`.
+- Fonts never load inside jsdom, so the test itself never sees them. Only the
+  viewer shows them.
+- CSS linked from the head is copied as it is on disk. It skips PostCSS,
+  Tailwind and every other Vite transform, so link plain CSS.
+- Remote fonts load from the network in the viewer, so the docs need network
+  access to show them.
 
 ## Assets
 
@@ -402,15 +453,23 @@ looked up under the project root, then `public/`; paths that cannot be found
 are listed as `assetsMissing` in the manifest and in the diagnostics. Links to
 pages (`<a href="/">`) are left alone.
 
+A CSS file keeps working when it is copied, because its `url()` and `@import`
+targets are copied with it and the copy points at them. Only fonts, images,
+cursors and CSS files are pulled in this way, so a stylesheet cannot publish a
+source file or a secret. The local files of the [preview head](#fonts) are
+copied as well.
+
 ## Output directory
 
 The reporter writes everything the viewer shows into `.describe-me/` (the
 plugin's `outDir` option):
 
-- `manifest.json`: modules, tests, frames, component docs and diagnostics.
+- `manifest.json`: modules, tests, frames, component docs, diagnostics and the
+  preview head.
 - `snapshots/<hash>.json`: the serialized DOM of each frame.
 - `styles/<hash>.css`: the snapshots' stylesheets, in chunks.
-- `assets/<hash>.<ext>`: project files that snapshots and stylesheets point at.
+- `assets/<hash>.<ext>`: project files that snapshots, stylesheets and the
+  preview head point at.
 
 Every file but the manifest is named after a hash of its content, so identical
 DOM is stored once, however many frames, tests and runs produce it. A
@@ -422,8 +481,9 @@ shares most of its chunks, and each rule is stored about once. Shorter sheets
 stay inline.
 
 After every test run, garbage collection deletes the snapshots no frame points
-at, then the style chunks no kept snapshot refers to, then the assets no kept
-snapshot or chunk refers to. A font or image used only from CSS is therefore
+at, then the style chunks no kept snapshot refers to, then the assets that no
+kept snapshot or chunk, nor the preview head, refers to. What a kept CSS asset
+refers to is kept as well. A font or image used only from CSS is therefore
 kept. `describe-me build` copies the directory into the static site as
 `__data/`.
 

@@ -23,6 +23,7 @@ const TECHNIQUES = [
     value: 'rgb(221, 51, 51)',
   },
   { name: 'imported .css file', selector: '.panel-title', value: '--accent: #2b5cff' },
+  { name: '@font-face from an imported .css file', selector: '@font-face', value: '.woff2' },
   {
     name: 'styled-components + theme',
     selector: 'letter-spacing: -0.01em',

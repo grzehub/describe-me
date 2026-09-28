@@ -13,30 +13,48 @@
  *
  * Both modes also check the stores: every style chunk a snapshot refers to
  * exists, no chunk in `styles/` is orphaned, and every asset named in a
- * snapshot or chunk is in `assets/`. The full check also makes sure extraction
- * is on: no snapshot inlines a sheet of 256+ characters, and some snapshot
- * refers to a chunk.
+ * snapshot, a chunk or the preview head (`manifest.head`) is in `assets/`. So
+ * is every sibling name inside a reachable CSS asset, transitively. The full
+ * check also makes sure extraction is on: no snapshot inlines a sheet of 256+
+ * characters, and some snapshot refers to a chunk. It also makes sure that
+ * the head and the reachable CSS assets point only at stored assets or
+ * outside the project. `--require-fonts` adds what this repository's examples
+ * promise: the head links Google Fonts, and a stored `.woff2` is reachable.
  *
- * Usage: `node scripts/check-manifest.mjs [--structure-only] <path/to/manifest.json> [...more]`
+ * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { cssReferences } from '../packages/core/dist/css-references.js'
 import { manifestDiagnostics } from '../packages/core/dist/manifest-diagnostics.js'
 
 const STYLE_PREFIX = 'describe-me-style:'
 const STYLE_REFERENCE = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
 // The same pattern as ASSET_REFERENCE in packages/vitest/src/asset-store.ts.
 const ASSET_REFERENCE = /describe-me-asset:([0-9a-f]{16}(?:\.[a-z0-9]+)?)/g
+// The same pattern as ASSET_NAME in packages/vitest/src/css-asset-references.ts.
+const ASSET_NAME = /^[0-9a-f]{16}(?:\.[a-z0-9]+)?$/
 // A copy of MIN_EXTRACTED_LENGTH in packages/vitest/src/style-store.ts.
 const MIN_EXTRACTED_LENGTH = 256
 
+const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i
+// Resolves protocol-relative head URLs, so their host can be read.
+const HEAD_BASE_URL = 'https://head.invalid/'
+// `href` and `src` values, double-quoted, single-quoted or bare. `data-src` is not `src`.
+const HEAD_URL = /(?<![\w-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi
+
 const STRUCTURE_ONLY = '--structure-only'
+const REQUIRE_FONTS = '--require-fonts'
 const structureOnly = process.argv.includes(STRUCTURE_ONLY)
-const paths = process.argv.slice(2).filter((arg) => arg !== STRUCTURE_ONLY)
+const requireFonts = process.argv.includes(REQUIRE_FONTS)
+const paths = process.argv.slice(2).filter((arg) => arg !== STRUCTURE_ONLY && arg !== REQUIRE_FONTS)
 
 if (paths.length === 0) {
-  console.error('usage: check-manifest [--structure-only] <path/to/manifest.json> [...more]')
+  console.error(
+    'usage: check-manifest [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]',
+  )
+
   process.exit(2)
 }
 
@@ -326,6 +344,92 @@ function assetProblemsIn(outDir, texts) {
   return [...problems]
 }
 
+/** Remote, protocol-relative, `data:`, `describe-me-asset:` and `#fragment` URLs, or none. */
+function isExternalUrl(url) {
+  return url === '' || url.startsWith('#') || url.startsWith('//') || URL_SCHEME.test(url)
+}
+
+/**
+ * Follows the bare sibling names the asset store writes into copied CSS, from
+ * the assets that the given texts name. Returns every stored asset reached,
+ * each sibling that is missing, and each target that still points into the
+ * project, which only the full check reports.
+ */
+function copiedCssIn(outDir, texts) {
+  const stored = new Set(filesIn(join(outDir, 'assets')))
+  const reached = new Set()
+  const pending = []
+  const missing = []
+  const projectUrls = []
+
+  const reach = (name) => {
+    if (stored.has(name) && !reached.has(name)) {
+      reached.add(name)
+      pending.push(name)
+    }
+  }
+
+  for (const [, text] of texts) {
+    for (const match of text.matchAll(ASSET_REFERENCE)) {
+      reach(match[1])
+    }
+  }
+
+  for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
+    if (!name.endsWith('.css')) {
+      continue
+    }
+
+    for (const { url } of cssReferences(readFileSync(join(outDir, 'assets', name), 'utf8'))) {
+      const target = url.split(/[?#]/)[0]
+
+      if (ASSET_NAME.test(target)) {
+        if (!stored.has(target)) {
+          missing.push(`assets/${name}: asset assets/${target} missing`)
+        }
+
+        reach(target)
+      } else if (!isExternalUrl(url)) {
+        projectUrls.push(`assets/${name}: ${url} still points into the project`)
+      }
+    }
+  }
+
+  return { reached, missing, projectUrls }
+}
+
+function headUrlsOf(manifest) {
+  const head = manifest.head ?? ''
+
+  return Array.from(head.matchAll(HEAD_URL), (match) => match[1] ?? match[2] ?? match[3])
+}
+
+/** Not in `--structure-only`: the head must name stored assets or point outside the project. */
+function headProblemsIn(manifest) {
+  return headUrlsOf(manifest)
+    .filter((url) => !isExternalUrl(url))
+    .map((url) => `manifest.head: ${url} still points into the project`)
+}
+
+function hostOf(url) {
+  return URL.canParse(url, HEAD_BASE_URL) ? new URL(url, HEAD_BASE_URL).hostname : ''
+}
+
+/** `--require-fonts`: both examples load Inter from Google Fonts and Lora from a local file. */
+function fontProblemsIn(manifest, reached) {
+  const problems = []
+
+  if (!headUrlsOf(manifest).some((url) => hostOf(url) === 'fonts.googleapis.com')) {
+    problems.push('manifest.head does not link fonts.googleapis.com')
+  }
+
+  if (![...reached].some((name) => name.endsWith('.woff2'))) {
+    problems.push('no .woff2 in assets/ is reachable from the head, a snapshot or a style chunk')
+  }
+
+  return problems
+}
+
 /** Missing snapshot files are left to the snapshot checks. */
 function storeProblemsIn(manifest, manifestPath) {
   const outDir = dirname(manifestPath)
@@ -347,9 +451,12 @@ function storeProblemsIn(manifest, manifestPath) {
   }
 
   const chunkFiles = [...referenced.keys()].map((chunk) => `styles/${chunk}`)
-  problems.push(...assetProblemsIn(outDir, [...snapshots, ...textsOf(outDir, chunkFiles)]))
+  const head = typeof manifest.head === 'string' ? [['manifest.head', manifest.head]] : []
+  const texts = [...snapshots, ...textsOf(outDir, chunkFiles), ...head]
+  const copiedCss = copiedCssIn(outDir, texts)
+  problems.push(...assetProblemsIn(outDir, texts), ...copiedCss.missing)
 
-  return { snapshots, chunks: referenced.size, problems }
+  return { snapshots, chunks: referenced.size, copiedCss, problems }
 }
 
 function inlinedSheetLengths(node, lengths = []) {
@@ -408,6 +515,11 @@ for (const path of paths) {
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
     problems.push(...extractionProblemsIn(store))
+    problems.push(...headProblemsIn(manifest), ...store.copiedCss.projectUrls)
+  }
+
+  if (!structureOnly && requireFonts) {
+    problems.push(...fontProblemsIn(manifest, store.copiedCss.reached))
   }
 
   problems.push(...snapshots.problems)

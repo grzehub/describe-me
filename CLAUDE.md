@@ -22,6 +22,7 @@ cd examples/react-jsdom && pnpm test          # 21 tests, jsdom (16 in the manif
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 pnpm check-manifest   # both examples' manifests, after running their tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
+pnpm check-asset-store   # CSS references, copied CSS, preview head and asset GC, after pnpm build
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom

@@ -1,4 +1,5 @@
 import landscape from './assets/landscape.jpg'
+import './assets/fonts/fonts.css'
 import './styles.css'
 import './postcard.css'
 
@@ -8,8 +9,9 @@ export interface PostcardProps {
 }
 
 /**
- * A photo imported as a module and a stamp-edge background from a stylesheet
- * `url()`: two project files the viewer has to serve long after the tests ran.
+ * A photo imported as a module, a stamp-edge background from a stylesheet
+ * `url()` and a caption font from an imported `fonts.css`: project files the
+ * viewer has to serve long after the tests ran.
  */
 export function Postcard({ place }: PostcardProps) {
   return (

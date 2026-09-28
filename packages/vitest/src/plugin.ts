@@ -44,6 +44,12 @@ export interface DescribeMeOptions {
   include?: string | string[]
   /** Test files never to record, as globs like `include`. Wins over `include`. Default: none. */
   exclude?: string | string[]
+  /**
+   * HTML the viewer adds to the start of the `<head>` of every replayed frame,
+   * like Storybook's `preview-head.html`. It never reaches the test page.
+   * Project files it links are copied into the output directory. Default: none.
+   */
+  previewHead?: string
 }
 
 interface RenderModule {
@@ -183,6 +189,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
         outDir,
         include: options.include,
         exclude: options.exclude,
+        previewHead: options.previewHead,
       })
 
       // Vite concatenates arrays when merging, so only add `default` when the

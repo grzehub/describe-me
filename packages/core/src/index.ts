@@ -1,4 +1,5 @@
 export * from './types.js'
+export { cssReferences, type CssReference } from './css-references.js'
 export { describeComponentType } from './describe-component-type.js'
 export { elementLabel } from './element-label.js'
 export { manifestDiagnostics } from './manifest-diagnostics.js'

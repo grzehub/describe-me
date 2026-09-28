@@ -55,6 +55,12 @@ Tests in other files still run, but record nothing. The reporter takes the
 same two options, but on its own it only filters the manifest: without the
 plugin the setup file does not know them.
 
+`describeMe({ previewHead })` takes HTML that the viewer adds to the start of
+every frame's `<head>`, like Storybook's `preview-head.html`: typically the
+font links that the app shell loads and tests never do. It never reaches the
+test page, and the local files it links are copied into the output directory
+([Fonts](https://github.com/grzehub/describe-me#fonts) in the root README).
+
 The pieces can also be wired by hand. Tests then import from the adapter
 themselves: `render` from `@describe-me/react` in browser mode, and `render`,
 `fireEvent` and `cleanup` from `@describe-me/react/testing-library` in jsdom:
