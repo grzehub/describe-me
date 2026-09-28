@@ -6,8 +6,11 @@ function stat(count: number, label: string, tone?: 'pass' | 'fail'): HTMLElement
   return el('span', { class: tone ? `stat ${tone}` : 'stat' }, el('b', {}, String(count)), label)
 }
 
-/** Wordmark, pass/fail counts, what could not be documented and the time of the last run. */
-export function renderHeader(): HTMLElement {
+/**
+ * The header's children: wordmark, pass/fail counts, what could not be
+ * documented and the time of the last run.
+ */
+export function renderHeader(): HTMLElement[] {
   const manifest = state.manifest
   const tests = manifest ? allTests(manifest) : []
   const passed = tests.filter((test) => test.state === 'passed').length
@@ -21,13 +24,15 @@ export function renderHeader(): HTMLElement {
 
   const wordmark = el('span', { class: 'wordmark' }, 'describe', el('span', { class: 'me' }, '-me'))
   const when = manifest ? new Date(manifest.generatedAt).toLocaleTimeString() : '…'
+  const issues = manifest ? renderDiagnosticsMenu(manifest) : null
+  const updated = el(
+    'span',
+    { class: 'right live' },
+    'updated ',
+    el('span', { class: 'mono' }, when),
+  )
 
-  return el(
-    'header',
-    { class: 'header' },
-    wordmark,
-    summary,
-    manifest && renderDiagnosticsMenu(manifest),
-    el('span', { class: 'right live' }, 'updated ', el('span', { class: 'mono' }, when)),
+  return [wordmark, summary, issues, updated].filter(
+    (child): child is HTMLElement => child !== null,
   )
 }

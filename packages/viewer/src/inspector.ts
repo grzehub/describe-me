@@ -2,13 +2,14 @@ import { el } from './el.js'
 import { currentTest, state } from './state.js'
 import { valueCell } from './value-cell.js'
 
-/** Right-hand pane: test status, component props, current frame, errors. */
-export function renderInspector(): HTMLElement {
+/** The inspector's sections for one test: status, component props, current frame, errors. */
+export function renderInspector(): HTMLElement[] {
   const test = currentTest()
-  const aside = el('aside', { class: 'inspector' })
   if (!test) {
-    return aside
+    return []
   }
+
+  const sections: HTMLElement[] = []
 
   const frame = test.frames[state.frame]
   const props =
@@ -27,7 +28,7 @@ export function renderInspector(): HTMLElement {
     ),
   )
 
-  aside.append(status)
+  sections.push(status)
 
   if (test.component) {
     const table = el('table', { class: 'kv' })
@@ -39,11 +40,11 @@ export function renderInspector(): HTMLElement {
       table.append(el('tr', {}, el('td', {}, el('span', { class: 'hint' }, 'no props'))))
     }
 
-    aside.append(el('section', {}, el('h3', {}, `component · ${test.component.name}`), table))
+    sections.push(el('section', {}, el('h3', {}, `component · ${test.component.name}`), table))
   }
 
   if (frame) {
-    aside.append(
+    sections.push(
       el(
         'section',
         {},
@@ -60,10 +61,10 @@ export function renderInspector(): HTMLElement {
       sec.append(el('pre', { class: 'err' }, error.message))
     }
 
-    aside.append(sec)
+    sections.push(sec)
   }
 
-  aside.append(
+  sections.push(
     el(
       'section',
       {},
@@ -82,5 +83,5 @@ export function renderInspector(): HTMLElement {
     ),
   )
 
-  return aside
+  return sections
 }

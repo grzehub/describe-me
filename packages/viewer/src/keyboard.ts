@@ -17,9 +17,18 @@ function onSuiteKey(event: KeyboardEvent, key: string): void {
   event.preventDefault()
 }
 
+/** Arrow keys move the caret or the value in a field, so shortcuts stay out of the way there. */
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return target.isContentEditable || target.matches('input, textarea, select')
+}
+
 /** ← → step through frames, ↑ ↓ through tests. */
 export function onKey(event: KeyboardEvent): void {
-  if (!state.manifest) {
+  if (!state.manifest || isTyping(event.target)) {
     return
   }
 
@@ -36,13 +45,13 @@ export function onKey(event: KeyboardEvent): void {
   if (event.key === 'ArrowRight' && state.frame < test.frames.length - 1) {
     state.frame++
     writeHash()
-    rerender()
+    rerender('frame')
   }
 
   if (event.key === 'ArrowLeft' && state.frame > 0) {
     state.frame--
     writeHash()
-    rerender()
+    rerender('frame')
   }
 
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

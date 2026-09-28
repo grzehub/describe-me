@@ -1,7 +1,7 @@
 import { manifestDiagnostics } from '@describe-me/core/diagnostics'
 import type { Manifest } from '@describe-me/core/types'
 import { el } from './el.js'
-import { select } from './state.js'
+import { select, state } from './state.js'
 
 /** Long lists are cut here; the rest is summed up in one line. */
 const LIST_LIMIT = 40
@@ -24,6 +24,12 @@ function section(title: string, hint: string, items: HTMLElement[]): HTMLElement
   )
 }
 
+/** Picking an item closes the panel, and the repaint rebuilds it closed. */
+function pick(testId: string): void {
+  state.issuesOpen = false
+  select(testId)
+}
+
 /**
  * A header chip that opens the list of what this manifest could not document:
  * anonymous components, components without props docs and assets that will not
@@ -44,7 +50,7 @@ export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
       el(
         'li',
         {},
-        el('button', { class: 'issues-link', click: () => select(test.testId) }, test.fullName),
+        el('button', { class: 'issues-link', click: () => pick(test.testId) }, test.fullName),
       ),
     )
 
@@ -88,9 +94,10 @@ export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
     )
   }
 
-  return el(
+  // Every repaint of the header rebuilds the panel, so its open state lives in `state`.
+  const details = el(
     'details',
-    { class: 'issues' },
+    { class: 'issues', open: state.issuesOpen },
     el(
       'summary',
       { class: 'stat warn' },
@@ -99,4 +106,10 @@ export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
     ),
     el('div', { class: 'issues-panel' }, ...sections),
   )
+
+  details.addEventListener('toggle', () => {
+    state.issuesOpen = details.open
+  })
+
+  return details
 }

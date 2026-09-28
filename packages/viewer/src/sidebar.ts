@@ -95,11 +95,6 @@ function renderModule(mod: ManifestModule): HTMLElement {
 }
 
 /** One block per test module, each holding its suite tree. */
-export function renderSidebar(): HTMLElement {
-  const aside = el('aside', { class: 'sidebar' })
-  for (const mod of state.manifest?.modules ?? []) {
-    aside.append(renderModule(mod))
-  }
-
-  return aside
+export function renderSidebar(): HTMLElement[] {
+  return (state.manifest?.modules ?? []).map((mod) => renderModule(mod))
 }

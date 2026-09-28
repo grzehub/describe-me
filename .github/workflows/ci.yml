@@ -21,6 +21,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - run: pnpm --filter describe-me typecheck
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm --filter react-browser exec playwright install --with-deps chromium

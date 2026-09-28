@@ -1,51 +1,23 @@
 import { el } from './el.js'
 import { rerender } from './rerender.js'
-import { paintFrame } from './stage.js'
 import { currentTest, state, writeHash } from './state.js'
+import { testView } from './test-view.js'
 
-/** Breadcrumbs, viewport buttons, the replay stage and the frame timeline. */
-export function renderMain(): HTMLElement {
+/** Fill the test view's breadcrumbs and frame timeline for the current test. */
+export function renderMain(): void {
   const test = currentTest()
-  const frame = test?.frames[state.frame]
+  const { path, timeline } = testView()
 
-  const crumbs = el('div', { class: 'crumbs' })
+  path.replaceChildren()
   if (test) {
     for (const part of test.path) {
-      crumbs.append(el('span', {}, part), el('span', { class: 'sep' }, '›'))
+      path.append(el('span', {}, part), el('span', { class: 'sep' }, '›'))
     }
 
-    crumbs.append(el('span', { class: 'cur' }, test.name))
+    path.append(el('span', { class: 'cur' }, test.name))
   }
 
-  const tools = el('div', { class: 'tools' })
-  for (const width of ['auto', '768', '375'] as const) {
-    tools.append(
-      el(
-        'button',
-        {
-          class: state.width === width ? 'on' : '',
-          click: () => {
-            state.width = width
-            rerender()
-          },
-        },
-        width === 'auto' ? '100%' : `${width}px`,
-      ),
-    )
-  }
-
-  crumbs.append(tools)
-
-  const stage = el('div', { class: 'stage' })
-  if (frame) {
-    void paintFrame(stage, frame)
-  } else {
-    stage.append(
-      el('div', { class: 'empty' }, test ? 'no frames recorded for this test' : 'select a test'),
-    )
-  }
-
-  const timeline = el('div', { class: 'timeline' })
+  timeline.replaceChildren()
   test?.frames.forEach((timelineFrame, i) => {
     timeline.append(
       el(
@@ -55,7 +27,7 @@ export function renderMain(): HTMLElement {
           click: () => {
             state.frame = i
             writeHash()
-            rerender()
+            rerender('frame')
           },
         },
         el('span', { class: 'k' }, timelineFrame.kind),
@@ -64,6 +36,4 @@ export function renderMain(): HTMLElement {
       ),
     )
   })
-
-  return el('main', { class: 'main' }, crumbs, stage, timeline)
 }

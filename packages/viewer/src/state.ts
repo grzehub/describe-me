@@ -1,4 +1,5 @@
 import type { Manifest, ManifestTest } from '@describe-me/core/types'
+import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
 
 export interface State {
@@ -7,7 +8,12 @@ export interface State {
   /** A sidebar suite or module selection; when set, the overview replaces the frame view. */
   suiteKey: string | null
   frame: number
-  width: 'auto' | '768' | '375'
+  /** The replayed page's size in CSS pixels. `null` fits the stage's width or the content's height. */
+  viewport: { width: number | null; height: number | null }
+  /** Kept here so repaints rebuild the issues panel as it was. */
+  issuesOpen: boolean
+  /** The stage's zoom, below 1 when the viewport is wider than the stage. */
+  scale: number
 }
 
 export const state: State = {
@@ -15,7 +21,9 @@ export const state: State = {
   testId: null,
   suiteKey: null,
   frame: 0,
-  width: 'auto',
+  viewport: { width: null, height: null },
+  issuesOpen: false,
+  scale: 1,
 }
 
 export function readHash(): void {
@@ -23,6 +31,10 @@ export function readHash(): void {
   state.testId = params.get('test')
   state.suiteKey = params.get('suite')
   state.frame = Number(params.get('frame') ?? 0) || 0
+  state.viewport = {
+    width: parseViewportSize(params.get('w')),
+    height: parseViewportSize(params.get('h')),
+  }
 }
 
 export function writeHash(): void {
@@ -37,6 +49,14 @@ export function writeHash(): void {
 
   if (state.frame) {
     params.set('frame', String(state.frame))
+  }
+
+  if (state.viewport.width !== null) {
+    params.set('w', String(state.viewport.width))
+  }
+
+  if (state.viewport.height !== null) {
+    params.set('h', String(state.viewport.height))
   }
 
   history.replaceState(null, '', `#${params.toString()}`)

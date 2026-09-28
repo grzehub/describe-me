@@ -3,11 +3,19 @@ import { loadManifest } from './data.js'
 import { el } from './el.js'
 import { renderHeader } from './header.js'
 import { onKey } from './keyboard.js'
+import { regions } from './regions.js'
 import { renderAll } from './render-all.js'
+import { renderFrame } from './render-frame.js'
 import { setRerender } from './rerender.js'
 import { readHash } from './state.js'
 
-setRerender(renderAll)
+setRerender((scope) => {
+  if (scope === 'frame') {
+    renderFrame()
+  } else {
+    renderAll()
+  }
+})
 
 readHash()
 document.addEventListener('keydown', onKey)
@@ -17,16 +25,11 @@ window.addEventListener('hashchange', () => {
 })
 
 loadManifest().catch((err) => {
-  document
-    .getElementById('app')!
-    .replaceChildren(
-      renderHeader(),
-      el(
-        'div',
-        { class: 'stage' },
-        el('div', { class: 'empty' }, `no manifest yet — run vitest first (${String(err)})`),
-      ),
-    )
+  const { header, center } = regions()
+  header.replaceChildren(...renderHeader())
+  center.replaceChildren(
+    el('div', { class: 'empty' }, `no manifest yet — run vitest first (${String(err)})`),
+  )
 })
 
 /** A failed refresh is not worth breaking the page over; the next one may succeed. */
