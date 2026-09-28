@@ -20,6 +20,8 @@ recorder.onTeardown(unmountAll)
  * keeps working. Testing Library wraps mounting in `act()`, which means the DOM
  * is committed when it returns, so frames are captured without settling: the
  * snapshot is taken right here, before the test's next line can change the DOM.
+ * `render`, `rerender` and `unmount` first take a render frame the plugin's
+ * `renderFrame` option deferred.
  *
  * Importing this module hands unmounting to the recorder's teardown rather
  * than to Testing Library's own auto-cleanup, which would run before the
@@ -27,6 +29,7 @@ recorder.onTeardown(unmountAll)
  * `RTL_SKIP_AUTO_CLEANUP`.
  */
 export function render(ui: ReactElement, options?: RenderOptions): RenderResult {
+  recorder.beforeInteraction()
   const result = baseRender(ui, options)
 
   if (recorder.isActive && isValidElement(ui)) {
@@ -38,6 +41,7 @@ export function render(ui: ReactElement, options?: RenderOptions): RenderResult 
   const originalRerender = result.rerender
 
   result.rerender = (next: ReactNode) => {
+    recorder.beforeInteraction()
     originalRerender(next)
 
     if (recorder.isActive && isValidElement(next)) {
@@ -49,6 +53,14 @@ export function render(ui: ReactElement, options?: RenderOptions): RenderResult 
         { settle: false },
       )
     }
+  }
+
+  const originalUnmount = result.unmount
+
+  // Without this, a lazy test that ends with `unmount()` documents an empty page.
+  result.unmount = () => {
+    recorder.beforeInteraction()
+    originalUnmount()
   }
 
   return result

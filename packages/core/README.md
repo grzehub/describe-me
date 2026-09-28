@@ -28,6 +28,12 @@ await step('open the menu', () => screen.getByRole('button', { name: 'Menu' }).c
 `elementLabel()` names a DOM element the way frame labels do, e.g.
 `button "Save"`, for adapters that record their own interactions.
 
+Such adapters call `recorder.beforeInteraction()` before they change the page,
+so a deferred render frame is taken first. As the capture's `generation`, they
+pass `recorder.generation`, read when the interaction began, so a capture that
+outlives its test is dropped. `recorder.flush()` waits for the captures in
+flight and takes a deferred render frame.
+
 The manifest types live in `@describe-me/core/types`, for tools that want to
 read `.describe-me/manifest.json` themselves. Stored snapshots point into
 `assets/` and `styles/` through `ASSET_URL_PREFIX` and `STYLE_URL_PREFIX`

@@ -1,39 +1,93 @@
+import { compactFrames, type FrameSlot } from './compact-frames.js'
 import { pageHasContent } from './page-has-content.js'
+import { PendingRender } from './pending-render.js'
 import { realTimers } from './real-timers.js'
 import { serializeDocument } from './serialize-document.js'
 import { settle } from './settle.js'
-import type { CaptureOptions, ComponentInfo, Frame, FrameKind, TestRecord } from './types.js'
+import type {
+  CaptureOptions,
+  ComponentInfo,
+  FrameKind,
+  RecorderOptions,
+  RenderFrameMode,
+  TestRecord,
+} from './types.js'
 
 type Teardown = () => void
 
+type DeferredMode = Exclude<RenderFrameMode, 'eager'>
+
+/** Fails in the setup file rather than in the first test that renders. */
+function assertValidSelector(selector: string): void {
+  if (typeof document === 'undefined') {
+    return
+  }
+
+  try {
+    document.querySelector(selector)
+  } catch {
+    throw new Error(`describe-me: renderFrame.pending is not a valid CSS selector: "${selector}"`)
+  }
+}
+
 /**
  * Test-side recorder, running wherever the tests run: the browser-mode iframe
- * or jsdom. `begin()` in beforeEach, `end()` then `teardown()` in afterEach.
- * Framework adapters call `capture()`, `setComponent()` and `onTeardown()`.
+ * or jsdom. `begin()` in beforeEach. `flush()`, the closing capture, `end()`
+ * then `teardown()` in afterEach. Framework adapters call `capture()`,
+ * `beforeInteraction()`, `setComponent()` and `onTeardown()`.
  */
 class Recorder {
-  private frames: Frame[] = []
+  // One per capture, in call order, so a frame sits where it was asked for.
+  private slots: FrameSlot[] = []
+  private currentGeneration = 0
+  private inFlight = new Set<Promise<void>>()
+  // The render frame `renderFrame` holds back, until an interaction or `flush()` takes it.
+  private deferred: FrameSlot | null = null
+  private pending: PendingRender | null = null
+  private renderFrame: RenderFrameMode = 'eager'
   private component?: ComponentInfo
   private startedAt = 0
   private active = false
   // Once `cleanup()` or the setup file took the closing frame, a second one is skipped.
   private closed = false
-  private lastJson = ''
-  private seq = 0
   private teardowns = new Set<Teardown>()
 
   begin(): void {
-    this.frames = []
+    this.currentGeneration++
+    this.slots = []
+    this.inFlight.clear()
+    this.clearDeferred()
     this.component = undefined
     this.startedAt = realTimers.now()
     this.active = true
     this.closed = false
-    this.lastJson = ''
-    this.seq = 0
   }
 
   get isActive(): boolean {
     return this.active
+  }
+
+  /**
+   * Changes with every test. An interaction reads it when it begins and hands
+   * it to `capture()`.
+   */
+  get generation(): number {
+    return this.currentGeneration
+  }
+
+  /**
+   * Choose when the render frame is taken, from the next render capture on.
+   * The setup files call it with the plugin's options. An invalid `pending`
+   * selector throws.
+   */
+  configure(options: RecorderOptions): void {
+    const renderFrame = options.renderFrame ?? 'eager'
+
+    if (typeof renderFrame === 'object') {
+      assertValidSelector(renderFrame.pending)
+    }
+
+    this.renderFrame = renderFrame
   }
 
   setComponent(info: ComponentInfo): void {
@@ -52,76 +106,107 @@ class Recorder {
       return
     }
 
-    if (kind !== 'end' && this.closed) {
-      this.reopen()
-    }
+    const generation = options.generation ?? this.currentGeneration
 
-    if (kind === 'end' && (this.frames.length === 0 || this.closed)) {
+    // The interaction began in a test that has ended.
+    if (generation !== this.currentGeneration) {
       return
     }
 
-    if (options.settle !== false) {
-      await settle()
+    // A call site that forgot `beforeInteraction()` still gets its render frame here.
+    this.beforeInteraction()
+
+    if (kind !== 'end') {
+      this.closed = false
+    }
+
+    // Before any `await`, so a test that recorded nothing costs nothing.
+    if (kind === 'end' && (this.slots.length === 0 || this.closed)) {
+      return
     }
 
     if (kind === 'end') {
       this.closed = true
-
-      // After `cleanup()` or `unmount()` there is nothing left to show.
-      if (!pageHasContent()) {
-        return
-      }
     }
 
-    const json = serializeDocument()
+    const slot: FrameSlot = { kind, label, meta }
+    this.slots.push(slot)
 
-    if (json === null) {
+    if (kind === 'render' && this.renderFrame !== 'eager') {
+      this.defer(slot, this.renderFrame)
       return
     }
 
-    // The closing frame is only interesting if something changed since the last one.
-    if (kind === 'end' && json === this.lastJson) {
+    // Filled before `capture()` returns: Testing Library frames depend on it.
+    if (options.settle === false) {
+      this.fill(slot)
       return
     }
 
-    // A step whose body already produced this exact DOM (e.g. via an action) just names that frame.
-    if (kind === 'step' && json === this.lastJson && this.frames.length) {
-      const last = this.frames[this.frames.length - 1]
-      last.label = `${label} · ${last.label}`
-      last.kind = 'step'
-      return
-    }
+    const filling = this.settleThenFill(slot, generation)
+    this.inFlight.add(filling)
 
-    this.lastJson = json
-    this.frames.push({
-      id: `f${this.seq++}`,
-      kind,
-      label,
-      at: Math.round(realTimers.now() - this.startedAt),
-      meta,
-      snapshot: json,
-    })
+    try {
+      await filling
+    } finally {
+      this.inFlight.delete(filling)
+    }
   }
 
-  /** The test went on after `cleanup()`, so the closing frame it took names the state before it. */
-  private reopen(): void {
-    this.closed = false
+  /**
+   * Take a deferred render frame now. Adapters call it before an interaction
+   * changes the page: an event, a `step()` body, another render, an unmount.
+   */
+  beforeInteraction(): void {
+    const slot = this.deferred
 
-    const last = this.frames[this.frames.length - 1]
-
-    if (last?.kind === 'end') {
-      last.kind = 'step'
-      last.label = 'before cleanup()'
+    if (slot === null) {
+      return
     }
+
+    this.clearDeferred()
+    this.fill(slot)
+  }
+
+  /**
+   * Wait for the captures in flight, then take a deferred render frame after
+   * one settle. Resolves to whether it took a deferred render frame.
+   */
+  async flush(): Promise<boolean> {
+    while (this.inFlight.size > 0) {
+      await Promise.allSettled(this.inFlight)
+    }
+
+    const slot = this.deferred
+
+    // Nothing to settle for, so empty and eager tests stay free.
+    if (slot === null) {
+      return false
+    }
+
+    const generation = this.currentGeneration
+
+    await settle()
+
+    // The test ended, or an interaction took the frame, while this settled.
+    if (generation !== this.currentGeneration || this.deferred !== slot) {
+      return false
+    }
+
+    this.beforeInteraction()
+
+    return true
   }
 
   end(): TestRecord {
     this.active = false
+    this.currentGeneration++
+    this.clearDeferred()
 
     // The reporter needs the origin rrweb resolved every URL against. Optional
     // chaining, because a DOM environment is not guaranteed to define `location`.
     return {
-      frames: this.frames,
+      frames: compactFrames(this.slots),
       component: this.component,
       origin: globalThis.location?.origin,
     }
@@ -141,6 +226,59 @@ class Recorder {
     for (const callback of this.teardowns) {
       callback()
     }
+  }
+
+  /**
+   * Hold the render frame back until `mode` allows it. `capture()` already
+   * took any earlier one.
+   */
+  private defer(slot: FrameSlot, mode: DeferredMode): void {
+    if (mode === 'lazy') {
+      this.deferred = slot
+      return
+    }
+
+    if (PendingRender.isReady(mode.pending)) {
+      this.fill(slot)
+      return
+    }
+
+    this.deferred = slot
+
+    // Without an observer the frame waits like in lazy mode.
+    if (typeof MutationObserver !== 'undefined') {
+      this.pending = new PendingRender(mode.pending, mode.timeout, () => this.beforeInteraction())
+    }
+  }
+
+  private clearDeferred(): void {
+    this.deferred = null
+    this.pending?.dispose()
+    this.pending = null
+  }
+
+  private async settleThenFill(slot: FrameSlot, generation: number): Promise<void> {
+    await settle()
+
+    if (generation === this.currentGeneration) {
+      this.fill(slot)
+    }
+  }
+
+  private fill(slot: FrameSlot): void {
+    // After `cleanup()` or `unmount()` there is nothing left to show.
+    if (slot.kind === 'end' && !pageHasContent()) {
+      return
+    }
+
+    const snapshot = serializeDocument()
+
+    if (snapshot === null) {
+      return
+    }
+
+    slot.snapshot = snapshot
+    slot.at = Math.round(realTimers.now() - this.startedAt)
   }
 }
 

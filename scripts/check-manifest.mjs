@@ -5,11 +5,14 @@
  *
  * What the reporter and the recorder guarantee is checked too: every module
  * has a test, every test has a frame besides the closing one, and no closing
- * frame shows an empty page. Every referenced snapshot file must also exist
- * and hold an rrweb serialized document whose ids start at 1 and carry no
- * `rootId`, and no two files may hold the same DOM (compared without rrweb's
- * node ids). `--structure-only` runs just these guarantees and snapshot
- * checks, which is what a real project can promise.
+ * frame shows an empty page. Frames keep call order: their ids count up from
+ * `f0`, and a closing frame is always a test's last. Every referenced
+ * snapshot file must also exist and hold an rrweb serialized document whose
+ * ids start at 1 and carry no `rootId`, and no two files may hold the same
+ * DOM (compared without rrweb's node ids). `--structure-only` runs just these
+ * guarantees and snapshot checks, which is what a real project can promise.
+ * The full check also expects `at` never to decrease within a test. In a real
+ * project, captures the test did not await can overlap and break that.
  *
  * Both modes also check the stores: every style chunk a snapshot refers to
  * exists, no chunk in `styles/` is orphaned, and every asset named in a
@@ -105,6 +108,47 @@ function emptinessProblemsIn(manifest) {
     for (const test of module.tests) {
       if (!test.frames.some((frame) => frame.kind !== 'end')) {
         problems.push(`${test.fullName}: no frame besides the closing one`)
+      }
+    }
+  }
+
+  return problems
+}
+
+/** Frames keep call order: ids count up from `f0`, and nothing follows a closing frame. */
+function orderProblemsIn(manifest) {
+  const problems = []
+
+  for (const test of manifest.modules.flatMap((module) => module.tests)) {
+    const last = test.frames.length - 1
+
+    test.frames.forEach((frame, i) => {
+      if (frame.id !== `f${i}`) {
+        problems.push(`${test.fullName}: frame ${i} has id ${frame.id}, expected f${i}`)
+      }
+
+      if (frame.kind === 'end' && i < last) {
+        problems.push(`${test.fullName}: closing frame ${frame.id} is not the last frame`)
+      }
+    })
+  }
+
+  return problems
+}
+
+/** Not in `--structure-only`: captures a test did not await can overlap and finish out of order. */
+function timeProblemsIn(manifest) {
+  const problems = []
+
+  for (const test of manifest.modules.flatMap((module) => module.tests)) {
+    for (let i = 1; i < test.frames.length; i++) {
+      const previous = test.frames[i - 1]
+      const frame = test.frames[i]
+
+      if (frame.at < previous.at) {
+        problems.push(
+          `${test.fullName}: frame ${frame.id} at ${frame.at} ms is earlier than ${previous.id} at ${previous.at} ms`,
+        )
       }
     }
   }
@@ -512,8 +556,10 @@ for (const path of paths) {
   const store = storeProblemsIn(manifest, path)
   const problems = emptinessProblemsIn(manifest)
   problems.push(...closingFrameProblemsIn(manifest, path))
+  problems.push(...orderProblemsIn(manifest))
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
+    problems.push(...timeProblemsIn(manifest))
     problems.push(...extractionProblemsIn(store))
     problems.push(...headProblemsIn(manifest), ...store.copiedCss.projectUrls)
   }

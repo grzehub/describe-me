@@ -7,6 +7,7 @@ import { recorder } from '@describe-me/core'
  * state instead of an empty page.
  */
 export function cleanup(): void {
+  recorder.beforeInteraction()
   void recorder.capture('end', 'end of test', undefined, { settle: false })
   unmountAll()
 }

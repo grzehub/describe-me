@@ -14,6 +14,7 @@ let depth = 0
  * settling.
  */
 export function recordSyncAction<T>(label: string, run: () => T): T {
+  recorder.beforeInteraction()
   depth++
 
   let result: T

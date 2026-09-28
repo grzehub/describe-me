@@ -14,6 +14,14 @@
  * the manifest, and a test file under `packages/react/` is still redirected.
  * Its `previewHead` must reach the manifest. The reporter that writes it
  * imports `@describe-me/core/css-references`, so the packed core must export it.
+ * The DOM scenario also runs a leak pair: a test that ends with a keyboard
+ * action and a `step()` it did not await, then a test that must record exactly
+ * its own render and click frames.
+ * Three more runs check `renderFrame` on a component that shows a loader for
+ * 50 ms: `'lazy'` and `{ pending }` in jsdom, `'lazy'` in browser mode. Each
+ * test must record exactly the expected frames, and every render frame must
+ * show the loaded component, never the loader. In the pending run one test
+ * asserts that the observer took the frame before `recorder.flush()` could.
  * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
  * the temp project for inspection; `--vite` and `--vitest` pin older versions
  * of the user's toolchain).
@@ -345,6 +353,31 @@ describe('FireEvent', () => {
   )
 
   writeFileSync(
+    join(app, 'dom', 'Leak.test.tsx'),
+    `import { describe, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { step } from '@describe-me/vitest'
+import { Hello } from '../src/Hello'
+
+describe('Leak', () => {
+  it('ends with work it did not await', () => {
+    const user = userEvent.setup({ delay: 50 })
+    render(<Hello name="Ada" />)
+    void user.keyboard('a')
+    void step('late', () => new Promise((resolve) => setTimeout(resolve, 50)))
+  })
+
+  it('records only its own frames', async () => {
+    render(<Hello name="Bea" />)
+    await userEvent.setup().click(screen.getByRole('button'))
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  })
+})
+`,
+  )
+
+  writeFileSync(
     join(app, 'dom', 'hook.test.tsx'),
     `import { describe, expect, it } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
@@ -478,6 +511,158 @@ describe('pure', () => {
   )
 }
 
+/** A component behind a loader, and the tests and configs that document it once loaded. */
+function scaffoldTiming() {
+  mkdirSync(join(app, 'timing'), { recursive: true })
+  mkdirSync(join(app, 'timing-browser'), { recursive: true })
+
+  writeFileSync(
+    join(app, 'src', 'Greeting.tsx'),
+    `import { useEffect, useState } from 'react'
+
+export interface GreetingProps {
+  /** Who to greet once loaded. */
+  name: string
+}
+
+export function Greeting({ name }: GreetingProps) {
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoaded(true), 50)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (!loaded) {
+    return <p aria-busy="true">Loading</p>
+  }
+
+  return (
+    <>
+      <p>{\`Loaded \${name}\`}</p>
+      <button type="button">wave</button>
+    </>
+  )
+}
+`,
+  )
+
+  writeFileSync(
+    join(app, 'timing', 'Greeting.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { Greeting } from '../src/Greeting'
+
+describe('Greeting', () => {
+  it('waves once loaded', async () => {
+    render(<Greeting name="Ada" />)
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull()
+    await screen.findByText('Loaded Ada')
+    fireEvent.click(screen.getByRole('button'))
+  })
+
+  it('ends once loaded', async () => {
+    render(<Greeting name="Bea" />)
+    await screen.findByText('Loaded Bea')
+  })
+})
+`,
+  )
+
+  // A broken observer would leave the frame to flush(), which then takes it and returns true.
+  writeFileSync(
+    join(app, 'timing', 'Observed.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { recorder } from '@describe-me/vitest'
+import { Greeting } from '../src/Greeting'
+
+describe('Observed', () => {
+  it('is taken by the observer', async () => {
+    render(<Greeting name="Cy" />)
+    await screen.findByText('Loaded Cy')
+    expect(await recorder.flush()).toBe(false)
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'timing-browser', 'Greeting.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { Greeting } from '../src/Greeting'
+
+describe('Greeting', () => {
+  it('waves once loaded', async () => {
+    const screen = await render(<Greeting name="Ada" />)
+    await expect.element(screen.getByText('Loaded Ada')).toBeVisible()
+    await screen.getByRole('button').click()
+  })
+})
+`,
+  )
+
+  // One config per run, each with its own output directory and tests.
+  writeFileSync(
+    join(app, 'vitest.lazy.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-lazy', renderFrame: 'lazy' })],
+  test: {
+    environment: 'jsdom',
+    include: ['timing/Greeting.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'vitest.pending.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    describeMe({ outDir: '.describe-me-pending', renderFrame: { pending: '[aria-busy="true"]' } }),
+  ],
+  test: {
+    environment: 'jsdom',
+    include: ['timing/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'vitest.lazy-browser.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { playwright } from '@vitest/browser-playwright'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-lazy-browser', renderFrame: 'lazy' })],
+  test: {
+    include: ['timing-browser/*.test.tsx'],
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [{ browser: 'chromium' }],
+    },
+  },
+})
+`,
+  )
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(`smoke: ${message}`)
@@ -518,7 +703,7 @@ function verifySingleVite(pinned) {
 /** Per environment: how many tests the manifest holds, and which modules must stay out of it. */
 const EXPECTED = {
   browser: { tests: 2, absent: ['Excluded', 'pure'] },
-  dom: { tests: 4, absent: ['Excluded', 'pure', 'hook'] },
+  dom: { tests: 6, absent: ['Excluded', 'pure', 'hook'] },
 }
 
 function labelsOf(test) {
@@ -531,7 +716,38 @@ function labelsOf(test) {
  */
 const FIRE_EVENT_FRAMES = 'render:<Hello name="Ada" /> | action:click(button "waved 0 times")'
 
-/** What only the DOM scenario checks: `fireEvent` frames, the monorepo path and the preview head. */
+/**
+ * The frames of the leak pair, by full name. The first test's late action and
+ * step must be dropped, and must not hide the second test's click.
+ */
+const LEAK_FRAMES = {
+  'Leak > ends with work it did not await': 'render:<Hello name="Ada" />',
+  'Leak > records only its own frames':
+    'render:<Hello name="Bea" /> | action:click(button "waved 0 times")',
+}
+
+/** Exactly one test per full name, with exactly the expected frames. */
+function assertFrames(tests, expected, run) {
+  assert(
+    tests.length === Object.keys(expected).length,
+    `expected ${Object.keys(expected).length} tests (${run}), got ${tests.length}`,
+  )
+
+  for (const [fullName, frames] of Object.entries(expected)) {
+    const test = tests.find((candidate) => candidate.fullName === fullName)
+    const recorded = test ? labelsOf(test).join(' | ') : 'no such test'
+
+    assert(
+      recorded === frames,
+      `expected ${fullName} to record ${frames} (${run}), got ${recorded}`,
+    )
+  }
+}
+
+/**
+ * What only the DOM scenario checks: `fireEvent` frames, the monorepo path,
+ * the preview head and the leak pair.
+ */
 function verifyDom(manifest) {
   const moduleById = new Map(manifest.modules.map((module) => [module.id, module]))
   const fireEvent = moduleById.get('dom/FireEvent.test.tsx')?.tests ?? []
@@ -558,6 +774,8 @@ function verifyDom(manifest) {
     headHosts.some((host) => host === 'fonts.googleapis.com'),
     `the preview head did not reach the manifest: ${manifest.head}`,
   )
+
+  assertFrames(moduleById.get('dom/Leak.test.tsx')?.tests ?? [], LEAK_FRAMES, 'leak pair')
 }
 
 function verify(outDir, environment) {
@@ -610,20 +828,111 @@ function verify(outDir, environment) {
   console.log('props of Hello:', hello.props.map((prop) => `${prop.name}: ${prop.type}`).join(', '))
 }
 
+const WAVES = 'render:<Greeting name="Ada" /> | action:click(button "wave")'
+const ENDS = 'render:<Greeting name="Bea" />'
+
+/** The jsdom runs with a later render frame, and the exact frames of each test. */
+const TIMING_RUNS = [
+  {
+    config: 'vitest.lazy.config.ts',
+    outDir: '.describe-me-lazy',
+    frames: { 'Greeting > waves once loaded': WAVES, 'Greeting > ends once loaded': ENDS },
+  },
+  {
+    config: 'vitest.pending.config.ts',
+    outDir: '.describe-me-pending',
+    frames: {
+      'Greeting > waves once loaded': WAVES,
+      'Greeting > ends once loaded': ENDS,
+      'Observed > is taken by the observer': 'render:<Greeting name="Cy" />',
+    },
+  },
+]
+
+const LAZY_BROWSER = {
+  config: 'vitest.lazy-browser.config.ts',
+  outDir: '.describe-me-lazy-browser',
+}
+
+function timingTestsOf(outDir) {
+  const tests = readJson(join(app, outDir, 'manifest.json')).modules.flatMap(
+    (module) => module.tests,
+  )
+
+  assert(
+    tests.every((test) => test.state === 'passed'),
+    `a test did not pass (${outDir})`,
+  )
+
+  return tests
+}
+
+/** A later render frame must show the Greeting loaded, never its loader. */
+function verifyLoadedRenders(tests, outDir) {
+  for (const test of tests) {
+    for (const frame of test.frames.filter((candidate) => candidate.kind === 'render')) {
+      const name = frame.meta?.props?.name
+      const snapshot = readFileSync(join(app, outDir, frame.snapshot), 'utf8')
+
+      assert(
+        snapshot.includes(`Loaded ${name}`) && !snapshot.includes('Loading'),
+        `the render frame of ${test.fullName} (${outDir}) does not show "Loaded ${name}" alone`,
+      )
+    }
+  }
+}
+
+function verifyTiming({ outDir, frames }) {
+  const tests = timingTestsOf(outDir)
+
+  assertFrames(tests, frames, outDir)
+  verifyLoadedRenders(tests, outDir)
+  console.log(`\n${outDir} frames:`, tests.map((test) => labelsOf(test).join(' | ')).join(' / '))
+}
+
+/** A locator's label names the selector Vitest built, so only the start of the click is fixed. */
+function verifyLazyBrowser({ outDir }) {
+  const tests = timingTestsOf(outDir)
+  const labels = tests.flatMap(labelsOf)
+
+  assert(
+    tests.length === 1 &&
+      labels.length === 2 &&
+      labels[0] === 'render:<Greeting name="Ada" />' &&
+      labels[1].startsWith('action:click('),
+    `expected render:<Greeting name="Ada" /> and a click (${outDir}), got ${labels.join(' | ')}`,
+  )
+
+  verifyLoadedRenders(tests, outDir)
+  console.log(`\n${outDir} frames:`, labels.join(' | '))
+}
+
 assertNodeVersion()
 
 try {
   pack()
   scaffold()
+  scaffoldTiming()
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
   verifySingleVite(vite)
   run('pnpm exec vitest run', app)
   run('pnpm exec vitest run --config vitest.dom.config.ts', app)
+
+  for (const timing of [...TIMING_RUNS, LAZY_BROWSER]) {
+    run(`pnpm exec vitest run --config ${timing.config}`, app)
+  }
+
   run('pnpm exec describe-me build --data .describe-me --out site', app)
   verify('.describe-me', 'browser')
   verify('.describe-me-dom', 'dom')
+
+  for (const timing of TIMING_RUNS) {
+    verifyTiming(timing)
+  }
+
+  verifyLazyBrowser(LAZY_BROWSER)
 
   for (const path of ['site/index.html', 'site/__data/manifest.json']) {
     assert(existsSync(join(app, path)), `static build is missing ${path}`)

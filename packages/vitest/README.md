@@ -61,6 +61,11 @@ font links that the app shell loads and tests never do. It never reaches the
 test page, and the local files it links are copied into the output directory
 ([Fonts](https://github.com/grzehub/describe-me#fonts) in the root README).
 
+`describeMe({ renderFrame })` chooses when the render frame is taken:
+`'eager'` (default) right after mount, `'lazy'` right before the next
+interaction, or `{ pending: '<selector>' }` once a loader is gone. See
+[Render frame timing](https://github.com/grzehub/describe-me#render-frame-timing).
+
 The pieces can also be wired by hand. Tests then import from the adapter
 themselves: `render` from `@describe-me/react` in browser mode, and `render`,
 `fireEvent` and `cleanup` from `@describe-me/react/testing-library` in jsdom:

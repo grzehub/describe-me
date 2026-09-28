@@ -5,14 +5,17 @@ import type { RuntimeOptions } from './runtime-options.js'
 
 /**
  * The per-test lifecycle shared by every environment: begin a recording, take
- * the closing frame, hand the frames to the reporter via task.meta, and only
- * then let adapters unmount. Teardown runs for unrecorded tests too, because
- * Testing Library's auto-cleanup is off in jsdom. Concurrent tests would share
- * the one recorder, so they are not recorded.
+ * a deferred render frame or else the closing frame, hand the frames to the
+ * reporter via task.meta, and only then let adapters unmount. Teardown runs
+ * for unrecorded tests too, because Testing Library's auto-cleanup is off in
+ * jsdom. Concurrent tests would share the one recorder, so they are not
+ * recorded.
  */
 export function registerRecordingHooks(options: RuntimeOptions): void {
   const isRecordedFile = fileFilter(options)
   let warnedConcurrent = false
+
+  recorder.configure({ renderFrame: options.renderFrame })
 
   beforeEach((context) => {
     if (context.task.concurrent) {
@@ -32,7 +35,12 @@ export function registerRecordingHooks(options: RuntimeOptions): void {
   afterEach(async (context) => {
     try {
       if (recorder.isActive) {
-        await recorder.capture('end', 'end of test')
+        const tookRender = await recorder.flush()
+
+        // A render frame taken this late already shows how the test ended.
+        if (!tookRender) {
+          await recorder.capture('end', 'end of test')
+        }
 
         const record = recorder.end()
 
