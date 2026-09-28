@@ -17,6 +17,7 @@
     "check-manifest": "node scripts/check-manifest.mjs --require-fonts examples/react-browser/.describe-me/manifest.json examples/react-jsdom/.describe-me/manifest.json",
     "check-style-store": "node scripts/check-style-store.mjs",
     "check-asset-store": "node scripts/check-asset-store.mjs",
+    "check-font-audit": "node scripts/check-font-audit.mjs",
     "check-frame-timing": "node scripts/check-frame-timing.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me"
   },

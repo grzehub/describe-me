@@ -1,7 +1,9 @@
 /**
  * Guards the generated manifests against silent regressions: every test must
  * have a `render` frame with a named component, every component must have its
- * props docs, and every asset must have been found. Run after `pnpm build`.
+ * props docs, every asset must have been found, every font family that frames
+ * use must be loaded, and no frame may load a stylesheet from a remote host.
+ * The manifest must also carry both font audit lists. Run after `pnpm build`.
  *
  * What the reporter and the recorder guarantee is checked too: every module
  * has a test, every test has a frame besides the closing one, and no closing
@@ -79,7 +81,8 @@ function problemsIn(manifest) {
     problems.push('manifest.components is empty')
   }
 
-  const { anonymous, undocumented, assetsMissing } = manifestDiagnostics(manifest)
+  const { anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
+    manifestDiagnostics(manifest)
 
   for (const test of anonymous) {
     problems.push(`${test.fullName}: anonymous component`)
@@ -91,6 +94,24 @@ function problemsIn(manifest) {
 
   for (const path of assetsMissing) {
     problems.push(`${path}: asset not found`)
+  }
+
+  for (const font of fontsMissing) {
+    problems.push(`${font.family}: font family used but never loaded (${font.tests} tests)`)
+  }
+
+  for (const stylesheet of remoteStylesheets) {
+    problems.push(
+      `${stylesheet.host}: frames load a remote stylesheet (${stylesheet.frames} frames)`,
+    )
+  }
+
+  if (!Array.isArray(manifest.fontsMissing)) {
+    problems.push('manifest.fontsMissing is not written')
+  }
+
+  if (!Array.isArray(manifest.remoteStylesheets)) {
+    problems.push('manifest.remoteStylesheets is not written')
   }
 
   return problems

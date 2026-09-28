@@ -185,6 +185,34 @@ export interface Manifest {
    * Absent when `previewHead` is not set.
    */
   head?: string
+  /**
+   * Font families that frames use but nothing loads, most tests first. Absent
+   * in manifests written before 0.5, which counts as empty.
+   */
+  fontsMissing?: FontMissing[]
+  /**
+   * Hosts that frames load stylesheets from, most frames first. Absent in
+   * manifests written before 0.5, which counts as empty.
+   */
+  remoteStylesheets?: RemoteStylesheet[]
+}
+
+/** A font family that the captured CSS uses but no `@font-face`, font stylesheet or preview head loads. */
+export interface FontMissing {
+  /** The family as first spelled in manifest order. */
+  family: string
+  /** Tests with at least one frame that misses it. */
+  tests: number
+  /** `ManifestTest.id` of the first such test, in manifest order. */
+  testId: string
+}
+
+/** A host that frames load stylesheets from, which the viewer fetches from the network. */
+export interface RemoteStylesheet {
+  /** The URL's hostname. */
+  host: string
+  /** Frames that link or import at least one stylesheet from it. */
+  frames: number
 }
 
 /** The name adapters fall back to when a component has no usable name. */
@@ -198,4 +226,8 @@ export interface ManifestDiagnostics {
   undocumented: { name: string; tests: number }[]
   /** Asset paths that will not load in the viewer, root-relative or in the `/@fs/` form. */
   assetsMissing: string[]
+  /** Font families that frames use but nothing loads. */
+  fontsMissing: FontMissing[]
+  /** Hosts that frames load stylesheets from. */
+  remoteStylesheets: RemoteStylesheet[]
 }

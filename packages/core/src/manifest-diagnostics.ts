@@ -7,7 +7,8 @@ function isHostElement(name: string): boolean {
 
 /**
  * List what the manifest could not document: anonymous components, named ones
- * without props, and assets that will not load. The reporter prints it after a
+ * without props, assets that will not load, font families that nothing loads
+ * and hosts that frames load stylesheets from. The reporter prints it after a
  * run and the viewer shows it in the header, so both agree on what is missing.
  */
 export function manifestDiagnostics(manifest: Manifest): ManifestDiagnostics {
@@ -39,5 +40,7 @@ export function manifestDiagnostics(manifest: Manifest): ManifestDiagnostics {
       (left, right) => left.name.localeCompare(right.name),
     ),
     assetsMissing: manifest.assetsMissing ?? [],
+    fontsMissing: manifest.fontsMissing ?? [],
+    remoteStylesheets: manifest.remoteStylesheets ?? [],
   }
 }
