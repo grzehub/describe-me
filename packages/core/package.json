@@ -1,6 +1,6 @@
 {
   "name": "@describe-me/core",
-  "version": "0.5.0-next.1",
+  "version": "0.5.0-next.2",
   "description": "Recorder and manifest types for describe-me: living component docs from your tests",
   "keywords": [
     "vitest",

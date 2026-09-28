@@ -1,5 +1,23 @@
 # describe-me
 
+## 0.5.0-next.2
+
+### Minor Changes
+
+- [#32](https://github.com/grzehub/describe-me/pull/32) [`8932d2a`](https://github.com/grzehub/describe-me/commit/8932d2a397ef6b8e4ebaf62069bfc7eb1ffd1ff3) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - The viewer keeps its place while you browse.
+
+  - Stepping through frames swaps the replay in place. The next frame is built out of sight and shown once its fonts load, or after 200 ms, so the stage no longer flashes blank. Within a test the stage keeps its scroll position.
+  - The sidebar keeps its scroll position when you pick a test or the manifest updates, and the timeline keeps it while you step through frames. The overview keeps its scroll position when the manifest updates. The issues panel stays open until you pick an item in it.
+  - Width and height fields sit next to the 100%, 768px and 375px presets. The size is kept in the link as `w` and `h`. A fixed height is used as is, without fitting the frame to its content. A viewport wider than the stage is scaled down to fit, and the toolbar shows the zoom.
+  - Keyboard shortcuts are ignored while you type in a field.
+
+  No package exports change. Links without `w` and `h` open at 100% width, as before.
+
+### Patch Changes
+
+- Updated dependencies [[`c0cadfd`](https://github.com/grzehub/describe-me/commit/c0cadfd0f0c3072b4fa6bfc534e34b65d5e159d7)]:
+  - @describe-me/core@0.5.0-next.2
+
 ## 0.5.0-next.1
 
 ### Minor Changes
