@@ -15,6 +15,7 @@ which lives in `packages/viewer`.
 ```sh
 pnpm install
 pnpm build            # tsc for core, react, vitest and the viewer CLI
+pnpm --filter describe-me typecheck   # viewer sources, after pnpm build
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
 cd examples/react-browser && pnpm test          # 19 tests, browser mode

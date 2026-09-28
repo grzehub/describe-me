@@ -86,16 +86,14 @@ function renderComponents(tests: ManifestTest[]): HTMLElement {
   return section
 }
 
-/** The right column while a suite or module is selected: what the tests do and do not cover. */
-export function renderOverviewInspector(): HTMLElement {
-  const aside = el('aside', { class: 'inspector' })
+/** The inspector's sections while a suite or module is selected: what the tests do and do not cover. */
+export function renderOverviewInspector(): HTMLElement[] {
   const key = state.suiteKey
   if (!key) {
-    return aside
+    return []
   }
 
   const tests = testsInScope(key)
-  aside.append(renderCoverage(tests), renderTests(tests), renderComponents(tests))
 
-  return aside
+  return [renderCoverage(tests), renderTests(tests), renderComponents(tests)]
 }

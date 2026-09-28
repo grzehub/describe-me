@@ -15,7 +15,7 @@ export function replaySnapshot(
   const { iframe } = rebuildIntoSandboxedIframe(node, {
     root,
     iframeAttributes: { title },
-    cache: replayCache,
+    cache: replayCache(),
     mirror: createMirror(),
     hackCss: true,
   })
