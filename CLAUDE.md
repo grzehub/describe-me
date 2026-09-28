@@ -18,8 +18,8 @@ pnpm build            # tsc for core, react, vitest and the viewer CLI
 pnpm --filter describe-me typecheck   # viewer sources, after pnpm build
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
-cd examples/react-browser && pnpm test          # 19 tests, browser mode
-cd examples/react-jsdom && pnpm test          # 22 tests, jsdom (17 in the manifest)
+cd examples/react-browser && pnpm test          # 24 tests, browser mode
+cd examples/react-jsdom && pnpm test          # 28 tests, jsdom (23 in the manifest)
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 pnpm check-manifest   # both examples' manifests, after running their tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
@@ -29,7 +29,7 @@ pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after 
 pnpm check-frame-timing   # frame compaction and renderFrame validation, after pnpm build
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
-cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom
+cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] (Node ^20.19 || >=22.12)
 ```

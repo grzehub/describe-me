@@ -4,13 +4,14 @@ import { PendingRender } from './pending-render.js'
 import { realTimers } from './real-timers.js'
 import { serializeDocument } from './serialize-document.js'
 import { settle } from './settle.js'
-import type {
-  CaptureOptions,
-  ComponentInfo,
-  FrameKind,
-  RecorderOptions,
-  RenderFrameMode,
-  TestRecord,
+import {
+  ANONYMOUS_COMPONENT,
+  type CaptureOptions,
+  type ComponentInfo,
+  type FrameKind,
+  type RecorderOptions,
+  type RenderFrameMode,
+  type TestRecord,
 } from './types.js'
 
 type Teardown = () => void
@@ -90,8 +91,17 @@ class Recorder {
     this.renderFrame = renderFrame
   }
 
+  /**
+   * Name the component the test documents. The first name stays, unless it is
+   * `Anonymous` and `info` is not, or it has no `file` and `info` has one.
+   */
   setComponent(info: ComponentInfo): void {
-    if (!this.component) {
+    const current = this.component
+    const addsFile = current?.file === undefined && info.file !== undefined
+    const namesAnonymous =
+      current?.name === ANONYMOUS_COMPONENT && info.name !== ANONYMOUS_COMPONENT
+
+    if (!current || namesAnonymous || addsFile) {
       this.component = info
     }
   }

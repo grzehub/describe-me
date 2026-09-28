@@ -1,7 +1,7 @@
 import { cleanup as unmountAll, render as baseRender } from '@testing-library/react'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { recorder } from '@describe-me/core'
-import { describeElement } from './describe-element.js'
+import { describeRendered } from './describe-rendered.js'
 import { labelFor } from './label-for.js'
 
 type RenderOptions = Parameters<typeof baseRender>[1]
@@ -31,9 +31,11 @@ recorder.onTeardown(unmountAll)
 export function render(ui: ReactElement, options?: RenderOptions): RenderResult {
   recorder.beforeInteraction()
   const result = baseRender(ui, options)
+  // Testing Library keeps the wrapper for `rerender`.
+  const hasWrapper = Boolean(options?.wrapper)
 
   if (recorder.isActive && isValidElement(ui)) {
-    const info = describeElement(ui)
+    const info = describeRendered(ui, result.container, hasWrapper)
     recorder.setComponent(info)
     void recorder.capture('render', labelFor(info), { props: info.props }, { settle: false })
   }
@@ -45,7 +47,8 @@ export function render(ui: ReactElement, options?: RenderOptions): RenderResult 
     originalRerender(next)
 
     if (recorder.isActive && isValidElement(next)) {
-      const info = describeElement(next)
+      const info = describeRendered(next, result.container, hasWrapper)
+      recorder.setComponent(info)
       void recorder.capture(
         'render',
         `rerender ${labelFor(info)}`,

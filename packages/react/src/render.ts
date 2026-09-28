@@ -1,7 +1,7 @@
 import { render as baseRender } from 'vitest-browser-react'
 import { isValidElement, type ReactElement } from 'react'
 import { recorder } from '@describe-me/core'
-import { describeElement } from './describe-element.js'
+import { describeRendered } from './describe-rendered.js'
 import { labelFor } from './label-for.js'
 
 type BaseRender = typeof baseRender
@@ -18,9 +18,11 @@ export async function render(ui: ReactElement, options?: RenderOptions): Promise
 
   recorder.beforeInteraction()
   const screen = await baseRender(ui, options)
+  // vitest-browser-react keeps the wrapper for `rerender`.
+  const hasWrapper = Boolean(options?.wrapper)
 
-  if (isValidElement(ui)) {
-    const info = describeElement(ui)
+  if (isRecording(generation) && isValidElement(ui)) {
+    const info = describeRendered(ui, screen.container, hasWrapper)
     recorder.setComponent(info)
     await recorder.capture('render', labelFor(info), { props: info.props }, { generation })
   }
@@ -33,8 +35,9 @@ export async function render(ui: ReactElement, options?: RenderOptions): Promise
     recorder.beforeInteraction()
     const result = await originalRerender(next)
 
-    if (isValidElement(next)) {
-      const info = describeElement(next)
+    if (isRecording(rerenderGeneration) && isValidElement(next)) {
+      const info = describeRendered(next, screen.container, hasWrapper)
+      recorder.setComponent(info)
       await recorder.capture(
         'render',
         `rerender ${labelFor(info)}`,
@@ -56,4 +59,12 @@ export async function render(ui: ReactElement, options?: RenderOptions): Promise
   }
 
   return screen
+}
+
+/**
+ * Whether the test that began at `generation` is still being recorded. A
+ * render the test did not await can finish after it ended.
+ */
+function isRecording(generation: number): boolean {
+  return recorder.isActive && recorder.generation === generation
 }
