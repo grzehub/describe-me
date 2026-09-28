@@ -119,7 +119,14 @@ export interface ManifestFrame {
 }
 
 export interface ManifestTest {
+  /**
+   * Stable across runs and machines: the first 12 hex characters of a SHA-1 of
+   * the module path, the suite path, the name and, for a repeated name, its
+   * occurrence. Before 0.5 it was Vitest's id.
+   */
   id: string
+  /** Vitest's `TestCase.id` in the run that recorded the test. Absent in manifests written before 0.5. */
+  vitestId?: string
   name: string
   /** suite names from outermost to innermost */
   path: string[]

@@ -352,7 +352,7 @@ and the final frame of every test as a thumbnail.
 variant   'primary' | 'secondary' | 'ghost' | 'danger'   primary ✓ (default)  secondary ✓  ghost ✓  danger ✗
 size      'sm' | 'md' | 'lg'                             sm ✓  md ✓ (default)  lg ✓
 loading   boolean                                        true ✓  false ✓ (default)
-children  ReactNode                                      passed in 7 of 7 tests
+children  ReactNode                                      passed in 8 of 8 tests
 ```
 
 A red cross is an invitation to write a test. Coverage is computed from the

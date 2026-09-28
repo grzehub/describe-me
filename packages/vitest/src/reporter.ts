@@ -23,6 +23,7 @@ import { FontAudit } from './font-audit.js'
 import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
 import { SnapshotStore } from './snapshot-store.js'
+import { stableTestIds } from './stable-test-ids.js'
 import { StyleStore } from './style-store.js'
 import { testPath } from './test-path.js'
 
@@ -45,6 +46,10 @@ export interface DescribeMeReporterOptions {
    * Project files it links are copied into the output directory. Default: none.
    */
   previewHead?: string
+}
+
+function toPosix(moduleId: string): string {
+  return moduleId.split(sep).join('/')
 }
 
 function recordOf(tc: TestCase): TestRecord | undefined {
@@ -107,7 +112,7 @@ export default class DescribeMeReporter implements Reporter {
     try {
       const previous = JSON.parse(readFileSync(file, 'utf8')) as Manifest
       for (const mod of previous.modules ?? []) {
-        const tests = mod.tests.filter((test) => isRecordedTest(test))
+        const tests = this.withStableIds(mod).filter((test) => isRecordedTest(test))
 
         if (
           tests.length > 0 &&
@@ -120,6 +125,23 @@ export default class DescribeMeReporter implements Reporter {
     } catch {
       // corrupt or incompatible manifest: start fresh
     }
+  }
+
+  /**
+   * Tests written before 0.5 carry Vitest's id. They get their stable id, and
+   * the old one moves to `vitestId`. Occurrences are counted over the module's
+   * full list, as the run that wrote it saw them.
+   */
+  private withStableIds(mod: ManifestModule): ManifestTest[] {
+    const ids = stableTestIds(toPosix(mod.id), mod.tests)
+
+    return mod.tests.map((test, i) => {
+      if (test.vitestId !== undefined) {
+        return test
+      }
+
+      return { ...test, id: ids[i], vitestId: test.id }
+    })
   }
 
   /**
@@ -137,8 +159,16 @@ export default class DescribeMeReporter implements Reporter {
     const previous = this.modules.get(id)
     const tests: ManifestTest[] = []
 
-    for (const tc of module.children.allTests()) {
-      const test = this.manifestTestOf(tc, previous)
+    // Over every test, skipped ones included, so an id does not depend on
+    // which tests recorded frames or on `-t` and `.only`.
+    const cases = Array.from(module.children.allTests())
+    const stableIds = stableTestIds(
+      toPosix(id),
+      cases.map((tc) => ({ path: testPath(tc), name: tc.name })),
+    )
+
+    for (const [i, tc] of cases.entries()) {
+      const test = this.manifestTestOf(tc, stableIds[i], previous)
 
       if (test) {
         tests.push(test)
@@ -212,30 +242,29 @@ export default class DescribeMeReporter implements Reporter {
 
   /** Module ids use the platform's separators. Globs expect posix ones. */
   private isRecordedModule(id: string): boolean {
-    return this.isRecordedFile(id.split(sep).join('/'))
+    return this.isRecordedFile(toPosix(id))
   }
 
   /** Decided before any snapshot is written, so a dropped test writes no file. */
   private manifestTestOf(
     tc: TestCase,
+    stableId: string,
     previous: ManifestModule | undefined,
   ): ManifestTest | undefined {
     const record = recordOf(tc)
 
     if (record && isRecordedTest(record)) {
-      return this.toManifestTest(tc, record)
+      return this.toManifestTest(tc, stableId, record)
     }
 
     if (tc.result().state !== 'skipped') {
       return undefined
     }
 
-    return previous?.tests.find(
-      (test) => test.id === tc.id && test.fullName === tc.fullName && isRecordedTest(test),
-    )
+    return previous?.tests.find((test) => test.id === stableId && isRecordedTest(test))
   }
 
-  private toManifestTest(tc: TestCase, record: TestRecord): ManifestTest {
+  private toManifestTest(tc: TestCase, stableId: string, record: TestRecord): ManifestTest {
     const result = tc.result()
     const frames: ManifestFrame[] = record.frames.map((frame) => ({
       id: frame.id,
@@ -247,7 +276,8 @@ export default class DescribeMeReporter implements Reporter {
     }))
 
     return {
-      id: tc.id,
+      id: stableId,
+      vitestId: tc.id,
       name: tc.name,
       path: testPath(tc),
       fullName: tc.fullName,

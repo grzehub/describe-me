@@ -4,7 +4,7 @@ import { renderOverview } from './overview.js'
 import { renderOverviewInspector } from './overview-inspector.js'
 import { regions } from './regions.js'
 import { renderFrame } from './render-frame.js'
-import { renderSidebar } from './sidebar.js'
+import { renderTree } from './render-tree.js'
 import { state } from './state.js'
 import { testView } from './test-view.js'
 
@@ -52,9 +52,9 @@ function showTest(center: HTMLElement): void {
 
 /** Repaint every region from `state`: the overview when a suite is selected, else one test. */
 export function renderAll(): void {
-  const { header, tree, center, inspector } = regions()
+  const { header, center, inspector } = regions()
   header.replaceChildren(...renderHeader())
-  tree.replaceChildren(...renderSidebar())
+  renderTree()
 
   if (state.suiteKey) {
     showOverview(center, inspector, state.suiteKey)

@@ -1,6 +1,7 @@
 import type { Manifest, ManifestTest } from '@describe-me/core/types'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
+import { stateHash } from './state-hash.js'
 
 export interface State {
   manifest: Manifest | null
@@ -14,6 +15,8 @@ export interface State {
   issuesOpen: boolean
   /** The stage's zoom, below 1 when the viewport is wider than the stage. */
   scale: number
+  /** The sidebar's search. Neither in the link nor stored. */
+  query: string
 }
 
 export const state: State = {
@@ -24,6 +27,7 @@ export const state: State = {
   viewport: { width: null, height: null },
   issuesOpen: false,
   scale: 1,
+  query: '',
 }
 
 export function readHash(): void {
@@ -37,29 +41,17 @@ export function readHash(): void {
   }
 }
 
-export function writeHash(): void {
-  const params = new URLSearchParams()
-  if (state.suiteKey) {
-    params.set('suite', state.suiteKey)
+/**
+ * Put the view into the link. `'push'` adds a history entry for Back, unless
+ * the link would not change. `'replace'` updates the current entry.
+ */
+export function writeHash(mode: 'push' | 'replace'): void {
+  const hash = stateHash(state)
+  if (mode === 'push' && hash !== location.hash.slice(1)) {
+    history.pushState(null, '', `#${hash}`)
+  } else {
+    history.replaceState(null, '', `#${hash}`)
   }
-
-  if (state.testId) {
-    params.set('test', state.testId)
-  }
-
-  if (state.frame) {
-    params.set('frame', String(state.frame))
-  }
-
-  if (state.viewport.width !== null) {
-    params.set('w', String(state.viewport.width))
-  }
-
-  if (state.viewport.height !== null) {
-    params.set('h', String(state.viewport.height))
-  }
-
-  history.replaceState(null, '', `#${params.toString()}`)
 }
 
 export function allTests(manifest: Manifest): ManifestTest[] {
@@ -79,13 +71,13 @@ export function select(testId: string, frame = 0): void {
   state.testId = testId
   state.suiteKey = null
   state.frame = frame
-  writeHash()
+  writeHash('push')
   rerender()
 }
 
 /** Show the overview of a suite or module. The selected test is kept, so going back works. */
 export function selectSuite(key: string): void {
   state.suiteKey = key
-  writeHash()
+  writeHash('push')
   rerender()
 }
