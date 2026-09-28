@@ -18,6 +18,7 @@
     "check-style-store": "node scripts/check-style-store.mjs",
     "check-asset-store": "node scripts/check-asset-store.mjs",
     "check-font-audit": "node scripts/check-font-audit.mjs",
+    "check-vendor-fonts": "node scripts/check-vendor-fonts.mjs",
     "check-frame-timing": "node scripts/check-frame-timing.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me"
   },

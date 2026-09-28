@@ -390,14 +390,14 @@ Verified by `StyledText.test.tsx` in both examples: the browser-mode replay is
 checked for computed colours, and `pnpm check-styles` in `examples/react-jsdom`
 checks that each rule is in the jsdom snapshots:
 
-| Technique                                  | Used by                                                                                          | Browser mode                                                 | jsdom                                                                                                                                      |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                          | yes                                                                                                                                        |
-| `<style>` in the document                  | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                          | yes, CSS imports need `test.css` (plugin sets it)                                                                                          |
-| `<link rel="stylesheet">`                  | stylesheets and web fonts that a setup file or a library links                                   | same-origin sheets are inlined, cross-origin ones stay links | the link never loads during the test. Project files are copied with their `url()` targets, remote URLs load from the network in the viewer |
-| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                                  | yes, simple rules verified                                                                                                                 |
-| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture      | no: jsdom has no constructable stylesheets                                                                                                 |
-| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                      | no                                                                                                                                         |
+| Technique                                  | Used by                                                                                          | Browser mode                                                 | jsdom                                                                                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `style={{ … }}` attributes                 | everyone                                                                                         | yes                                                          | yes                                                                                                                                                                                                            |
+| `<style>` in the document                  | CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and styled-components | yes                                                          | yes, CSS imports need `test.css` (plugin sets it)                                                                                                                                                              |
+| `<link rel="stylesheet">`                  | stylesheets and web fonts that a setup file or a library links                                   | same-origin sheets are inlined, cross-origin ones stay links | the link never loads during the test. Project files are copied with their `url()` targets. Remote URLs load from the network, except font stylesheets that `describe-me build` downloads (see [Fonts](#fonts)) |
+| CSSOM `insertRule` into an empty `<style>` | emotion and styled-components in production ("speedy") mode                                      | yes, rrweb reads `cssRules`                                  | yes, simple rules verified                                                                                                                                                                                     |
+| `document.adoptedStyleSheets`              | Lit and other web components                                                                     | yes, mirrored into a temporary `<style>` during capture      | no: jsdom has no constructable stylesheets                                                                                                                                                                     |
+| `adoptedStyleSheets` on a shadow root      | web components with shadow DOM                                                                   | not yet                                                      | no                                                                                                                                                                                                             |
 
 In jsdom, rules go through jsdom's own CSS parser, which drops what it does
 not understand. Simple rules are verified; nesting, `@layer` and `@container`
@@ -490,8 +490,18 @@ Keep in mind:
   viewer shows them.
 - CSS linked from the head is copied as it is on disk. It skips PostCSS,
   Tailwind and every other Vite transform, so link plain CSS.
-- Remote fonts load from the network in the viewer, so the docs need network
-  access to show them.
+- `describe-me dev` loads remote fonts from the network. `describe-me build`
+  downloads those from Google Fonts, Bunny Fonts and Fontsource on jsDelivr
+  into the site.
+
+`describe-me build` scans the preview head, the snapshots, the style chunks and
+the CSS assets, so a link that an app's font loader added and data written by
+0.4 are covered too. Adobe Fonts and fonts on other hosts stay remote, and the
+build lists them. A stylesheet is replaced only when all its files downloaded.
+Downloads are cached in `node_modules/.cache/describe-me/fonts`. Fonts are kept
+for good and CSS for 7 days, so the build works offline after one online build.
+Every `unicode-range` subset is downloaded, so the site grows: Inter in three
+weights adds about 220 kB. `--no-vendor-fonts` turns it off.
 
 The reporter warns about font families that the captured CSS uses but nothing
 loads. It reads the first family of each `font-family` and `font` declaration
@@ -546,7 +556,8 @@ at, then the style chunks no kept snapshot refers to, then the assets that no
 kept snapshot or chunk, nor the preview head, refers to. What a kept CSS asset
 refers to is kept as well. A font or image used only from CSS is therefore
 kept. `describe-me build` copies the directory into the static site as
-`__data/`.
+`__data/`, then downloads web fonts into the copy. The `.describe-me` directory
+itself never changes.
 
 The viewer reads output written by 0.4. A 0.4 viewer cannot read this output
 (frames show without their stylesheets), so upgrade `describe-me` together with
