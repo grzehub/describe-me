@@ -378,7 +378,8 @@ step costs about 0.1–0.2 s per run on the example.
 
 After each run the reporter prints one warning line for each thing it could
 not document: tests that render an anonymous component, components without
-props docs, assets that were not found. The viewer shows the same list behind
+props docs, assets that were not found, font families that nothing loads, and
+remote hosts that frames load stylesheets from. The viewer shows the same list behind
 an "issues" chip in its header, with links to the tests. `pnpm check-manifest`
 fails on any of them in this repository's examples.
 
@@ -491,6 +492,16 @@ Keep in mind:
   Tailwind and every other Vite transform, so link plain CSS.
 - Remote fonts load from the network in the viewer, so the docs need network
   access to show them.
+
+The reporter warns about font families that the captured CSS uses but nothing
+loads. It reads the first family of each `font-family` and `font` declaration
+and follows `var()`. Generic and system families are ignored. A family counts
+as loaded when an `@font-face` rule or a stylesheet from Google Fonts, Bunny
+Fonts or Fontsource on jsDelivr loads it, in the frame or in the preview head.
+A stylesheet from any other host, such as Adobe Fonts or a custom CDN, turns
+the check off for that frame, or for every frame when the head links it. A
+family installed only on your machine still counts as missing. The reporter
+also lists the hosts that frames load stylesheets from.
 
 ## Assets
 

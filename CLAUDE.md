@@ -24,6 +24,7 @@ cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snaps
 pnpm check-manifest   # both examples' manifests, after running their tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
 pnpm check-asset-store   # CSS references, copied CSS, preview head and asset GC, after pnpm build
+pnpm check-font-audit   # which font families count as missing, after pnpm build
 pnpm check-frame-timing   # frame compaction and renderFrame validation, after pnpm build
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size

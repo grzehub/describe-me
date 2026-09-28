@@ -32,12 +32,20 @@ function pick(testId: string): void {
 
 /**
  * A header chip that opens the list of what this manifest could not document:
- * anonymous components, components without props docs and assets that will not
- * load. Absent when there is nothing to report.
+ * anonymous components, components without props docs, assets that will not
+ * load, font families that nothing loads and hosts that frames load
+ * stylesheets from. Absent when there is nothing to report.
  */
 export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
-  const { anonymous, undocumented, assetsMissing } = manifestDiagnostics(manifest)
-  const count = anonymous.length + undocumented.length + assetsMissing.length
+  const { anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
+    manifestDiagnostics(manifest)
+
+  const count =
+    anonymous.length +
+    undocumented.length +
+    assetsMissing.length +
+    fontsMissing.length +
+    remoteStylesheets.length
 
   if (count === 0) {
     return null
@@ -89,6 +97,48 @@ export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
       section(
         'Assets not found',
         'Not found under the project root or public/, so they will not load here.',
+        items,
+      ),
+    )
+  }
+
+  if (fontsMissing.length > 0) {
+    const items = fontsMissing.map((font) =>
+      el(
+        'li',
+        {},
+        el('button', { class: 'issues-link', click: () => pick(font.testId) }, font.family),
+        el('span', { class: 'issues-meta' }, font.tests === 1 ? '1 test' : `${font.tests} tests`),
+      ),
+    )
+
+    sections.push(
+      section(
+        'Fonts not loaded',
+        'The captured CSS uses these families, but no @font-face or font stylesheet in the frames or the preview head loads them. Add them to previewHead.',
+        items,
+      ),
+    )
+  }
+
+  if (remoteStylesheets.length > 0) {
+    const items = remoteStylesheets.map((stylesheet) =>
+      el(
+        'li',
+        {},
+        el('span', { class: 'mono' }, stylesheet.host),
+        el(
+          'span',
+          { class: 'issues-meta' },
+          stylesheet.frames === 1 ? '1 frame' : `${stylesheet.frames} frames`,
+        ),
+      ),
+    )
+
+    sections.push(
+      section(
+        'Remote stylesheets',
+        'Frames link these stylesheets, so they load from the network here. Put font links in previewHead instead.',
         items,
       ),
     )

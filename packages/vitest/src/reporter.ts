@@ -19,6 +19,7 @@ import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
 import { compileGlobs } from './compile-globs.js'
 import { componentEntries } from './component-entries.js'
 import { fileFilter } from './file-filter.js'
+import { FontAudit } from './font-audit.js'
 import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
 import { SnapshotStore } from './snapshot-store.js'
@@ -59,6 +60,7 @@ export default class DescribeMeReporter implements Reporter {
   private snapshots!: SnapshotStore
   private assets!: AssetStore
   private styles!: StyleStore
+  private fonts!: FontAudit
   private modules = new Map<string, ManifestModule>()
 
   constructor(options: DescribeMeReporterOptions = {}) {
@@ -78,6 +80,7 @@ export default class DescribeMeReporter implements Reporter {
     this.snapshots = new SnapshotStore(this.outDir)
     this.assets = new AssetStore(this.outDir, this.root)
     this.styles = new StyleStore(this.outDir)
+    this.fonts = new FontAudit(this.outDir)
     this.seedFromPreviousRun()
 
     if (this.previewHead !== undefined && /<script\b/i.test(this.previewHead)) {
@@ -188,8 +191,23 @@ export default class DescribeMeReporter implements Reporter {
     this.snapshots.collectGarbage(snapshotFiles)
     const styleFiles = this.styles.collectGarbage(snapshotFiles)
     this.assets.collectGarbage([...snapshotFiles, ...styleFiles], head === undefined ? [] : [head])
+    this.auditFonts(manifest)
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
     printDiagnostics(manifest)
+  }
+
+  /** A diagnostic must never break the manifest, so a failing audit writes empty lists. */
+  private auditFonts(manifest: Manifest): void {
+    try {
+      const { fontsMissing, remoteStylesheets } = this.fonts.audit(manifest)
+      manifest.fontsMissing = fontsMissing
+      manifest.remoteStylesheets = remoteStylesheets
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`describe-me: the font audit failed: ${message}`)
+      manifest.fontsMissing = []
+      manifest.remoteStylesheets = []
+    }
   }
 
   /** Module ids use the platform's separators. Globs expect posix ones. */
