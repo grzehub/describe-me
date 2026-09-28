@@ -24,11 +24,20 @@ describe-me dev                  # viewer on http://localhost:6006, live while v
 describe-me build --out docs     # self-contained static site: viewer + __data/
 ```
 
-| Flag     | Default            | Meaning                           |
-| -------- | ------------------ | --------------------------------- |
-| `--data` | `.describe-me`     | The directory the reporter wrote. |
-| `--out`  | `describe-me-dist` | Output directory for `build`.     |
-| `--port` | `6006`             | Port for `dev`.                   |
+| Flag                | Default              | Meaning                               |
+| ------------------- | -------------------- | ------------------------------------- |
+| `--data`            | `.describe-me`       | The directory the reporter wrote.     |
+| `--out`             | `describe-me-dist`   | Output directory for `build`.         |
+| `--port`            | `6006`               | Port for `dev`.                       |
+| `--no-vendor-fonts` | fonts are downloaded | `build`: keep web fonts on their CDN. |
+
+`build` downloads the web fonts that the preview head and the snapshots load
+from Google Fonts, Bunny Fonts and Fontsource on jsDelivr into the site, so
+the docs show them offline. Adobe Fonts stay remote, because their license
+does not allow self-hosting, and so do fonts on any other host. The build
+lists both. Downloads are cached in `node_modules/.cache/describe-me/fonts`.
+A font that does not download keeps loading from the network, and the build
+never fails because of it.
 
 The static site uses relative URLs, so it works from a sub-path such as
 GitHub Pages.

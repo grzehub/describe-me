@@ -22,6 +22,12 @@
  * test must record exactly the expected frames, and every render frame must
  * show the loaded component, never the loader. In the pending run one test
  * asserts that the observer took the frame before `recorder.flush()` could.
+ * The static site is built twice. The default build vendors fonts, which
+ * proves that the packed CLI loads the vendoring code and its
+ * `@describe-me/core` imports. The browser data links no remote font, so its
+ * copied manifest must stay byte for byte. The DOM data is built with
+ * `--no-vendor-fonts`, and its head must still link Google Fonts. Neither
+ * build touches the network.
  * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
  * the temp project for inspection; `--vite` and `--vitest` pin older versions
  * of the user's toolchain).
@@ -744,6 +750,11 @@ function assertFrames(tests, expected, run) {
   }
 }
 
+/** The hostname of every `href` in a preview head. */
+function headHosts(head) {
+  return Array.from((head ?? '').matchAll(/href="([^"]*)"/g), (match) => new URL(match[1]).hostname)
+}
+
 /**
  * What only the DOM scenario checks: `fireEvent` frames, the monorepo path,
  * the preview head and the leak pair.
@@ -765,13 +776,8 @@ function verifyDom(manifest) {
     'the test under dom/packages/react/ was not redirected: no render frame',
   )
 
-  const headHosts = Array.from(
-    (manifest.head ?? '').matchAll(/href="([^"]*)"/g),
-    (match) => new URL(match[1]).hostname,
-  )
-
   assert(
-    headHosts.some((host) => host === 'fonts.googleapis.com'),
+    headHosts(manifest.head).some((host) => host === 'fonts.googleapis.com'),
     `the preview head did not reach the manifest: ${manifest.head}`,
   )
 
@@ -907,6 +913,27 @@ function verifyLazyBrowser({ outDir }) {
   console.log(`\n${outDir} frames:`, labels.join(' | '))
 }
 
+/** Both static sites: the default build with font vendoring, and the DOM build without. */
+function verifyBuilds() {
+  const built = ['site/index.html', 'site/__data/manifest.json', 'site-dom/__data/manifest.json']
+
+  for (const path of built) {
+    assert(existsSync(join(app, path)), `static build is missing ${path}`)
+  }
+
+  const copied = readFileSync(join(app, 'site', '__data', 'manifest.json'))
+  assert(
+    copied.equals(readFileSync(join(app, '.describe-me', 'manifest.json'))),
+    'the default build changed a manifest that links no remote font',
+  )
+
+  const head = readJson(join(app, 'site-dom', '__data', 'manifest.json')).head
+  assert(
+    headHosts(head).some((host) => host === 'fonts.googleapis.com'),
+    `the --no-vendor-fonts build did not keep the Google Fonts link: ${head}`,
+  )
+}
+
 assertNodeVersion()
 
 try {
@@ -925,6 +952,7 @@ try {
   }
 
   run('pnpm exec describe-me build --data .describe-me --out site', app)
+  run('pnpm exec describe-me build --data .describe-me-dom --out site-dom --no-vendor-fonts', app)
   verify('.describe-me', 'browser')
   verify('.describe-me-dom', 'dom')
 
@@ -933,10 +961,7 @@ try {
   }
 
   verifyLazyBrowser(LAZY_BROWSER)
-
-  for (const path of ['site/index.html', 'site/__data/manifest.json']) {
-    assert(existsSync(join(app, path)), `static build is missing ${path}`)
-  }
+  verifyBuilds()
 
   console.log('\nsmoke: OK — the tarballs install and work in a fresh project')
 } finally {

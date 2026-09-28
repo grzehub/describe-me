@@ -10,6 +10,8 @@ export interface CliOptions {
   out: string
   /** Port for `dev`. */
   port: number
+  /** `build`: download web fonts from known font hosts into the site. */
+  vendorFonts: boolean
 }
 
 function commandFrom(positional: string | undefined, help: boolean): Command {
@@ -24,16 +26,21 @@ function commandFrom(positional: string | undefined, help: boolean): Command {
   return 'dev'
 }
 
-/** Turn `describe-me <command> [--data dir] [--out dir] [--port n]` into options with defaults. */
+/**
+ * Turn `describe-me <command> [--data dir] [--out dir] [--port n] [--no-vendor-fonts]`
+ * into options with defaults.
+ */
 export function parseArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseNodeArgs({
     args: argv,
     allowPositionals: true,
+    allowNegative: true,
     options: {
       data: { type: 'string', default: '.describe-me' },
       out: { type: 'string', default: 'describe-me-dist' },
       port: { type: 'string', default: '6006' },
       help: { type: 'boolean', short: 'h', default: false },
+      'vendor-fonts': { type: 'boolean', default: true },
     },
   })
 
@@ -42,5 +49,6 @@ export function parseArgs(argv: string[]): CliOptions {
     data: values.data,
     out: values.out,
     port: Number(values.port),
+    vendorFonts: values['vendor-fonts'],
   }
 }
