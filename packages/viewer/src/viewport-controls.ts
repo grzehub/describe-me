@@ -21,7 +21,7 @@ let controls: Controls | null = null
 
 function setViewport(width: number | null, height: number | null): void {
   state.viewport = { width, height }
-  writeHash()
+  writeHash('replace')
   rerender('frame')
 }
 

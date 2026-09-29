@@ -32,6 +32,12 @@
  * set to `danger`. A manifest without such a test fails, so the rule always
  * checks something.
  *
+ * Both modes check test ids: every `id` is 12 hex characters, no two tests
+ * share one, and every test has a string `vitestId`. The full check also
+ * recomputes each `id` from the module path, suite path, name and occurrence,
+ * as the reporter does. A real project can drop an empty test with a repeated
+ * name, which shifts the occurrence count, so `--structure-only` skips that.
+ *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
@@ -54,6 +60,8 @@ const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 const HEAD_BASE_URL = 'https://head.invalid/'
 // `href` and `src` values, double-quoted, single-quoted or bare. `data-src` is not `src`.
 const HEAD_URL = /(?<![\w-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi
+
+const TEST_ID = /^[0-9a-f]{12}$/
 
 const STRUCTURE_ONLY = '--structure-only'
 const REQUIRE_FONTS = '--require-fonts'
@@ -176,6 +184,61 @@ function timeProblemsIn(manifest) {
         problems.push(
           `${test.fullName}: frame ${frame.id} at ${frame.at} ms is earlier than ${previous.id} at ${previous.at} ms`,
         )
+      }
+    }
+  }
+
+  return problems
+}
+
+/** What every 0.5 manifest holds: a well-formed, unique `id` and a `vitestId` on each test. */
+function idProblemsIn(manifest) {
+  const problems = []
+  const seen = new Set()
+
+  for (const test of manifest.modules.flatMap((module) => module.tests)) {
+    if (typeof test.id !== 'string' || !TEST_ID.test(test.id)) {
+      problems.push(`${test.fullName}: id ${JSON.stringify(test.id)} is not 12 hex characters`)
+    } else if (seen.has(test.id)) {
+      problems.push(`${test.fullName}: id ${test.id} is not unique`)
+    }
+
+    seen.add(test.id)
+
+    if (typeof test.vitestId !== 'string') {
+      problems.push(`${test.fullName}: no vitestId`)
+    }
+  }
+
+  return problems
+}
+
+/** The formula of `stableTestId` in packages/vitest/src/stable-test-id.ts. */
+function stableTestId(moduleId, path, name, occurrence) {
+  let input = [moduleId, ...path, name].join('\0')
+  if (occurrence > 1) {
+    input += `\0${occurrence}`
+  }
+
+  return createHash('sha1').update(input).digest('hex').slice(0, 12)
+}
+
+/** Not in `--structure-only`: a dropped empty test with a repeated name shifts the count. */
+function stableIdProblemsIn(manifest) {
+  const problems = []
+
+  for (const module of manifest.modules) {
+    const moduleId = module.id.split('\\').join('/')
+    const seen = new Map()
+
+    for (const test of module.tests) {
+      const key = [...test.path, test.name].join('\0')
+      const occurrence = (seen.get(key) ?? 0) + 1
+      seen.set(key, occurrence)
+
+      const expected = stableTestId(moduleId, test.path, test.name, occurrence)
+      if (test.id !== expected) {
+        problems.push(`${test.fullName}: id ${test.id}, expected ${expected}`)
       }
     }
   }
@@ -647,8 +710,10 @@ for (const path of paths) {
   const problems = emptinessProblemsIn(manifest)
   problems.push(...closingFrameProblemsIn(manifest, path))
   problems.push(...orderProblemsIn(manifest))
+  problems.push(...idProblemsIn(manifest))
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
+    problems.push(...stableIdProblemsIn(manifest))
     problems.push(...timeProblemsIn(manifest))
     problems.push(...extractionProblemsIn(store))
     problems.push(...headProblemsIn(manifest), ...store.copiedCss.projectUrls)

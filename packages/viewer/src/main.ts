@@ -7,7 +7,10 @@ import { regions } from './regions.js'
 import { renderAll } from './render-all.js'
 import { renderFrame } from './render-frame.js'
 import { setRerender } from './rerender.js'
-import { readHash } from './state.js'
+import { wireSearchField } from './search-field.js'
+import { stateHash } from './state-hash.js'
+import { readHash, state } from './state.js'
+import { syncSelection } from './sync-selection.js'
 
 setRerender((scope) => {
   if (scope === 'frame') {
@@ -17,12 +20,28 @@ setRerender((scope) => {
   }
 })
 
+/**
+ * Back, Forward and an edited link. Chrome fires both events on Back, and
+ * `pushState` fires neither, so a link that already matches the view is ignored.
+ */
+function onLocationChange(): void {
+  if (location.hash.slice(1) === stateHash(state)) {
+    return
+  }
+
+  readHash()
+  if (state.manifest) {
+    syncSelection()
+  }
+
+  renderAll()
+}
+
 readHash()
 document.addEventListener('keydown', onKey)
-window.addEventListener('hashchange', () => {
-  readHash()
-  renderAll()
-})
+window.addEventListener('popstate', onLocationChange)
+window.addEventListener('hashchange', onLocationChange)
+wireSearchField(regions().search)
 
 loadManifest().catch((err) => {
   const { header, center } = regions()

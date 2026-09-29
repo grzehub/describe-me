@@ -1,9 +1,10 @@
 import type { Manifest } from '@describe-me/core/types'
-import { allTests, currentTest, state } from './state.js'
 import { rerender } from './rerender.js'
 import { resolveAssetUrls } from './resolve-asset-urls.js'
 import { restoreStyles } from './restore-styles.js'
 import type { SerializedNode } from './serialized-node.js'
+import { state } from './state.js'
+import { syncSelection } from './sync-selection.js'
 import { withoutEmptyTests } from './without-empty-tests.js'
 
 const snapshotCache = new Map<string, Promise<SerializedNode>>()
@@ -25,17 +26,7 @@ export async function loadManifest(): Promise<void> {
 
   state.manifest = next
   snapshotCache.clear()
-  if (!currentTest()) {
-    const first = allTests(state.manifest)[0]
-    state.testId = first?.id ?? null
-    state.frame = 0
-  }
-
-  const test = currentTest()
-  if (test) {
-    state.frame = Math.min(state.frame, Math.max(0, test.frames.length - 1))
-  }
-
+  syncSelection()
   rerender()
 }
 

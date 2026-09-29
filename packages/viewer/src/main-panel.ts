@@ -26,7 +26,7 @@ export function renderMain(): void {
           class: `frame ${timelineFrame.kind}${i === state.frame ? ' active' : ''}`,
           click: () => {
             state.frame = i
-            writeHash()
+            writeHash('replace')
             rerender('frame')
           },
         },

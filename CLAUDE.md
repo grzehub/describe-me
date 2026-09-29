@@ -18,7 +18,7 @@ pnpm build            # tsc for core, react, vitest and the viewer CLI
 pnpm --filter describe-me typecheck   # viewer sources, after pnpm build
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
-cd examples/react-browser && pnpm test          # 24 tests, browser mode
+cd examples/react-browser && pnpm test          # 25 tests, browser mode
 cd examples/react-jsdom && pnpm test          # 28 tests, jsdom (23 in the manifest)
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 pnpm check-manifest   # both examples' manifests, after running their tests

@@ -56,4 +56,9 @@ describe('Button', () => {
       expect(onClick).not.toHaveBeenCalled()
     })
   })
+
+  it('passes other attributes to the button', async () => {
+    const screen = await render(<Button title="Save the draft">Save</Button>)
+    await expect.element(screen.getByRole('button')).toHaveAttribute('title', 'Save the draft')
+  })
 })
