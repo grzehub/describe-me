@@ -31,6 +31,10 @@ describe-me build --out docs     # self-contained static site: viewer + __data/
 | `--port`            | `6006`               | Port for `dev`.                       |
 | `--no-vendor-fonts` | fonts are downloaded | `build`: keep web fonts on their CDN. |
 
+The viewer has search, collapsible suites, keyboard navigation, custom
+viewport sizes and shareable links
+([Viewer](https://github.com/grzehub/describe-me#viewer)).
+
 `build` downloads the web fonts that the preview head and the snapshots load
 from Google Fonts, Bunny Fonts and Fontsource on jsDelivr into the site, so
 the docs show them offline. Adobe Fonts stay remote, because their license
