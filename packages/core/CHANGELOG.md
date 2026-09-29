@@ -1,5 +1,41 @@
 # @describe-me/core
 
+## 0.5.0-next.3
+
+### Minor Changes
+
+- [#36](https://github.com/grzehub/describe-me/pull/36) [`ea1f5ea`](https://github.com/grzehub/describe-me/commit/ea1f5ead71b78e0a736b06a34637576b2f215be0) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Component naming: a test whose root element is a provider, a fragment, `Suspense`, a host element or a component defined in the test file is documented under the first project component it renders.
+
+  - **How the name is found** (`@describe-me/react`, both entry points). A root the plugin registered keeps its name. Otherwise `render` and `rerender` look for the first registered component among the root's `children` and other element props (never `fallback`), then in the tree React mounted under the root element, skipping `Suspense` fallbacks. With a `wrapper`, the wrapper's own components are never picked. When nothing is found, or React internals are missing, the root keeps its own name. The lookup is synchronous and bounded, and registered roots skip it.
+  - **Props come from that component.** `ComponentInfo.props` and the render frame's `meta.props` hold the props the named component received, not the root element's. Props coverage and the render frame label follow, for example `<Badge tone="danger" />` instead of `<ThemeProvider />`. Tests that showed `ThemeProvider`, another provider or `Anonymous` move to the component they render.
+  - **`rerender` names the component too.** A test that starts with `render(<></>)` and rerenders a component is documented under that component.
+  - **`recorder.setComponent()` can replace a weak name** (`@describe-me/core`, also exported by `@describe-me/vitest`). It replaces `Anonymous` with a named component, and a component without `file` with one that has a `file`. Otherwise the first call in a test still wins. For a `wrapper` that ignores `children`, call `recorder.setComponent({ name, props })` after `render`.
+
+  No exports added or removed.
+
+- [#33](https://github.com/grzehub/describe-me/pull/33) [`fae43ef`](https://github.com/grzehub/describe-me/commit/fae43ef9e1780091839ff4d968435b3d436bebfe) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - The reporter lists the font families that frames use but nothing loads, and the hosts that frames load stylesheets from.
+
+  - **New manifest fields** `Manifest.fontsMissing` (`FontMissing[]` with `family`, `tests` and `testId`, the first test that misses it) and `Manifest.remoteStylesheets` (`RemoteStylesheet[]` with `host` and `frames`). Both types are exported from `@describe-me/core` and `@describe-me/core/types`. Manifests written before this version do not have them, which counts as empty.
+  - **`ManifestDiagnostics` has two new required members**, `fontsMissing` and `remoteStylesheets`, which `manifestDiagnostics()` fills. Code that builds a `ManifestDiagnostics` object itself has to add them.
+  - A family counts as missing when it is the first family of a `font-family` or `font` declaration, with `var()` followed, and it is neither a generic or system family nor loaded by an `@font-face` rule, Google Fonts, Bunny Fonts or Fontsource on jsDelivr, in the frame or in the preview head. A stylesheet from any other host turns the check off for that frame, or for every frame when the preview head links it. So Adobe Fonts and custom CDNs never cause false alarms.
+  - The reporter prints one warning line for each list. The viewer's issues chip shows both, and each missing family links to its first test.
+
+  No existing export is renamed or removed.
+
+- [#37](https://github.com/grzehub/describe-me/pull/37) [`ad824ba`](https://github.com/grzehub/describe-me/commit/ad824ba91f52a4d442b1106c6fae01e5b3747af2) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Test ids survive edits to the test file, and the viewer gets history, search, collapsible suites and source order.
+
+  - **`ManifestTest.id` changes meaning** (`@describe-me/core/types`). The reporter writes a stable id: the first 12 hex characters of a SHA-1 of the module path, the suite path, the test name and, for a name repeated in the same suite, its occurrence. It stays the same when other tests are added, removed or reordered, and on other machines. Renaming a test or moving it to another suite or file changes it. `ManifestDiagnostics.anonymous[].testId` holds the same id. Tools that matched manifest ids with Vitest's `TestCase.id` should read `vitestId`.
+  - **New field `ManifestTest.vitestId`** (`@describe-me/core/types`): Vitest's `TestCase.id` in the run that recorded the test. Absent in manifests written before this version.
+  - The first run after the upgrade gives every test in the manifest its new id, including tests kept from an earlier run, and keeps the old id as `vitestId`.
+  - **Old links keep working.** A `#test=` link with a Vitest id opens its test, and the viewer rewrites the link to the new id.
+  - **Back and Forward** move between the tests and overviews you opened. Stepping through frames and changing the viewport update the link without adding history entries.
+  - **The sidebar follows source order.** A test declared after a nested `describe` is listed after it, not above it.
+  - **A search field** at the top of the sidebar filters tests by name, suite, file and component. Every word must match. `/` focuses it, Esc clears it, Enter or ↓ opens the first match.
+  - **Files and `describe` blocks collapse** with the arrow next to them. The viewer remembers this per project in the browser's local storage.
+  - **↑ and ↓** move through the tests the sidebar shows, in its order.
+
+  No exports added or removed.
+
 ## 0.5.0-next.2
 
 ### Minor Changes
