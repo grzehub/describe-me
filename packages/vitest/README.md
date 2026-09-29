@@ -27,6 +27,10 @@ plugin detects where the tests run:
   warnings match a run without describe-me. It also works without user-event
   installed.
 
+jsdom has no layout, so positioned popovers show in the top-left corner and
+canvas stays blank
+([Limitations in jsdom](https://github.com/grzehub/describe-me#limitations-in-jsdom)).
+
 ```ts
 import { describeMe } from '@describe-me/vitest/plugin'
 

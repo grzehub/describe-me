@@ -145,9 +145,9 @@ describe-me dev                  # viewer with live updates while vitest --watch
 describe-me build --out docs     # self-contained static site: viewer + __data/
 ```
 
-The static site uses relative URLs, so it works from a sub-path such as
-GitHub Pages. `.github/workflows/docs.yml` shows the CI shape: test, build,
-deploy.
+[Viewer](#viewer) lists the flags and what the viewer can do. The static site
+uses relative URLs, so it works from a sub-path such as GitHub Pages.
+`.github/workflows/docs.yml` shows the CI shape: test, build, deploy.
 
 ## Writing tests that double as stories
 
@@ -214,20 +214,43 @@ test. Everything else behaves as with plain Testing Library:
   without describe-me.
 - `@testing-library/user-event` is optional.
 
-One known limit: `fireEvent` inside your own `act()` records before React
-flushes, so its frame shows the DOM from before the update.
-
-What differs is what happens **inside the test**. jsdom has no layout engine,
-so anything the test measures, scrolls or observes (`IntersectionObserver`,
-`getBoundingClientRect`) behaves differently, and user-event cannot tell
-whether an element is covered by another. The frames themselves are the same
-kind of thing in both: DOM plus stylesheets, laid out by a real browser in the
-viewer. Pseudo-class states such as `:hover` or `:focus-visible` are not part
-of the DOM, so they do not survive a snapshot in either environment; a hover
-shows up only when the component puts it into the DOM.
-
 `examples/react-jsdom` is the jsdom counterpart of `examples/react-browser`. Only
 jsdom is tested; happy-dom is untested.
+
+### Limitations in jsdom
+
+jsdom has no layout engine and loads nothing, so what differs is what happens
+**inside the test**. The frames themselves are the same kind of thing in both
+environments: DOM plus stylesheets, laid out by a real browser in the viewer.
+
+- **Positioned popovers.** Tooltips, menus and dropdowns placed by
+  floating-ui, Popper, Radix and similar libraries show up in the top-left
+  corner. The library computes the position from `getBoundingClientRect()`,
+  which returns zeros in jsdom, and writes it into the DOM as `top`/`left` or
+  a `transform`. The viewer replays those numbers. Record such tests in
+  browser mode, or keep them in their own files and leave those out with
+  `exclude` (see [Plugin options](#plugin-options)).
+- **Layout, scrolling and observers.** Anything the test measures, scrolls or
+  observes (`IntersectionObserver`, `getBoundingClientRect`) behaves
+  differently, and user-event cannot tell whether an element is covered by
+  another. jsdom has no `ResizeObserver` or `IntersectionObserver` unless the
+  test stubs them.
+- **Fonts.** Web fonts never load during a jsdom test, so the test measures
+  text in fallback fonts. Only the viewer shows the real ones (see
+  [Fonts](#fonts)). A `<link>` added by a font loader never loads, and every
+  capture sets a 5 s timer for it.
+- **Canvas.** Without the `canvas` package, `getContext()` returns `null` in
+  jsdom, so the test cannot draw. Snapshots hold no canvas pixels in either
+  environment, so a `<canvas>` is blank in the viewer.
+- **`fireEvent` inside your own `act()`** records before React flushes, so its
+  frame shows the DOM from before the update.
+
+Two limits apply in browser mode too. Concurrent tests (`test.concurrent`,
+`describe.concurrent`, `sequence.concurrent`) are never recorded, because they
+would share one recorder (see [Plugin options](#plugin-options)). Pseudo-class
+states such as `:hover` or `:focus-visible` are not part of the DOM, so they do
+not survive a snapshot in either environment. A hover shows up only when the
+component puts it into the DOM.
 
 ## Plugin options
 
@@ -342,6 +365,55 @@ setupFiles: ['@describe-me/vitest/setup-dom', './describe-me-timing.ts'],
 - `adoptedStyleSheets` inside shadow roots are not mirrored yet.
 - Vue / Svelte adapters: a `render` wrapper each, nothing else.
 
+## Viewer
+
+The sidebar lists files, `describe` blocks and tests in source order. The
+middle shows the stage and the frame timeline. The inspector shows the test
+status, the component and its props, and the current frame. The header shows
+the test counts and the issues chip (see [Diagnostics](#diagnostics)). A click
+on a file or a `describe` block opens its overview (see
+[Component overview](#component-overview)).
+
+```sh
+describe-me dev   [--data .describe-me] [--port 6006]
+describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]
+```
+
+| Flag                | Default            | Meaning                                                         |
+| ------------------- | ------------------ | --------------------------------------------------------------- |
+| `--data`            | `.describe-me`     | The directory the reporter wrote.                               |
+| `--out`             | `describe-me-dist` | `build` only: the output directory.                             |
+| `--port`            | `6006`             | `dev` only: the port.                                           |
+| `--no-vendor-fonts` | off                | `build` only: keep web fonts on their CDN, see [Fonts](#fonts). |
+
+- **Search.** The field at the top of the sidebar. Each word must occur in the
+  test's name with its suites, its file path or its component name,
+  case-insensitive. Different words may match different fields. A search
+  shows matches inside collapsed suites too. `/` focuses the field, Esc clears
+  it, Enter or ↓ opens the first match.
+- **Collapsing.** The arrow in front of a file or `describe` row collapses it.
+  The browser remembers it per project in local storage. Opening a test
+  expands the suites around it.
+- **Keyboard.** ←/→ go to the previous or next frame. ↑/↓ go to the previous
+  or next test the sidebar shows, so they follow the search and the collapsed
+  suites. In an overview, ↓ opens its first test and ↑ its last. `/` focuses
+  the search. Shortcuts are off while you type in a field.
+- **Viewport size.** Presets `100%`, `768px` and `375px`, and W and H fields
+  in CSS pixels, whole numbers from 1 to 10000. An empty field means auto. An
+  auto width fills the stage. An auto height fits the content and is measured
+  again once web fonts load. A viewport wider than the stage is scaled down,
+  and the toolbar shows the zoom.
+- **Links.** The address holds the view: `#test=<id>&frame=<n>&w=<px>&h=<px>`,
+  or `suite=…` for an overview. `frame` counts from 0, so `frame=2` is the
+  inspector's "frame 3". Copy the address to share a frame at a size. Back and
+  Forward move between the tests and overviews you opened. Stepping through
+  frames and changing the size add no history entries.
+
+A test id stays the same on other machines and when other tests are added,
+removed or reordered. Renaming a test or moving it to another suite or file
+changes it. A link written by 0.4 still opens its test, and the viewer
+rewrites it.
+
 ## Component overview
 
 Click a `describe` block or a test file in the sidebar to get the component
@@ -399,11 +471,24 @@ step costs about 0.1–0.2 s per run on the example.
 ## Diagnostics
 
 After each run the reporter prints one warning line for each thing it could
-not document: tests that render an anonymous component, components without
-props docs, assets that were not found, font families that nothing loads, and
-remote hosts that frames load stylesheets from. The viewer shows the same list behind
-an "issues" chip in its header, with links to the tests. `pnpm check-manifest`
+not document: tests that render an anonymous component (see the naming rules
+in [Component overview](#component-overview)), components without props docs,
+assets that were not found, font families that nothing loads, and remote hosts
+that frames load stylesheets from. The viewer shows the same list behind an
+"issues" chip in its header, with links to the tests. `pnpm check-manifest`
 fails on any of them in this repository's examples.
+
+A few warnings are printed once, when their cause shows up:
+
+- **Concurrent tests are not recorded**, once per test file that has them.
+- **`previewHead` contains a `<script>`.** The viewer never runs it.
+- **`test.css` is `false`.** Imported stylesheets are stubbed and missing from
+  the snapshots.
+- **TypeScript is not installed.** No component gets a props table.
+- **Two components have the same name.** Only the first is documented.
+
+`describe-me build` prints which font stylesheets it downloaded, which hosts it
+left remote and which URLs did not download (see [Fonts](#fonts)).
 
 ## Styling techniques
 

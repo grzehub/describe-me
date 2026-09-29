@@ -30,6 +30,7 @@ pnpm check-frame-timing   # frame compaction and renderFrame validation, after p
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
+cd examples/react-browser && pnpm bench:macro   # wall clock with and without recording
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] (Node ^20.19 || >=22.12)
 ```
