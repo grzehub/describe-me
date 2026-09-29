@@ -367,6 +367,28 @@ exports, so `export const Button = forwardRef(<T,>(…) => …)` is `Button` and
 outside the project) the name falls back to `displayName`, then the function
 name, then whatever `memo` / `forwardRef` wrap.
 
+When the element passed to `render` is not a registered export (a provider, a
+fragment, `Suspense`, a host element or a component defined in the test file),
+the test is documented under the first registered component inside it.
+describe-me looks through the element's children and other element props
+first, then through the tree React mounted, and skips `Suspense` fallbacks.
+The props shown in the inspector and counted for coverage are the ones that
+component received. With a `wrapper`, only the tree under your element is
+searched, so the wrapper's own components are never picked. A registered root
+keeps its own name.
+
+A wrapper that ignores `children`, for example one that renders a router,
+never mounts the element you pass. Name the test yourself after `render`.
+`setComponent` replaces an `Anonymous` name, or a name without a `file` when
+yours has one.
+
+```tsx
+import { recorder } from '@describe-me/vitest'
+
+render(<></>, { wrapper: AppProviders })
+recorder.setComponent({ name: 'OrdersPage', props: {} })
+```
+
 The reporter reads the props type of that export with TypeScript: name, type,
 required, default value from the destructuring pattern (also through
 `forwardRef(…)` and `memo(…)`), JSDoc description. When the export was not

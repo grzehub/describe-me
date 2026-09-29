@@ -26,6 +26,12 @@
  * outside the project. `--require-fonts` adds what this repository's examples
  * promise: the head links Google Fonts, and a stored `.woff2` is reachable.
  *
+ * The full check also holds a test to its name. A test named
+ * `names Badge tone=danger …` must be documented under the registered
+ * `Badge`, and both its component and its last render frame must have `tone`
+ * set to `danger`. A manifest without such a test fails, so the rule always
+ * checks something.
+ *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
@@ -568,6 +574,69 @@ function extractionProblemsIn(store) {
   return problems
 }
 
+// `names Badge tone=danger inside a ThemeProvider`: the component, then the rest of the name.
+const NAMING_TEST = /^names ([A-Z]\S*)(.*)$/
+
+/** Not in `--structure-only`: a `names <Component> key=value …` test shows what its name says. */
+function namingProblemsIn(manifest) {
+  const problems = []
+  let checked = 0
+
+  for (const test of manifest.modules.flatMap((module) => module.tests)) {
+    const match = NAMING_TEST.exec(test.name)
+
+    if (!match) {
+      continue
+    }
+
+    checked++
+    const [, expected, rest] = match
+    const { component } = test
+
+    if (component?.name !== expected || !component.file) {
+      problems.push(
+        `${test.fullName}: documented as ${component?.name} (${component?.file ?? 'no file'}), expected the registered ${expected}`,
+      )
+    }
+
+    const renderFrame = test.frames.findLast((frame) => frame.kind === 'render')
+
+    for (const [key, value] of expectedProps(rest)) {
+      const inComponent = String(component?.props?.[key])
+      const inFrame = String(renderFrame?.meta?.props?.[key])
+
+      if (inComponent !== value || inFrame !== value) {
+        problems.push(
+          `${test.fullName}: ${key} is ${inComponent} in the component and ${inFrame} in the last render frame, expected ${value}`,
+        )
+      }
+    }
+  }
+
+  if (checked === 0) {
+    problems.push('no `names …` test, so component naming went unchecked')
+  }
+
+  return problems
+}
+
+/** The `key=value` words at the start of `text`, up to the first word without `=`. */
+function expectedProps(text) {
+  const props = []
+
+  for (const word of text.trim().split(/\s+/)) {
+    const separator = word.indexOf('=')
+
+    if (separator === -1) {
+      break
+    }
+
+    props.push([word.slice(0, separator), word.slice(separator + 1)])
+  }
+
+  return props
+}
+
 let failed = false
 
 for (const path of paths) {
@@ -583,6 +652,7 @@ for (const path of paths) {
     problems.push(...timeProblemsIn(manifest))
     problems.push(...extractionProblemsIn(store))
     problems.push(...headProblemsIn(manifest), ...store.copiedCss.projectUrls)
+    problems.push(...namingProblemsIn(manifest))
   }
 
   if (!structureOnly && requireFonts) {
