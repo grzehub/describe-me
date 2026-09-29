@@ -1,5 +1,55 @@
 # @describe-me/react
 
+## 0.5.0
+
+### Minor Changes
+
+- [#36](https://github.com/grzehub/describe-me/pull/36) [`ea1f5ea`](https://github.com/grzehub/describe-me/commit/ea1f5ead71b78e0a736b06a34637576b2f215be0) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Component naming: a test whose root element is a provider, a fragment, `Suspense`, a host element or a component defined in the test file is documented under the first project component it renders.
+
+  - **How the name is found** (`@describe-me/react`, both entry points). A root the plugin registered keeps its name. Otherwise `render` and `rerender` look for the first registered component among the root's `children` and other element props (never `fallback`), then in the tree React mounted under the root element, skipping `Suspense` fallbacks. With a `wrapper`, the wrapper's own components are never picked. When nothing is found, or React internals are missing, the root keeps its own name. The lookup is synchronous and bounded, and registered roots skip it.
+  - **Props come from that component.** `ComponentInfo.props` and the render frame's `meta.props` hold the props the named component received, not the root element's. Props coverage and the render frame label follow, for example `<Badge tone="danger" />` instead of `<ThemeProvider />`. Tests that showed `ThemeProvider`, another provider or `Anonymous` move to the component they render.
+  - **`rerender` names the component too.** A test that starts with `render(<></>)` and rerenders a component is documented under that component.
+  - **`recorder.setComponent()` can replace a weak name** (`@describe-me/core`, also exported by `@describe-me/vitest`). It replaces `Anonymous` with a named component, and a component without `file` with one that has a `file`. Otherwise the first call in a test still wins. For a `wrapper` that ignores `children`, call `recorder.setComponent({ name, props })` after `render`.
+
+  No exports added or removed.
+
+- [#30](https://github.com/grzehub/describe-me/pull/30) [`c0cadfd`](https://github.com/grzehub/describe-me/commit/c0cadfd0f0c3072b4fa6bfc534e34b65d5e159d7) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Render frame timing: an opt-in `renderFrame` option takes the render frame once async content has loaded, and frames keep the order the test asked for them.
+
+  - **New plugin option `renderFrame`** (`@describe-me/vitest/plugin`): `'eager'` (default, unchanged), `'lazy'` or `{ pending: string, timeout?: number }`. `'lazy'` takes the render frame right before the test's next interaction (a user event, `step()`, `fireEvent`, `render`, `rerender`, `unmount` or `cleanup`), or at the end of the test. `{ pending }` takes it as soon as nothing matches the CSS selector and the page shows content, and falls back to `'lazy'` after `timeout` ms (default 2000). Every render frame follows it, `rerender` included. The plugin rejects any other value before tests run, and an invalid selector fails when the setup file loads.
+  - **Frames keep call order.** A frame sits where its capture was called, not where it finished. A capture still running when its test ends is dropped, so an interaction or `step()` the test did not await no longer lands in the next test or hides its first action. `at` is still the time the snapshot was taken.
+  - **New recorder methods** (`@describe-me/core`, also through `@describe-me/vitest`). `recorder.configure({ renderFrame })` is called by the setup files with the plugin's option. Without the plugin, call it in your own setup file, listed after describe-me's. `recorder.beforeInteraction()` takes a deferred render frame now, for adapters. `recorder.flush()` waits for captures in flight, takes a deferred render frame and resolves to whether it took one. `recorder.generation` identifies the current test.
+  - **New types** (`@describe-me/core`): `RenderFrameMode` and `RecorderOptions`, and the field `CaptureOptions.generation`. Pass `recorder.generation` as read when an interaction began, and a capture from an earlier test is dropped.
+  - The `'describe-me'` key on Vitest's `ProvidedContext` gains `renderFrame`.
+  - `@describe-me/react`: `render`, `rerender`, `unmount`, `fireEvent` and `cleanup` take a deferred render frame before they change the page. Signatures are unchanged.
+
+  No exports removed. With the default `'eager'`, a test that awaits its interactions records the same frames as before.
+
+- [#27](https://github.com/grzehub/describe-me/pull/27) [`9cc05eb`](https://github.com/grzehub/describe-me/commit/9cc05eb64a9490916596129c27bebb0afbc3318a) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Testing Library adapter fixes: `fireEvent` records frames, `afterEach(cleanup)` and fake timers no longer spoil the closing frame, and `renderHook` files are unmounted.
+
+  - **`fireEvent` records a frame** (`@describe-me/react/testing-library`). The function and every method (`fireEvent.click`, `fireEvent.change`, …) are recording wrappers with the same signatures. One call is one frame, labelled like `click(button "Save")` or `change(text "Name", "hello")`. Only `fireEvent` from `@testing-library/react` is covered.
+  - **`cleanup` takes the closing frame before it unmounts** (`@describe-me/react/testing-library`). `afterEach(cleanup)` in a test file no longer records an empty page. Called in the middle of a test, it leaves a `before cleanup()` step once the test records again.
+  - **`renderHook` files are unmounted.** The adapter registers its unmount when it is imported, not on the first `render`, so a file that only uses `renderHook` no longer leaves trees mounted. `renderHook` still records no frames.
+  - **No empty closing frames.** The closing frame is skipped when the page shows nothing, for example after `unmount()`.
+  - **Fake timers are safe.** The recorder keeps the real `setTimeout` and `performance`, so `vi.useFakeTimers()` left on no longer hangs a `step()` or the closing frame until the timeout, and frame times stay real.
+  - **Act warnings are back** (`@describe-me/vitest/setup-dom`). Switching off Testing Library's auto-cleanup also skipped its `IS_REACT_ACT_ENVIRONMENT` setup, which silenced React's "not wrapped in act(...)" warnings. The setup file sets the flag under Testing Library's own conditions (Vitest globals). The warnings you see are the ones you get without describe-me. This is not a regression.
+  - **`@testing-library/user-event` is really optional.** The DOM setup file loads it dynamically and skips the patch when it is missing.
+  - **The render redirect finds the adapter by its installed path.** Test files under a `packages/react/` directory of your own repository are now redirected and recorded.
+  - **New export `elementLabel`** (`@describe-me/core`) names a DOM element for a frame label, e.g. `button "Save"`. It moved from `@describe-me/vitest`, where it was internal.
+
+  No exports removed. `cleanup` and `fireEvent` keep their names and signatures.
+
+- [#20](https://github.com/grzehub/describe-me/pull/20) [`940d49f`](https://github.com/grzehub/describe-me/commit/940d49f9b565cb32da2461d6086dc60775af8fc4) Thanks [@grzehub](https://github.com/grzehub)! - `describe-me` no longer ships its own Vite. `vite` moved from `dependencies` to `peerDependencies` (`^6.4.0 || ^7.0.0 || ^8.0.0`), so the viewer and CLI run on your project's Vite and a project on Vite 6 or 7 no longer installs a second, nested Vite 8. pnpm and npm install the peer automatically; with yarn, add `vite` to your `devDependencies` (Vitest requires it anyway). `describe-me` now declares `engines.node: ^20.16.0 || >=22.4.0`; the effective floor is whatever your Vite version requires.
+
+  Peer dependency ranges now have upper bounds instead of open-ended `>=` ranges:
+
+  - `@describe-me/react`: `react` `^18.0.0 || ^19.0.0`, `@testing-library/react` `^16.0.0` (optional), `vitest-browser-react` `^2.0.0` (optional).
+  - `@describe-me/vitest`: `vitest` `^4.0.0 || ^5.0.0`, `typescript` `^5.0.0 || ^6.0.0` (optional; TypeScript 7 has no JS compiler API), `@testing-library/user-event` `^14.0.0` (optional).
+
+### Patch Changes
+
+- Updated dependencies [[`ea1f5ea`](https://github.com/grzehub/describe-me/commit/ea1f5ead71b78e0a736b06a34637576b2f215be0), [`993012b`](https://github.com/grzehub/describe-me/commit/993012babf8dc61727198729111619f8a5a5562f), [`fae43ef`](https://github.com/grzehub/describe-me/commit/fae43ef9e1780091839ff4d968435b3d436bebfe), [`26d38dc`](https://github.com/grzehub/describe-me/commit/26d38dc3561436e5bf4b4c27b48de2be81eb1bae), [`c0cadfd`](https://github.com/grzehub/describe-me/commit/c0cadfd0f0c3072b4fa6bfc534e34b65d5e159d7), [`48cbc2a`](https://github.com/grzehub/describe-me/commit/48cbc2ab5071494328a252659a1514c914fa5ad5), [`c877e0e`](https://github.com/grzehub/describe-me/commit/c877e0edddf20805814b3872088ad68272de8b1a), [`9cc05eb`](https://github.com/grzehub/describe-me/commit/9cc05eb64a9490916596129c27bebb0afbc3318a), [`ad824ba`](https://github.com/grzehub/describe-me/commit/ad824ba91f52a4d442b1106c6fae01e5b3747af2)]:
+  - @describe-me/core@0.5.0
+
 ## 0.5.0-next.3
 
 ### Minor Changes
