@@ -2,11 +2,17 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import type { ViteUserConfig } from 'vitest/config'
+import { styledComponentsTslib } from './styled-components-tslib.js'
 
 interface PackageJson {
   version?: string
   module?: string
   browser?: string | Record<string, string | false>
+}
+
+interface Alias {
+  find: RegExp
+  replacement: string
 }
 
 type ResolveFromRoot = (id: string) => string | undefined
@@ -45,6 +51,13 @@ function browserModule(pkg: PackageJson): string | undefined {
   return undefined
 }
 
+/** The config that loads the browser build, and a setup problem found on the way. */
+export interface StyledComponentsBrowserBuild {
+  config: ViteUserConfig
+  /** Set when the build's tslib cannot be aliased, so it may fail to load. */
+  warning?: string
+}
+
 /**
  * The Vite and Vitest config that makes a DOM environment load the browser
  * build of styled-components, or undefined when the project does not use
@@ -57,8 +70,14 @@ function browserModule(pkg: PackageJson): string | undefined {
  * styled-components through Node, which ignores the alias, and would get a
  * second instance whose styles its serializer cannot see. Bundling both
  * together gives them one.
+ *
+ * The optimizer bundles tslib's UMD file without its default export, which the
+ * browser build of 6.0 to 6.3 destructures. An alias is the only resolution the
+ * optimizer applies, so `tslib` is aliased to its ES module for the whole config.
  */
-export function styledComponentsBrowserBuild(root: string): ViteUserConfig | undefined {
+export function styledComponentsBrowserBuild(
+  root: string,
+): StyledComponentsBrowserBuild | undefined {
   const resolveFromRoot = resolverFor(root)
   const manifest = resolveFromRoot('styled-components/package.json')
 
@@ -84,8 +103,21 @@ export function styledComponentsBrowserBuild(root: string): ViteUserConfig | und
     include.push('jest-styled-components')
   }
 
-  return {
-    resolve: { alias: [{ find: /^styled-components$/, replacement }] },
+  const alias: Alias[] = [{ find: /^styled-components$/, replacement }]
+  const tslib = styledComponentsTslib(manifest)
+
+  if (tslib.kind === 'alias') {
+    alias.push({ find: /^tslib$/, replacement: tslib.replacement })
+  }
+
+  const config: ViteUserConfig = {
+    resolve: { alias },
     test: { deps: { optimizer: { client: { enabled: true, include } } } },
   }
+
+  if (tslib.kind === 'warning') {
+    return { config, warning: tslib.warning }
+  }
+
+  return { config }
 }

@@ -22,6 +22,11 @@
  * test must record exactly the expected frames, and every render frame must
  * show the loaded component, never the loader. In the pending run one test
  * asserts that the observer took the frame before `recorder.flush()` could.
+ * A jsdom run renders a styled component with styled-components 6.3, whose
+ * browser build imports tslib. Its one test must pass and record exactly its
+ * render frame, which must carry both the global style and the component's
+ * colour. The manifest must hold no setup warning. The project installs
+ * styled-components, so every jsdom run uses its browser build.
  * The static site is built twice. The default build vendors fonts, which
  * proves that the packed CLI loads the vendoring code and its
  * `@describe-me/core` imports. The browser data links no remote font, so its
@@ -179,6 +184,12 @@ function toolchain(names) {
   return picked
 }
 
+/**
+ * 6.3 is the last minor whose browser build imports tslib, which the plugin
+ * has to alias. The examples resolve a later one, so `toolchain()` cannot pick it.
+ */
+const STYLED_COMPONENTS = '6.3.12'
+
 function pack() {
   mkdirSync(tarballs, { recursive: true })
 
@@ -252,6 +263,7 @@ function scaffold() {
             'jsdom',
             'vite',
           ]),
+          'styled-components': STYLED_COMPONENTS,
         },
         pnpm: { overrides: local },
       },
@@ -751,6 +763,72 @@ describe('Mixed', () => {
   )
 }
 
+/** A styled component with a global style, loaded through the browser build in jsdom. */
+function scaffoldStyled() {
+  mkdirSync(join(app, 'styled'), { recursive: true })
+
+  writeFileSync(
+    join(app, 'vitest.styled.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-styled' })],
+  test: {
+    environment: 'jsdom',
+    include: ['styled/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'styled', 'Pill.tsx'),
+    `import styled, { createGlobalStyle } from 'styled-components'
+
+const Marker = createGlobalStyle\`
+  body {
+    --smoke-global: applied;
+  }
+\`
+
+const Label = styled.span\`
+  color: rgb(43, 92, 255);
+\`
+
+export interface PillProps {
+  /** The text inside the pill. */
+  label: string
+}
+
+export function Pill({ label }: PillProps) {
+  return (
+    <>
+      <Marker />
+      <Label>{label}</Label>
+    </>
+  )
+}
+`,
+  )
+
+  writeFileSync(
+    join(app, 'styled', 'Pill.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { Pill } from './Pill'
+
+describe('Pill', () => {
+  it('shows its label', () => {
+    render(<Pill label="new" />)
+    expect(screen.getByText('new')).toBeDefined()
+  })
+})
+`,
+  )
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(`smoke: ${message}`)
@@ -1038,6 +1116,47 @@ function verifyLazyBrowser({ outDir }) {
   console.log(`\n${outDir} frames:`, labels.join(' | '))
 }
 
+const STYLED = { config: 'vitest.styled.config.ts', outDir: '.describe-me-styled' }
+const STYLE_REFERENCE = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
+
+/** A snapshot with its `describe-me-style:` references replaced by the chunks they name. */
+function withStyles(snapshot, outDir) {
+  return snapshot.replace(STYLE_REFERENCE, (_reference, hashes) =>
+    hashes
+      .split('+')
+      .map((hash) => readFileSync(join(app, outDir, 'styles', `${hash}.css`), 'utf8'))
+      .join(''),
+  )
+}
+
+/**
+ * The render frame must carry the component's own rule and the global style,
+ * which only the browser build of styled-components inserts in jsdom.
+ */
+function verifyStyled({ outDir }) {
+  const manifest = readJson(join(app, outDir, 'manifest.json'))
+  const tests = manifest.modules.flatMap((module) => module.tests)
+
+  assertFrames(tests, { 'Pill > shows its label': 'render:<Pill label="new" />' }, outDir)
+  assert(tests[0].state === 'passed', `Pill > shows its label did not pass (${outDir})`)
+
+  assert(
+    manifest.setupWarnings === undefined,
+    `expected no setup warnings (${outDir}), got ${JSON.stringify(manifest.setupWarnings)}`,
+  )
+
+  const snapshot = withStyles(
+    readFileSync(join(app, outDir, tests[0].frames[0].snapshot), 'utf8'),
+    outDir,
+  )
+
+  for (const needle of ['--smoke-global: applied', 'rgb(43, 92, 255)']) {
+    assert(snapshot.includes(needle), `the render frame of Pill (${outDir}) lacks ${needle}`)
+  }
+
+  console.log(`\n${outDir} frames:`, labelsOf(tests[0]).join(' | '))
+}
+
 /** Both static sites: the default build with font vendoring, and the DOM build without. */
 function verifyBuilds() {
   const built = ['site/index.html', 'site/__data/manifest.json', 'site-dom/__data/manifest.json']
@@ -1066,6 +1185,7 @@ try {
   scaffold()
   scaffoldTiming()
   scaffoldMixed()
+  scaffoldStyled()
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
@@ -1073,6 +1193,7 @@ try {
   verifyPackedPeers()
   run('pnpm exec vitest run', app)
   run('pnpm exec vitest run --config vitest.dom.config.ts', app)
+  run(`pnpm exec vitest run --config ${STYLED.config}`, app)
 
   for (const timing of [...TIMING_RUNS, LAZY_BROWSER]) {
     run(`pnpm exec vitest run --config ${timing.config}`, app)
@@ -1084,6 +1205,7 @@ try {
   run('pnpm exec describe-me build --data .describe-me-dom --out site-dom --no-vendor-fonts', app)
   verify('.describe-me', 'browser')
   verify('.describe-me-dom', 'dom')
+  verifyStyled(STYLED)
 
   for (const timing of TIMING_RUNS) {
     verifyTiming(timing)

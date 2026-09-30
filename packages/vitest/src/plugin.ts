@@ -6,7 +6,10 @@ import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
 import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
-import { styledComponentsBrowserBuild } from './styled-components-browser-build.js'
+import {
+  styledComponentsBrowserBuild,
+  type StyledComponentsBrowserBuild,
+} from './styled-components-browser-build.js'
 import { validateRenderFrame } from './validate-render-frame.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
@@ -35,7 +38,9 @@ export interface DescribeMeOptions {
    * DOM environments only. Load the browser build of styled-components (v5+)
    * instead of the Node one, whose `createGlobalStyle` never inserts its CSS on
    * the client: global resets and fonts would be missing from every snapshot.
-   * Applied when styled-components is installed. Default: true.
+   * Applied when styled-components is installed. For 6.0 to 6.3 it also points
+   * `tslib` at the `tslib.es6.mjs` they resolve, so the optimizer keeps its
+   * exports. Default: true.
    */
   styledComponentsBrowserBuild?: boolean
   /**
@@ -119,7 +124,10 @@ function browserConfig(renderModule: RenderModule): ViteUserConfig {
   }
 }
 
-function domConfig(userConfig: ViteUserConfig, options: DescribeMeOptions): ViteUserConfig {
+function domConfig(
+  userConfig: ViteUserConfig,
+  styledComponents: StyledComponentsBrowserBuild | undefined,
+): ViteUserConfig {
   const userTest = userConfig.test
   const test: TestConfig = {
     setupFiles: ['@describe-me/vitest/setup-dom'],
@@ -138,18 +146,27 @@ function domConfig(userConfig: ViteUserConfig, options: DescribeMeOptions): Vite
     )
   }
 
-  const styledComponents =
-    options.styledComponentsBrowserBuild === false
-      ? undefined
-      : styledComponentsBrowserBuild(userConfig.root ?? process.cwd())
-
   if (!styledComponents) {
     return { test }
   }
 
   console.info('describe-me: using the browser build of styled-components, for createGlobalStyle')
+  const { config } = styledComponents
 
-  return { resolve: styledComponents.resolve, test: { ...test, ...styledComponents.test } }
+  return { resolve: config.resolve, test: { ...test, ...config.test } }
+}
+
+/** Looked up before the reporter is created, which needs its warning. */
+function styledComponentsFor(
+  environment: DescribeMeEnvironment,
+  userConfig: ViteUserConfig,
+  options: DescribeMeOptions,
+): StyledComponentsBrowserBuild | undefined {
+  if (environment !== 'dom' || options.styledComponentsBrowserBuild === false) {
+    return undefined
+  }
+
+  return styledComponentsBrowserBuild(userConfig.root ?? process.cwd())
 }
 
 /**
@@ -193,12 +210,15 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       }
 
       const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
+      const styledComponents = styledComponentsFor(environment, userConfig, options)
+      const setupWarnings = styledComponents?.warning ? [styledComponents.warning] : []
 
       const reporter = new DescribeMeReporter({
         outDir,
         include: options.include,
         exclude: options.exclude,
         previewHead: options.previewHead,
+        setupWarnings,
       })
 
       // Vite concatenates arrays when merging, so only add `default` when the
@@ -206,7 +226,9 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const reporters = userConfig.test?.reporters ? [reporter] : ['default', reporter]
 
       const config =
-        environment === 'browser' ? browserConfig(renderModule) : domConfig(userConfig, options)
+        environment === 'browser'
+          ? browserConfig(renderModule)
+          : domConfig(userConfig, styledComponents)
 
       return { ...config, test: { ...config.test, reporters, provide } }
     },

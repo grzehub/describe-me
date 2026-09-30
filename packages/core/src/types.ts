@@ -212,6 +212,12 @@ export interface Manifest {
    * manifests written before 0.5, which counts as empty.
    */
   remoteStylesheets?: RemoteStylesheet[]
+  /**
+   * Problems the plugin found in the project's setup, one sentence each.
+   * Absent when there are none and in manifests written before 0.5.1, which
+   * counts as empty.
+   */
+  setupWarnings?: string[]
 }
 
 /** A font family that the captured CSS uses but no `@font-face`, font stylesheet or preview head loads. */
@@ -247,4 +253,6 @@ export interface ManifestDiagnostics {
   fontsMissing: FontMissing[]
   /** Hosts that frames load stylesheets from. */
   remoteStylesheets: RemoteStylesheet[]
+  /** Problems in the project's setup that can make tests fail. */
+  setupWarnings: string[]
 }

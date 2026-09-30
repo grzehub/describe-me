@@ -20,14 +20,19 @@ function plural(count: number, one: string, many: string): string {
 }
 
 /**
- * Warn, one line per kind, about what the manifest could not document. Prints
- * nothing when everything is named, documented and loadable, every font is
- * loaded and no stylesheet comes from a remote host. The viewer shows the same
- * list in its header.
+ * Warn about what the manifest could not document, one line per kind. Setup
+ * warnings come first, one line each, because they can explain failing tests.
+ * Prints nothing when the setup is sound, everything is named, documented and
+ * loadable, every font is loaded and no stylesheet comes from a remote host.
+ * The viewer shows the same list in its header.
  */
 export function printDiagnostics(manifest: Manifest): void {
-  const { anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
+  const { setupWarnings, anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
     manifestDiagnostics(manifest)
+
+  for (const warning of setupWarnings) {
+    console.warn(`describe-me: ${warning}`)
+  }
 
   if (anonymous.length > 0) {
     console.warn(

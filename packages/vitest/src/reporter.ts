@@ -48,6 +48,8 @@ export interface DescribeMeReporterOptions {
    * Project files it links are copied into the output directory. Default: none.
    */
   previewHead?: string
+  /** Problems in the project's setup, filled by the plugin. Default: none. */
+  setupWarnings?: string[]
 }
 
 function toPosix(moduleId: string): string {
@@ -63,6 +65,7 @@ export default class DescribeMeReporter implements Reporter {
   private readonly isRecordedFile: (fileName: string) => boolean
   private readonly previewHead: string | undefined
   private readonly generator: ManifestGenerator | undefined
+  private readonly setupWarnings: string[]
   private root = process.cwd()
   private outDir = ''
   private snapshots!: SnapshotStore
@@ -81,6 +84,7 @@ export default class DescribeMeReporter implements Reporter {
     // A blank head, such as an empty preview-head.html, is the same as none.
     this.previewHead = options.previewHead?.trim() ? options.previewHead : undefined
     this.generator = readGenerator()
+    this.setupWarnings = options.setupWarnings ?? []
   }
 
   onInit(vitest: Vitest): void {
@@ -227,6 +231,12 @@ export default class DescribeMeReporter implements Reporter {
     const styleFiles = this.styles.collectGarbage(snapshotFiles)
     this.assets.collectGarbage([...snapshotFiles, ...styleFiles], head === undefined ? [] : [head])
     this.auditFonts(manifest)
+
+    // Never seeded from the last run: the plugin checks the setup on every start.
+    if (this.setupWarnings.length > 0) {
+      manifest.setupWarnings = this.setupWarnings
+    }
+
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
     printDiagnostics(manifest)
   }
