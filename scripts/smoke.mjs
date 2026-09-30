@@ -17,11 +17,14 @@
  * The DOM scenario also runs a leak pair: a test that ends with a keyboard
  * action and a `step()` it did not await, then a test that must record exactly
  * its own render and click frames.
- * Three more runs check `renderFrame` on a component that shows a loader for
- * 50 ms: `'lazy'` and `{ pending }` in jsdom, `'lazy'` in browser mode. Each
- * test must record exactly the expected frames, and every render frame must
- * show the loaded component, never the loader. In the pending run one test
- * asserts that the observer took the frame before `recorder.flush()` could.
+ * Four more runs check `renderFrame` on a component that shows a loader for
+ * 50 ms: in jsdom `'lazy'`, `{ pending }` and a `pending` selector jsdom
+ * rejects, in browser mode `'lazy'`. Each test must record exactly the
+ * expected frames, and every render frame must show the loaded component,
+ * never the loader. In the pending run one test asserts that the observer
+ * took the frame before `recorder.flush()` could. The rejected selector must
+ * pass with one warning, for its one test file, and record the lazy run's
+ * frames.
  * A jsdom run renders a styled component with styled-components 6.3, whose
  * browser build imports tslib. Its one test must pass and record exactly its
  * render frame, which must carry both the global style and the component's
@@ -139,6 +142,21 @@ function runFailing(command, cwd) {
   }
 
   throw new Error(`smoke: expected ${command} to fail`)
+}
+
+/** Run a command that must pass, and return what it printed on stdout and stderr. */
+function runPassing(command, cwd) {
+  console.log(`\n$ ${command}  (${cwd.replace(work, '<tmp>')})`)
+
+  const output = execSync(`${command} 2>&1`, {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, CI: '1' },
+  })
+
+  console.log(output)
+
+  return output
 }
 
 /** `@scope/name@1.2.3` packs to `scope-name-1.2.3.tgz`, exactly as pnpm names it. */
@@ -684,6 +702,29 @@ export default defineConfig({
 `,
   )
 
+  // jsdom rejects the extra `]`. It accepts an unterminated `[aria-busy="true"`.
+  writeFileSync(
+    join(app, 'vitest.broken-pending.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    describeMe({
+      outDir: '.describe-me-broken-pending',
+      renderFrame: { pending: '[aria-busy="true"]]' },
+    }),
+  ],
+  test: {
+    environment: 'jsdom',
+    include: ['timing/Greeting.test.tsx'],
+  },
+})
+`,
+  )
+
   writeFileSync(
     join(app, 'vitest.lazy-browser.config.ts'),
     `import { defineConfig } from 'vitest/config'
@@ -1058,6 +1099,26 @@ const TIMING_RUNS = [
   },
 ]
 
+const BROKEN_PENDING = {
+  config: 'vitest.broken-pending.config.ts',
+  outDir: '.describe-me-broken-pending',
+  frames: { 'Greeting > waves once loaded': WAVES, 'Greeting > ends once loaded': ENDS },
+}
+
+const INVALID_SELECTOR = 'renderFrame.pending is not a valid CSS selector'
+
+/** One test file, so one warning. The render frames must still wait for the loaded Greeting. */
+function verifyBrokenPending(output) {
+  const warnings = output.split(INVALID_SELECTOR).length - 1
+
+  assert(
+    warnings === 1,
+    `expected "${INVALID_SELECTOR}" once (${BROKEN_PENDING.outDir}), got ${warnings}`,
+  )
+
+  verifyTiming(BROKEN_PENDING)
+}
+
 const LAZY_BROWSER = {
   config: 'vitest.lazy-browser.config.ts',
   outDir: '.describe-me-lazy-browser',
@@ -1199,6 +1260,7 @@ try {
     run(`pnpm exec vitest run --config ${timing.config}`, app)
   }
 
+  const brokenPending = runPassing(`pnpm exec vitest run --config ${BROKEN_PENDING.config}`, app)
   verifyMixed(runFailing('pnpm exec vitest run --config vitest.mixed.config.ts', app))
 
   run('pnpm exec describe-me build --data .describe-me --out site', app)
@@ -1211,6 +1273,7 @@ try {
     verifyTiming(timing)
   }
 
+  verifyBrokenPending(brokenPending)
   verifyLazyBrowser(LAZY_BROWSER)
   verifyBuilds()
 

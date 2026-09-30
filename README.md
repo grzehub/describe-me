@@ -309,7 +309,8 @@ Every `render` frame follows the option, `rerender` included. An interaction
 is a user event, `fireEvent`, `step()`, another `render`, `rerender`,
 `unmount` or `cleanup`. `pending` watches the page with a `MutationObserver`.
 It falls back to `'lazy'` after `timeout` ms (default 2000), or at the next
-interaction if that comes first.
+interaction if that comes first. A `pending` selector the test environment
+cannot parse falls back to `'lazy'` too, with one warning per test file.
 
 In browser mode, `await render()` returns before a deferred frame is taken.
 Polling with `expect.element` is not an interaction, so the frame waits for
@@ -680,7 +681,8 @@ After every test run, garbage collection deletes the snapshots no frame points
 at, then the style chunks no kept snapshot refers to, then the assets that no
 kept snapshot or chunk, nor the preview head, refers to. What a kept CSS asset
 refers to is kept as well. A font or image used only from CSS is therefore
-kept. `describe-me build` copies the directory into the static site as
+kept. Folders inside `snapshots/`, `styles/` and `assets/` are left alone.
+`describe-me build` copies the directory into the static site as
 `__data/`, then downloads web fonts into the copy. The `.describe-me` directory
 itself never changes.
 

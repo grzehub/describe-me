@@ -17,15 +17,18 @@
  * The full check also expects `at` never to decrease within a test. In a real
  * project, captures the test did not await can overlap and break that.
  *
- * Both modes also check the stores: every style chunk a snapshot refers to
- * exists, no chunk in `styles/` is orphaned, and every asset named in a
- * snapshot, a chunk or the preview head (`manifest.head`) is in `assets/`. So
- * is every sibling name inside a reachable CSS asset, transitively. The full
- * check also makes sure extraction is on: no snapshot inlines a sheet of 256+
- * characters, and some snapshot refers to a chunk. It also makes sure that
- * the head and the reachable CSS assets point only at stored assets or
- * outside the project. `--require-fonts` adds what this repository's examples
- * promise: the head links Google Fonts, and a stored `.woff2` is reachable.
+ * Both modes also check the stores: every style chunk a snapshot's
+ * `_cssText` refers to exists, no chunk in `styles/` is orphaned, and every
+ * asset named in a snapshot, a chunk or the preview head (`manifest.head`) is
+ * in `assets/`. So is every sibling name inside a reachable CSS asset,
+ * transitively. Folders in the stores are not the reporter's and are ignored.
+ * The full check also makes sure extraction is on: no snapshot inlines a sheet
+ * of 256+ characters, and some snapshot refers to a chunk. It also makes sure
+ * that the head and the reachable CSS assets point only at stored assets or
+ * outside the project. The head is read without its comments, `<script>`
+ * and `<style>` elements, split as the reporter splits it. `--require-fonts`
+ * adds what this repository's examples promise: the head links Google Fonts,
+ * and a stored `.woff2` is reachable.
  *
  * The full check also holds a test to its name. A test named
  * `names Badge tone=danger …` must be documented under the registered
@@ -36,8 +39,8 @@
  * Both modes check test ids: every `id` is 12 hex characters, no two tests
  * share one, and every test has a string `vitestId`. The full check also
  * recomputes each `id` from the module path, suite path, name and occurrence,
- * as the reporter does. A real project can drop an empty test with a repeated
- * name, which shifts the occurrence count, so `--structure-only` skips that.
+ * as the reporter does. Occurrences count every test the reporter saw, so
+ * they may skip numbers but never go back.
  *
  * Both modes check that `manifest.generator` names a package and a version,
  * and the full check expects `@describe-me/vitest` at the version in
@@ -52,7 +55,9 @@ import { cssReferences } from '../packages/core/dist/css-references.js'
 import { manifestDiagnostics } from '../packages/core/dist/manifest-diagnostics.js'
 
 const STYLE_PREFIX = 'describe-me-style:'
-const STYLE_REFERENCE = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
+// A whole `_cssText` value, as packages/vitest/src/style-store.ts writes it. Inside a JSON
+// string every `"` is escaped, so text that merely names a chunk does not match.
+const STYLE_REFERENCE = /"_cssText":"describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)"/g
 // The same pattern as ASSET_REFERENCE in packages/vitest/src/asset-store.ts.
 const ASSET_REFERENCE = /describe-me-asset:([0-9a-f]{16}(?:\.[a-z0-9]+)?)/g
 // The same pattern as ASSET_NAME in packages/vitest/src/css-asset-references.ts.
@@ -65,8 +70,13 @@ const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 const HEAD_BASE_URL = 'https://head.invalid/'
 // `href` and `src` values, double-quoted, single-quoted or bare. `data-src` is not `src`.
 const HEAD_URL = /(?<![\w-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi
+// The same pattern as RAW_TEXT in packages/vitest/src/rewrite-head-references.ts.
+const RAW_TEXT =
+  /<!--[\s\S]*?--!?>|<script\b[\s\S]*?<\/script\b[^>]*>|(<style\b[^>]*>)([\s\S]*?)(<\/style\b[^>]*>)/gi
 
 const TEST_ID = /^[0-9a-f]{12}$/
+// How far past the last occurrence of a name the next may be. The reporter leaves some tests out.
+const MAX_OCCURRENCE_SKIP = 100
 
 const GENERATOR_NAME = '@describe-me/vitest'
 const generatorVersion = JSON.parse(
@@ -272,7 +282,22 @@ function stableTestId(moduleId, path, name, occurrence) {
   return createHash('sha1').update(input).digest('hex').slice(0, 12)
 }
 
-/** Not in `--structure-only`: a dropped empty test with a repeated name shifts the count. */
+/**
+ * The occurrence after `previous` that gives the test its `id`, or undefined.
+ * Occurrences count every test the reporter saw, so they may skip numbers but
+ * never go back.
+ */
+function occurrenceOf(test, moduleId, previous) {
+  for (let occurrence = previous + 1; occurrence <= previous + MAX_OCCURRENCE_SKIP; occurrence++) {
+    if (test.id === stableTestId(moduleId, test.path, test.name, occurrence)) {
+      return occurrence
+    }
+  }
+
+  return undefined
+}
+
+/** Each `id` follows the formula, with an occurrence above the last one of the same name. */
 function stableIdProblemsIn(manifest) {
   const problems = []
 
@@ -282,13 +307,17 @@ function stableIdProblemsIn(manifest) {
 
     for (const test of module.tests) {
       const key = [...test.path, test.name].join('\0')
-      const occurrence = (seen.get(key) ?? 0) + 1
-      seen.set(key, occurrence)
+      const previous = seen.get(key) ?? 0
+      const occurrence = occurrenceOf(test, moduleId, previous)
 
-      const expected = stableTestId(moduleId, test.path, test.name, occurrence)
-      if (test.id !== expected) {
-        problems.push(`${test.fullName}: id ${test.id}, expected ${expected}`)
+      if (occurrence !== undefined) {
+        seen.set(key, occurrence)
+        continue
       }
+
+      const expected = stableTestId(moduleId, test.path, test.name, previous + 1)
+      problems.push(`${test.fullName}: id ${test.id}, expected ${expected}`)
+      seen.set(key, previous + 1)
     }
   }
 
@@ -480,9 +509,18 @@ function snapshotProblemsIn(manifest, manifestPath) {
   return { files, problems }
 }
 
-/** Older output has no `styles/`, which counts as empty. */
+/**
+ * The entries in `dir` that are not folders, as the stores' GC sees them.
+ * Older output has no `styles/`, which counts as empty.
+ */
 function filesIn(dir) {
-  return existsSync(dir) ? readdirSync(dir) : []
+  if (!existsSync(dir)) {
+    return []
+  }
+
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => !entry.isDirectory())
+    .map((entry) => entry.name)
 }
 
 function textsOf(outDir, files) {
@@ -497,7 +535,7 @@ function textsOf(outDir, files) {
   return texts
 }
 
-/** Each referenced chunk (`<hash>.css`) with the first file that refers to it. */
+/** Each chunk (`<hash>.css`) a `_cssText` value refers to, with the first file that does. */
 function styleChunksIn(texts) {
   const chunks = new Map()
   for (const [file, text] of texts) {
@@ -581,10 +619,25 @@ function copiedCssIn(outDir, texts) {
   return { reached, missing, projectUrls }
 }
 
+function urlsIn(html) {
+  return Array.from(html.matchAll(HEAD_URL), (match) => match[1] ?? match[2] ?? match[3])
+}
+
+/**
+ * The `href` and `src` values the reporter rewrites: the text between comments,
+ * `<script>` and `<style>` elements, split as `rewriteHeadReferences()` splits it.
+ */
 function headUrlsOf(manifest) {
   const head = manifest.head ?? ''
+  const urls = []
+  let copied = 0
 
-  return Array.from(head.matchAll(HEAD_URL), (match) => match[1] ?? match[2] ?? match[3])
+  for (const match of head.matchAll(RAW_TEXT)) {
+    urls.push(...urlsIn(head.slice(copied, match.index)))
+    copied = match.index + match[0].length
+  }
+
+  return [...urls, ...urlsIn(head.slice(copied))]
 }
 
 /** Not in `--structure-only`: the head must name stored assets or point outside the project. */
