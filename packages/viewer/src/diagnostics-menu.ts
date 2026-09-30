@@ -32,15 +32,16 @@ function pick(testId: string): void {
 
 /**
  * A header chip that opens the list of what this manifest could not document:
- * anonymous components, components without props docs, assets that will not
- * load, font families that nothing loads and hosts that frames load
- * stylesheets from. Absent when there is nothing to report.
+ * problems in the test setup, anonymous components, components without props
+ * docs, assets that will not load, font families that nothing loads and hosts
+ * that frames load stylesheets from. Absent when there is nothing to report.
  */
 export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
-  const { anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
+  const { setupWarnings, anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
     manifestDiagnostics(manifest)
 
   const count =
+    setupWarnings.length +
     anonymous.length +
     undocumented.length +
     assetsMissing.length +
@@ -52,6 +53,18 @@ export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
   }
 
   const sections: HTMLElement[] = []
+
+  if (setupWarnings.length > 0) {
+    const items = setupWarnings.map((warning) => el('li', {}, warning))
+
+    sections.push(
+      section(
+        'Setup',
+        'The plugin found a problem in the test setup that can make tests fail.',
+        items,
+      ),
+    )
+  }
 
   if (anonymous.length > 0) {
     const items = anonymous.map((test) =>

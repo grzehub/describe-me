@@ -470,13 +470,17 @@ step costs about 0.1–0.2 s per run on the example.
 
 ## Diagnostics
 
-After each run the reporter prints one warning line for each thing it could
-not document: tests that render an anonymous component (see the naming rules
-in [Component overview](#component-overview)), components without props docs,
-assets that were not found, font families that nothing loads, and remote hosts
-that frames load stylesheets from. The viewer shows the same list behind an
-"issues" chip in its header, with links to the tests. `pnpm check-manifest`
-fails on any of them in this repository's examples.
+After each run the reporter first prints one line per setup warning: a
+problem the plugin found in the project's setup that can make tests fail, such
+as a tslib that the browser build of styled-components cannot load (see
+[Global styles](#global-styles-and-fonts)). Then it prints one warning line
+for each thing it could not document: tests that render an anonymous component
+(see the naming rules in [Component overview](#component-overview)),
+components without props docs, assets that were not found, font families that
+nothing loads, and remote hosts that frames load stylesheets from. The viewer
+shows the same list behind an "issues" chip in its header, with the setup
+warnings in a section of their own and links to the tests.
+`pnpm check-manifest` fails on any of them in this repository's examples.
 
 A few warnings are printed once, when their cause shows up:
 
@@ -547,8 +551,16 @@ styled-components (5 and 6), whose `createGlobalStyle` never inserts its CSS
 on the client, so `<GlobalStyles />` silently does nothing in jsdom. The plugin
 therefore points `styled-components` at its browser build and pre-bundles it
 together with `jest-styled-components`, so both share one instance and
-`toMatchSnapshot` output stays the same. Turn it off with
-`describeMe({ styledComponentsBrowserBuild: false })`.
+`toMatchSnapshot` output stays the same. Versions 6.0 to 6.3 import tslib, and
+the optimizer of Vite 6 and 7 bundles tslib's UMD file without its default
+export, so every test that imports styled-components would fail with
+`Cannot destructure property '__extends'`. The plugin points `tslib` at the
+`tslib.es6.mjs` of the tslib that styled-components resolves, so you need no
+`tslib` alias of your own. tslib before 2.5.3 has no such file, and
+styled-components 6.1.3 to 6.1.9 pin 2.5.0. Then the plugin leaves tslib alone
+and warns after the run (see [Diagnostics](#diagnostics)): upgrade
+styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later.
+Turn all of this off with `describeMe({ styledComponentsBrowserBuild: false })`.
 
 ### Fonts
 

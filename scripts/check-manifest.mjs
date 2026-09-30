@@ -2,7 +2,8 @@
  * Guards the generated manifests against silent regressions: every test must
  * have a `render` frame with a named component, every component must have its
  * props docs, every asset must have been found, every font family that frames
- * use must be loaded, and no frame may load a stylesheet from a remote host.
+ * use must be loaded, no frame may load a stylesheet from a remote host, and
+ * the plugin must have found no problem in the setup (`setupWarnings`).
  * The manifest must also carry both font audit lists. Run after `pnpm build`.
  *
  * What the reporter and the recorder guarantee is checked too: every module
@@ -104,8 +105,12 @@ function problemsIn(manifest) {
     problems.push('manifest.components is empty')
   }
 
-  const { anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
+  const { setupWarnings, anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
     manifestDiagnostics(manifest)
+
+  for (const warning of setupWarnings) {
+    problems.push(`setup: ${warning}`)
+  }
 
   for (const test of anonymous) {
     problems.push(`${test.fullName}: anonymous component`)
