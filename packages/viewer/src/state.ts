@@ -1,4 +1,5 @@
 import type { Manifest, ManifestTest } from '@describe-me/core/types'
+import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
 import { stateHash } from './state-hash.js'
@@ -37,7 +38,7 @@ export function readHash(): void {
   state.frame = Number(params.get('frame') ?? 0) || 0
   state.viewport = {
     width: parseViewportSize(params.get('w')),
-    height: parseViewportSize(params.get('h')),
+    height: parseViewportSize(params.get('h'), MIN_FRAME_HEIGHT),
   }
 }
 
@@ -66,12 +67,15 @@ export function currentTest(): ManifestTest | null {
   return allTests(state.manifest).find((test) => test.id === state.testId) ?? null
 }
 
-/** Show one test. Leaving the overview is the whole point, so the suite is cleared. */
-export function select(testId: string, frame = 0): void {
+/**
+ * Show one test. Leaving the overview is the whole point, so the suite is
+ * cleared. `mode` goes to `writeHash()`.
+ */
+export function select(testId: string, frame = 0, mode: 'push' | 'replace' = 'push'): void {
   state.testId = testId
   state.suiteKey = null
   state.frame = frame
-  writeHash('push')
+  writeHash(mode)
   rerender()
 }
 

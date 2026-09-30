@@ -2,9 +2,10 @@ const MAX_SIZE = 10_000
 
 /**
  * A viewport width or height from the hash or a toolbar field: a whole number
- * of pixels from 1 to 10000. Anything else is `null`, which means auto.
+ * of pixels from 1 to 10000, raised to `minimum` when below it. Anything else
+ * is `null`, which means auto.
  */
-export function parseViewportSize(text: string | null): number | null {
+export function parseViewportSize(text: string | null, minimum = 1): number | null {
   if (!text) {
     return null
   }
@@ -14,5 +15,5 @@ export function parseViewportSize(text: string | null): number | null {
     return null
   }
 
-  return size
+  return Math.max(minimum, size)
 }

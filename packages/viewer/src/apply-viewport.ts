@@ -21,10 +21,14 @@ export function applyViewport(
 
   const width = state.viewport.width ?? available
   const scale = Math.min(1, available / width)
+  const visibleHeight =
+    stage.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom)
 
   iframe.style.width = `${width}px`
 
-  const height = state.viewport.height ?? naturalHeight(iframe) ?? iframe.offsetHeight
+  const height =
+    state.viewport.height ?? naturalHeight(iframe, visibleHeight / scale) ?? iframe.offsetHeight
+
   iframe.style.height = `${height}px`
 
   if (scale < 1) {

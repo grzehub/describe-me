@@ -29,6 +29,11 @@ export function renderTree(): void {
   const test = state.suiteKey ? null : currentTest()
   const reveal = test !== null && test.id !== revealed
 
+  // The overview may collapse the test's suites, so coming back to it counts as a new selection.
+  if (test === null) {
+    revealed = null
+  }
+
   if (test && reveal) {
     expandPathTo(test)
     revealed = test.id
