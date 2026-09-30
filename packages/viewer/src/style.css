@@ -126,9 +126,11 @@ a {
 #app {
   height: 100%;
   display: grid;
-  grid-template-rows: 52px 1fr;
+  grid-template-rows: 52px auto 1fr;
 }
+/* A hidden banner leaves the grid. Without a fixed row the body would drop into the `auto` row. */
 .body {
+  grid-row: 3;
   display: grid;
   grid-template-columns: 296px 1fr 320px;
   min-height: 0;
@@ -225,6 +227,18 @@ a {
   border-radius: 50%;
   background: var(--pass);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pass) 18%, transparent);
+}
+
+/*
+ * `--ink` text, because `--warn` on the tint is too faint at 12px in the light
+ * scheme. No `display` here, so the browser's rule for `hidden` still applies.
+ */
+.version-banner {
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+  color: var(--ink);
+  font-size: 12px;
 }
 
 /* ---------------------------------------------------------- diagnostics -- */

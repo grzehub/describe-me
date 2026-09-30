@@ -9,6 +9,7 @@ import {
   META_KEY,
   type Manifest,
   type ManifestFrame,
+  type ManifestGenerator,
   type ManifestModule,
   type ManifestTest,
   type TestRecord,
@@ -22,6 +23,7 @@ import { fileFilter } from './file-filter.js'
 import { FontAudit } from './font-audit.js'
 import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
+import { readGenerator } from './read-generator.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
 import { StyleStore } from './style-store.js'
@@ -60,6 +62,7 @@ export default class DescribeMeReporter implements Reporter {
   private readonly outDirOption: string
   private readonly isRecordedFile: (fileName: string) => boolean
   private readonly previewHead: string | undefined
+  private readonly generator: ManifestGenerator | undefined
   private root = process.cwd()
   private outDir = ''
   private snapshots!: SnapshotStore
@@ -77,6 +80,7 @@ export default class DescribeMeReporter implements Reporter {
 
     // A blank head, such as an empty preview-head.html, is the same as none.
     this.previewHead = options.previewHead?.trim() ? options.previewHead : undefined
+    this.generator = readGenerator()
   }
 
   onInit(vitest: Vitest): void {
@@ -203,6 +207,7 @@ export default class DescribeMeReporter implements Reporter {
 
     const manifest: Manifest = {
       version: 1,
+      generator: this.generator,
       generatedAt: new Date().toISOString(),
       root: this.root,
       modules,

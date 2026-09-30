@@ -67,13 +67,17 @@
   "peerDependencies": {
     "vitest": "^4.0.0 || ^5.0.0",
     "typescript": "^5.0.0 || ^6.0.0",
-    "@testing-library/user-event": "^14.0.0"
+    "@testing-library/user-event": "^14.0.0",
+    "describe-me": "workspace:^"
   },
   "peerDependenciesMeta": {
     "typescript": {
       "optional": true
     },
     "@testing-library/user-event": {
+      "optional": true
+    },
+    "describe-me": {
       "optional": true
     }
   },
