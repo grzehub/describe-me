@@ -14,11 +14,16 @@ How describe-me gets to npm. Four packages ship together under one version:
    `workspace:` protocol left unresolved, files missing from `files`, wrong
    peer dependencies, dependency-optimizer reloads, imports that only resolve
    through symlinks. Right after the install it checks that exactly one Vite
-   version is in the project, so no package nests its own. Needs Node
-   `^20.19.0 || >=22.12.0` (Vite 8). Pass `--keep` to inspect the temp project
-   afterwards, and `--vite <x.y.z>` / `--vitest <x.y.z>` to pin older versions
-   of the user's toolchain. CI runs three variants: the default toolchain,
-   `--vite 8.2.2`, and `--vitest 4.1.11 --vite 6.4.3`.
+   version is in the project, so no package nests its own, and the same for
+   React. A second project installs without the optional
+   `@testing-library/user-event` peer and must still record a jsdom
+   `fireEvent` test. Needs Node `^20.19.0 || >=22.12.0` (Vite 8). Pass
+   `--keep` to inspect the temp projects afterwards, and `--vite <x.y.z>`,
+   `--vitest <x.y.z>` and `--react <x.y.z>` to pin older versions of the
+   user's toolchain. CI runs four variants: `default` (the default
+   toolchain), `vite-8.2` (`--vite 8.2.2`), `vitest-4`
+   (`--vitest 4.1.11 --vite 6.4.3`) and `react-18`
+   (`--react 18.3.1 --vitest 4.1.11 --vite 8.2.2`).
 3. A changeset exists for every user-visible change (`pnpm changeset`).
 
 ## Versioning
@@ -110,6 +115,8 @@ the last stable version, so nobody gets a prerelease by accident.
 
 - `vitest ^4 || ^5` is declared. `5.x` is what the examples run on, and 4.1 is
   covered by the `--vitest 4.1.11 --vite 6.4.3` smoke variant.
+- `react ^18 || ^19` is declared. The examples run 19, and the `react-18`
+  smoke variant covers 18.3, component naming included.
 - `vite` is a peer of `describe-me` because the viewer is built from source in
   the user's project, with their own Vite and plugins. yarn does not install
   peers automatically.
