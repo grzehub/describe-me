@@ -1,13 +1,21 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
+import type { Manifest } from '@describe-me/core/types'
 import { ASSET_URL_PREFIX } from '@describe-me/core/types'
 import { CHROME_USER_AGENT } from './chrome-user-agent.js'
+import { fileNamesIn } from './file-names-in.js'
 import type { TextSyntax } from './find-remote-urls.js'
 import { findRemoteUrls } from './find-remote-urls.js'
 import { FontCache } from './font-cache.js'
 import type { FontKind } from './font-provider.js'
 import { fontProvider } from './font-provider.js'
 import { mapWithConcurrency } from './map-with-concurrency.js'
+import { remoteStylesheets } from './remote-stylesheets.js'
+import { replaceAssetNames } from './replace-asset-names.js'
+import { replaceRemoteUrls } from './replace-remote-urls.js'
+import type { RewrittenFiles } from './rewrite-stored-files.js'
+import { rewriteStoredFiles } from './rewrite-stored-files.js'
 import { storeVendoredFile } from './store-vendored-file.js'
 import type { PendingFile, VendoredFile } from './vendor-font-file.js'
 import { vendorFontFile } from './vendor-font-file.js'
@@ -39,12 +47,10 @@ export interface VendorReport {
   failures: { url: string; reason: string }[]
 }
 
-/** A text that may name remote fonts, and what a stored name is written as in it. */
+/** A text that may name remote fonts. */
 interface TextFile {
   path: string
   syntax: TextSyntax
-  /** The viewer resolves the asset prefix. A CSS file in `assets/` names its siblings bare. */
-  prefix: string
 }
 
 type Plan =
@@ -54,9 +60,18 @@ type Plan =
 
 /** What the scan kept: file paths only, because snapshots can add up to hundreds of MB. */
 interface Scan {
-  files: TextFile[]
+  /** Paths of the texts that name a URL to vendor. */
+  kept: Set<string>
   head: boolean
   plans: Map<string, Plan>
+  /** Names of the `assets/*.css` files before any download. */
+  cssAssets: string[]
+}
+
+/** The fields of `manifest.json` that vendoring reads, as parsed. */
+interface StoredManifest {
+  head?: unknown
+  remoteStylesheets?: unknown
 }
 
 /** The files and the budget of one run. */
@@ -66,10 +81,10 @@ interface Store {
   bytes: number
 }
 
-const TEXT_DIRECTORIES: { dir: string; extension: string; syntax: TextSyntax; prefix: string }[] = [
-  { dir: 'snapshots', extension: '.json', syntax: 'json', prefix: ASSET_URL_PREFIX },
-  { dir: 'styles', extension: '.css', syntax: 'css', prefix: ASSET_URL_PREFIX },
-  { dir: 'assets', extension: '.css', syntax: 'css', prefix: '' },
+const TEXT_DIRECTORIES: { dir: string; extension: string; syntax: TextSyntax }[] = [
+  { dir: 'snapshots', extension: '.json', syntax: 'json' },
+  { dir: 'styles', extension: '.css', syntax: 'css' },
+  { dir: 'assets', extension: '.css', syntax: 'css' },
 ]
 
 /** The test server of the run, gone by now. The reporter lists what it could not copy. */
@@ -111,21 +126,14 @@ function planFor(url: string): Plan {
 }
 
 function textFilesIn(dataDir: string): TextFile[] {
-  return TEXT_DIRECTORIES.flatMap(({ dir, extension, syntax, prefix }) => {
+  return TEXT_DIRECTORIES.flatMap(({ dir, extension, syntax }) => {
     const abs = join(dataDir, dir)
-    if (!existsSync(abs)) {
-      return []
-    }
 
-    return readdirSync(abs, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith(extension))
-      .map((entry) => entry.name)
-      .sort()
-      .map((name) => ({ path: join(abs, name), syntax, prefix }))
+    return fileNamesIn(abs, extension).map((name) => ({ path: join(abs, name), syntax }))
   })
 }
 
-function readManifest(dataDir: string): { head?: unknown } | null {
+function readManifest(dataDir: string): StoredManifest | null {
   try {
     const manifest: unknown = JSON.parse(readFileSync(join(dataDir, 'manifest.json'), 'utf8'))
 
@@ -135,7 +143,7 @@ function readManifest(dataDir: string): { head?: unknown } | null {
   }
 }
 
-function headOf(manifest: { head?: unknown } | null): string | null {
+function headOf(manifest: StoredManifest | null): string | null {
   return typeof manifest?.head === 'string' ? manifest.head : null
 }
 
@@ -154,13 +162,18 @@ function scan(dataDir: string): Scan {
     return vendorable
   }
 
-  const files = textFilesIn(dataDir).filter((file) => {
-    return needsVendoring(readFileSync(file.path, 'utf8'), file.syntax)
-  })
+  const kept = textFilesIn(dataDir)
+    .filter((file) => needsVendoring(readFileSync(file.path, 'utf8'), file.syntax))
+    .map((file) => file.path)
 
   const head = headOf(readManifest(dataDir))
 
-  return { files, head: head !== null && needsVendoring(head, 'html'), plans }
+  return {
+    kept: new Set(kept),
+    head: head !== null && needsVendoring(head, 'html'),
+    plans,
+    cssAssets: fileNamesIn(join(dataDir, 'assets'), '.css'),
+  }
 }
 
 type Failure = Extract<VendoredFile, { ok: false }>
@@ -196,51 +209,81 @@ function store(target: Store, files: Map<string, PendingFile>): void {
   }
 }
 
-/** Each stored name written in place of every URL it replaces, left to right. */
-function rewrite(text: string, file: Omit<TextFile, 'path'>, names: Map<string, string>): string {
-  const parts: string[] = []
-  let last = 0
-
-  for (const match of findRemoteUrls(text, file.syntax)) {
-    const name = names.get(match.url)
-    if (name !== undefined) {
-      parts.push(text.slice(last, match.start), `${file.prefix}${name}`)
-      last = match.end
-    }
+function nextHead(
+  manifest: StoredManifest,
+  found: Scan,
+  names: Map<string, string>,
+  rewritten: RewrittenFiles,
+): unknown {
+  const head = headOf(manifest)
+  if (head === null || (!found.head && rewritten.assetRenames.size === 0)) {
+    return manifest.head
   }
 
-  parts.push(text.slice(last))
+  const vendored = replaceRemoteUrls(head, 'html', ASSET_URL_PREFIX, names)
 
-  return parts.join('')
+  return replaceAssetNames(vendored, rewritten.assetRenames)
 }
 
-function rewriteHead(dataDir: string, names: Map<string, string>): void {
+/**
+ * The hosts that frames still load stylesheets from, counted again only when a
+ * snapshot, chunk or CSS asset changed. An empty or absent list stays as it is.
+ */
+function nextRemoteStylesheets(
+  dataDir: string,
+  manifest: StoredManifest,
+  rewritten: RewrittenFiles,
+): unknown {
+  const listed = manifest.remoteStylesheets
+  if (!rewritten.changed || !Array.isArray(listed) || listed.length === 0) {
+    return listed
+  }
+
+  try {
+    return remoteStylesheets(dataDir, manifest as Manifest)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(
+      `describe-me: remote stylesheet hosts were not counted again (${message}). The issues menu keeps the list from the test run.`,
+    )
+
+    return listed
+  }
+}
+
+/**
+ * Write the head and the remote stylesheet hosts in one go, and only when one
+ * of them changed. Every other field keeps its value and its place.
+ */
+function updateManifest(
+  dataDir: string,
+  found: Scan,
+  names: Map<string, string>,
+  rewritten: RewrittenFiles,
+): void {
   const manifest = readManifest(dataDir)
-  const head = headOf(manifest)
-  if (manifest === null || head === null) {
+  if (manifest === null) {
     return
   }
 
-  const rewritten = rewrite(head, { syntax: 'html', prefix: ASSET_URL_PREFIX }, names)
-  if (rewritten !== head) {
-    manifest.head = rewritten
-    writeFileSync(join(dataDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  }
-}
+  const head = nextHead(manifest, found, names, rewritten)
+  const hosts = nextRemoteStylesheets(dataDir, manifest, rewritten)
+  const headChanged = head !== manifest.head
+  const hostsChanged = !isDeepStrictEqual(hosts, manifest.remoteStylesheets)
 
-function rewriteTexts(dataDir: string, found: Scan, names: Map<string, string>): void {
-  for (const file of found.files) {
-    const text = readFileSync(file.path, 'utf8')
-    const rewritten = rewrite(text, file, names)
-
-    if (rewritten !== text) {
-      writeFileSync(file.path, rewritten)
-    }
+  if (!headChanged && !hostsChanged) {
+    return
   }
 
-  if (found.head) {
-    rewriteHead(dataDir, names)
+  if (headChanged) {
+    manifest.head = head
   }
+
+  if (hostsChanged) {
+    manifest.remoteStylesheets = hosts
+  }
+
+  writeFileSync(join(dataDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 }
 
 /** Code-unit order, the same on every machine. */
@@ -292,8 +335,11 @@ function contextFor(options: VendorFontsOptions): StylesheetContext {
 /**
  * Download the web fonts that a data directory loads from known font hosts
  * into its `assets/`, and point the manifest head, snapshots, style chunks and
- * CSS assets at the copies. Meant for the copy inside a built site. Every file
- * is stored before any text changes, so a crash leaves only valid references.
+ * CSS assets at the copies. Meant for the copy inside a built site. A style
+ * chunk or CSS asset whose text changes moves to the hash of its new text, and
+ * the manifest's `remoteStylesheets` is counted again. Every file is stored
+ * before any text that names it changes, and replaced files are removed last,
+ * so a crash leaves only valid references.
  */
 export async function vendorFonts(
   dataDir: string,
@@ -330,7 +376,18 @@ export async function vendorFonts(
     }
   })
 
-  rewriteTexts(dataDir, found, names)
+  const rewritten = rewriteStoredFiles(dataDir, {
+    names,
+    cssAssets: found.cssAssets,
+    kept: found.kept,
+    vendored: new Set(target.files.keys()),
+  })
+
+  updateManifest(dataDir, found, names, rewritten)
+
+  for (const path of rewritten.replaced) {
+    rmSync(path, { force: true })
+  }
 
   const fonts = [...target.files.values()].filter((file) => file.extension !== '.css')
 
