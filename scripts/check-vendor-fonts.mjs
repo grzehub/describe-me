@@ -1,8 +1,10 @@
 /**
  * Checks font vendoring in `describe-me build`, on the built CLI and without
  * network: the flag, the URL scanner, the rewrite of the preview head,
- * snapshots, style chunks and CSS assets, the allowlist, all-or-nothing
- * stylesheets, redirects, the cache, offline and repeated runs, and 0.4 data.
+ * snapshots, style chunks and CSS assets, the move of rewritten chunks and CSS
+ * assets to the hash of their new text, the recount of `remoteStylesheets`
+ * against `FontAudit`, the allowlist, all-or-nothing stylesheets, redirects,
+ * the cache, offline and repeated runs, and 0.4 data.
  * A fake fetch serves in-memory fixtures and the global fetch throws. Every
  * run works on its own copy of a fixture data directory. Run after
  * `pnpm build`.
@@ -21,9 +23,10 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative } from 'node:path'
+import { basename, dirname, extname, join, relative } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { cssReferences } from '../packages/core/dist/css-references.js'
+import { FontAudit } from '../packages/vitest/dist/font-audit.js'
 import { CHROME_USER_AGENT } from '../packages/viewer/dist-cli/chrome-user-agent.js'
 import { findRemoteUrls } from '../packages/viewer/dist-cli/find-remote-urls.js'
 import { parseArgs } from '../packages/viewer/dist-cli/parse-args.js'
@@ -35,7 +38,10 @@ globalThis.fetch = () => {
 
 const ASSET_URL = /describe-me-asset:([0-9a-f]{16}\.[a-z0-9]+)/g
 const ASSET_CSS_HREF = /^describe-me-asset:[0-9a-f]{16}\.css$/
+const CSS_NAME = /^[0-9a-f]{16}\.css$/
 const ASSET_NAME = /^[0-9a-f]{16}\.[a-z0-9]+$/
+const SIBLING_NAME = /^[0-9a-f]{16}(\.[a-z0-9]+)?$/
+const STYLE_URL = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const GOOGLE = 'https://fonts.googleapis.com'
@@ -240,16 +246,52 @@ function headWith(stylesheetHref) {
 
 const HEAD_AS_WRITTEN = URLS.head.replaceAll('&', '&amp;')
 
+function withoutKeys(object, keys) {
+  return Object.fromEntries(Object.entries(object).filter(([key]) => !keys.includes(key)))
+}
+
 const MANIFEST_REST = {
   version: 1,
   generatedAt: '2026-01-01T00:00:00.000Z',
   modules: [
     {
       id: 'src/Card.test.tsx',
-      tests: [{ fullName: 'Card > renders', frames: [{ id: 'f0', snapshot: 'snapshots/a.json' }] }],
+      tests: [
+        {
+          fullName: 'Card > renders',
+          frames: [
+            { id: 'f0', snapshot: 'snapshots/a.json' },
+            { id: 'f1', snapshot: 'snapshots/b.json' },
+            { id: 'f2', snapshot: 'snapshots/c.json' },
+          ],
+        },
+      ],
     },
   ],
   components: { Card: { file: 'src/Card.tsx', props: [] } },
+  remoteStylesheets: [
+    { host: 'fonts.googleapis.com', frames: 3 },
+    { host: 'cdn.jsdelivr.net', frames: 2 },
+    { host: 'cdn.example.com', frames: 1 },
+  ],
+}
+
+/** What frames still load after vendoring: the unknown host, the import cycle and the failures. */
+const REMOTE_AFTER = [
+  { host: 'cdn.example.com', frames: 1 },
+  { host: 'cdn.jsdelivr.net', frames: 1 },
+  { host: 'fonts.googleapis.com', frames: 1 },
+]
+
+/** A 0.4 manifest: no head and no `remoteStylesheets`. */
+const LEGACY_MANIFEST = {
+  ...withoutKeys(MANIFEST_REST, ['modules', 'remoteStylesheets']),
+  modules: [
+    {
+      id: 'src/Card.test.tsx',
+      tests: [{ fullName: 'Card > renders', frames: [{ id: 'f0', snapshot: 'snapshots/a.json' }] }],
+    },
+  ],
 }
 
 const CHUNK_CSS = [
@@ -265,6 +307,21 @@ const ASSET_CSS = `@import url("${URLS.fontsource}");\nbody { font-family: Inter
 const ASSET_CSS_NAME = `${contentHash(ASSET_CSS)}.css`
 
 const INLINED_CSS = `@font-face { font-family: Inter; src: url("${URLS.inlined}") format("woff2"); }`
+
+/** A chunk that reaches Lora through two CSS assets, and a chunk that names nothing. */
+const INNER_CSS = `@import url(${URLS.lora});\n.inner { color: teal; }`
+const INNER_NAME = `${contentHash(INNER_CSS)}.css`
+const OUTER_CSS = `@import "${INNER_NAME}";\n.outer { color: navy; }`
+const OUTER_NAME = `${contentHash(OUTER_CSS)}.css`
+const CASCADE_CHUNK_CSS = `@import url(describe-me-asset:${OUTER_NAME});\n.cascade { margin: 0; }`
+const CASCADE_CHUNK_NAME = `${contentHash(CASCADE_CHUNK_CSS)}.css`
+const PLAIN_CHUNK_CSS = '.plain { padding: 0; }'
+const PLAIN_CHUNK_NAME = `${contentHash(PLAIN_CHUNK_CSS)}.css`
+
+/** A CSS asset of the project that imports a Google stylesheet. */
+const LOCAL_CSS = `@import url("${URLS.head}");\n.local { color: olive; }`
+const LOCAL_NAME = `${contentHash(LOCAL_CSS)}.css`
+const GOOGLE_ONLY = [{ host: 'fonts.googleapis.com', frames: 1 }]
 
 function element(tagName, attributes, childNodes = []) {
   return { type: 2, tagName, attributes, childNodes }
@@ -308,6 +365,20 @@ const SNAPSHOT_B = documentOf([
   link(URLS.away),
 ])
 
+/** Two chunks in one reference, the plain one first. */
+const SNAPSHOT_C = documentOf([
+  element('style', {
+    _cssText: `describe-me-style:${PLAIN_CHUNK_NAME.slice(0, 16)}+${CASCADE_CHUNK_NAME.slice(0, 16)}`,
+  }),
+])
+
+/** A preconnect, a test-server link and a project CSS asset that imports Google. */
+const SNAPSHOT_LOCAL = documentOf([
+  element('link', { rel: 'preconnect', href: GOOGLE }),
+  link('http://0.0.0.0:5173/src/theme.css'),
+  link(`describe-me-asset:${LOCAL_NAME}`),
+])
+
 const directories = []
 let checks = 0
 let failures = 0
@@ -334,8 +405,31 @@ function fixture() {
     'manifest.json': JSON.stringify({ ...MANIFEST_REST, head: headWith(HEAD_AS_WRITTEN) }, null, 2),
     'snapshots/a.json': JSON.stringify(SNAPSHOT_A),
     'snapshots/b.json': JSON.stringify(SNAPSHOT_B),
+    'snapshots/c.json': JSON.stringify(SNAPSHOT_C),
     [`styles/${CHUNK_NAME}`]: CHUNK_CSS,
+    [`styles/${CASCADE_CHUNK_NAME}`]: CASCADE_CHUNK_CSS,
+    [`styles/${PLAIN_CHUNK_NAME}`]: PLAIN_CHUNK_CSS,
     [`assets/${ASSET_CSS_NAME}`]: ASSET_CSS,
+    [`assets/${INNER_NAME}`]: INNER_CSS,
+    [`assets/${OUTER_NAME}`]: OUTER_CSS,
+  })
+
+  return dir
+}
+
+/** One frame whose only remote stylesheet is imported by a CSS asset that the head links too. */
+function localAssetFixture() {
+  const dir = tempDir()
+  const manifest = {
+    ...LEGACY_MANIFEST,
+    head: `<link rel="stylesheet" href="describe-me-asset:${LOCAL_NAME}">`,
+    remoteStylesheets: GOOGLE_ONLY,
+  }
+
+  writeFiles(dir, {
+    'manifest.json': JSON.stringify(manifest, null, 2),
+    'snapshots/a.json': JSON.stringify(SNAPSHOT_LOCAL),
+    [`assets/${LOCAL_NAME}`]: LOCAL_CSS,
   })
 
   return dir
@@ -346,12 +440,13 @@ function legacyFixture() {
   const dir = tempDir()
   const padding = Array.from({ length: 12 }, (_, i) => `.card-${i} { padding: ${i}px; }`)
   const cssText = [`@import url(${URLS.lora});`, INLINED_CSS, ...padding].join('\n')
+  const manifest = JSON.stringify(LEGACY_MANIFEST, null, 2)
   writeFiles(dir, {
-    'manifest.json': JSON.stringify(MANIFEST_REST, null, 2),
+    'manifest.json': manifest,
     'snapshots/a.json': JSON.stringify(documentOf([element('style', { _cssText: cssText })])),
   })
 
-  return { dir, cssText }
+  return { dir, cssText, manifest }
 }
 
 function errorMessage(error) {
@@ -424,6 +519,21 @@ function readAsset(dir, name) {
 
 function assetNamesIn(text) {
   return Array.from(text.matchAll(ASSET_URL), (match) => match[1])
+}
+
+function styleHashesIn(text) {
+  return Array.from(text.matchAll(STYLE_URL), (match) => match[1].split('+')).flat()
+}
+
+/** The bare sibling names a stored CSS file refers to, without query or fragment. */
+function bareSiblingsIn(css) {
+  return cssReferences(css)
+    .map(({ url }) => url.split(/[?#]/)[0])
+    .filter((name) => SIBLING_NAME.test(name))
+}
+
+function hostList(list) {
+  return list.map(({ host, frames }) => `${host} ${frames}`).join(', ')
 }
 
 function hostsIn(text, syntax) {
@@ -556,7 +666,8 @@ async function checkHead(dir, requests) {
     'the head: the &amp; link becomes one describe-me-asset:, the rest is unchanged',
     () => {
       const manifest = JSON.parse(readText(dir, 'manifest.json'))
-      const { head, ...rest } = manifest
+      const { head } = manifest
+      const rest = withoutKeys(manifest, ['head', 'remoteStylesheets'])
       const [name] = assetNamesIn(head)
 
       return {
@@ -566,7 +677,7 @@ async function checkHead(dir, requests) {
           head === headWith(`describe-me-asset:${name}`) &&
           requestedSet(requests).has(URLS.head) &&
           !requestedUrls(requests).some((url) => url.includes('&amp;')) &&
-          isDeepStrictEqual(rest, MANIFEST_REST),
+          isDeepStrictEqual(rest, withoutKeys(MANIFEST_REST, ['remoteStylesheets'])),
         detail: head.replaceAll('\n', ' '),
       }
     },
@@ -614,34 +725,187 @@ async function checkSnapshot(dir) {
   )
 
   await check(
-    'the style chunk keeps its file name, its gstatic URL is a describe-me-asset:',
+    'the style chunk moves to the hash of its new text, its gstatic URL is a describe-me-asset:',
     () => {
-      const stored = readdirSync(join(dir, 'styles'))
-      const chunk = readText(dir, `styles/${CHUNK_NAME}`)
+      const [, , , , style] = snapshotHead(dir, 'snapshots/a.json')
+      const [hash] = styleHashesIn(style.attributes._cssText)
+      const bytes = readFileSync(join(dir, 'styles', `${hash}.css`))
+      const chunk = bytes.toString('utf8')
       const [name] = assetNamesIn(chunk)
 
       return {
         passed:
-          isDeepStrictEqual(stored, [CHUNK_NAME]) &&
+          !existsSync(join(dir, 'styles', CHUNK_NAME)) &&
+          hash === contentHash(bytes) &&
           chunk === CHUNK_CSS.replaceAll(URLS.chunk, `describe-me-asset:${name}`) &&
           isFontAsset(dir, name),
-        detail: chunk.split('\n')[2].trim(),
+        detail: `${CHUNK_NAME} → ${hash}.css`,
       }
     },
   )
 
   await check(
-    'the CSS asset @imports the jsDelivr copy as a sibling, ./files/ resolved on jsDelivr',
+    'the CSS asset moves to the hash of its new text and @imports the jsDelivr copy as a sibling, ./files/ resolved on jsDelivr',
     () => {
-      const asset = readText(dir, `assets/${ASSET_CSS_NAME}`)
+      const [, , , , , assetLink] = snapshotHead(dir, 'snapshots/a.json')
+      const [name] = assetNamesIn(assetLink.attributes.href)
+      const bytes = readAsset(dir, name)
+      const asset = bytes.toString('utf8')
       const [imported] = cssReferences(asset).map(({ url }) => url)
 
       return {
         passed:
+          readAsset(dir, ASSET_CSS_NAME) === null &&
+          name === `${contentHash(bytes)}.css` &&
           ASSET_NAME.test(imported) &&
           asset === ASSET_CSS.replaceAll(URLS.fontsource, imported) &&
           fontTextBehind(dir, imported) === `wOF2${FONT_BODIES[URLS.fontsourceFont]}`,
-        detail: asset.split('\n')[0],
+        detail: `${ASSET_CSS_NAME} → ${name}`,
+      }
+    },
+  )
+}
+
+async function checkCascade(dir) {
+  await check(
+    'a chunk → CSS asset → CSS asset cascade moves all three to new hashes, the plain chunk stays',
+    () => {
+      const [style] = snapshotHead(dir, 'snapshots/c.json')
+      const [plain, cascade] = styleHashesIn(style.attributes._cssText)
+      const chunk = readText(dir, `styles/${cascade}.css`)
+      const [outer] = assetNamesIn(chunk)
+      const outerCss = readAsset(dir, outer).toString('utf8')
+      const [inner] = cssReferences(outerCss).map(({ url }) => url)
+      const innerCss = readAsset(dir, inner).toString('utf8')
+      const [, , lora] = snapshotHead(dir, 'snapshots/a.json')
+      const [loraName] = assetNamesIn(lora.attributes._cssText)
+      const replaced = [
+        `assets/${INNER_NAME}`,
+        `assets/${OUTER_NAME}`,
+        `styles/${CASCADE_CHUNK_NAME}`,
+      ]
+
+      const left = replaced.filter((path) => existsSync(join(dir, path)))
+
+      return {
+        passed:
+          plain === PLAIN_CHUNK_NAME.slice(0, 16) &&
+          readText(dir, `styles/${PLAIN_CHUNK_NAME}`) === PLAIN_CHUNK_CSS &&
+          cascade !== CASCADE_CHUNK_NAME.slice(0, 16) &&
+          chunk === CASCADE_CHUNK_CSS.replace(OUTER_NAME, outer) &&
+          outer !== OUTER_NAME &&
+          outerCss === OUTER_CSS.replace(INNER_NAME, inner) &&
+          inner !== INNER_NAME &&
+          CSS_NAME.test(inner) &&
+          innerCss === INNER_CSS.replace(URLS.lora, loraName) &&
+          left.length === 0,
+        detail: left.length === 0 ? `${cascade} → ${outer} → ${inner}` : `left: ${left.join(', ')}`,
+      }
+    },
+  )
+}
+
+async function checkReferences(dir) {
+  await check('every file in styles/ and assets/ is named after the sha1-16 of its bytes', () => {
+    const files = [...filesUnder(join(dir, 'styles')), ...filesUnder(join(dir, 'assets'))]
+    const misnamed = files.filter((file) => {
+      return basename(file) !== `${contentHash(readFileSync(file))}${extname(file)}`
+    })
+
+    return {
+      passed: files.length > 0 && misnamed.length === 0,
+      detail:
+        misnamed.length === 0
+          ? `${files.length} files`
+          : `misnamed: ${misnamed.map((file) => relative(dir, file)).join(', ')}`,
+    }
+  })
+
+  const snapshots = filesUnder(join(dir, 'snapshots')).map((file) => readFileSync(file, 'utf8'))
+  const chunkNames = readdirSync(join(dir, 'styles'))
+
+  await check(
+    'every describe-me-style: hash names a chunk, every chunk is named by a snapshot',
+    () => {
+      const named = new Set(snapshots.flatMap(styleHashesIn).map((hash) => `${hash}.css`))
+      const problems = [
+        ...[...named].filter((name) => !chunkNames.includes(name)).map((name) => `${name} missing`),
+        ...chunkNames.filter((name) => !named.has(name)).map((name) => `${name} unnamed`),
+      ]
+
+      return {
+        passed: named.size > 0 && problems.length === 0,
+        detail: problems.join(', ') || `${named.size} chunks`,
+      }
+    },
+  )
+
+  await check(
+    'every describe-me-asset: name and every bare sibling of a CSS asset is stored',
+    () => {
+      const chunks = chunkNames.map((name) => readText(dir, `styles/${name}`))
+      const { head } = JSON.parse(readText(dir, 'manifest.json'))
+      const linked = [...snapshots, ...chunks, head].flatMap(assetNamesIn)
+      const cssAssets = readdirSync(join(dir, 'assets')).filter((name) => name.endsWith('.css'))
+      const siblings = cssAssets.flatMap((name) => bareSiblingsIn(readText(dir, `assets/${name}`)))
+      const missing = [...new Set([...linked, ...siblings])].filter((name) => {
+        return readAsset(dir, name) === null
+      })
+
+      return {
+        passed: linked.length > 0 && siblings.length > 0 && missing.length === 0,
+        detail:
+          missing.length === 0
+            ? `${linked.length} links, ${siblings.length} siblings`
+            : `missing: ${missing.join(', ')}`,
+      }
+    },
+  )
+}
+
+async function checkRecount(dir) {
+  await check("FontAudit counts the fixture's remoteStylesheets before vendoring", () => {
+    const fresh = fixture()
+    const counted = new FontAudit(fresh).audit(JSON.parse(readText(fresh, 'manifest.json')))
+
+    return {
+      passed: isDeepStrictEqual(counted.remoteStylesheets, MANIFEST_REST.remoteStylesheets),
+      detail: hostList(counted.remoteStylesheets),
+    }
+  })
+
+  await check('remoteStylesheets is counted again, as FontAudit counts the vendored files', () => {
+    const manifest = JSON.parse(readText(dir, 'manifest.json'))
+    const audited = new FontAudit(dir).audit(manifest).remoteStylesheets
+
+    return {
+      passed:
+        isDeepStrictEqual(manifest.remoteStylesheets, REMOTE_AFTER) &&
+        isDeepStrictEqual(audited, REMOTE_AFTER),
+      detail: `${hostList(manifest.remoteStylesheets)} / FontAudit: ${hostList(audited)}`,
+    }
+  })
+
+  await check(
+    'a host drops out despite a preconnect and a 0.0.0.0 link, the head follows the new CSS asset',
+    async () => {
+      const local = localAssetFixture()
+      const before = new FontAudit(local).audit(JSON.parse(readText(local, 'manifest.json')))
+      await vendorFonts(local, { cacheDir: tempDir(), fetch: fakeFetch([]) })
+      const manifest = JSON.parse(readText(local, 'manifest.json'))
+      const [, , assetLink] = snapshotHead(local, 'snapshots/a.json')
+      const [linked] = assetNamesIn(assetLink.attributes.href)
+
+      return {
+        passed:
+          isDeepStrictEqual(before.remoteStylesheets, GOOGLE_ONLY) &&
+          isDeepStrictEqual(manifest.remoteStylesheets, []) &&
+          linked !== undefined &&
+          linked !== LOCAL_NAME &&
+          isDeepStrictEqual(assetNamesIn(manifest.head), [linked]) &&
+          readAsset(local, linked) !== null &&
+          readAsset(local, LOCAL_NAME) === null,
+        detail: `${hostList(before.remoteStylesheets)} → [${hostList(manifest.remoteStylesheets)}]`,
       }
     },
   )
@@ -859,9 +1123,9 @@ async function checkSecondRun(dir, reference, cacheDir) {
 
 async function checkLegacy(cacheDir) {
   await check(
-    'a 0.4 directory (no styles/, long _cssText inline) is vendored from its snapshots',
+    'a 0.4 directory (no styles/, long _cssText inline) is vendored from its snapshots, its manifest unchanged',
     async () => {
-      const { dir, cssText } = legacyFixture()
+      const { dir, cssText, manifest } = legacyFixture()
       await vendorFonts(dir, { cacheDir, fetch: fakeFetch([]) })
       const [style] = snapshotHead(dir, 'snapshots/a.json')
       const rewritten = style.attributes._cssText
@@ -873,7 +1137,8 @@ async function checkLegacy(cacheDir) {
           names.length === 2 &&
           names.every((name) => readAsset(dir, name) !== null) &&
           hostsIn(rewritten, 'css').length === 0 &&
-          !existsSync(join(dir, 'styles')),
+          !existsSync(join(dir, 'styles')) &&
+          readText(dir, 'manifest.json') === manifest,
         detail: names.join(', '),
       }
     },
@@ -892,6 +1157,9 @@ try {
 
   await checkHead(dir, requests)
   await checkSnapshot(dir)
+  await checkCascade(dir)
+  await checkReferences(dir)
+  await checkRecount(dir)
   await checkNestedAndCycle(dir, report)
   await checkReport(report, requests)
   await checkFailures(dir, report)
