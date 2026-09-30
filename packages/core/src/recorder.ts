@@ -16,6 +16,12 @@ import {
 
 type Teardown = () => void
 
+/**
+ * Bump it whenever the contract between the recorder and the adapters or setup
+ * files changes: a method or property added, removed or changed in meaning.
+ */
+const RECORDER_PROTOCOL = 1
+
 type DeferredMode = Exclude<RenderFrameMode, 'eager'>
 
 /** Fails in the setup file rather than in the first test that renders. */
@@ -38,6 +44,8 @@ function assertValidSelector(selector: string): void {
  * `beforeInteraction()`, `setComponent()` and `onTeardown()`.
  */
 class Recorder {
+  /** Which contract this recorder follows, so another copy of core can refuse it. */
+  readonly protocol = RECORDER_PROTOCOL
   // One per capture, in call order, so a frame sits where it was asked for.
   private slots: FrameSlot[] = []
   private currentGeneration = 0
@@ -294,7 +302,28 @@ class Recorder {
 
 const RECORDER_KEY = Symbol.for('describe-me.recorder')
 
-type GlobalWithRecorder = typeof globalThis & { [RECORDER_KEY]?: Recorder }
+// Another copy of core may have stored anything here.
+type GlobalWithRecorder = typeof globalThis & { [RECORDER_KEY]?: unknown }
+
+function protocolOf(existing: unknown): number | undefined {
+  if (typeof existing !== 'object' || existing === null) {
+    return undefined
+  }
+
+  const candidate = existing as { protocol?: unknown; flush?: unknown }
+
+  if (typeof candidate.protocol === 'number') {
+    return candidate.protocol
+  }
+
+  // 0.5.0 did not stamp its recorder. It is the first version with `flush()`,
+  // and its contract is protocol 1.
+  if (typeof candidate.flush === 'function') {
+    return 1
+  }
+
+  return undefined
+}
 
 /**
  * The adapter and the setup file may receive two copies of this module: Vite
@@ -306,9 +335,24 @@ type GlobalWithRecorder = typeof globalThis & { [RECORDER_KEY]?: Recorder }
  */
 function sharedRecorder(): Recorder {
   const scope = globalThis as GlobalWithRecorder
-  scope[RECORDER_KEY] ??= new Recorder()
+  const existing = scope[RECORDER_KEY]
 
-  return scope[RECORDER_KEY]
+  if (existing === undefined) {
+    const created = new Recorder()
+    scope[RECORDER_KEY] = created
+
+    return created
+  }
+
+  const found = protocolOf(existing)
+
+  if (found !== RECORDER_PROTOCOL) {
+    throw new Error(
+      `describe-me: all describe-me packages must be on the same version. Another copy of @describe-me/core created the test recorder (protocol ${found ?? 'none'}, expected ${RECORDER_PROTOCOL}). Install @describe-me/core, @describe-me/react, @describe-me/vitest and describe-me at one version.`,
+    )
+  }
+
+  return existing as Recorder
 }
 
 export const recorder = sharedRecorder()

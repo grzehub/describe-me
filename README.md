@@ -670,6 +670,12 @@ The viewer reads output written by 0.4. A 0.4 viewer cannot read this output
 (frames show without their stylesheets), so upgrade `describe-me` together with
 `@describe-me/vitest`.
 
+`manifest.json` names the package and version that wrote it in `generator`.
+The viewer shows a banner under its header when that major.minor differs from
+its own. A test run where two incompatible copies of `@describe-me/core` meet
+fails every test file with "all describe-me packages must be on the same
+version".
+
 ## Switches
 
 There is no `.env`: nothing here is per-environment configuration or a secret.

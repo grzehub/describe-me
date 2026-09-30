@@ -152,6 +152,9 @@ importers:
         specifier: workspace:^
         version: link:../core
     devDependencies:
+      '@describe-me/vitest':
+        specifier: workspace:^
+        version: link:../vitest
       '@testing-library/dom':
         specifier: ^10.4.0
         version: 10.4.2
@@ -198,6 +201,9 @@ importers:
       '@describe-me/core':
         specifier: workspace:^
         version: link:../core
+      describe-me:
+        specifier: workspace:^
+        version: link:../viewer
       picomatch:
         specifier: ^4.0.3
         version: 4.0.7

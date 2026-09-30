@@ -28,6 +28,11 @@
  * copied manifest must stay byte for byte. The DOM data is built with
  * `--no-vendor-fonts`, and its head must still link Google Fonts. Neither
  * build touches the network.
+ * The version guard is checked three ways: the packed packages peer on each
+ * other at this release, both manifests name `@describe-me/vitest` and its
+ * version as their `generator`, and a jsdom run whose setup file plants a
+ * 0.4-shaped recorder must fail with "must be on the same version", never with
+ * "is not a function".
  * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
  * the temp project for inspection; `--vite` and `--vitest` pin older versions
  * of the user's toolchain).
@@ -45,7 +50,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseArgs } from 'node:util'
+import { isDeepStrictEqual, parseArgs } from 'node:util'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -115,6 +120,22 @@ function run(command, cwd, quiet = false) {
   execSync(command, { cwd, stdio: quiet ? 'pipe' : 'inherit', env: { ...process.env, CI: '1' } })
 }
 
+/** Run a command that must fail, and return what it printed on stdout and stderr. */
+function runFailing(command, cwd) {
+  console.log(`\n$ ${command}  (${cwd.replace(work, '<tmp>')}, expected to fail)`)
+
+  try {
+    execSync(command, { cwd, stdio: 'pipe', encoding: 'utf8', env: { ...process.env, CI: '1' } })
+  } catch (error) {
+    const output = `${error.stdout ?? ''}${error.stderr ?? ''}`
+    console.log(output)
+
+    return output
+  }
+
+  throw new Error(`smoke: expected ${command} to fail`)
+}
+
 /** `@scope/name@1.2.3` packs to `scope-name-1.2.3.tgz`, exactly as pnpm names it. */
 function tarballName(manifest) {
   return `${manifest.name.replace(/^@/, '').replace('/', '-')}-${manifest.version}.tgz`
@@ -129,6 +150,11 @@ const manifests = packageDirs.map((dir) => readJson(join(dir, 'package.json')))
 const example = readJson(join(root, 'examples', 'react-browser', 'package.json'))
 const domExample = readJson(join(root, 'examples', 'react-jsdom', 'package.json'))
 const rootManifest = readJson(join(root, 'package.json'))
+
+/** The version a packed package carries, which pnpm pack writes into `workspace:^` ranges. */
+function versionOf(name) {
+  return manifests.find((manifest) => manifest.name === name).version
+}
 
 /** The user's toolchain, pinned to what the example and the repo run on, so there is one source of truth. */
 function toolchain(names) {
@@ -669,6 +695,62 @@ export default defineConfig({
   )
 }
 
+/**
+ * A project whose setup file plants the recorder 0.4 created, before the
+ * plugin's own setup file runs: no `protocol` and no `flush()`.
+ */
+function scaffoldMixed() {
+  mkdirSync(join(app, 'mixed'), { recursive: true })
+
+  writeFileSync(
+    join(app, 'vitest.mixed.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-mixed' })],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./mixed/plant-old-recorder.ts'],
+    include: ['mixed/**/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'mixed', 'plant-old-recorder.ts'),
+    `const scope = globalThis as Record<symbol, unknown>
+
+scope[Symbol.for('describe-me.recorder')] = {
+  begin() {},
+  isActive: false,
+  setComponent() {},
+  capture: async () => {},
+  end: () => ({ frames: [] }),
+  onTeardown() {},
+  teardown() {},
+}
+`,
+  )
+
+  writeFileSync(
+    join(app, 'mixed', 'Mixed.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { Hello } from '../src/Hello'
+
+describe('Mixed', () => {
+  it('renders next to an old recorder', () => {
+    const screen = render(<Hello name="Ada" />)
+    expect(screen.getByText('Hello Ada')).toBeDefined()
+  })
+})
+`,
+  )
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(`smoke: ${message}`)
@@ -704,6 +786,43 @@ function verifySingleVite(pinned) {
   )
 
   console.log(`\nvite: ${versions[0]} (single copy)`)
+}
+
+/** `pnpm pack` rewrites `workspace:^` to `^<version>`, so a mix is reported at install time. */
+function verifyPackedPeers() {
+  const packed = (name) => readJson(join(app, 'node_modules', ...name.split('/'), 'package.json'))
+  const react = packed('@describe-me/react')
+  const vitestPackage = packed('@describe-me/vitest')
+  const vitestRange = `^${versionOf('@describe-me/vitest')}`
+  const viewerRange = `^${versionOf('describe-me')}`
+
+  assert(
+    react.peerDependencies?.['@describe-me/vitest'] === vitestRange,
+    `expected @describe-me/react to peer on @describe-me/vitest ${vitestRange}, got ${react.peerDependencies?.['@describe-me/vitest']}`,
+  )
+
+  assert(
+    vitestPackage.peerDependencies?.['describe-me'] === viewerRange,
+    `expected @describe-me/vitest to peer on describe-me ${viewerRange}, got ${vitestPackage.peerDependencies?.['describe-me']}`,
+  )
+
+  assert(
+    vitestPackage.peerDependenciesMeta?.['describe-me']?.optional === true,
+    'expected the describe-me peer of @describe-me/vitest to be optional',
+  )
+
+  console.log(`\npeers: @describe-me/vitest ${vitestRange}, describe-me ${viewerRange} (optional)`)
+}
+
+/** The guard's message, not the `recorder.beforeInteraction is not a function` that 0.5.0 showed. */
+function verifyMixed(output) {
+  assert(
+    output.includes('must be on the same version'),
+    'the mixed run did not fail with "must be on the same version"',
+  )
+
+  assert(!output.includes('is not a function'), 'the mixed run printed "is not a function"')
+  console.log('\nmixed: fails with "must be on the same version"')
 }
 
 /** Per environment: how many tests the manifest holds, and which modules must stay out of it. */
@@ -814,6 +933,12 @@ function verify(outDir, environment) {
   assert(
     labels.some((label) => label.startsWith('action:click(button')),
     `no click frame (${environment}); frames were ${labels.join(' | ')}`,
+  )
+
+  const generator = { name: '@describe-me/vitest', version: versionOf('@describe-me/vitest') }
+  assert(
+    isDeepStrictEqual(manifest.generator, generator),
+    `expected generator ${JSON.stringify(generator)} (${environment}), got ${JSON.stringify(manifest.generator)}`,
   )
 
   const hello = manifest.components.Hello
@@ -940,16 +1065,20 @@ try {
   pack()
   scaffold()
   scaffoldTiming()
+  scaffoldMixed()
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
   verifySingleVite(vite)
+  verifyPackedPeers()
   run('pnpm exec vitest run', app)
   run('pnpm exec vitest run --config vitest.dom.config.ts', app)
 
   for (const timing of [...TIMING_RUNS, LAZY_BROWSER]) {
     run(`pnpm exec vitest run --config ${timing.config}`, app)
   }
+
+  verifyMixed(runFailing('pnpm exec vitest run --config vitest.mixed.config.ts', app))
 
   run('pnpm exec describe-me build --data .describe-me --out site', app)
   run('pnpm exec describe-me build --data .describe-me-dom --out site-dom --no-vendor-fonts', app)

@@ -7,6 +7,7 @@ import { renderFrame } from './render-frame.js'
 import { renderTree } from './render-tree.js'
 import { state } from './state.js'
 import { testView } from './test-view.js'
+import { versionBanner } from './version-banner.js'
 
 /** The overview takes the center, over the test view, which stays mounted but hidden. */
 function showOverview(center: HTMLElement, inspector: HTMLElement, key: string): void {
@@ -52,8 +53,13 @@ function showTest(center: HTMLElement): void {
 
 /** Repaint every region from `state`: the overview when a suite is selected, else one test. */
 export function renderAll(): void {
-  const { header, center, inspector } = regions()
+  const { header, banner, center, inspector } = regions()
   header.replaceChildren(...renderHeader())
+
+  const text = versionBanner(state.manifest)
+  banner.textContent = text ?? ''
+  banner.hidden = text === null
+
   renderTree()
 
   if (state.suiteKey) {

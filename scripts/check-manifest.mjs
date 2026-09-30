@@ -38,6 +38,10 @@
  * as the reporter does. A real project can drop an empty test with a repeated
  * name, which shifts the occurrence count, so `--structure-only` skips that.
  *
+ * Both modes check that `manifest.generator` names a package and a version,
+ * and the full check expects `@describe-me/vitest` at the version in
+ * `packages/vitest/package.json`.
+ *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
@@ -62,6 +66,11 @@ const HEAD_BASE_URL = 'https://head.invalid/'
 const HEAD_URL = /(?<![\w-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi
 
 const TEST_ID = /^[0-9a-f]{12}$/
+
+const GENERATOR_NAME = '@describe-me/vitest'
+const generatorVersion = JSON.parse(
+  readFileSync(new URL('../packages/vitest/package.json', import.meta.url), 'utf8'),
+).version
 
 const STRUCTURE_ONLY = '--structure-only'
 const REQUIRE_FONTS = '--require-fonts'
@@ -208,6 +217,41 @@ function idProblemsIn(manifest) {
     if (typeof test.vitestId !== 'string') {
       problems.push(`${test.fullName}: no vitestId`)
     }
+  }
+
+  return problems
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value !== ''
+}
+
+/** Every manifest since 0.5.1 names its writer. Only the full check knows which one it must be. */
+function generatorProblemsIn(manifest) {
+  const { generator } = manifest
+
+  if (typeof generator !== 'object' || generator === null) {
+    return ['manifest.generator is not written']
+  }
+
+  const problems = []
+
+  if (!isNonEmptyString(generator.name)) {
+    problems.push(`manifest.generator.name is ${JSON.stringify(generator.name)}`)
+  }
+
+  if (!isNonEmptyString(generator.version)) {
+    problems.push(`manifest.generator.version is ${JSON.stringify(generator.version)}`)
+  }
+
+  if (structureOnly || problems.length > 0) {
+    return problems
+  }
+
+  if (generator.name !== GENERATOR_NAME || generator.version !== generatorVersion) {
+    problems.push(
+      `manifest.generator is ${generator.name} ${generator.version}, expected ${GENERATOR_NAME} ${generatorVersion}`,
+    )
   }
 
   return problems
@@ -711,6 +755,7 @@ for (const path of paths) {
   problems.push(...closingFrameProblemsIn(manifest, path))
   problems.push(...orderProblemsIn(manifest))
   problems.push(...idProblemsIn(manifest))
+  problems.push(...generatorProblemsIn(manifest))
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
     problems.push(...stableIdProblemsIn(manifest))

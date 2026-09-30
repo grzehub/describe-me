@@ -2,6 +2,8 @@ import { el } from './el.js'
 
 export interface Regions {
   header: HTMLElement
+  /** The version warning under the header, hidden unless the data comes from another release line. */
+  banner: HTMLElement
   sidebar: HTMLElement
   /** The sidebar's search field, above the tree. */
   search: HTMLInputElement
@@ -23,6 +25,7 @@ export function regions(): Regions {
   }
 
   const header = el('header', { class: 'header' })
+  const banner = el('div', { class: 'version-banner', role: 'status', hidden: true })
   const search = el('input', {
     class: 'sidebar-search',
     type: 'search',
@@ -37,9 +40,9 @@ export function regions(): Regions {
 
   document
     .getElementById('app')!
-    .replaceChildren(header, el('div', { class: 'body' }, sidebar, center, inspector))
+    .replaceChildren(header, banner, el('div', { class: 'body' }, sidebar, center, inspector))
 
-  built = { header, sidebar, search, tree, center, inspector }
+  built = { header, banner, sidebar, search, tree, center, inspector }
 
   return built
 }

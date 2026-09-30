@@ -173,8 +173,18 @@ export interface ComponentDoc {
   props: PropDoc[]
 }
 
+/** The package that wrote a manifest. */
+export interface ManifestGenerator {
+  /** The package name, e.g. `@describe-me/vitest`. */
+  name: string
+  /** Its version, e.g. `0.5.1`. */
+  version: string
+}
+
 export interface Manifest {
   version: 1
+  /** The package and version that wrote the manifest. Absent in manifests written before 0.5.1. */
+  generator?: ManifestGenerator
   generatedAt: string
   root: string
   modules: ManifestModule[]

@@ -27,6 +27,7 @@ pnpm check-asset-store   # CSS references, copied CSS, preview head and asset GC
 pnpm check-font-audit   # which font families count as missing, after pnpm build
 pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after pnpm build
 pnpm check-frame-timing   # frame compaction and renderFrame validation, after pnpm build
+pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
