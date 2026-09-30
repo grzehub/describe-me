@@ -8,6 +8,7 @@
     "dev": "vitest & describe-me dev --data .describe-me; wait",
     "check-styles": "node check-styles.mjs",
     "bench:micro": "BENCH_MICRO=1 vitest run",
+    "bench:macro": "node ../../scripts/bench-macro.mjs 5",
     "docs:dev": "describe-me dev --data .describe-me",
     "docs:build": "describe-me build --data .describe-me --out docs-dist"
   },

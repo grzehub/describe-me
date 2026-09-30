@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { describeMe } from '@describe-me/vitest/plugin'
 
+// BENCH_OUT=<file> swaps the console reporter for JSON with per-test durations.
+const benchOut = process.env.BENCH_OUT
+
 // The font an app shell would load. Lora comes from fonts.css instead, which
 // Postcard.tsx imports like any other stylesheet.
 const previewHead = `
@@ -20,5 +23,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: process.env.BENCH_MICRO ? ['bench/**/*.test.tsx'] : ['src/**/*.test.tsx'],
+    ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
   },
 })

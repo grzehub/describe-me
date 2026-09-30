@@ -103,6 +103,16 @@ pnpm docs:build                  # static site in docs-dist/, deploy anywhere
 pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
+Install and upgrade `describe-me`, `@describe-me/vitest` and
+`@describe-me/react` at one version, and `@describe-me/core` too if you list
+it. One Renovate or Dependabot group for all of them does that.
+`@describe-me/react` peers on `@describe-me/vitest`, which has an optional peer
+on `describe-me`, so the package manager warns about a mix.
+[Output directory](#output-directory) describes the check that catches one at
+run time. The packages of one release reach npm minutes apart. A release
+cooldown such as pnpm's `minimumReleaseAge` can therefore pass some of them and
+hold back others. Upgrade once the whole release is past the cooldown.
+
 `vite` is a peer dependency of `describe-me` (Vitest requires it anyway). pnpm
 and npm install peers automatically; with yarn, add `vite` to your
 `devDependencies`.
@@ -274,6 +284,14 @@ ignored, and `exclude` wins over `include`. Tests in other files still run
 and report as usual, but record nothing, and their modules leave the
 manifest, including ones kept from an earlier run.
 
+With `test.projects` entries that set their own `root`, the two sides disagree
+on the path. The test run matches `include` and `exclude` against the path
+relative to the project root, the reporter against the path relative to the
+Vitest root. With `include: 'src/**'` and a project root of `packages/app`, a
+file records frames but its module is missing from the manifest. In such a
+setup, use globs that start with `**/`, such as `**/src/components/**`, which
+match both forms, or leave out `include` and `exclude`.
+
 Concurrent tests (`test.concurrent`, `describe.concurrent`,
 `sequence.concurrent`) are never recorded, because they would share one
 recorder. The setup file warns once per file.
@@ -380,12 +398,12 @@ describe-me dev   [--data .describe-me] [--port 6006]
 describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]
 ```
 
-| Flag                | Default            | Meaning                                                         |
-| ------------------- | ------------------ | --------------------------------------------------------------- |
-| `--data`            | `.describe-me`     | The directory the reporter wrote.                               |
-| `--out`             | `describe-me-dist` | `build` only: the output directory.                             |
-| `--port`            | `6006`             | `dev` only: the port.                                           |
-| `--no-vendor-fonts` | off                | `build` only: keep web fonts on their CDN, see [Fonts](#fonts). |
+| Flag                | Default              | Meaning                                                         |
+| ------------------- | -------------------- | --------------------------------------------------------------- |
+| `--data`            | `.describe-me`       | The directory the reporter wrote.                               |
+| `--out`             | `describe-me-dist`   | `build` only: the output directory.                             |
+| `--port`            | `6006`               | `dev` only: the port.                                           |
+| `--no-vendor-fonts` | fonts are downloaded | `build` only: keep web fonts on their CDN, see [Fonts](#fonts). |
 
 - **Search.** The field at the top of the sidebar. Each word must occur in the
   test's name with its suites, its file path or its component name,
@@ -464,8 +482,30 @@ yours has one.
 import { recorder } from '@describe-me/vitest'
 
 render(<></>, { wrapper: AppProviders })
-recorder.setComponent({ name: 'OrdersPage', props: {} })
+recorder.setComponent({
+  name: 'OrdersPage',
+  file: 'src/pages/OrdersPage.tsx',
+  props: { status: 'open' },
+})
 ```
+
+`name` must be the name of the export in `file`, and `file` is relative to the
+Vitest root. With `file`, the props table works even when the test does not
+import the component. The render frame does not change. It keeps its
+`<Anonymous />` label and its props, `{}` here, so the props you pass do not
+count toward coverage. The inspector shows them on the later frames, which
+carry no props of their own.
+
+The limits of naming, and what to do about them:
+
+- A wrapper that ignores `children`: call `setComponent` with `file`, as above.
+- A project component used as the root element, such as the app's exported
+  provider, keeps its own name. Pass it as `wrapper` instead.
+- An unexported provider written inline, `render(<Providers>{ui}</Providers>)`,
+  around a `ui` defined in the test can name the test after a component the
+  provider renders itself, such as a `GlobalStyles`. Pass it as `wrapper`
+  instead.
+- `setComponent` never replaces a name that already has a `file`.
 
 The reporter reads the props type of that export with TypeScript: name, type,
 required, default value from the destructuring pattern (also through
@@ -596,17 +636,55 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
 The head is stored once, in the manifest, and never reaches the test page. The
 viewer adds it to the start of every frame's `<head>`, so the captured styles
 win ties, and fits the frame again once the web fonts have loaded, waiting at
-most 3 seconds. A note under the frame names the fonts and stylesheets that
-did not load in the viewer. Local files that the head links with `href` or `src`, and the
-`url()`s in its `<style>` blocks, are copied into `assets/`. A relative path
-counts from the project root. `/src/fonts.css` above is copied together with
-the fonts it points at.
+most 3 seconds. A note under the frame names the fonts and stylesheets that did
+not load in the viewer. Local files that the head links with `href` or `src`,
+and the `url()`s in its `<style>` blocks, are copied into `assets/`. A relative
+path counts from the project root. `/src/fonts.css` above is copied together
+with the fonts it points at.
 
-The alternative is to import the fonts CSS in a setup file. It then lands in
-every snapshot, and its fonts are copied into `assets/` too. Do not call the
-app's font loaders in tests. The `<link>` a loader adds lands in every
-snapshot, and in jsdom, where it never loads, every capture sets a timer for
-it.
+An app shell that loads local fonts, say `src/app-shell/fonts.css` with
+`@font-face` rules that point at `.ttf` files, has two ways in. The first is
+the preview head:
+
+```ts
+describeMe({ previewHead: '<link rel="stylesheet" href="/src/app-shell/fonts.css">' })
+```
+
+The CSS is stored once, outside the snapshots, and copied with its `.ttf`
+files. It must be plain CSS, see the list below.
+
+The second is a setup file that only the describe-me run loads. This config
+assumes the regular `vitest.config.ts` has no `describeMe()`:
+
+```ts
+// vitest.describe-me.config.ts
+import { defineConfig, mergeConfig } from 'vitest/config'
+import { describeMe } from '@describe-me/vitest/plugin'
+import config from './vitest.config'
+
+export default mergeConfig(
+  config,
+  defineConfig({
+    plugins: [describeMe()],
+    test: { setupFiles: ['./describe-me.setup.ts'] },
+  }),
+)
+```
+
+```ts
+// describe-me.setup.ts
+import './src/app-shell/fonts.css'
+```
+
+Run it with `vitest run --config vitest.describe-me.config.ts`, and the regular
+run stays as it is. The CSS goes through Vite, so aliases and PostCSS work. It
+lands in the styles of every snapshot, its fonts are copied into `assets/`, and
+the font check counts the family as loaded. The same import in an existing
+setup file works too, in every run.
+
+Do not call the app's font loaders in tests. The `<link>` a loader adds lands
+in every snapshot, and in jsdom, where it never loads, every capture sets a
+timer for it.
 
 Keep in mind:
 
@@ -625,9 +703,15 @@ the CSS assets, so a link that an app's font loader added and data written by
 0.4 are covered too. Adobe Fonts and fonts on other hosts stay remote, and the
 build lists them. A stylesheet is replaced only when all its files downloaded.
 Downloads are cached in `node_modules/.cache/describe-me/fonts`. Fonts are kept
-for good and CSS for 7 days, so the build works offline after one online build.
-Every `unicode-range` subset is downloaded, so the site grows: Inter in three
-weights adds about 220 kB. `--no-vendor-fonts` turns it off.
+for good and CSS for 7 days. Every `unicode-range` subset is downloaded, so the
+site grows: Inter in three weights adds about 220 kB.
+
+This needs the network. By default `describe-me build` connects to Google
+Fonts, Bunny Fonts and jsDelivr when the data loads fonts from them and the
+cache has no fresh copy. After one online build, the cache lets later builds
+run offline. An unreachable host costs up to about 10 s once, then it is
+skipped, and the build never fails because of it. `--no-vendor-fonts` keeps
+the build off the network, for CI without network access or with privacy rules.
 
 The reporter warns about font families that the captured CSS uses but nothing
 loads. It reads the first family of each `font-family` and `font` declaration
@@ -700,36 +784,65 @@ version".
 
 There is no `.env`: nothing here is per-environment configuration or a secret.
 The variables below are one-shot switches for the examples' benchmarks, set
-inline for a single run. `BENCH_MICRO` and `DESCRIBE_ME=off` work in both
-examples, `BENCH_OUT` only in `examples/react-browser`.
+inline for a single run. All three work in both examples.
 
-| Variable           | Effect                                                                        |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`).                  |
-| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.                    |
-| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size), in either example. |
+| Variable           | Effect                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`). |
+| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.   |
+| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size).   |
 
 `DESCRIBE_ME_DIR` is set by the `describe-me` CLI for the viewer; use `--data`
 instead of setting it yourself.
 
 ## Overhead
 
-Measured on the example suite (12 tests, 24 frames) in headless Chromium,
-5 runs per variant, medians. `pnpm bench:micro` / `pnpm bench:macro` in
-`examples/react-browser`; `pnpm bench:micro` in `examples/react-jsdom` measures
-the same captures in jsdom.
+Each example suite runs with recording off (`DESCRIBE_ME=off`) and on, and the
+figures below compare the two. `node ../../scripts/bench-macro.mjs 9`, run in
+`examples/react-browser` and `examples/react-jsdom`, runs `vitest run` 9 times
+per variant, off and on in turn, and reports medians. `pnpm bench:macro` does
+the same with 5 runs. `pnpm bench:micro` in both examples measures single
+captures. Measured on an Apple M2 with Node 20.19.5.
 
-|                            | recording off | recording on | overhead               |
-| -------------------------- | ------------- | ------------ | ---------------------- |
-| sum of test durations      | 682 ms        | 689 ms       | +7 ms (0.3 ms / frame) |
-| wall clock of `vitest run` | 1773 ms       | 1837 ms      | +64 ms (reporter I/O)  |
+### Example suites
 
-Per `step()` capture, by DOM size (median): 48 nodes 0.5 ms · 318 nodes 1.5 ms ·
-3 000 nodes 10 ms · 15 000 nodes 58 ms in Chromium; 35 nodes 2 ms · 305 nodes
-3.4 ms · 3 000 nodes 26 ms · 15 000 nodes 135 ms in jsdom, where the 1 ms
-`setTimeout(0)` of the settle is part of every capture. Most of it is rrweb's
-serialization; `JSON.stringify` of the result is another 10–15 %, and comparing
-that text with the previous frame's takes at most about 0.5 ms at 15 000 nodes.
+Browser mode, `examples/react-browser` in headless Chromium: 25 tests, 44
+frames.
+
+|                            | recording off | recording on | overhead        |
+| -------------------------- | ------------- | ------------ | --------------- |
+| sum of test durations      | 1421 ms       | 1635 ms      | +214 ms (+15 %) |
+| wall clock of `vitest run` | 2599 ms       | 3438 ms      | +838 ms (+32 %) |
+
+jsdom, `examples/react-jsdom`: 28 tests, 23 of them in the manifest, 33
+frames.
+
+|                            | recording off | recording on | overhead         |
+| -------------------------- | ------------- | ------------ | ---------------- |
+| sum of test durations      | 620 ms        | 1022 ms      | +401 ms (+65 %)  |
+| wall clock of `vitest run` | 2013 ms       | 3091 ms      | +1078 ms (+54 %) |
+
+The wall clock also covers the reporter: component docs, snapshot files,
+stylesheets and assets.
+
+### Capture cost
+
+Per `step()` capture, by DOM size (median): 48 nodes 0.4 ms · 318 nodes 1.3 ms ·
+3 018 nodes 10.7 ms · 15 018 nodes 57.4 ms in Chromium. 35 nodes 1.8 ms · 305
+nodes 3.7 ms · 3 005 nodes 26.6 ms · 15 005 nodes 136.8 ms in jsdom, where the
+1 ms `setTimeout(0)` of the settle is part of every capture. Most of it is
+rrweb's serialization. `JSON.stringify` of the result takes 13–14 % of a
+capture from 3 000 nodes up in Chromium and 7–8 % in jsdom. Comparing that text
+with the previous frame's takes at most 0.3 ms in Chromium and 0.52 ms in jsdom,
+at 15 000 nodes.
+
+Naming a test after the first registered component inside a provider takes
+0.14 ms at 3 008 nodes in jsdom (median).
+
+`pnpm measure-output` finds 37 snapshot files for 37 distinct DOMs and a
+`styles/` of 4 files, 3.7 kB, in `examples/react-browser`, and 26 snapshot
+files for 26 distinct DOMs and a `styles/` of 9 files, 4.2 kB, in
+`examples/react-jsdom`.
 
 The first version waited for `requestAnimationFrame` before every capture,
 which cost a full vsync (~16 ms) per frame and made tests 1.8× slower.

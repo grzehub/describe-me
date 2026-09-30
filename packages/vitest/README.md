@@ -10,6 +10,9 @@ reporter that writes `.describe-me/`.
 pnpm add -D @describe-me/vitest @describe-me/react describe-me
 ```
 
+All describe-me packages must be on the same version
+([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+
 ## Usage
 
 One line in the Vitest config registers the setup file and the reporter, and

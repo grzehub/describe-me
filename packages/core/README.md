@@ -14,6 +14,9 @@ Most people never install this package directly — `@describe-me/react` and
 pnpm add -D @describe-me/core
 ```
 
+All describe-me packages must be on the same version
+([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+
 ## Usage
 
 `step()` names a phase of a test. The DOM is captured after the body resolves,
