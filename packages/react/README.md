@@ -18,6 +18,9 @@ Both test libraries are optional peers: install the one your tests use.
 pnpm add -D @describe-me/react
 ```
 
+All describe-me packages must be on the same version
+([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+
 ## Usage
 
 Each entry point re-exports everything its test library offers, with the

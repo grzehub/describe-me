@@ -1,12 +1,24 @@
+/**
+ * Measures what recording costs a whole suite: `vitest run` with
+ * `DESCRIBE_ME=off` against a recording run, as wall clock, sum of test
+ * durations and per test. The variants alternate in each iteration, so warm-up
+ * and machine load hit both alike. Reads and writes `.describe-me/` in the
+ * current directory, and needs a config that honours `BENCH_OUT`.
+ * Usage, from an example directory: `node ../../scripts/bench-macro.mjs [runs]`
+ */
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
 const RUNS = Number(process.argv[2] ?? 5)
 const variants = { off: { DESCRIBE_ME: 'off' }, on: {} }
 const results = {}
-for (const [name, env] of Object.entries(variants)) {
+
+for (const name of Object.keys(variants)) {
   results[name] = { wall: [], tests: {}, sum: [] }
-  for (let i = 0; i < RUNS; i++) {
+}
+
+for (let i = 0; i < RUNS; i++) {
+  for (const [name, env] of Object.entries(variants)) {
     const out = `${process.cwd()}/.describe-me/bench-${name}-${i}.json`
     const t0 = performance.now()
     execSync('pnpm exec vitest run', {
@@ -35,6 +47,19 @@ const median = (xs) => {
   return sorted[Math.floor(sorted.length / 2)]
 }
 
+const spread = (xs) => {
+  const sorted = [...xs].sort((left, right) => left - right)
+  return `${median(xs).toFixed(0)} [${sorted[0].toFixed(0)}–${sorted.at(-1).toFixed(0)}]`
+}
+
+const summary = (label, key) => {
+  const diff = median(results.on[key]) - median(results.off[key])
+
+  console.log(
+    `${label.padEnd(28)} off=${spread(results.off[key])}  on=${spread(results.on[key])}  diff=${diff.toFixed(0)}`,
+  )
+}
+
 const manifest = JSON.parse(readFileSync('.describe-me/manifest.json', 'utf8'))
 const frames = Object.fromEntries(
   manifest.modules.flatMap((mod) =>
@@ -42,14 +67,10 @@ const frames = Object.fromEntries(
   ),
 )
 
-console.log(`runs per variant: ${RUNS}`)
-console.log(
-  `wall clock (median ms)      off=${median(results.off.wall).toFixed(0)}  on=${median(results.on.wall).toFixed(0)}  diff=${(median(results.on.wall) - median(results.off.wall)).toFixed(0)}`,
-)
-
-console.log(
-  `sum of test durations (ms)  off=${median(results.off.sum).toFixed(0)}  on=${median(results.on.sum).toFixed(0)}  diff=${(median(results.on.sum) - median(results.off.sum)).toFixed(0)}`,
-)
+console.log(`runs per variant: ${RUNS}, interleaved`)
+console.log('median [min–max] in ms')
+summary('wall clock', 'wall')
+summary('sum of test durations', 'sum')
 
 console.log('\nper test (median ms):  off | on | diff | frames | diff/frame')
 let totalDiff = 0,

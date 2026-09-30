@@ -17,6 +17,9 @@ pnpm add -D describe-me @describe-me/vitest @describe-me/react
 `vite` is a peer dependency (Vitest requires it anyway): pnpm and npm install
 it automatically; with yarn, add `vite` to your `devDependencies`.
 
+All describe-me packages must be on the same version
+([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+
 ## Usage
 
 ```sh
@@ -39,9 +42,16 @@ viewport sizes and shareable links
 from Google Fonts, Bunny Fonts and Fontsource on jsDelivr into the site, so
 the docs show them offline. Adobe Fonts stay remote, because their license
 does not allow self-hosting, and so do fonts on any other host. The build
-lists both. Downloads are cached in `node_modules/.cache/describe-me/fonts`.
-A font that does not download keeps loading from the network, and the build
-never fails because of it.
+lists both.
+
+This needs the network. By default `build` connects to Google Fonts, Bunny
+Fonts and jsDelivr when the data loads fonts from them and the cache has no
+fresh copy. Downloads are cached in `node_modules/.cache/describe-me/fonts`,
+so after one online build later builds run offline. An unreachable host costs
+up to about 10 s once, then it is skipped. A font that does not download keeps
+loading from the network, and the build never fails because of it.
+`--no-vendor-fonts` keeps the build off the network, for CI without network
+access or with privacy rules.
 
 The static site uses relative URLs, so it works from a sub-path such as
 GitHub Pages.
