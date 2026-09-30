@@ -31,14 +31,20 @@ function storedSheets(node: WalkedNode, found: StoredSheet[] = []): StoredSheet[
 
 /**
  * Put every stylesheet a snapshot keeps in `styles/` back in place, before
- * rrweb rebuilds it. Snapshots without references pass through unchanged.
+ * rrweb rebuilds it. Resolves `false` when a sheet came back with gaps.
+ * Snapshots without references pass through unchanged.
  */
-export async function restoreStyles(node: SerializedNode): Promise<void> {
+export async function restoreStyles(node: SerializedNode): Promise<boolean> {
   const stored = storedSheets(node)
 
-  await Promise.all(
+  const loaded = await Promise.all(
     stored.map(async ({ attributes, reference }) => {
-      attributes._cssText = await loadStyle(reference)
+      const style = await loadStyle(reference)
+      attributes._cssText = style.css
+
+      return style.complete
     }),
   )
+
+  return loaded.every(Boolean)
 }

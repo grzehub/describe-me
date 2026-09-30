@@ -550,9 +550,24 @@ a {
 
 .main {
   display: grid;
-  grid-template-rows: 46px 1fr auto;
+  grid-template-rows: 46px 1fr auto auto;
   min-width: 0;
   min-height: 0;
+}
+/* A hidden note leaves the grid. Without fixed rows the timeline would move up into row 3. */
+.main > .stage-note {
+  grid-row: 3;
+}
+.main > .timeline {
+  grid-row: 4;
+}
+/* Like the version banner, and with no `display`, so the browser's rule for `hidden` applies. */
+.stage-note {
+  padding: 6px 16px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+  color: var(--ink);
+  font-size: 12px;
 }
 .crumbs {
   display: flex;

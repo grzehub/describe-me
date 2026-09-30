@@ -3,6 +3,7 @@ import { loadSnapshot } from './data.js'
 import { el } from './el.js'
 import { fontsSettled } from './fonts-settled.js'
 import { replaySnapshot } from './replay-snapshot.js'
+import { renderStageNote } from './stage-note.js'
 import { currentTest, state } from './state.js'
 import { testView } from './test-view.js'
 import { renderViewportControls } from './viewport-controls.js'
@@ -87,6 +88,7 @@ function showEmpty(frames: HTMLElement, message: string): void {
   frames.append(el('div', { class: 'empty' }, message))
   state.scale = 1
   renderViewportControls()
+  renderStageNote(null)
 }
 
 /** Keep the frame on screen, but settle any paint still in flight for another one. */
@@ -153,10 +155,12 @@ async function swapIn(
   state.scale = scale
   renderViewportControls()
 
-  // Web fonts that arrive after the swap change the text's size.
-  await fonts
+  // Web fonts that arrive after the swap change the text's size. The note is
+  // not cleared at the swap, so frames that share a failure do not flicker.
+  const failures = await fonts
   if (token === paintToken) {
     refit(stage, frames)
+    renderStageNote(failures)
   }
 }
 

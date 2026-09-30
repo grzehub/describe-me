@@ -34,24 +34,43 @@ export async function loadManifest(): Promise<void> {
  * Fetch one serialized DOM, memoized until the next manifest load. The promise
  * resolves with asset URLs made absolute and stored stylesheets put back, so
  * the stage and the gallery thumbnails always rebuild complete CSS and measure
- * styled boxes.
+ * styled boxes. A snapshot that failed or came back with missing styles is not
+ * kept, so its next paint loads it again.
  */
 export function loadSnapshot(path: string): Promise<SerializedNode> {
-  let pending = snapshotCache.get(path)
-  if (!pending) {
-    pending = fetch(`__data/${path}`, { cache: 'no-store' })
-      .then((response) => response.text())
-      .then((json) => parseSnapshot(json))
-      .then(async (node) => {
-        await restoreStyles(node)
-
-        return node
-      })
-
-    snapshotCache.set(path, pending)
+  const memo = snapshotCache.get(path)
+  if (memo) {
+    return memo
   }
 
+  // A new manifest may have replaced the entry by the time this one settles.
+  const forget = (): void => {
+    if (snapshotCache.get(path) === pending) {
+      snapshotCache.delete(path)
+    }
+  }
+
+  const pending = fetchSnapshot(path).then(async (node) => {
+    if (!(await restoreStyles(node))) {
+      forget()
+    }
+
+    return node
+  })
+
+  pending.catch(forget)
+  snapshotCache.set(path, pending)
+
   return pending
+}
+
+async function fetchSnapshot(path: string): Promise<SerializedNode> {
+  const response = await fetch(`__data/${path}`, { cache: 'no-store' })
+  if (!response.ok) {
+    throw new Error(`snapshot ${path}: ${response.status}`)
+  }
+
+  return parseSnapshot(await response.text())
 }
 
 function parseSnapshot(json: string): SerializedNode {

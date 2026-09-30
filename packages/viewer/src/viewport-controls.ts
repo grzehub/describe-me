@@ -1,4 +1,5 @@
 import { el } from './el.js'
+import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
 import { state, writeHash } from './state.js'
@@ -25,14 +26,27 @@ function setViewport(width: number | null, height: number | null): void {
   rerender('frame')
 }
 
-function sizeInput(label: string, onSize: (size: number | null) => void): HTMLInputElement {
+function sizeText(size: number | null): string {
+  return size === null ? '' : String(size)
+}
+
+function sizeInput(
+  label: string,
+  minimum: number,
+  onSize: (size: number | null) => void,
+): HTMLInputElement {
   const input = el('input', {
     type: 'number',
     placeholder: 'auto',
-    min: '1',
+    min: String(minimum),
     max: '10000',
     'aria-label': label,
-    change: () => onSize(parseViewportSize(input.value)),
+    change: () => {
+      const size = parseViewportSize(input.value, minimum)
+      onSize(size)
+      // The focused field shows the size in use, so a raised or rejected value does not linger.
+      input.value = sizeText(size)
+    },
   })
 
   return input
@@ -53,8 +67,11 @@ function build(): Controls {
     tools.append(button)
   }
 
-  const width = sizeInput('viewport width', (size) => setViewport(size, state.viewport.height))
-  const height = sizeInput('viewport height', (size) => setViewport(state.viewport.width, size))
+  const width = sizeInput('viewport width', 1, (size) => setViewport(size, state.viewport.height))
+  const height = sizeInput('viewport height', MIN_FRAME_HEIGHT, (size) =>
+    setViewport(state.viewport.width, size),
+  )
+
   const zoom = el('span', { class: 'zoom', title: 'scaled to fit the stage' })
 
   tools.append(
@@ -69,7 +86,7 @@ function build(): Controls {
 /** The field being typed in keeps what the user typed. */
 function mirror(input: HTMLInputElement, size: number | null): void {
   if (document.activeElement !== input) {
-    input.value = size === null ? '' : String(size)
+    input.value = sizeText(size)
   }
 }
 

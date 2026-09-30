@@ -396,18 +396,23 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
   expands the suites around it.
 - **Keyboard.** ←/→ go to the previous or next frame. ↑/↓ go to the previous
   or next test the sidebar shows, so they follow the search and the collapsed
-  suites. In an overview, ↓ opens its first test and ↑ its last. `/` focuses
-  the search. Shortcuts are off while you type in a field.
+  suites. From a test hidden in a collapsed suite, ↑/↓ go to the nearest row
+  the sidebar shows. In an overview, ↓ opens its first test and ↑ its last.
+  `/` focuses the search. Shortcuts are off while you type in a field.
 - **Viewport size.** Presets `100%`, `768px` and `375px`, and W and H fields
-  in CSS pixels, whole numbers from 1 to 10000. An empty field means auto. An
-  auto width fills the stage. An auto height fits the content and is measured
-  again once web fonts load. A viewport wider than the stage is scaled down,
-  and the toolbar shows the zoom.
+  in CSS pixels, whole numbers up to 10000. W runs from 1 and H from 120. A
+  smaller H is raised to 120. An empty field means auto. An auto width fills
+  the stage. An auto height fits the content and is measured again once web
+  fonts load. Content sized to the viewport, like a full-height layout or a
+  dialog on a backdrop, gets the stage's height. A dialog taller than the
+  stage gets room for all of it. A viewport wider than the stage is scaled
+  down, and the toolbar shows the zoom.
 - **Links.** The address holds the view: `#test=<id>&frame=<n>&w=<px>&h=<px>`,
   or `suite=…` for an overview. `frame` counts from 0, so `frame=2` is the
   inspector's "frame 3". Copy the address to share a frame at a size. Back and
   Forward move between the tests and overviews you opened. Stepping through
-  frames and changing the size add no history entries.
+  frames or through tests with ↑/↓ and changing the size add no history
+  entries.
 
 A test id stays the same on other machines and when other tests are added,
 removed or reordered. Renaming a test or moving it to another suite or file
@@ -590,7 +595,8 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
 The head is stored once, in the manifest, and never reaches the test page. The
 viewer adds it to the start of every frame's `<head>`, so the captured styles
 win ties, and fits the frame again once the web fonts have loaded, waiting at
-most 3 seconds. Local files that the head links with `href` or `src`, and the
+most 3 seconds. A note under the frame names the fonts and stylesheets that
+did not load in the viewer. Local files that the head links with `href` or `src`, and the
 `url()`s in its `<style>` blocks, are copied into `assets/`. A relative path
 counts from the project root. `/src/fonts.css` above is copied together with
 the fonts it points at.
