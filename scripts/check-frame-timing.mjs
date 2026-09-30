@@ -1,12 +1,15 @@
 /**
  * Checks how @describe-me/core compacts a test's frame slots and how
  * @describe-me/vitest validates the `renderFrame` option, on their built
- * output. Run after `pnpm build`. Exits 1 on the first mismatch.
+ * output. Also checks that the recorder falls back to `'lazy'`, with one
+ * warning, for a `pending` selector the DOM rejects. Run after `pnpm build`.
+ * Exits 1 on the first mismatch.
  *
  * Usage: `node scripts/check-frame-timing.mjs`
  */
 import { isDeepStrictEqual } from 'node:util'
 import { compactFrames } from '../packages/core/dist/compact-frames.js'
+import { recorder } from '../packages/core/dist/recorder.js'
 import { validateRenderFrame } from '../packages/vitest/dist/validate-render-frame.js'
 
 const RENDER_LABEL = '<Card title="Hi" />'
@@ -228,9 +231,74 @@ function checkRejected() {
   }
 }
 
+const BROKEN_SELECTOR = '[aria-busy="true"]]'
+
+/** A `document` whose `querySelector` rejects `BROKEN_SELECTOR`, as jsdom does, and counts its calls. */
+function stubDocument() {
+  const stub = {
+    queries: 0,
+    querySelector(selector) {
+      stub.queries++
+
+      if (selector === BROKEN_SELECTOR) {
+        throw new SyntaxError(`'${selector}' is not a valid selector`)
+      }
+
+      return null
+    },
+  }
+
+  return stub
+}
+
+async function checkRejectedSelector() {
+  const name = `renderFrame { pending: '${BROKEN_SELECTOR}' } falls back to 'lazy' with one warning`
+  const stub = stubDocument()
+  const warnings = []
+  const warn = console.warn
+  globalThis.document = stub
+  console.warn = (...args) => warnings.push(args.join(' '))
+
+  try {
+    try {
+      recorder.configure({ renderFrame: { pending: BROKEN_SELECTOR } })
+    } catch (error) {
+      fail(name, `configure threw: ${errorMessage(error)}`)
+    }
+
+    const [warning = ''] = warnings
+
+    if (
+      warnings.length !== 1 ||
+      !warning.includes(BROKEN_SELECTOR) ||
+      !warning.includes("'lazy'")
+    ) {
+      fail(name, `expected one warning naming the selector and 'lazy', got ${shown(warnings)}`)
+    }
+
+    // The pending mode would query the selector through `PendingRender.isReady`. Lazy never does.
+    const queries = stub.queries
+    recorder.begin()
+    await recorder.capture('render', RENDER_LABEL)
+
+    if (stub.queries !== queries) {
+      fail(name, `the render capture queried the DOM ${stub.queries - queries} time(s)`)
+    }
+
+    recorder.end()
+    recorder.configure({})
+  } finally {
+    delete globalThis.document
+    console.warn = warn
+  }
+
+  pass(name)
+}
+
 checkDedupe()
 checkUnfilledAndReopened()
 checkInputUntouched()
 checkFieldsCarryOver()
 checkAccepted()
 checkRejected()
+await checkRejectedSelector()

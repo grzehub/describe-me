@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { collectableFiles } from './collectable-files.js'
 
 /**
  * Content-addressed store for the serialized DOM of every frame, living in
@@ -33,7 +34,7 @@ export class SnapshotStore {
       keep.add(path.replace('snapshots/', ''))
     }
 
-    for (const file of readdirSync(this.dir)) {
+    for (const file of collectableFiles(this.dir)) {
       if (!keep.has(file)) {
         rmSync(join(this.dir, file), { force: true })
       }

@@ -1,15 +1,8 @@
 import { createHash } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { STYLE_URL_PREFIX } from '@describe-me/core/types'
+import { collectableFiles } from './collectable-files.js'
 import { splitStylesheet } from './split-stylesheet.js'
 
 /** Shorter sheets stay inline, where they cost less than a reference and a file of their own. */
@@ -72,7 +65,7 @@ export class StyleStore {
     }
 
     const kept: string[] = []
-    for (const file of readdirSync(this.dir)) {
+    for (const file of collectableFiles(this.dir)) {
       if (keep.has(file)) {
         kept.push(`styles/${file}`)
       } else {

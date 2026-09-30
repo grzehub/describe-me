@@ -3,7 +3,6 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -11,6 +10,7 @@ import {
 } from 'node:fs'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { ASSET_URL_PREFIX } from '@describe-me/core/types'
+import { collectableFiles } from './collectable-files.js'
 import { cssAssetReferences } from './css-asset-references.js'
 import { rewriteCssReferences } from './rewrite-css-references.js'
 import { rewriteHeadReferences } from './rewrite-head-references.js'
@@ -286,7 +286,7 @@ export class AssetStore {
    * re-run were rewritten by an earlier run.
    */
   collectGarbage(files: Iterable<string>, inlineTexts: Iterable<string> = []): void {
-    const stored = readdirSync(this.dir)
+    const stored = collectableFiles(this.dir)
     if (stored.length === 0) {
       return
     }

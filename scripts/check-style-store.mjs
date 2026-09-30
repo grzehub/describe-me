@@ -1,13 +1,23 @@
 /**
  * Checks how @describe-me/vitest chunks, extracts and garbage-collects
- * stylesheets, on its built output. Run after `pnpm build`.
+ * stylesheets, on its built output, and that no store's garbage collection
+ * touches a folder. Run after `pnpm build`.
  *
  * Usage: `node scripts/check-style-store.mjs`
  */
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AssetStore } from '../packages/vitest/dist/asset-store.js'
+import { SnapshotStore } from '../packages/vitest/dist/snapshot-store.js'
 import { splitStylesheet } from '../packages/vitest/dist/split-stylesheet.js'
 import { StyleStore } from '../packages/vitest/dist/style-store.js'
 
@@ -469,6 +479,29 @@ function checkGarbageCollection() {
     return {
       passed: !json.includes('describe-me-asset:') && sameList(left, ['aaaaaaaaaaaaaaaa.png']),
       detail: `left: ${left.join(', ')}`,
+    }
+  })
+
+  check('GC in all three stores leaves folders alone and deletes stray files', () => {
+    const outDir = tempDir()
+    const stores = ['snapshots', 'styles', 'assets']
+
+    for (const store of stores) {
+      mkdirSync(join(outDir, store, 'keep-me'), { recursive: true })
+      writeFileSync(join(outDir, store, 'keep-me', 'inside.txt'), 'not ours')
+      writeFileSync(join(outDir, store, 'stray.txt'), 'stray')
+    }
+
+    new SnapshotStore(outDir).collectGarbage([])
+    const returned = new StyleStore(outDir).collectGarbage([])
+    new AssetStore(outDir, tempDir()).collectGarbage([], [])
+
+    const kept = stores.filter((store) => existsSync(join(outDir, store, 'keep-me', 'inside.txt')))
+    const stray = stores.filter((store) => existsSync(join(outDir, store, 'stray.txt')))
+
+    return {
+      passed: kept.length === stores.length && stray.length === 0 && returned.length === 0,
+      detail: `folders kept in ${kept.join(', ')}, stray files left in ${stray.join(', ') || 'none'}`,
     }
   })
 }

@@ -24,16 +24,13 @@ const RECORDER_PROTOCOL = 1
 
 type DeferredMode = Exclude<RenderFrameMode, 'eager'>
 
-/** Fails in the setup file rather than in the first test that renders. */
-function assertValidSelector(selector: string): void {
-  if (typeof document === 'undefined') {
-    return
-  }
-
+function isValidSelector(selector: string): boolean {
   try {
     document.querySelector(selector)
+
+    return true
   } catch {
-    throw new Error(`describe-me: renderFrame.pending is not a valid CSS selector: "${selector}"`)
+    return false
   }
 }
 
@@ -86,14 +83,23 @@ class Recorder {
 
   /**
    * Choose when the render frame is taken, from the next render capture on.
-   * The setup files call it with the plugin's options. An invalid `pending`
-   * selector throws.
+   * The setup files call it with the plugin's options. A `pending` selector
+   * the DOM rejects falls back to `'lazy'` with a warning.
    */
   configure(options: RecorderOptions): void {
     const renderFrame = options.renderFrame ?? 'eager'
 
-    if (typeof renderFrame === 'object') {
-      assertValidSelector(renderFrame.pending)
+    if (
+      typeof renderFrame === 'object' &&
+      typeof document !== 'undefined' &&
+      !isValidSelector(renderFrame.pending)
+    ) {
+      console.warn(
+        `describe-me: renderFrame.pending is not a valid CSS selector: "${renderFrame.pending}". Render frames fall back to 'lazy'.`,
+      )
+
+      this.renderFrame = 'lazy'
+      return
     }
 
     this.renderFrame = renderFrame
