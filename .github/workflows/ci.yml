@@ -1,13 +1,16 @@
 # Every pull request and push to main: build, lint, format, the example suite,
 # and the tarball smoke test that installs the packed packages into a fresh
-# project the way a user would, against the default toolchain and two older
-# Vite/Vitest combinations.
+# project the way a user would, against the default toolchain, two older
+# Vite/Vitest combinations and React 18.
 name: ci
 
 on:
   pull_request:
   push:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -32,6 +35,10 @@ jobs:
       - run: pnpm check-style-store
       - run: pnpm check-font-audit
       - run: pnpm check-vendor-fonts
+      - run: pnpm check-frame-timing
+      - run: pnpm check-asset-store
+      - run: pnpm check-styled-components
+      - run: pnpm check-version-guard
 
   smoke:
     name: smoke (${{ matrix.name }})
@@ -50,6 +57,9 @@ jobs:
           # The oldest supported Vitest with the oldest supported Vite.
           - name: vitest-4
             args: --vitest 4.1.11 --vite 6.4.3
+          # React 18 on the oldest supported Vitest, with Vite 8.
+          - name: react-18
+            args: --react 18.3.1 --vitest 4.1.11 --vite 8.2.2
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

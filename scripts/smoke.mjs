@@ -41,9 +41,20 @@
  * version as their `generator`, and a jsdom run whose setup file plants a
  * 0.4-shaped recorder must fail with "must be on the same version", never with
  * "is not a function".
- * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>]` (keep leaves
- * the temp project for inspection; `--vite` and `--vitest` pin older versions
- * of the user's toolchain).
+ * After the single-Vite check, exactly one React version must be installed,
+ * the one `--react` names when given.
+ * Two naming runs, in jsdom and in browser mode, render two registered
+ * components the way both examples' `names …` tests do: inside providers, a
+ * test-local memo, a fragment, Suspense, a wrapper and after a rerender. Each
+ * test must document the component its name says, from that component's file,
+ * with the props its name lists.
+ * A second project installs without `@testing-library/user-event`, an
+ * optional peer. No copy of it may be installed there, and its `fireEvent`
+ * test must pass and record exactly its render and click frames. It runs
+ * last, so a failure there never hides one in the main project.
+ * Usage: `pnpm smoke [--keep] [--vite <x.y.z>] [--vitest <x.y.z>] [--react <x.y.z>]`
+ * (keep leaves the temp projects for inspection; `--vite`, `--vitest` and
+ * `--react` pin older versions of the user's toolchain).
  */
 import { execSync } from 'node:child_process'
 import {
@@ -90,6 +101,7 @@ function readFlags() {
         keep: { type: 'boolean', default: false },
         vite: { type: 'string' },
         vitest: { type: 'string' },
+        react: { type: 'string' },
       },
     })
 
@@ -106,7 +118,7 @@ function readFlags() {
 function parseOptions() {
   const values = readFlags()
 
-  for (const name of ['vite', 'vitest']) {
+  for (const name of ['vite', 'vitest', 'react']) {
     const version = values[name]
 
     if (version !== undefined && !EXACT_VERSION.test(version)) {
@@ -114,13 +126,14 @@ function parseOptions() {
     }
   }
 
-  return { keep: values.keep, vite: values.vite, vitest: values.vitest }
+  return { keep: values.keep, vite: values.vite, vitest: values.vitest, reactVersion: values.react }
 }
 
-const { keep, vite, vitest } = parseOptions()
+const { keep, vite, vitest, reactVersion } = parseOptions()
 const work = mkdtempSync(join(tmpdir(), 'describe-me-smoke-'))
 const tarballs = join(work, 'tarballs')
 const app = join(work, 'app')
+const withoutUserEvent = join(work, 'app-without-user-event')
 
 /** Run a command in the given directory; `quiet` swallows its output unless it fails. */
 function run(command, cwd, quiet = false) {
@@ -225,73 +238,68 @@ function pack() {
 }
 
 /**
- * The toolchain with the command-line pins applied. The playwright provider
+ * The versions the command line pins, by package name. The playwright provider
  * peers the exact matching Vitest, so `--vitest` moves both.
  */
+function commandLinePins() {
+  const typesRange = reactVersion ? `^${reactVersion.split('.')[0]}` : undefined
+
+  return {
+    vite,
+    vitest,
+    '@vitest/browser-playwright': vitest,
+    react: reactVersion,
+    'react-dom': reactVersion,
+    '@types/react': typesRange,
+    '@types/react-dom': typesRange,
+  }
+}
+
+/** The toolchain for `names`, with the command-line pins applied to those names only. */
 function pinnedToolchain(names) {
   const picked = toolchain(names)
+  const pins = commandLinePins()
 
-  if (vite) {
-    picked.vite = vite
-  }
-
-  if (vitest) {
-    picked.vitest = vitest
-    picked['@vitest/browser-playwright'] = vitest
+  for (const name of names) {
+    if (pins[name]) {
+      picked[name] = pins[name]
+    }
   }
 
   return picked
 }
 
-function scaffold() {
-  mkdirSync(join(app, 'src'), { recursive: true })
-
-  // Every package points at its tarball, and the overrides make pnpm resolve
-  // the packages' own `@describe-me/core` dependency to the tarball too,
-  // instead of asking the registry for a version that is not published yet.
-  // Vite is deliberately not overridden: the single-Vite check has to prove
-  // that the peer lets pnpm reuse the project's own Vite.
+/**
+ * Every package points at its tarball, and the overrides make pnpm resolve
+ * the packages' own `@describe-me/core` dependency to the tarball too,
+ * instead of asking the registry for a version that is not published yet.
+ * Vite is deliberately not overridden: the single-Vite check has to prove
+ * that the peer lets pnpm reuse the project's own Vite.
+ */
+function writePackageJson(project, name, devDependencies) {
   const local = Object.fromEntries(
     manifests.map((manifest) => [manifest.name, `file:${join(tarballs, tarballName(manifest))}`]),
   )
 
   writeFileSync(
-    join(app, 'package.json'),
+    join(project, 'package.json'),
     JSON.stringify(
       {
-        name: 'describe-me-smoke',
+        name,
         private: true,
         type: 'module',
-        devDependencies: {
-          ...local,
-          ...pinnedToolchain([
-            'react',
-            'react-dom',
-            '@types/react',
-            '@types/react-dom',
-            'vitest',
-            '@vitest/browser-playwright',
-            'vitest-browser-react',
-            '@vitejs/plugin-react',
-            'playwright',
-            'typescript',
-            '@testing-library/react',
-            '@testing-library/dom',
-            '@testing-library/user-event',
-            'jsdom',
-            'vite',
-          ]),
-          'styled-components': STYLED_COMPONENTS,
-        },
+        devDependencies: { ...local, ...devDependencies },
         pnpm: { overrides: local },
       },
       null,
       2,
     ),
   )
+}
 
+function writeTsconfig(project, types) {
   writeFileSync(
-    join(app, 'tsconfig.json'),
+    join(project, 'tsconfig.json'),
     JSON.stringify(
       {
         compilerOptions: {
@@ -301,7 +309,7 @@ function scaffold() {
           jsx: 'react-jsx',
           strict: true,
           skipLibCheck: true,
-          types: ['vitest/browser'],
+          ...(types ? { types } : {}),
         },
         include: ['src', 'vitest.config.ts'],
       },
@@ -309,6 +317,71 @@ function scaffold() {
       2,
     ),
   )
+}
+
+const HELLO_SOURCE = `import { useState } from 'react'
+
+export interface HelloProps {
+  /** Who to greet. */
+  name: string
+  tone?: 'plain' | 'loud'
+}
+
+export function Hello({ name, tone = 'plain' }: HelloProps) {
+  const [count, setCount] = useState(0)
+  const text = tone === 'loud' ? \`HELLO \${name.toUpperCase()}\` : \`Hello \${name}\`
+
+  return (
+    <div>
+      <p>{text}</p>
+      <button type="button" onClick={() => setCount((current) => current + 1)}>
+        waved {count} times
+      </button>
+    </div>
+  )
+}
+`
+
+const FIRE_EVENT_TEST = `import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { Hello } from '../src/Hello'
+
+afterEach(cleanup)
+
+describe('FireEvent', () => {
+  it('counts a fired click', () => {
+    render(<Hello name="Ada" />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('button').textContent).toBe('waved 1 times')
+  })
+})
+`
+
+function scaffold() {
+  mkdirSync(join(app, 'src'), { recursive: true })
+
+  writePackageJson(app, 'describe-me-smoke', {
+    ...pinnedToolchain([
+      'react',
+      'react-dom',
+      '@types/react',
+      '@types/react-dom',
+      'vitest',
+      '@vitest/browser-playwright',
+      'vitest-browser-react',
+      '@vitejs/plugin-react',
+      'playwright',
+      'typescript',
+      '@testing-library/react',
+      '@testing-library/dom',
+      '@testing-library/user-event',
+      'jsdom',
+      'vite',
+    ]),
+    'styled-components': STYLED_COMPONENTS,
+  })
+
+  writeTsconfig(app, ['vitest/browser'])
 
   writeFileSync(
     join(app, 'vitest.config.ts'),
@@ -396,23 +469,7 @@ describe('pure', () => {
 `,
   )
 
-  writeFileSync(
-    join(app, 'dom', 'FireEvent.test.tsx'),
-    `import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Hello } from '../src/Hello'
-
-afterEach(cleanup)
-
-describe('FireEvent', () => {
-  it('counts a fired click', () => {
-    render(<Hello name="Ada" />)
-    fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByRole('button').textContent).toBe('waved 1 times')
-  })
-})
-`,
-  )
+  writeFileSync(join(app, 'dom', 'FireEvent.test.tsx'), FIRE_EVENT_TEST)
 
   writeFileSync(
     join(app, 'dom', 'Leak.test.tsx'),
@@ -494,31 +551,7 @@ describe('Excluded', () => {
 `,
   )
 
-  writeFileSync(
-    join(app, 'src', 'Hello.tsx'),
-    `import { useState } from 'react'
-
-export interface HelloProps {
-  /** Who to greet. */
-  name: string
-  tone?: 'plain' | 'loud'
-}
-
-export function Hello({ name, tone = 'plain' }: HelloProps) {
-  const [count, setCount] = useState(0)
-  const text = tone === 'loud' ? \`HELLO \${name.toUpperCase()}\` : \`Hello \${name}\`
-
-  return (
-    <div>
-      <p>{text}</p>
-      <button type="button" onClick={() => setCount((current) => current + 1)}>
-        waved {count} times
-      </button>
-    </div>
-  )
-}
-`,
-  )
+  writeFileSync(join(app, 'src', 'Hello.tsx'), HELLO_SOURCE)
 
   writeFileSync(
     join(app, 'src', 'Hello.test.tsx'),
@@ -870,18 +903,301 @@ describe('Pill', () => {
   )
 }
 
+/**
+ * Two registered components and the naming tests of both examples around them.
+ * Test-local components stay in the test files, because the plugin never
+ * registers a test file's exports.
+ */
+function scaffoldNaming() {
+  mkdirSync(join(app, 'naming'), { recursive: true })
+  mkdirSync(join(app, 'naming-browser'), { recursive: true })
+
+  writeFileSync(
+    join(app, 'naming', 'Badge.tsx'),
+    `import type { ReactNode } from 'react'
+
+export interface BadgeProps {
+  /** Which palette the badge uses. */
+  tone?: 'info' | 'danger'
+  children: ReactNode
+}
+
+export function Badge({ tone = 'info', children }: BadgeProps) {
+  return <span data-tone={tone}>{children}</span>
+}
+`,
+  )
+
+  writeFileSync(
+    join(app, 'naming', 'Panel.tsx'),
+    `import type { ReactNode } from 'react'
+
+export interface PanelProps {
+  /** Heading shown above the body. */
+  title: string
+  children: ReactNode
+}
+
+export function Panel({ title, children }: PanelProps) {
+  return (
+    <section>
+      <h2>{title}</h2>
+      <div>{children}</div>
+    </section>
+  )
+}
+`,
+  )
+
+  // A lookup that wrongly searches the Shell wrapper would name Panel.
+  writeFileSync(
+    join(app, 'naming', 'Naming.test.tsx'),
+    `import { memo, Suspense, type ReactNode } from 'react'
+import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { ThemeProvider } from 'styled-components'
+import { Badge } from './Badge'
+import { Panel } from './Panel'
+
+const Local = memo(function LocalBadge() {
+  return <Badge tone="info">synced</Badge>
+})
+
+function SuspendedPanel() {
+  return <Panel title="Suspended">Loaded without waiting.</Panel>
+}
+
+function Alert() {
+  return <Badge tone="danger">rejected</Badge>
+}
+
+function Shell({ children }: { children: ReactNode }) {
+  return <Panel title="Shell">{children}</Panel>
+}
+
+describe('Naming', () => {
+  it('names Badge tone=danger inside a ThemeProvider', () => {
+    const screen = render(
+      <ThemeProvider theme={{}}>
+        <Badge tone="danger">overdue</Badge>
+      </ThemeProvider>,
+    )
+
+    expect(screen.getByText('overdue')).toBeDefined()
+  })
+
+  it('names Badge tone=info from a test-local memo', () => {
+    const screen = render(<Local />)
+
+    expect(screen.getByText('synced')).toBeDefined()
+  })
+
+  it('names Badge tone=danger inside a fragment', () => {
+    const screen = render(
+      <>
+        <Badge tone="danger">fine print</Badge>
+      </>,
+      { wrapper: Shell },
+    )
+
+    expect(screen.getByText('fine print')).toBeDefined()
+  })
+
+  it('names Panel title=Suspended inside Suspense', () => {
+    const screen = render(
+      <Suspense fallback={<Badge tone="info">loading</Badge>}>
+        <SuspendedPanel />
+      </Suspense>,
+    )
+
+    expect(screen.getByText('Suspended')).toBeDefined()
+  })
+
+  it('names Badge tone=danger under a wrapper', () => {
+    const screen = render(<Alert />, { wrapper: Shell })
+
+    expect(screen.getByText('rejected')).toBeDefined()
+  })
+
+  it('names Badge tone=danger after a rerender from an empty fragment', () => {
+    const screen = render(<></>)
+    screen.rerender(<Badge tone="danger">blocked</Badge>)
+
+    expect(screen.getByText('blocked')).toBeDefined()
+  })
+})
+`,
+  )
+
+  // React 18 has a separate Context.Provider object, React 19 renders the context itself.
+  writeFileSync(
+    join(app, 'naming-browser', 'Naming.test.tsx'),
+    `import { createContext, memo, Suspense } from 'react'
+import { describe, expect, it } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { Badge } from '../naming/Badge'
+import { Panel } from '../naming/Panel'
+
+const Density = createContext('comfortable')
+
+const Local = memo(function LocalBadge() {
+  return <Badge tone="info">synced</Badge>
+})
+
+function SuspendedPanel() {
+  return <Panel title="Suspended">Loaded without waiting.</Panel>
+}
+
+describe('Naming', () => {
+  it('names Badge tone=danger inside a context provider', async () => {
+    const screen = await render(
+      <Density.Provider value="compact">
+        <Badge tone="danger">overdue</Badge>
+      </Density.Provider>,
+    )
+
+    await expect.element(screen.getByText('overdue')).toBeVisible()
+  })
+
+  it('names Badge tone=info from a test-local memo', async () => {
+    const screen = await render(<Local />)
+
+    await expect.element(screen.getByText('synced')).toBeVisible()
+  })
+
+  it('names Badge tone=danger inside a fragment', async () => {
+    const screen = await render(
+      <>
+        <Badge tone="danger">fine print</Badge>
+      </>,
+    )
+
+    await expect.element(screen.getByText('fine print')).toBeVisible()
+  })
+
+  it('names Panel title=Suspended inside Suspense', async () => {
+    const screen = await render(
+      <Suspense fallback={<Badge tone="info">loading</Badge>}>
+        <SuspendedPanel />
+      </Suspense>,
+    )
+
+    await expect.element(screen.getByText('Suspended')).toBeVisible()
+  })
+
+  it('names Badge tone=danger after a rerender from an empty fragment', async () => {
+    const screen = await render(<></>)
+    await screen.rerender(<Badge tone="danger">blocked</Badge>)
+
+    await expect.element(screen.getByText('blocked')).toBeVisible()
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'vitest.naming.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-naming' })],
+  test: {
+    environment: 'jsdom',
+    include: ['naming/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'vitest.naming-browser.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { playwright } from '@vitest/browser-playwright'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-naming-browser' })],
+  test: {
+    include: ['naming-browser/*.test.tsx'],
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [{ browser: 'chromium' }],
+    },
+  },
+})
+`,
+  )
+}
+
+/**
+ * A jsdom project without the optional `@testing-library/user-event` peer, and
+ * without browser packages or styled-components.
+ */
+function scaffoldWithoutUserEvent() {
+  mkdirSync(join(withoutUserEvent, 'src'), { recursive: true })
+  mkdirSync(join(withoutUserEvent, 'dom'), { recursive: true })
+
+  writePackageJson(
+    withoutUserEvent,
+    'describe-me-smoke-without-user-event',
+    pinnedToolchain([
+      'react',
+      'react-dom',
+      '@types/react',
+      '@types/react-dom',
+      'vitest',
+      '@vitejs/plugin-react',
+      'typescript',
+      '@testing-library/react',
+      '@testing-library/dom',
+      'jsdom',
+      'vite',
+    ]),
+  )
+
+  writeTsconfig(withoutUserEvent)
+
+  writeFileSync(
+    join(withoutUserEvent, 'vitest.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: {
+    environment: 'jsdom',
+    include: ['dom/**/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(join(withoutUserEvent, 'src', 'Hello.tsx'), HELLO_SOURCE)
+  writeFileSync(join(withoutUserEvent, 'dom', 'FireEvent.test.tsx'), FIRE_EVENT_TEST)
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(`smoke: ${message}`)
   }
 }
 
-/** Every Vite version pnpm installed, from the `vite@<version>(_<peers>)` store directories. */
-function installedViteVersions() {
-  const entries = readdirSync(join(app, 'node_modules', '.pnpm'))
+/**
+ * Every version of `name` pnpm installed in `project`, from the
+ * `<name>@<version>(_<peers>)` store directories. A scope's `/` is a `+` there.
+ */
+function installedVersions(name, project = app) {
+  const prefix = `${name.replace('/', '+')}@`
+  const entries = readdirSync(join(project, 'node_modules', '.pnpm'))
   const versions = entries
-    .filter((entry) => entry.startsWith('vite@'))
-    .map((entry) => entry.slice('vite@'.length).split('_')[0])
+    .filter((entry) => entry.startsWith(prefix))
+    .map((entry) => entry.slice(prefix.length).split('_')[0])
 
   return [...new Set(versions)].sort()
 }
@@ -892,7 +1208,7 @@ function installedViteVersions() {
  * same Vite.
  */
 function verifySingleVite(pinned) {
-  const versions = installedViteVersions()
+  const versions = installedVersions('vite')
 
   assert(
     versions.length === 1,
@@ -905,6 +1221,23 @@ function verifySingleVite(pinned) {
   )
 
   console.log(`\nvite: ${versions[0]} (single copy)`)
+}
+
+/** Two Reacts would split the fibers the naming reads between copies. */
+function verifySingleReact(pinned) {
+  const versions = installedVersions('react')
+
+  assert(
+    versions.length === 1,
+    `expected exactly one React version, found ${versions.length}: ${versions.join(', ')}`,
+  )
+
+  assert(
+    !pinned || versions[0] === pinned,
+    `expected React ${pinned} (from --react), found ${versions[0]}`,
+  )
+
+  console.log(`\nreact: ${versions[0]} (single copy)`)
 }
 
 /** `pnpm pack` rewrites `workspace:^` to `^<version>`, so a mix is reported at install time. */
@@ -1177,6 +1510,74 @@ function verifyLazyBrowser({ outDir }) {
   console.log(`\n${outDir} frames:`, labels.join(' | '))
 }
 
+/** The naming runs, and how many `names …` tests each manifest must hold. */
+const NAMING_RUNS = [
+  { config: 'vitest.naming.config.ts', outDir: '.describe-me-naming', count: 6 },
+  { config: 'vitest.naming-browser.config.ts', outDir: '.describe-me-naming-browser', count: 5 },
+]
+
+// `names Badge tone=danger inside a ThemeProvider`: the component, then the rest of the name.
+const NAMING_TEST = /^names ([A-Z]\S*)(.*)$/
+
+/** The `key=value` words at the start of `text`, up to the first word without `=`. */
+function expectedProps(text) {
+  const props = []
+
+  for (const word of text.trim().split(/\s+/)) {
+    const separator = word.indexOf('=')
+
+    if (separator === -1) {
+      break
+    }
+
+    props.push([word.slice(0, separator), word.slice(separator + 1)])
+  }
+
+  return props
+}
+
+/** The rule of check-manifest's `namingProblemsIn()`, with the component's file fixed. */
+function verifyNamingTest(test, outDir) {
+  const match = NAMING_TEST.exec(test.name)
+
+  assert(match, `${test.fullName} (${outDir}) is not a "names <Component> …" test`)
+  assert(test.state === 'passed', `${test.fullName} (${outDir}) did not pass`)
+
+  const [, expected, rest] = match
+  const { component } = test
+  const file = `naming/${expected}.tsx`
+
+  assert(
+    component?.name === expected && component.file === file,
+    `${test.fullName} (${outDir}): documented as ${component?.name} (${component?.file ?? 'no file'}), expected ${expected} (${file})`,
+  )
+
+  const renderFrame = test.frames.findLast((frame) => frame.kind === 'render')
+
+  for (const [key, value] of expectedProps(rest)) {
+    const inComponent = String(component.props?.[key])
+    const inFrame = String(renderFrame?.meta?.props?.[key])
+
+    assert(
+      inComponent === value && inFrame === value,
+      `${test.fullName} (${outDir}): ${key} is ${inComponent} in the component and ${inFrame} in the last render frame, expected ${value}`,
+    )
+  }
+}
+
+function verifyNaming(outDir, count) {
+  const manifest = readJson(join(app, outDir, 'manifest.json'))
+  const tests = manifest.modules.flatMap((module) => module.tests)
+
+  assert(tests.length === count, `expected ${count} naming tests (${outDir}), got ${tests.length}`)
+
+  for (const test of tests) {
+    verifyNamingTest(test, outDir)
+  }
+
+  console.log(`\n${outDir}: ${count} naming tests`)
+}
+
 const STYLED = { config: 'vitest.styled.config.ts', outDir: '.describe-me-styled' }
 const STYLE_REFERENCE = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
 
@@ -1218,6 +1619,41 @@ function verifyStyled({ outDir }) {
   console.log(`\n${outDir} frames:`, labelsOf(tests[0]).join(' | '))
 }
 
+/** The run only tests a project without user-event if pnpm installed none, not even nested. */
+function verifyNoUserEvent() {
+  const modules = join(withoutUserEvent, 'node_modules')
+
+  assert(
+    !existsSync(join(modules, '@testing-library', 'user-event')),
+    'the project without user-event has node_modules/@testing-library/user-event',
+  )
+
+  const stored = installedVersions('@testing-library/user-event', withoutUserEvent)
+
+  assert(
+    stored.length === 0,
+    `the project without user-event has @testing-library/user-event ${stored.join(', ')} in node_modules/.pnpm`,
+  )
+}
+
+function verifyWithoutUserEvent() {
+  const manifest = readJson(join(withoutUserEvent, '.describe-me', 'manifest.json'))
+  const tests = manifest.modules.flatMap((module) => module.tests)
+
+  assertFrames(
+    tests,
+    { 'FireEvent > counts a fired click': FIRE_EVENT_FRAMES },
+    'without user-event',
+  )
+
+  assert(
+    tests[0].state === 'passed',
+    'FireEvent > counts a fired click did not pass (without user-event)',
+  )
+
+  console.log('\nwithout user-event frames:', labelsOf(tests[0]).join(' | '))
+}
+
 /** Both static sites: the default build with font vendoring, and the DOM build without. */
 function verifyBuilds() {
   const built = ['site/index.html', 'site/__data/manifest.json', 'site-dom/__data/manifest.json']
@@ -1247,10 +1683,13 @@ try {
   scaffoldTiming()
   scaffoldMixed()
   scaffoldStyled()
+  scaffoldNaming()
+  scaffoldWithoutUserEvent()
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
   verifySingleVite(vite)
+  verifySingleReact(reactVersion)
   verifyPackedPeers()
   run('pnpm exec vitest run', app)
   run('pnpm exec vitest run --config vitest.dom.config.ts', app)
@@ -1261,6 +1700,11 @@ try {
   }
 
   const brokenPending = runPassing(`pnpm exec vitest run --config ${BROKEN_PENDING.config}`, app)
+
+  for (const naming of NAMING_RUNS) {
+    run(`pnpm exec vitest run --config ${naming.config}`, app)
+  }
+
   verifyMixed(runFailing('pnpm exec vitest run --config vitest.mixed.config.ts', app))
 
   run('pnpm exec describe-me build --data .describe-me --out site', app)
@@ -1275,7 +1719,18 @@ try {
 
   verifyBrokenPending(brokenPending)
   verifyLazyBrowser(LAZY_BROWSER)
+
+  for (const naming of NAMING_RUNS) {
+    verifyNaming(naming.outDir, naming.count)
+  }
+
   verifyBuilds()
+
+  // Last, so a failure here never hides one in the main project.
+  run(`pnpm install --store-dir ${join(work, 'store')}`, withoutUserEvent)
+  verifyNoUserEvent()
+  run('pnpm exec vitest run', withoutUserEvent)
+  verifyWithoutUserEvent()
 
   console.log('\nsmoke: OK — the tarballs install and work in a fresh project')
 } finally {
