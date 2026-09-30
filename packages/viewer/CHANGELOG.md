@@ -1,5 +1,57 @@
 # describe-me
 
+## 0.5.1
+
+### Patch Changes
+
+- [#49](https://github.com/grzehub/describe-me/pull/49) [`2130974`](https://github.com/grzehub/describe-me/commit/2130974e4a926bd8470c90fb8d0e413c009b57b0) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Docs.
+
+  - **One version for every describe-me package.** Each package README says to install and upgrade them together.
+  - **`describe-me build` and the network.** The viewer README names the font hosts `build` contacts, what an unreachable host costs, and how `--no-vendor-fonts` keeps the build offline.
+
+  No code or API changes.
+
+- [#45](https://github.com/grzehub/describe-me/pull/45) [`63a2761`](https://github.com/grzehub/describe-me/commit/63a27619480ec413e88c95c3cc54e2ba987ea221) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - In jsdom, styled-components 6.0 to 6.3 no longer fail to load under Vite 6 and 7. These versions import tslib, and the optimizer bundled tslib's UMD file without its default export, so every test that imported styled-components failed with `Cannot destructure property '__extends' of 'import_tslib.default'`. The plugin points `tslib` at the `tslib.es6.mjs` that styled-components resolves. A `tslib` alias in your own `vitest.config.ts` is no longer needed.
+
+  When that tslib is older than 2.5.3 and has no `tslib.es6.mjs` (styled-components 6.1.3 to 6.1.9 pin 2.5.0), the plugin leaves tslib alone and warns after the run: upgrade styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later. The viewer lists the same warning behind its issues chip.
+
+  Public API:
+
+  - `@describe-me/core/types`: `Manifest.setupWarnings` and `ManifestDiagnostics.setupWarnings`. The second is a required member, which `manifestDiagnostics()` fills. Code that builds a `ManifestDiagnostics` object itself has to add it.
+  - `@describe-me/vitest/reporter`: the `setupWarnings` option of `DescribeMeReporterOptions`.
+
+  No existing export is renamed or removed.
+
+- [#43](https://github.com/grzehub/describe-me/pull/43) [`6e36104`](https://github.com/grzehub/describe-me/commit/6e36104f73f59946845193e64e9cea97fea78f58) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - `describe-me build` keeps the built site consistent after it vendors fonts.
+
+  - **The issues menu lists only hosts that stay remote.** The copied manifest's `remoteStylesheets` is counted again from the vendored snapshots, style chunks and CSS assets, the way the reporter counts it. A host whose stylesheets were all downloaded is no longer listed.
+  - **Rewritten style chunks and CSS assets are named after their new text.** Every snapshot, chunk, CSS asset and preview head that names one is updated, and the old file is removed. After a redeploy, a browser can no longer use a cached chunk or CSS asset that points at files the site no longer has.
+
+  Snapshot files keep their names, because the viewer always fetches them fresh. The source data directory and `describe-me dev` are unchanged. No exports change.
+
+- [#42](https://github.com/grzehub/describe-me/pull/42) [`75e9837`](https://github.com/grzehub/describe-me/commit/75e983729c68dd157619f1c7ab7601b70612bdd9) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - A guard against mixed describe-me versions in one project.
+
+  - **A clear error instead of `is not a function`** (`@describe-me/core`). The shared test recorder carries a protocol number, `recorder.protocol`. When a copy of `@describe-me/core` finds a recorder that a copy with another protocol created, importing it throws "describe-me: all describe-me packages must be on the same version…". A recorder created by 0.5.0 is accepted. One created by 0.4 is not, so `@describe-me/react` 0.5.1 with `@describe-me/vitest` 0.4 fails every test file with that message.
+  - **The manifest names its writer** (`@describe-me/core`, `@describe-me/vitest`). `manifest.json` gets `generator: { name, version }`, the reporter package and its version. The type is `Manifest.generator?: ManifestGenerator`, absent in manifests written before 0.5.1.
+  - **The viewer warns about data from another version** (`describe-me`). A banner under the header names both versions when their major.minor differs. Data without `generator` shows no banner, because this viewer reads everything written before 0.5.1.
+  - **Peer dependencies between the packages** (`@describe-me/react`, `@describe-me/vitest`). `@describe-me/react` peers on `@describe-me/vitest`, and `@describe-me/vitest` has an optional peer on `describe-me`. Both ranges start at this release (`^0.5.1`), so the package manager reports a mix at install time.
+
+  Added: the `ManifestGenerator` type (`@describe-me/core`, `@describe-me/core/types`) and the read-only `recorder.protocol`. Nothing removed or renamed.
+
+- [#46](https://github.com/grzehub/describe-me/pull/46) [`e2803f0`](https://github.com/grzehub/describe-me/commit/e2803f05ef30cf6565c84e10e2dee5a6e3770fa6) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Viewer fixes.
+
+  - **The selected test is revealed after an overview.** Coming back from an overview expands the test's collapsed module or suite and scrolls its row into view. From a test hidden in a collapsed suite, ↓ and ↑ open the nearest row the sidebar shows, not the first or last test of the list.
+  - **↑ and ↓ add no history entries.** Stepping through tests replaces the current entry, like stepping through frames.
+  - **Failed loads are tried again.** The viewer retries a missing `styles/` chunk once after half a second. A frame whose styles came back incomplete, or whose snapshot failed, loads again the next time it is shown. It no longer stays broken until the next run.
+  - **A note names fonts that did not load.** Under the frame, the viewer lists the web fonts and stylesheets that failed to load in the browser, for example offline in `describe-me dev`.
+  - **Auto height for content sized to the viewport.** A full-height layout or a dialog on a backdrop gets the stage's height. A centred dialog taller than the stage gets room for all of it instead of being cut off at the top.
+  - **A fixed height of at least 120 px.** A smaller `h` in the link or the H field is raised to 120, the floor auto height already uses.
+
+  Nothing added to or removed from any package's exports.
+
+- Updated dependencies [[`2130974`](https://github.com/grzehub/describe-me/commit/2130974e4a926bd8470c90fb8d0e413c009b57b0), [`43d8a2e`](https://github.com/grzehub/describe-me/commit/43d8a2e43178be0639b905fd91591ef6b3d30c76), [`63a2761`](https://github.com/grzehub/describe-me/commit/63a27619480ec413e88c95c3cc54e2ba987ea221), [`75e9837`](https://github.com/grzehub/describe-me/commit/75e983729c68dd157619f1c7ab7601b70612bdd9)]:
+  - @describe-me/core@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes
