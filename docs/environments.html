@@ -59,10 +59,13 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D5">
+      <main class="page">
         <header class="page-head">
           <h1>Environments</h1>
-          <p class="page-meta">packages/vitest/src/setup.ts · setup-dom.ts</p>
+          <p class="page-meta">
+            packages/vitest/src/plugin.ts · setup.ts · setup-dom.ts · packages/react/src ·
+            packages/core/src/settle.ts · real-timers.ts
+          </p>
         </header>
 
         <p class="lead">
@@ -75,41 +78,371 @@
           <a class="anchor" href="#detection" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          The plugin reads <code>test.browser.enabled</code> from the Vitest config it receives.
+          When it is set, the plugin wires browser mode. Otherwise it wires a DOM environment. The
+          <a href="configuration.html#option-environment"><code>environment</code> option</a>
+          wins over that check.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Browser mode</th>
+                <th>DOM (jsdom)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Picked when</td>
+                <td>
+                  <code>test.browser.enabled</code> is set, or <code>environment: 'browser'</code>
+                </td>
+                <td>it is not set, or <code>environment: 'dom'</code></td>
+              </tr>
+              <tr>
+                <td>Recording <code>render</code></td>
+                <td><code>vitest-browser-react</code> goes to <code>@describe-me/react</code></td>
+                <td>
+                  <code>@testing-library/react</code> goes to
+                  <code>@describe-me/react/testing-library</code>
+                </td>
+              </tr>
+              <tr>
+                <td>Recorded interactions</td>
+                <td>Locator actions and the keyboard-level <code>userEvent</code> methods</td>
+                <td><code>@testing-library/user-event</code> and <code>fireEvent</code></td>
+              </tr>
+              <tr>
+                <td>Setup file</td>
+                <td><code>@describe-me/vitest/setup</code></td>
+                <td><code>@describe-me/vitest/setup-dom</code></td>
+              </tr>
+              <tr>
+                <td>Also sets</td>
+                <td><code>optimizeDeps.include</code> for the adapter</td>
+                <td>
+                  <code>test.css: true</code> unless you set it, and
+                  <code>RTL_SKIP_AUTO_CLEANUP</code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          If you switch browser mode on some other way, so that the config the plugin receives has
+          no <code>test.browser.enabled</code>, say so:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { describeMe } from '@describe-me/vitest/plugin'
+
+describeMe({ environment: 'browser' })</code></pre>
+
+        <p>
+          <a href="configuration.html#plugin">What the plugin changes</a> lists every config change
+          in full. The redirect matches the exact module name only. Other ways to mount, such as
+          <code>vitest-browser-react/pure</code>, record no render frame, as
+          <a href="writing-stories.html#left-out">Tests that are left out</a> explains.
+        </p>
 
         <h2 id="browser-mode">
           Browser mode
           <a class="anchor" href="#browser-mode" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <ul>
+          <li>
+            <code>render</code> is async, like the one from <code>vitest-browser-react</code>.
+            <code>await render(…)</code> records a frame after mount, and
+            <code>await screen.rerender(…)</code> records another.
+          </li>
+          <li>
+            Every Locator action, such as <code>locator.click()</code> or
+            <code>locator.fill()</code>, records one frame. So does every keyboard-level
+            <code>userEvent</code> method from <code>vitest/browser</code>, such as
+            <code>userEvent.type()</code> or <code>userEvent.keyboard()</code>.
+          </li>
+          <li>
+            <code>userEvent.click(element)</code> hands the work to <code>locator.click()</code>
+            and still records one frame, not two.
+          </li>
+          <li>
+            Each capture waits one settle first: a single <code>setTimeout(0)</code> on real timers,
+            which lets React commit its updates.
+          </li>
+        </ul>
+
+        <p>
+          <a href="examples/react-browser/#test=0b39150af1c6&amp;frame=1"
+            >The typing frame of SearchBox</a
+          >
+          comes from <code>userEvent.type()</code>.
+          <a href="writing-stories.html#frames">What records a frame</a> lists every method. A frame
+          holds the DOM and its stylesheets, not pixels, as
+          <a href="styles-and-fonts.html#captured">What a frame captures</a> explains.
+        </p>
 
         <h2 id="jsdom">
           jsdom <a class="anchor" href="#jsdom" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          <a href="installation.html#jsdom">Installation</a> lists the packages and
+          <a href="getting-started.html#jsdom">Getting started</a> shows the config. Your tests stay
+          as they are. This is what changes, and what does not.
+        </p>
+
+        <h3>Rendering</h3>
+        <ul>
+          <li>
+            <code>render</code> stays synchronous, so
+            <code>const { asFragment } = render(…)</code> keeps working.
+          </li>
+          <li>
+            The redirect also reaches a custom <code>render</code> in your own
+            <code>test-utils</code>, because that file imports
+            <code>@testing-library/react</code> itself.
+            <a href="examples/react-jsdom/#test=b65498d13018&amp;frame=0"
+              >A test that renders through test-utils</a
+            >
+            records like any other.
+          </li>
+          <li>
+            <code>render</code>, <code>rerender</code> and <code>fireEvent</code> take their frame
+            at once, without settling. Testing Library wraps them in <code>act()</code>, so the DOM
+            is committed when they return.
+            <a href="examples/react-jsdom/#test=4effdae8b6db&amp;frame=1"
+              >The fireEvent frame of Disclosure</a
+            >
+            is one of them.
+          </li>
+          <li>
+            <code>@testing-library/user-event</code> frames wait one settle, as in browser mode. See
+            <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=1"
+              >the click through a setup instance</a
+            >.
+          </li>
+          <li>
+            The plugin turns on <code>test.css</code> unless you set it, so imported stylesheets
+            reach the snapshots. <a href="configuration.html#plugin">What the plugin changes</a>
+            has the details.
+          </li>
+        </ul>
+
+        <h3>Cleanup</h3>
+        <ul>
+          <li>
+            Testing Library's auto-cleanup is off. describe-me unmounts after every test instead,
+            once the closing frame is taken.
+          </li>
+          <li>
+            <code>renderHook</code> records no frames, but its tree is unmounted after each test
+            too.
+          </li>
+          <li>
+            <code>afterEach(cleanup)</code> in a test file is safe. <code>cleanup</code> takes the
+            closing frame, then unmounts.
+          </li>
+        </ul>
+
+        <h3>Timers and act</h3>
+        <ul>
+          <li>
+            Fake timers are safe. The recorder keeps the real <code>setTimeout</code>, so
+            <code>vi.useFakeTimers()</code> left on never hangs a capture.
+            <a href="examples/react-jsdom/#test=1ae901275128&amp;frame=1"
+              >The closing frame of the Toast timer test</a
+            >
+            comes from a file with fake timers and <code>afterEach(cleanup)</code>.
+          </li>
+          <li>
+            With auto-cleanup off, Testing Library also skips setting React's
+            <code>IS_REACT_ACT_ENVIRONMENT</code> flag. The setup file sets it where Testing Library
+            would, which is only with Vitest globals (<code>globals: true</code>).
+          </li>
+          <li>
+            The flag is off while the recorder waits for the page to settle, as it is inside Testing
+            Library's <code>waitFor</code> and user-event. When the wait ends, the flag from before
+            it comes back. So React's act warnings match a run without describe-me.
+          </li>
+        </ul>
+
+        <h3>Packages</h3>
+        <ul>
+          <li>
+            <code>@testing-library/user-event</code> is optional. Without it, there is nothing to
+            patch and nothing fails.
+          </li>
+          <li>
+            The plugin treats every environment other than browser mode as a DOM, but only jsdom is
+            tested. happy-dom is untested.
+          </li>
+        </ul>
 
         <h2 id="jsdom-limits">
           Limitations in jsdom
           <a class="anchor" href="#jsdom-limits" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          jsdom has no layout engine and loads nothing, so what differs is what happens
+          <strong>inside the test</strong>. The frames are DOM plus stylesheets in both
+          environments, and a real browser lays them out in the viewer.
+        </p>
+
+        <h3>Positioned popovers</h3>
+        <p>
+          Tooltips, menus and dropdowns placed by floating-ui, Popper, Radix and similar libraries
+          show up in the top-left corner. The library computes the position from
+          <code>getBoundingClientRect()</code>, which returns zeros in jsdom, and writes it into the
+          DOM as <code>top</code> and <code>left</code> or a <code>transform</code>. The viewer
+          replays those numbers.
+        </p>
+        <div class="callout">
+          <strong>Workaround.</strong> Record such tests in browser mode. Or keep them in their own
+          files and leave those out with <code>exclude</code>, as
+          <a href="configuration.html#include-exclude">Which test files are recorded</a> shows.
+        </div>
+
+        <h3>Layout, scrolling and observers</h3>
+        <p>
+          Anything the test measures, scrolls or observes behaves differently.
+          <code>getBoundingClientRect()</code> returns zeros, and user-event cannot tell whether
+          another element covers the one it clicks. jsdom has no <code>ResizeObserver</code> or
+          <code>IntersectionObserver</code> unless the test stubs them. Record tests that depend on
+          layout in browser mode.
+        </p>
+
+        <h3>Fonts in the test</h3>
+        <p>
+          Web fonts never load during a jsdom test, so the test measures text in fallback fonts. The
+          viewer shows the real ones, as
+          <a href="styles-and-fonts.html#fonts">Fonts</a> explains.
+          <a href="examples/react-browser/#test=1b944868ad08&amp;frame=0"
+            >Postcard in browser mode</a
+          >
+          and <a href="examples/react-jsdom/#test=1b944868ad08&amp;frame=0">Postcard in jsdom</a>
+          look the same, although the jsdom test never loaded its Lora caption font.
+        </p>
+        <p>
+          A stylesheet <code>&lt;link&gt;</code> that a font loader adds never loads either. Each
+          capture makes rrweb-snapshot set a 5 s timer for such a link. The timer does nothing when
+          it fires, and the capture does not wait for it.
+        </p>
+
+        <h3>Constructable stylesheets</h3>
+        <p>
+          jsdom cannot fill a stylesheet built with <code>new CSSStyleSheet()</code>, so styles
+          added through <code>adoptedStyleSheets</code> are missing in the test and in the frame.
+          The <code>adoptedStyleSheets</code> line of
+          <a href="examples/react-browser/#test=5ecfadd98c6d&amp;frame=0"
+            >StyledText in browser mode</a
+          >
+          is orange, and in
+          <a href="examples/react-jsdom/#test=5ecfadd98c6d&amp;frame=0">StyledText in jsdom</a>
+          it is not. Record components that adopt stylesheets in browser mode.
+        </p>
+
+        <h3>Canvas</h3>
+        <p>
+          Without the <code>canvas</code> package, <code>getContext()</code> returns
+          <code>null</code> in jsdom, so the test cannot draw. Snapshots hold no canvas pixels in
+          either environment, so a <code>&lt;canvas&gt;</code> is blank in the viewer.
+        </p>
+
+        <h3><code>fireEvent</code> inside your own <code>act()</code></h3>
+        <p>
+          <code>fireEvent</code> records its frame as soon as it returns. Inside an
+          <code>act()</code> of your own, React flushes only when that <code>act()</code> ends, so
+          the frame shows the DOM from before the update.
+        </p>
+        <div class="callout">
+          <strong>Workaround.</strong> Call <code>fireEvent</code> outside <code>act()</code>.
+          Testing Library already wraps it in one. Where the <code>act()</code> has to stay, put the
+          block in a <a href="writing-stories.html#step"><code>step()</code></a
+          >, whose frame is taken after the block ends.
+        </div>
 
         <h2 id="both">
           Limits in both environments
           <a class="anchor" href="#both" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          <strong>Concurrent tests are never recorded.</strong> Tests that run concurrently, through
+          <code>test.concurrent</code>, <code>describe.concurrent</code> or
+          <code>sequence.concurrent</code>, would share one recorder. They run and report as usual,
+          and the setup file warns once per test file:
+        </p>
+
+        <pre>describe-me: concurrent tests are not recorded (src/Menu.test.tsx)</pre>
+
+        <p>
+          <strong>Pseudo-class states do not survive a snapshot.</strong> States such as
+          <code>:hover</code> or <code>:focus-visible</code> are not part of the DOM, so no frame
+          shows them. A hover shows up only when the component puts it into the DOM, for example as
+          a class or an attribute.
+        </p>
 
         <h2 id="choosing">
           Which one to use
           <a class="anchor" href="#choosing" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <div class="pair">
+          <div class="callout">
+            <p><strong>Browser mode</strong> for fidelity.</p>
+            <p>
+              The test runs in a real browser, with real layout and real fonts. Popovers, measuring
+              code and observers behave as they do in your app.
+            </p>
+          </div>
+          <div class="callout">
+            <p><strong>jsdom</strong> for speed and existing suites.</p>
+            <p>
+              No browser to install or start. A Testing Library suite records as it is, with its
+              custom <code>render</code>, <code>fireEvent</code> and fake timers.
+            </p>
+          </div>
+        </div>
+
+        <p>
+          The frames look alike either way, because the viewer lays them out in a real browser. The
+          difference is inside the test, as <a href="#jsdom-limits">Limitations in jsdom</a> lists.
+        </p>
+
+        <h3>Using both</h3>
+        <p>
+          This repository keeps the two apart. It has two example projects, one per environment,
+          each with its own Vitest config and its own <code>.describe-me/</code>.
+        </p>
+        <p>
+          In one project, give each config its own <code>outDir</code>, then open each output with
+          its own viewer:
+        </p>
+
+        <p class="file">vitest.jsdom.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-jsdom' })],
+  test: { environment: 'jsdom' },
+})</code></pre>
+
+        <pre><code>pnpm vitest run --config vitest.jsdom.config.ts
+pnpm describe-me dev --data .describe-me-jsdom</code></pre>
+
+        <p>
+          One run with a browser project and a jsdom project in <code>test.projects</code> is not
+          tested. <a href="installation.html#monorepos">Monorepos</a> covers how
+          <code>test.projects</code> paths reach describe-me.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="configuration.html"><span>Previous</span>Configuration</a>
