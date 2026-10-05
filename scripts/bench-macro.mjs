@@ -4,10 +4,14 @@
  * durations and per test. The variants alternate in each iteration, so warm-up
  * and machine load hit both alike. Reads and writes `.describe-me/` in the
  * current directory, and needs a config that honours `BENCH_OUT`.
+ * Both variants report through the JSON reporter the config picks for
+ * `BENCH_OUT`, so the console reporter Vitest picks per environment never
+ * differs between them. Never pass `--reporter`: it would drop describe-me's
+ * reporter from the recording run.
  * Usage, from an example directory: `node ../../scripts/bench-macro.mjs [runs]`
  */
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 
 const RUNS = Number(process.argv[2] ?? 5)
 const variants = { off: { DESCRIBE_ME: 'off' }, on: {} }
@@ -20,6 +24,7 @@ for (const name of Object.keys(variants)) {
 for (let i = 0; i < RUNS; i++) {
   for (const [name, env] of Object.entries(variants)) {
     const out = `${process.cwd()}/.describe-me/bench-${name}-${i}.json`
+    rmSync(out, { force: true })
     const t0 = performance.now()
     execSync('pnpm exec vitest run', {
       stdio: 'ignore',
@@ -27,6 +32,13 @@ for (let i = 0; i < RUNS; i++) {
     })
 
     results[name].wall.push(performance.now() - t0)
+
+    if (!existsSync(out)) {
+      throw new Error(
+        `bench-macro: the ${name} variant wrote no ${out}. The config must replace its reporters with a JSON reporter when BENCH_OUT is set.`,
+      )
+    }
+
     const json = JSON.parse(readFileSync(out, 'utf8'))
     let sum = 0
     for (const file of json.testResults) {

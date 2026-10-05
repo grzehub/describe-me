@@ -2,9 +2,12 @@
  * Verifies the published artifact, not the sources: packs every package,
  * installs the tarballs into a fresh project outside the monorepo, runs the
  * same component through the plugin in browser mode and in jsdom, and builds
- * the static site. Right after the install it checks that exactly one Vite
- * version landed in the project: `describe-me` peers on the host's Vite
- * instead of nesting its own. In both environments one test file is excluded
+ * the static site. Right after the install it checks the plugin's reporters
+ * in child processes that see only each case's variables: without a list of
+ * the config's own, describe-me's reporter joins the ones the installed Vitest
+ * picks for an AI agent and for GitHub Actions. Then it checks that exactly
+ * one Vite version landed in the project: `describe-me` peers on the host's
+ * Vite instead of nesting its own. In both environments one test file is excluded
  * and one renders nothing: each asserts `recorder.isActive` inside the test,
  * which proves that the plugin's options reach the test runtime, and neither
  * may appear in the manifest.
@@ -59,7 +62,7 @@
  * (keep leaves the temp projects for inspection; `--vite`, `--vitest` and
  * `--react` pin older versions of the user's toolchain).
  */
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -607,6 +610,23 @@ describe('pure', () => {
 })
 `,
   )
+
+  // Prints the reporters the plugin sets. Arguments become the config's own list.
+  writeFileSync(
+    join(app, 'reporters.mjs'),
+    `import { describeMe } from '@describe-me/vitest/plugin'
+
+const names = process.argv.slice(2)
+const test = names.length > 0 ? { reporters: names } : {}
+const { reporters } = describeMe({ environment: 'browser' }).config({ test }).test
+
+console.log(
+  JSON.stringify(
+    reporters.map((reporter) => (typeof reporter === 'string' ? reporter : 'describe-me')),
+  ),
+)
+`,
+  )
 }
 
 /** A component behind a loader, and the tests and configs that document it once loaded. */
@@ -739,6 +759,8 @@ export default defineConfig({
   )
 
   // jsdom rejects the extra `]`. It accepts an unterminated `[aria-busy="true"`.
+  // The warning is printed in the test worker, and the minimal reporter Vitest
+  // picks for AI agents hides what passing tests print, so the run names its own.
   writeFileSync(
     join(app, 'vitest.broken-pending.config.ts'),
     `import { defineConfig } from 'vitest/config'
@@ -756,6 +778,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['timing/Greeting.test.tsx'],
+    reporters: ['default'],
   },
 })
 `,
@@ -1256,6 +1279,57 @@ function installedVersions(name, project = app) {
     .map((entry) => entry.slice(prefix.length).split('_')[0])
 
   return [...new Set(versions)].sort()
+}
+
+/** The reporter Vitest picks for an AI agent: `minimal` from 5.0, `agent` in 4.1 and none in 4.0. */
+function agentReporter(version) {
+  const [major, minor] = version.split('.').map(Number)
+
+  if (major >= 5) {
+    return 'minimal'
+  }
+
+  return minor >= 1 ? 'agent' : 'default'
+}
+
+/**
+ * GitHub Actions sets `GITHUB_ACTIONS` and agent shells set `CLAUDECODE`, so
+ * each case gets only its own variables. The import also fails unless the
+ * packed `@describe-me/vitest` declares `std-env`.
+ */
+function verifyDefaultReporters() {
+  const version = readJson(join(app, 'node_modules', 'vitest', 'package.json')).version
+  const agent = agentReporter(version)
+  const both = { CLAUDECODE: '1', GITHUB_ACTIONS: 'true' }
+
+  const cases = [
+    { env: {}, names: [], expected: ['default', 'describe-me'] },
+    { env: { CLAUDECODE: '1' }, names: [], expected: [agent, 'describe-me'] },
+    {
+      env: { GITHUB_ACTIONS: 'true' },
+      names: [],
+      expected: ['default', 'github-actions', 'describe-me'],
+    },
+    { env: both, names: [], expected: [agent, 'github-actions', 'describe-me'] },
+    { env: both, names: ['dot'], expected: ['describe-me'] },
+  ]
+
+  for (const { env, names, expected } of cases) {
+    const output = execFileSync(process.execPath, ['reporters.mjs', ...names], {
+      cwd: app,
+      env,
+      encoding: 'utf8',
+    })
+
+    assert(
+      isDeepStrictEqual(JSON.parse(output), expected),
+      `expected reporters ${JSON.stringify(expected)} with env ${JSON.stringify(env)} and config reporters ${JSON.stringify(names)}, got ${output.trim()}`,
+    )
+  }
+
+  console.log(
+    `\nreporters: Vitest ${version} keeps its defaults, ${agent} for an agent, github-actions on GitHub Actions`,
+  )
 }
 
 /**
@@ -1776,6 +1850,7 @@ try {
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
+  verifyDefaultReporters()
   verifySingleVite(vite)
   verifySingleReact(reactVersion)
   verifyPackedPeers()

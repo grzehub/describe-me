@@ -3,6 +3,7 @@ import type { RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
+import { defaultReporters } from './default-reporters.js'
 import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
@@ -223,9 +224,10 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
         setupWarnings,
       })
 
-      // Vite concatenates arrays when merging, so only add `default` when the
-      // user has not chosen their own reporters; otherwise they would lose it.
-      const reporters = userConfig.test?.reporters ? [reporter] : ['default', reporter]
+      // Vite concatenates our list with the user's. Any list replaces the
+      // reporters Vitest picks on its own, so without one of the user's, ours
+      // joins Vitest's defaults.
+      const reporters = userConfig.test?.reporters ? [reporter] : [...defaultReporters(), reporter]
 
       const config =
         environment === 'browser'
