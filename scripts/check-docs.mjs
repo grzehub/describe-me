@@ -20,8 +20,9 @@
  *   viewer, and every fragment at an id of its target, unless the target is
  *   still a stub. Deep links into the examples name a test, frame and suite of
  *   that example's manifest, so run both examples' tests first.
- * - Code samples import only entry points the packages export, and only names
- *   those entry points export.
+ * - Code samples import only entry points the packages export, in every form
+ *   of import, and only names those entry points export. `describe-me` is the
+ *   CLI and exports nothing, so any import of it fails.
  *
  * Usage: `node scripts/check-docs.mjs`
  */

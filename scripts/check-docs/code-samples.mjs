@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 
-const IMPORT_FROM = /\bimport\b([^'";]*?)\bfrom\s*(['"])([^'"\n]+)\2/g
+// At the start of a line, so the word "import" in a comment above does not join the statement.
+const IMPORT_FROM = /^[ \t]*import\b([^'";]*?)\bfrom\s*(['"])([^'"\n]+)\2/gm
+// `import 'x'` and `import('x')`, which take no names.
+const IMPORT_ONLY = /\bimport\s*(\(\s*)?(['"`])([^'"`\n]+)\2/g
 const STRING = /(['"`])(@describe-me\/[a-z0-9-]+(?:\/[a-z0-9._-]+)*)\1/g
 const OUR_PACKAGE = /^(?:describe-me|@describe-me\/[a-z0-9-]+)(?=\/|$)/
 const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm
@@ -11,12 +14,15 @@ const DECLARED =
 const LISTED = /\bexport\s+(?:type\s+)?\{([^}]*)\}/g
 const STARRED = /\bexport\s+\*\s+(?:as\s+([\w$]+)\s+)?from\s*(['"])([^'"]+)\2/g
 const DEFAULT = /\bexport\s+default\b/
+const CLI_PROBLEM = 'describe-me is the CLI and exports nothing to import'
 
 /**
- * Code samples import only what the packages export. Every `describe-me` or
- * `@describe-me/…` specifier in a `<pre><code>` block, in an import or in a
- * config string, is an entry point of its package, and every named or default
- * import is exported by the source of that entry point.
+ * Code samples import only what the packages export. In a `<pre><code>` block,
+ * every import of `describe-me` or `@describe-me/…` (with names, for side
+ * effects or dynamic) and every `@describe-me/…` string, such as a
+ * `setupFiles` entry, names an entry point of its package. `describe-me` is
+ * the CLI and has none. Every named or default import is exported by the
+ * source of its entry point.
  */
 export default function codeSamples(context) {
   const entries = new EntryPoints(context)
@@ -24,7 +30,11 @@ export default function codeSamples(context) {
 
   for (const [file, html] of context.html) {
     for (const code of context.helpers.codeBlocks(html)) {
-      problems.push(...checkStrings(file, code, entries), ...checkImports(file, code, entries))
+      problems.push(
+        ...checkStrings(file, code, entries),
+        ...checkImports(file, code, entries),
+        ...checkImportsWithoutNames(file, code),
+      )
     }
   }
 
@@ -48,10 +58,10 @@ function checkImports(file, code, entries) {
       continue
     }
 
-    const statement = match[0].replace(/\s+/g, ' ')
+    const statement = match[0].trim().replace(/\s+/g, ' ')
 
-    if (specifier === 'describe-me' || specifier.startsWith('describe-me/')) {
-      problems.push(`${file}: ${statement}: describe-me is the CLI and exports nothing to import`)
+    if (isCli(specifier)) {
+      problems.push(`${file}: ${statement}: ${CLI_PROBLEM}`)
 
       continue
     }
@@ -71,6 +81,21 @@ function checkImports(file, code, entries) {
   }
 
   return problems
+}
+
+/** `@describe-me/…` subpaths of these imports are checked by checkStrings, so only the CLI is left. */
+function checkImportsWithoutNames(file, code) {
+  return [...code.matchAll(IMPORT_ONLY)]
+    .filter((match) => isCli(match[3]))
+    .map((match) => {
+      const statement = match[1] ? `import('${match[3]}')` : `import '${match[3]}'`
+
+      return `${file}: ${statement}: ${CLI_PROBLEM}`
+    })
+}
+
+function isCli(specifier) {
+  return specifier === 'describe-me' || specifier.startsWith('describe-me/')
 }
 
 function missingExport(entries, specifier, name, exported) {

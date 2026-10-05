@@ -263,10 +263,11 @@ when the page is written, and every link into it is checked in full.
 
 `pnpm check-docs` runs every file of `scripts/check-docs/` in name order:
 
-- `code-samples.mjs`: every `describe-me` or `@describe-me/…` specifier in a
-  `<pre><code>` block, in an import or in a config string, is an entry point
-  of its package, and every imported name is exported by that entry point's
-  source.
+- `code-samples.mjs`: in a `<pre><code>` block, every import of
+  `describe-me` or `@describe-me/…` (with names, for side effects or dynamic)
+  and every `@describe-me/…` string, such as a `setupFiles` entry, names an
+  entry point of its package. `describe-me` is the CLI and has none. Every
+  imported name is exported by that entry point's source.
 - `links.mjs`: relative links point at a page, `docs.css`, `favicon.svg` or an
   example viewer, fragments at ids of their target, SVG references at ids of
   their page, and deep links at tests, frames and suites of the manifests.
