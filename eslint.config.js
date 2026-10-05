@@ -16,6 +16,7 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.describe-me/**',
       '**/.vitest/**',
+      '**/site/**',
     ],
   },
   ...tseslint.configs.recommended,
