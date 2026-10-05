@@ -59,15 +59,18 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D4">
+      <main class="page">
         <header class="page-head">
           <h1>Installation</h1>
-          <p class="page-meta">packages/*/package.json</p>
+          <p class="page-meta">
+            packages/*/package.json · .github/workflows/ci.yml · .github/workflows/docs.yml
+          </p>
         </header>
 
         <p class="lead">
-          Three dev dependencies and one plugin line. This page covers the versions describe-me
-          supports and how to keep it healthy in a real project.
+          Three dev dependencies and one plugin line. This page lists the versions describe-me
+          supports, what to install for each environment, and how to keep it healthy in a real
+          project.
         </p>
 
         <h2 id="versions">
@@ -75,72 +78,536 @@
           <a class="anchor" href="#versions" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          The ranges below are the peer dependencies and engines of the published packages, exactly
+          as their <code>package.json</code> files write them. Your package manager checks them when
+          it installs.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Package</th>
+                <th>Range</th>
+                <th>Asked for by</th>
+                <th>Needed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="version-react">
+                <td><code>react</code></td>
+                <td class="nowrap"><code>^18.0.0 || ^19.0.0</code></td>
+                <td class="nowrap"><code>@describe-me/react</code></td>
+                <td>Required.</td>
+              </tr>
+              <tr id="version-testing-library-react">
+                <td><code>@testing-library/react</code></td>
+                <td class="nowrap"><code>^16.0.0</code></td>
+                <td class="nowrap"><code>@describe-me/react</code></td>
+                <td>Optional. You need it for jsdom.</td>
+              </tr>
+              <tr id="version-vitest-browser-react">
+                <td><code>vitest-browser-react</code></td>
+                <td class="nowrap"><code>^2.0.0</code></td>
+                <td class="nowrap"><code>@describe-me/react</code></td>
+                <td>Optional. You need it for browser mode.</td>
+              </tr>
+              <tr id="version-vitest">
+                <td><code>vitest</code></td>
+                <td class="nowrap"><code>^4.0.0 || ^5.0.0</code></td>
+                <td class="nowrap"><code>@describe-me/vitest</code></td>
+                <td>Required.</td>
+              </tr>
+              <tr id="version-typescript">
+                <td><code>typescript</code></td>
+                <td class="nowrap"><code>^5.0.0 || ^6.0.0</code></td>
+                <td class="nowrap"><code>@describe-me/vitest</code></td>
+                <td>Optional. The reporter reads component props with it, for the props table.</td>
+              </tr>
+              <tr id="version-testing-library-user-event">
+                <td><code>@testing-library/user-event</code></td>
+                <td class="nowrap"><code>^14.0.0</code></td>
+                <td class="nowrap"><code>@describe-me/vitest</code></td>
+                <td>Optional. In jsdom, its interactions record frames when it is installed.</td>
+              </tr>
+              <tr id="version-vite">
+                <td><code>vite</code></td>
+                <td class="nowrap"><code>^6.4.0 || ^7.0.0 || ^8.0.0</code></td>
+                <td class="nowrap"><code>describe-me</code></td>
+                <td>Required. The CLI runs the viewer on your Vite.</td>
+              </tr>
+              <tr id="version-node">
+                <td><code>node</code></td>
+                <td class="nowrap">
+                  <code>&gt;=20</code><br />
+                  <code>^20.16.0 || &gt;=22.4.0</code>
+                </td>
+                <td class="nowrap">
+                  core, react and vitest<br />
+                  <code>describe-me</code>
+                </td>
+                <td>
+                  Required. Your Vite and Vitest set the real floor. Vite 8.3.0 needs
+                  <code>^20.19.0 || &gt;=22.12.0</code>, and Vitest 5.0.1 needs
+                  <code>^22.12.0 || ^24.0.0 || &gt;=26.0.0</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>What CI tests</h3>
+        <p>
+          CI runs on Node 22 only. Its smoke job packs the packages, installs them into a fresh
+          project and runs browser mode (Chromium through <code>@vitest/browser-playwright</code>)
+          and jsdom on four toolchains:
+        </p>
+        <ul>
+          <li>the examples' toolchain: Vite 8.3, Vitest 5.0 and React 19,</li>
+          <li>Vite 8.2.2,</li>
+          <li>Vitest 4.1.11 with Vite 6.4.3,</li>
+          <li>React 18.3.1 with Vitest 4.1.11 and Vite 8.2.2.</li>
+        </ul>
+        <p>
+          CI does not test Node 20, Vite 7, Vitest 4.0, happy-dom or browser providers other than
+          Playwright. They sit inside the ranges, but nothing checks them.
+        </p>
+        <p>
+          Both examples run React 19.3, Vite 8.3.0 and Vitest 5.0.1. The browser example adds
+          <code>vitest-browser-react</code> 2.3.0 and Playwright 1.63.0. The jsdom example adds
+          jsdom 26.1.0, <code>@testing-library/react</code> 16.3.3,
+          <code>@testing-library/dom</code> 10.4.2 and <code>@testing-library/user-event</code>
+          14.6.7. How describe-me tells the two environments apart is on
+          <a href="environments.html#detection">Environments</a>.
+        </p>
 
         <h2 id="packages">
           The packages <a class="anchor" href="#packages" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          describe-me ships as four packages. You install three of them, and the fourth comes with
+          them.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Package</th>
+                <th>What it holds</th>
+                <th>Entry points</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>describe-me</code></td>
+                <td>
+                  The CLI and the viewer. It installs the binary <code>describe-me</code> and has
+                  nothing to import.
+                </td>
+                <td><a href="api.html#entry-cli">CLI</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>@describe-me/vitest</code></td>
+                <td>
+                  The plugin, the setup files, the reporter, <code>step</code> and
+                  <code>recorder</code>.
+                </td>
+                <td>
+                  <a href="api.html#entry-vitest"><code>.</code></a
+                  >, <a href="api.html#entry-vitest-plugin"><code>./plugin</code></a
+                  >, <a href="api.html#entry-vitest-setup"><code>./setup</code></a
+                  >, <a href="api.html#entry-vitest-setup-dom"><code>./setup-dom</code></a
+                  >,
+                  <a href="api.html#entry-vitest-reporter"><code>./reporter</code></a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>@describe-me/react</code></td>
+                <td>
+                  The recording <code>render</code>, which the plugin swaps in for your test
+                  library's.
+                </td>
+                <td>
+                  <a href="api.html#entry-react"><code>.</code></a
+                  >,
+                  <a href="api.html#entry-react-testing-library"><code>./testing-library</code></a>
+                </td>
+              </tr>
+              <tr>
+                <td><code>@describe-me/core</code></td>
+                <td>The recorder and the types. The other packages install it.</td>
+                <td>
+                  <a href="api.html#entry-core"><code>.</code></a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="package-managers">
           Package managers
           <a class="anchor" href="#package-managers" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          Add the three packages as dev dependencies. pnpm and npm install missing peers on their
+          own. yarn does not, so add <code>vite</code> there yourself. Vitest needs it anyway.
+        </p>
+
+        <pre><code><span class="dim"># pnpm</span>
+pnpm add -D describe-me @describe-me/vitest @describe-me/react
+
+<span class="dim"># npm</span>
+npm install -D describe-me @describe-me/vitest @describe-me/react
+
+<span class="dim"># yarn</span>
+yarn add -D describe-me @describe-me/vitest @describe-me/react vite</code></pre>
+
+        <p>Then add what your environment needs, as the next two sections show.</p>
 
         <h2 id="browser-mode">
           Browser mode
           <a class="anchor" href="#browser-mode" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          Browser mode runs your tests in Chromium through Playwright. Add Vitest, its Playwright
+          provider, Playwright and <code>vitest-browser-react</code>, then download Chromium:
+        </p>
+
+        <pre><code>pnpm add -D vitest @vitest/browser-playwright playwright vitest-browser-react
+pnpm exec playwright install chromium</code></pre>
+
+        <p>
+          Keep <code>@vitest/browser-playwright</code> on the same version as <code>vitest</code>:
+          version 5.0.1 peers on exactly <code>vitest</code> 5.0.1. The browser example asks for
+          <code>vitest</code> and <code>@vitest/browser-playwright</code> <code>^5.0.1</code>,
+          <code>playwright</code> <code>^1.63.0</code> and <code>vitest-browser-react</code>
+          <code>^2.3.0</code>. Its config, trimmed:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { playwright } from '@vitest/browser-playwright'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: {
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [{ browser: 'chromium' }],
+    },
+  },
+})</code></pre>
+
+        <p>
+          <a href="getting-started.html#browser-mode">Getting started</a> walks through a first
+          story in browser mode.
+        </p>
 
         <h2 id="jsdom">
           jsdom <a class="anchor" href="#jsdom" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          For jsdom, add Vitest, jsdom, <code>@testing-library/react</code> and its peer
+          <code>@testing-library/dom</code>. <code>@testing-library/react</code> 16 peers on
+          <code>@testing-library/dom</code> <code>^10.0.0</code>.
+          <code>@testing-library/user-event</code> is optional.
+        </p>
+
+        <pre><code>pnpm add -D vitest jsdom @testing-library/react @testing-library/dom
+pnpm add -D @testing-library/user-event</code></pre>
+
+        <p>
+          The jsdom example asks for <code>jsdom</code> <code>^26.1.0</code>,
+          <code>@testing-library/react</code> <code>^16.3.0</code>,
+          <code>@testing-library/dom</code> <code>^10.4.0</code> and
+          <code>@testing-library/user-event</code> <code>^14.6.1</code>. The plugin needs no browser
+          block to detect jsdom:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: { environment: 'jsdom' },
+})</code></pre>
+
+        <p>
+          <a href="getting-started.html#jsdom">Getting started</a> walks through a first story in
+          jsdom, and <a href="environments.html#jsdom">Environments</a> says what the plugin changes
+          there.
+        </p>
 
         <h2 id="lockstep">
           One version for all packages
           <a class="anchor" href="#lockstep" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>Install every describe-me package at one version, and upgrade them together.</p>
+
+        <ul>
+          <li>
+            Every release bumps all four packages to the same version, also those that did not
+            change.
+          </li>
+          <li>
+            <code>@describe-me/react</code> peers on <code>@describe-me/vitest</code>, which has an
+            optional peer on <code>describe-me</code>. Both peers are published as a caret range of
+            the release, for example <code>^0.5.2</code>. Before 1.0 that accepts any later 0.5
+            patch. So the package manager warns about a mix of minor lines, such as 0.4 with 0.5,
+            but not about a mix of patches.
+          </li>
+          <li>
+            At run time, the test recorder carries a protocol number. When two copies of
+            <code>@describe-me/core</code> with different protocols meet, every test file fails with
+            this error:
+          </li>
+        </ul>
+
+        <pre>
+describe-me: all describe-me packages must be on the same version. Another copy of @describe-me/core created the test recorder (protocol 1, expected 2). Install @describe-me/core, @describe-me/react, @describe-me/vitest and describe-me at one version.</pre>
+
+        <p>
+          <a href="troubleshooting.html#symptoms">Troubleshooting</a> covers that error. To keep the
+          packages together, give your update bot one group for all of them. With
+          <a href="https://docs.renovatebot.com/noise-reduction/#package-grouping">Renovate</a>:
+        </p>
+
+        <p class="file">renovate.json</p>
+        <pre><code>{
+  "packageRules": [
+    {
+      "matchPackageNames": ["describe-me", "@describe-me/**"],
+      "groupName": "describe-me"
+    }
+  ]
+}</code></pre>
+
+        <p>
+          With
+          <a
+            href="https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/optimizing-pr-creation-version-updates"
+            >Dependabot</a
+          >:
+        </p>
+
+        <p class="file">.github/dependabot.yml</p>
+        <pre><code>version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      describe-me:
+        patterns:
+          - "describe-me"
+          - "@describe-me/*"</code></pre>
+
+        <div class="callout warn">
+          <strong>Release cooldowns.</strong> The packages of one release reach npm minutes apart. A
+          cooldown such as pnpm's
+          <a href="https://pnpm.io/settings#minimumreleaseage"><code>minimumReleaseAge</code></a>
+          or Renovate's
+          <a href="https://docs.renovatebot.com/configuration-options/#minimumreleaseage"
+            ><code>minimumReleaseAge</code></a
+          >
+          can therefore let some of them through and hold others back. Upgrade once the whole
+          release is past it.
+        </div>
 
         <h2 id="gitignore">
           What to commit <a class="anchor" href="#gitignore" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          The reporter writes <code>.describe-me/</code> on every run, and
+          <code>describe-me build</code> writes the static site to <code>describe-me-dist/</code>,
+          or to the directory <code>--out</code> names. Both are generated, so keep them out of git:
+        </p>
+
+        <p class="file">.gitignore</p>
+        <pre><code>.describe-me/
+describe-me-dist/</code></pre>
+
+        <p>
+          If you set <code>outDir</code> or <code>--out</code>, ignore those directories instead.
+          Commit your Vitest config and any project files that <code>previewHead</code> links, such
+          as a fonts stylesheet. The reporter copies them into the output.
+          <a href="how-it-works.html#storage">How it works</a> lists the output files, and
+          <a href="viewer.html#cli">Viewer and CLI</a> the flags.
+        </p>
 
         <h2 id="ci">
           Build the docs in CI <a class="anchor" href="#ci" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          This workflow runs your tests, builds the static site and publishes it to GitHub Pages. It
+          has the same shape as the one that publishes this project's example.
+        </p>
+
+        <p class="file">.github/workflows/docs.yml</p>
+        <pre><code>name: docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      <span class="dim"># Browser mode only.</span>
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec vitest run
+      - run: pnpm exec describe-me build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: describe-me-dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4</code></pre>
+
+        <ul>
+          <li>
+            Set the Pages source to "GitHub Actions" in the repository settings once (<a
+              href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site"
+              >GitHub docs</a
+            >).
+          </li>
+          <li>
+            <code>pnpm/action-setup</code> reads the pnpm version from
+            <code>packageManager</code> in <code>package.json</code>, or takes a
+            <code>version</code> input (<a href="https://github.com/pnpm/action-setup#inputs"
+              >its inputs</a
+            >).
+          </li>
+          <li>
+            The site uses relative URLs, so it works under a sub-path such as a project page (<a
+              href="viewer.html#hosting"
+              >Hosting</a
+            >).
+          </li>
+          <li>
+            <code>describe-me build</code> downloads web fonts into the site, which needs network.
+            Without network, pass <code>--no-vendor-fonts</code> (<a
+              href="viewer.html#flag-no-vendor-fonts"
+              >the flag</a
+            >, <a href="styles-and-fonts.html#vendoring">font vendoring</a>).
+          </li>
+          <li>
+            A failing test fails the <code>vitest run</code> step, so nothing deploys. The reporter
+            still writes failed tests, and the viewer counts them in its header. To publish anyway,
+            let that step fail without failing the job (<a
+              href="https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepscontinue-on-error"
+              ><code>continue-on-error</code></a
+            >):
+          </li>
+        </ul>
+
+        <pre><code>      - run: pnpm exec vitest run
+        continue-on-error: true</code></pre>
 
         <h2 id="monorepos">
           Monorepos and projects
           <a class="anchor" href="#monorepos" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          With <code>test.projects</code> entries that set their own <code>root</code>, the setup
+          file matches <code>include</code> and <code>exclude</code> against a path relative to the
+          project root, and the reporter against a path relative to the Vitest root. Globs that
+          start with <code>**/</code> match both.
+          <a href="configuration.html#include-exclude">Which tests record</a> shows the case.
+        </p>
 
         <h2 id="upgrading">
           Upgrading <a class="anchor" href="#upgrading" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>Upgrade all describe-me packages in one step:</p>
+
+        <pre><code>pnpm up --latest describe-me '@describe-me/*'</code></pre>
+
+        <p>
+          The viewer reads output written by 0.4. It loads the stylesheet references that 0.5 writes
+          and leaves inline stylesheets as they are. A 0.4 viewer cannot read 0.5 output: its frames
+          show without their stylesheets.
+        </p>
+        <p>
+          <code>manifest.json</code> names the package and version that wrote it in
+          <code>generator</code>. When that major.minor differs from the viewer's own, the viewer
+          shows a banner under its header. A manifest without <code>generator</code>, written by
+          0.5.0 or older, shows no banner.
+          <a href="how-it-works.html#versions">How it works</a> explains the version checks, and
+          <a href="viewer.html#issues">Viewer and CLI</a> the banner.
+        </p>
 
         <h2 id="remove">
           Removing describe-me
           <a class="anchor" href="#remove" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <ol class="steps">
+          <li>
+            <strong>Config</strong> Remove <code>describeMe()</code> and its import from your Vitest
+            config. If you wired describe-me by hand, remove its setup file, its reporter and the
+            settings you added for it.
+          </li>
+          <li>
+            <strong>Tests</strong> Remove imports of <code>step</code> and
+            <code>recorder</code> from <code>@describe-me/vitest</code>. Keep the body of each
+            <code>step()</code> call. Tests that import <code>render</code> from their test library
+            keep working unchanged. Tests that import it from <code>@describe-me/react</code>, as a
+            hand-wired setup does, go back to their test library.
+          </li>
+          <li>
+            <strong>Packages</strong> Uninstall them:
+            <code>pnpm remove describe-me @describe-me/vitest @describe-me/react</code>, plus
+            <code>@describe-me/core</code> if you listed it.
+          </li>
+          <li>
+            <strong>Files</strong> Delete the <code>.gitignore</code> lines, the
+            <code>.describe-me/</code> directory and the built site.
+          </li>
+        </ol>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="why.html"><span>Previous</span>Why describe-me</a>
