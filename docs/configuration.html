@@ -59,10 +59,12 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D4">
+      <main class="page">
         <header class="page-head">
           <h1>Configuration</h1>
-          <p class="page-meta">packages/vitest/src/plugin.ts</p>
+          <p class="page-meta">
+            packages/vitest/src/plugin.ts · reporter.ts · default-reporters.ts
+          </p>
         </header>
 
         <p class="lead">
@@ -75,54 +77,690 @@
           <a class="anchor" href="#plugin" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          <code>describeMe()</code> from <code>@describe-me/vitest/plugin</code> is a Vite plugin
+          with <code>enforce: 'pre'</code>, so its <code>render</code> redirect runs before other
+          plugins resolve the import. It adds config through Vite's <code>config</code> hook, which
+          Vite merges with yours. With <code>enabled: false</code> it adds nothing, and its
+          <code>resolveId</code> and <code>transform</code> hooks do nothing: the plugin stays in
+          the list but is inert.
+        </p>
+
+        <h3>Always</h3>
+        <ul>
+          <li>
+            <strong>The environment.</strong> The <code>environment</code> option, else
+            <code>browser</code> when <code>test.browser.enabled</code> is set, else
+            <code>dom</code>. See <a href="environments.html#detection">Environments</a>.
+          </li>
+          <li>
+            <strong><code>test.provide</code>.</strong> It checks <code>include</code>,
+            <code>exclude</code> and <code>renderFrame</code>, and hands them to the setup file
+            under the key <code>describe-me</code>. Vite deep-merges <code>provide</code>, so your
+            own keys stay. Invalid values throw before any test runs.
+          </li>
+          <li>
+            <strong>The reporter.</strong> It adds its reporter, which writes the output directory,
+            next to yours or next to Vitest's defaults. See <a href="#reporters">Reporters</a>.
+          </li>
+          <li>
+            <strong>The <code>render</code> redirect.</strong> Its <code>resolveId</code> hook sends
+            imports of <code>vitest-browser-react</code> (browser mode) or
+            <code>@testing-library/react</code> (DOM) to <code>@describe-me/react</code> or
+            <code>@describe-me/react/testing-library</code>. Imports from inside the adapter are
+            left alone. When the adapter cannot be resolved, the import fails with an install hint,
+            because the original module would record nothing. See
+            <a href="how-it-works.html#interception">How it works</a>.
+          </li>
+          <li>
+            <strong>The export registration.</strong> A <code>transform</code> hook that runs after
+            the TypeScript and JSX transforms appends a call that registers the top-level exports of
+            your own script modules. A component is then named after its export, also when it is an
+            anonymous <code>forwardRef</code>, <code>memo</code> or styled component. It skips test
+            files, <code>node_modules</code>, virtual modules, module ids with a query and files
+            outside the root. It runs only while Vite serves, which Vitest always does, so a
+            <code>vite build</code> that shares the config is untouched. On a parse error it steps
+            aside. <code>registerExports: false</code> turns it off. See
+            <a href="writing-stories.html#naming">Writing stories</a>.
+          </li>
+        </ul>
+
+        <h3>Browser mode</h3>
+        <ul>
+          <li><code>test.setupFiles</code>: <code>@describe-me/vitest/setup</code>.</li>
+          <li>
+            <code>optimizeDeps.include</code>: <code>@describe-me/react</code> and
+            <code>vitest-browser-react</code>. Vite's dependency scan runs before the redirect and
+            never sees the adapter. Without this, Vite finds it mid-run, optimizes again and
+            reloads.
+          </li>
+        </ul>
+
+        <h3>DOM</h3>
+        <ul>
+          <li><code>test.setupFiles</code>: <code>@describe-me/vitest/setup-dom</code>.</li>
+          <li>
+            <code>test.env.RTL_SKIP_AUTO_CLEANUP = 'true'</code>. Testing Library would otherwise
+            unmount in its own <code>afterEach</code>, before the closing frame is taken.
+            describe-me unmounts after that frame instead.
+          </li>
+          <li>
+            <code>test.css = true</code>, unless you set <code>test.css</code>. Vitest stubs CSS
+            imports by default, which would leave every imported stylesheet out of the snapshots.
+            With <code>test.css: false</code> the plugin warns:
+          </li>
+        </ul>
+
+        <pre>
+describe-me: `test.css` is false, so imported stylesheets are stubbed and will be missing from the snapshots.</pre>
+
+        <h3>DOM with styled-components</h3>
+        <p>
+          When styled-components 5 or later is installed and
+          <code>styledComponentsBrowserBuild</code> is not <code>false</code>, the plugin logs one
+          line and adds three things:
+        </p>
+        <pre>describe-me: using the browser build of styled-components, for createGlobalStyle</pre>
+        <ul>
+          <li>
+            A <code>resolve.alias</code> from <code>styled-components</code> to its browser ES
+            module build. The Node build's <code>createGlobalStyle</code> never inserts its CSS, so
+            global resets and fonts would be missing.
+          </li>
+          <li>
+            For styled-components 6.0 to 6.3, a <code>tslib</code> alias to
+            <code>tslib.es6.mjs</code>. When that file is missing, the reporter prints a
+            <a href="troubleshooting.html#diag-setupWarnings">setup warning</a> instead.
+          </li>
+          <li>
+            <code>test.deps.optimizer.client</code>, enabled for <code>styled-components</code>,
+            plus <code>jest-styled-components</code> when it is installed, so both share one
+            instance.
+          </li>
+        </ul>
+        <p><a href="styles-and-fonts.html#styled-components">Styles and fonts</a> explains why.</p>
 
         <h2 id="options">
           Options <a class="anchor" href="#options" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          <code>describeMe()</code> takes one object, <code>DescribeMeOptions</code>. Every option
+          is optional.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Option</th>
+                <th>Type</th>
+                <th>Default</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="option-enabled">
+                <td><code>enabled</code></td>
+                <td class="nowrap"><code>boolean</code></td>
+                <td class="nowrap"><code>true</code></td>
+                <td>
+                  <code>false</code> runs the same tests without recording. The plugin stays inert
+                  (<a href="#plugin">what it changes</a>).
+                </td>
+              </tr>
+              <tr id="option-framework">
+                <td><code>framework</code></td>
+                <td class="nowrap"><code>'react'</code></td>
+                <td class="nowrap"><code>'react'</code></td>
+                <td>Which framework adapter replaces the test library's <code>render</code>.</td>
+              </tr>
+              <tr id="option-environment">
+                <td><code>environment</code></td>
+                <td class="nowrap"><code>'browser' | 'dom'</code></td>
+                <td class="nowrap">detected</td>
+                <td>
+                  Where the tests run. <code>browser</code> when
+                  <code>test.browser.enabled</code> is set, <code>dom</code> otherwise (<a
+                    href="environments.html#detection"
+                    >detection</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-outDir">
+                <td><code>outDir</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td class="nowrap"><code>'.describe-me'</code></td>
+                <td>
+                  Output directory, relative to the Vitest root. When you change it, pass the same
+                  directory to the CLI with <code>--data</code> (<a href="how-it-works.html#storage"
+                    >storage</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-registerExports">
+                <td><code>registerExports</code></td>
+                <td class="nowrap"><code>boolean</code></td>
+                <td class="nowrap"><code>true</code></td>
+                <td>
+                  Name components after their export (<a href="writing-stories.html#naming"
+                    >naming</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-styledComponentsBrowserBuild">
+                <td><code>styledComponentsBrowserBuild</code></td>
+                <td class="nowrap"><code>boolean</code></td>
+                <td class="nowrap"><code>true</code></td>
+                <td>
+                  DOM only. Load the browser build of styled-components (<a
+                    href="styles-and-fonts.html#styled-components"
+                    >styled-components</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-include">
+                <td><code>include</code></td>
+                <td class="nowrap"><code>string | string[]</code></td>
+                <td class="nowrap">every test file</td>
+                <td>
+                  Test files to record. An empty list records none, with a warning (<a
+                    href="#include-exclude"
+                    >which tests record</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-exclude">
+                <td><code>exclude</code></td>
+                <td class="nowrap"><code>string | string[]</code></td>
+                <td class="nowrap">none</td>
+                <td>
+                  Test files never to record. Wins over <code>include</code> (<a
+                    href="#include-exclude"
+                    >which tests record</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-previewHead">
+                <td><code>previewHead</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td class="nowrap">none</td>
+                <td>
+                  HTML the viewer adds to the start of the <code>&lt;head&gt;</code> of every
+                  replayed frame. It never reaches the test page (<a
+                    href="styles-and-fonts.html#captured"
+                    >what is captured</a
+                  >).
+                </td>
+              </tr>
+              <tr id="option-renderFrame">
+                <td><code>renderFrame</code></td>
+                <td class="nowrap">
+                  <code>'eager' | 'lazy' |</code><br /><code>{ pending, timeout? }</code>
+                </td>
+                <td class="nowrap"><code>'eager'</code></td>
+                <td>
+                  When the render frame is taken (<a href="#render-frame">render frame timing</a>).
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    describeMe({
+      <span class="dim">// document the components, not the slow integration suites</span>
+      include: 'src/components/**',
+      exclude: ['**/*.integration.test.tsx'],
+      <span class="dim">// the loader the app's providers show until they are ready</span>
+      renderFrame: { pending: '[data-testid="app-loader"]' },
+    }),
+  ],
+  test: { environment: 'jsdom' },
+})</code></pre>
 
         <h2 id="include-exclude">
           Which tests record
           <a class="anchor" href="#include-exclude" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          <code>include</code> and <code>exclude</code> take a glob or a list of globs. They are
+          matched with <a href="https://github.com/micromatch/picomatch">picomatch</a> against the
+          path of the test file relative to the Vitest root, dotfiles included. A leading
+          <code>./</code> is ignored, and <code>exclude</code> wins over <code>include</code>.
+        </p>
+        <p>
+          Tests in other files still run and report as usual. They record nothing, and their modules
+          leave the manifest, also those kept from an earlier run.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Setting</th>
+                <th>Records</th>
+                <th>Warns</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap"><code>include</code> left out</td>
+                <td>every test file</td>
+                <td>no</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>include: []</code></td>
+                <td>no test file</td>
+                <td>once, when Vitest starts</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>exclude: '**'</code></td>
+                <td>nothing, with the plugin still on</td>
+                <td>no</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>enabled: false</code></td>
+                <td>nothing, with the plugin inert</td>
+                <td>no</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The warning for an empty <code>include</code>:</p>
+        <pre>
+describe-me: include is an empty list, so no test file is recorded. Leave include out to record every test file, or set exclude: '**' to record none without this warning.</pre>
+
+        <p>An empty string or anything other than a string throws before any test runs:</p>
+        <pre>describe-me: include and exclude expect non-empty glob strings, got ''</pre>
+
+        <h3>Projects with their own root</h3>
+        <p>
+          With <code>test.projects</code> entries that set their own <code>root</code>, the two
+          sides disagree on the path. The setup file matches against the path relative to the
+          project root, the reporter against the path relative to the Vitest root. With
+          <code>include: 'src/**'</code> and a project root of <code>packages/app</code>, a file
+          records frames but its module is missing from the manifest. Use globs that start with
+          <code>**/</code>, such as <code>**/src/components/**</code>, which match both forms, or
+          leave <code>include</code> and <code>exclude</code> out.
+        </p>
+
+        <p>
+          Concurrent tests are never recorded, because they would share one recorder. See
+          <a href="environments.html#both">Environments</a>.
+        </p>
 
         <h2 id="render-frame">
           Render frame timing
           <a class="anchor" href="#render-frame" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          A component behind async providers or data loading shows a loader first. The render frame
+          is taken right after mount by default, so the docs show that loader, as in the jsdom
+          example's
+          <a href="examples/react-jsdom/#test=c4531c7f5c42&amp;frame=0">AsyncGreeting</a>.
+          <code>renderFrame</code> takes the frame later:
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th><code>renderFrame</code></th>
+                <th>The render frame is taken</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap"><code>'eager'</code> (default)</td>
+                <td>right after mount</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>'lazy'</code></td>
+                <td>right before the test's next interaction, or at the end of the test</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><code>{ pending, timeout? }</code></td>
+                <td>
+                  as soon as nothing matches the CSS selector <code>pending</code> and the page
+                  shows content
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Every <code>render</code> frame follows the option, <code>rerender</code> included. An
+          interaction is a user event, <code>fireEvent</code>, <code>step()</code>, another
+          <code>render</code>, <code>rerender</code>, <code>unmount</code> or <code>cleanup</code>.
+        </p>
+        <p>
+          <code>pending</code> watches the page with a <code>MutationObserver</code>. After
+          <code>timeout</code> ms (default 2000) it stops watching, and the frame waits as in
+          <code>'lazy'</code>. An interaction that comes first takes the frame too. A
+          <code>pending</code> selector the DOM rejects also falls back to <code>'lazy'</code>, with
+          a warning:
+        </p>
+        <pre>
+describe-me: renderFrame.pending is not a valid CSS selector: "…". Render frames fall back to 'lazy'.</pre>
+
+        <p>
+          Any other value, such as an empty selector or a timeout that is not a number above 0,
+          throws before any test runs.
+        </p>
+
+        <p>
+          In browser mode, <code>await render()</code> returns before a deferred frame is taken.
+          Polling with <code>expect.element</code> is not an interaction, so the frame waits for the
+          next one. To take it earlier, call <code>recorder.flush()</code>, which takes a deferred
+          frame after one settle:
+        </p>
+
+        <pre><code>import { expect, test } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { recorder } from '@describe-me/vitest'
+import { Profile } from './Profile'
+
+test('shows the profile', async () =&gt; {
+  const screen = await render(&lt;Profile /&gt;)
+
+  await expect.element(screen.getByText('Ada')).toBeVisible()
+  await recorder.flush()
+})</code></pre>
 
         <h2 id="reporters">
           Reporters <a class="anchor" href="#reporters" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          The plugin adds its reporter to the reporters of your run. Which others run depends on
+          your config:
+        </p>
+        <ul>
+          <li>
+            <strong>Your config sets <code>test.reporters</code>.</strong> The plugin adds only its
+            own reporter, and Vite concatenates it with your list.
+          </li>
+          <li>
+            <strong>Your config sets none.</strong> Any list replaces the reporters Vitest picks on
+            its own, so the plugin adds Vitest's defaults and then its own. On Vitest 5 it copies
+            Vitest's list: <code>minimal</code> for AI agents, else <code>default</code>, plus
+            <code>github-actions</code> in GitHub Actions. Vitest 4 exports no list, so the plugin
+            rebuilds its rule: <code>agent</code> for AI agents on Vitest 4.1 and later, else
+            <code>default</code>, plus <code>github-actions</code> when
+            <code>GITHUB_ACTIONS=true</code>.
+          </li>
+        </ul>
+        <p>
+          <code>--reporter</code> on the command line replaces the whole list, describe-me's
+          reporter included, so that run writes no output. A run of the jsdom example with
+          <code>vitest run --reporter=dot</code> on Vitest 5.0.1 left its manifest untouched. Name
+          extra reporters in the config instead.
+        </p>
 
         <h2 id="separate-config">
           A config of its own
           <a class="anchor" href="#separate-config" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          To record only when you ask for it, keep the plugin out of
+          <code>vitest.config.ts</code> and add it in a second config that extends the first:
+        </p>
+
+        <p class="file">vitest.describe-me.config.ts</p>
+        <pre><code>import { defineConfig, mergeConfig } from 'vitest/config'
+import { describeMe } from '@describe-me/vitest/plugin'
+import base from './vitest.config'
+
+export default mergeConfig(
+  base,
+  defineConfig({
+    plugins: [describeMe()],
+  }),
+)</code></pre>
+
+        <pre><code>vitest run --config vitest.describe-me.config.ts</code></pre>
+
+        <p>
+          Your usual <code>vitest</code> runs stay free of describe-me, and only this run records.
+          <code>mergeConfig</code> takes objects, so <code>vitest.config.ts</code> must export an
+          object, not a function.
+        </p>
 
         <h2 id="without-plugin">
           Without the plugin
           <a class="anchor" href="#without-plugin" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          You can wire the pieces by hand: the setup file and the reporter, the default export of
+          <code>@describe-me/vitest/reporter</code>. In browser mode:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
+import DescribeMeReporter from '@describe-me/vitest/reporter'
+
+export default defineConfig({
+  test: {
+    setupFiles: ['@describe-me/vitest/setup'],
+    reporters: ['default', new DescribeMeReporter()],
+    browser: {
+      enabled: true,
+      provider: playwright(),
+      instances: [{ browser: 'chromium' }],
+    },
+  },
+})</code></pre>
+
+        <p>
+          Then import <code>render</code> from <code>@describe-me/react</code> instead of
+          <code>vitest-browser-react</code>. For jsdom, use the DOM setup file, and set
+          <code>css: true</code> and <code>RTL_SKIP_AUTO_CLEANUP</code> yourself:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import DescribeMeReporter from '@describe-me/vitest/reporter'
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['@describe-me/vitest/setup-dom'],
+    reporters: ['default', new DescribeMeReporter()],
+    css: true,
+    env: { RTL_SKIP_AUTO_CLEANUP: 'true' },
+  },
+})</code></pre>
+
+        <p>
+          Then import <code>render</code>, <code>fireEvent</code> and <code>cleanup</code> from
+          <code>@describe-me/react/testing-library</code> instead of
+          <code>@testing-library/react</code>.
+        </p>
+
+        <h3>Reporter options</h3>
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Option</th>
+                <th>Default</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>outDir</code></td>
+                <td class="nowrap"><code>'.describe-me'</code></td>
+                <td>Output directory, relative to the Vitest root.</td>
+              </tr>
+              <tr>
+                <td><code>include</code></td>
+                <td class="nowrap">every test file</td>
+                <td>Test files whose modules appear in the manifest. An empty list warns.</td>
+              </tr>
+              <tr>
+                <td><code>exclude</code></td>
+                <td class="nowrap">none</td>
+                <td>Test files to leave out of the manifest. Wins over <code>include</code>.</td>
+              </tr>
+              <tr>
+                <td><code>previewHead</code></td>
+                <td class="nowrap">none</td>
+                <td>HTML the viewer adds to the start of every replayed frame's head.</td>
+              </tr>
+              <tr>
+                <td><code>setupWarnings</code></td>
+                <td class="nowrap">none</td>
+                <td>Problems in the project's setup. The plugin fills it.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          A hand-wired setup records every test, because only the plugin passes
+          <code>include</code> and <code>exclude</code> to the setup file. The reporter still leaves
+          the other modules out of the manifest. <code>renderFrame</code> also reaches the setup
+          file only through the plugin. Set it with <code>recorder.configure()</code> in a setup
+          file of your own, listed after describe-me's:
+        </p>
+
+        <p class="file">describe-me-timing.ts</p>
+        <pre><code>import { recorder } from '@describe-me/vitest'
+
+recorder.configure({ renderFrame: 'lazy' })</code></pre>
+
+        <pre><code>setupFiles: ['@describe-me/vitest/setup-dom', './describe-me-timing.ts'],</code></pre>
+
+        <p>What a hand-wired setup does not get from the plugin:</p>
+        <ul>
+          <li>Vitest's default reporters. Name the reporters you want yourself.</li>
+          <li>The <code>render</code> redirect. Your tests import the adapter directly.</li>
+          <li>
+            <code>include</code>, <code>exclude</code> and <code>renderFrame</code> in the setup
+            file, and their checks before the run.
+          </li>
+          <li>The export registration, so components may lose their export names.</li>
+          <li>The browser build of styled-components in jsdom.</li>
+          <li>
+            In browser mode, <code>optimizeDeps.include</code> for the adapter. Add it yourself if
+            Vite reloads mid-run.
+          </li>
+        </ul>
 
         <h2 id="env">
           Environment variables
           <a class="anchor" href="#env" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D4.</p>
+        <p>
+          The CLI sets <code>DESCRIBE_ME_DIR</code> for the viewer. The other variables below are
+          switches of this repository's examples. The describe-me packages read none of them. The
+          examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks, and
+          <code>BENCH_SKIP</code> and <code>ACT_PARITY</code> work only in
+          <code>examples/react-jsdom</code>.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Read by</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="env-DESCRIBE_ME_DIR">
+                <td><code>DESCRIBE_ME_DIR</code></td>
+                <td>the viewer's Vite config in <code>describe-me</code></td>
+                <td>
+                  The data directory. <code>describe-me dev</code> and
+                  <code>describe-me build</code> set it. Pass
+                  <a href="viewer.html#flag-data"><code>--data</code></a> instead of setting it.
+                </td>
+              </tr>
+              <tr id="env-DESCRIBE_ME">
+                <td><code>DESCRIBE_ME</code></td>
+                <td>both examples</td>
+                <td>
+                  <code>off</code> runs the same tests with <code>enabled: false</code>.
+                  <code>idle</code> runs them with <code>exclude: '**'</code>, writing to
+                  <code>node_modules/.describe-me-idle</code>.
+                </td>
+              </tr>
+              <tr id="env-BENCH_OUT">
+                <td><code>BENCH_OUT</code></td>
+                <td>both examples</td>
+                <td>
+                  A file name. Replaces the console reporter with JSON per-test durations in that
+                  file.
+                </td>
+              </tr>
+              <tr id="env-BENCH_MICRO">
+                <td><code>BENCH_MICRO</code></td>
+                <td>both examples</td>
+                <td>Runs <code>bench/</code> instead of <code>src/</code>.</td>
+              </tr>
+              <tr id="env-BENCH_SKIP">
+                <td><code>BENCH_SKIP</code></td>
+                <td class="nowrap"><code>examples/react-jsdom</code></td>
+                <td>
+                  With <code>DESCRIBE_ME=idle</code>, a list of <code>css</code>,
+                  <code>styled</code> and <code>exports</code> that switches those parts of the
+                  plugin off. The browser example throws when it is set.
+                </td>
+              </tr>
+              <tr id="env-ACT_PARITY">
+                <td><code>ACT_PARITY</code></td>
+                <td class="nowrap"><code>examples/react-jsdom</code></td>
+                <td>
+                  Runs <code>act-parity/</code> instead of <code>src/</code>, with lazy render
+                  frames.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The same switch in your own project:</p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { describeMe } from '@describe-me/vitest/plugin'
+
+describeMe({ enabled: process.env.DESCRIBE_ME !== 'off' })</code></pre>
+
+        <p>
+          An idle variant keeps the plugin on and records nothing. Its run writes an empty manifest
+          and deletes the snapshots no frame points at, so give it a scratch directory:
+        </p>
+
+        <pre><code>const idle = process.env.DESCRIBE_ME === 'idle'
+
+describeMe({
+  enabled: process.env.DESCRIBE_ME !== 'off',
+  ...(idle ? { exclude: '**', outDir: 'node_modules/.describe-me-idle' } : {}),
+})</code></pre>
+
+        <p>
+          <a href="performance.html#measure">Performance</a> shows how to measure with these
+          variants.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="installation.html"><span>Previous</span>Installation</a>
