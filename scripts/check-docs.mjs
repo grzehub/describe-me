@@ -22,7 +22,10 @@
  *   that example's manifest, so run both examples' tests first.
  * - Code samples import only entry points the packages export, in every form
  *   of import, and only names those entry points export. `describe-me` is the
- *   CLI and exports nothing, so any import of it fails.
+ *   CLI and exports nothing, so any import of it fails. A quoted
+ *   `@describe-me/…` specifier outside an import, such as a `setupFiles`
+ *   entry, names an entry point too. Package globs, prefixes and versions are
+ *   not specifiers and pass.
  *
  * Usage: `node scripts/check-docs.mjs`
  */

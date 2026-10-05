@@ -5,8 +5,11 @@ import { dirname, join, relative } from 'node:path'
 const IMPORT_FROM = /^[ \t]*import\b([^'";]*?)\bfrom\s*(['"])([^'"\n]+)\2/gm
 // `import 'x'` and `import('x')`, which take no names.
 const IMPORT_ONLY = /\bimport\s*(\(\s*)?(['"`])([^'"`\n]+)\2/g
-// Any quoted text that starts like one of our specifiers, so a typo such as `setupDom` is caught too.
-const STRING = /(['"`])(@describe-me\/[^'"`\s]*)\1/g
+// Quoted text shaped exactly like a specifier, in any case, so a typo such as `setupDom` is
+// caught. Globs, prefixes, versions and pnpm selectors (`@describe-me/*`, `@describe-me/`,
+// `@describe-me/vitest@^0.5`, `@describe-me/vitest>vitest`) name packages in install commands,
+// Renovate rules and overrides. They are not entry points, so they do not match.
+const STRING = /(['"`])(@describe-me\/[\w.~-]+(?:\/[\w.~-]+)*)\1/g
 const SCOPE = '@describe-me'
 const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm
 const DECLARED =
@@ -20,10 +23,10 @@ const CLI_PROBLEM = 'describe-me is the CLI and exports nothing to import'
 /**
  * Code samples import only what the packages export. In a `<pre><code>` block,
  * every import of `describe-me` or `@describe-me/…` (with names, for side
- * effects or dynamic) and every `@describe-me/…` string, such as a
- * `setupFiles` entry, names an entry point of its package. `describe-me` is
- * the CLI and has none. Every named or default import is exported by the
- * source of its entry point.
+ * effects or dynamic) names an entry point of its package, and so does every
+ * other quoted `@describe-me/…` specifier, such as a `setupFiles` entry.
+ * `describe-me` is the CLI and has none. Every named or default import is
+ * exported by the source of its entry point.
  */
 export default function codeSamples(context) {
   const entries = new EntryPoints(context)

@@ -265,9 +265,13 @@ when the page is written, and every link into it is checked in full.
 
 - `code-samples.mjs`: in a `<pre><code>` block, every import of
   `describe-me` or `@describe-me/…` (with names, for side effects or dynamic)
-  and every `@describe-me/…` string, such as a `setupFiles` entry, names an
-  entry point of its package. `describe-me` is the CLI and has none. Every
-  imported name is exported by that entry point's source.
+  names an entry point of its package, and so does every other quoted
+  `@describe-me/…` specifier, such as a `setupFiles` entry. `describe-me` is
+  the CLI and has none. Package globs, prefixes and versions, as in
+  `pnpm up '@describe-me/*'` or a Renovate rule, are not specifiers and pass.
+  Every imported name is exported by that entry point's source. Only
+  `<pre><code>` blocks are read, so put program output, such as an error that
+  quotes a wrong import, in a `<pre>` without `<code>`.
 - `links.mjs`: relative links point at a page, `docs.css`, `favicon.svg` or an
   example viewer, fragments at ids of their target, SVG references at ids of
   their page, and deep links at tests, frames and suites of the manifests.
