@@ -59,10 +59,13 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D2">
+      <main class="page">
         <header class="page-head">
           <h1>Your tests are your stories</h1>
-          <p class="page-meta">README.md</p>
+          <p class="page-meta">
+            README.md · packages/vitest/src/plugin.ts · packages/core/src/compact-frames.ts ·
+            packages/viewer/cli/main.ts
+          </p>
         </header>
 
         <p class="lead">
@@ -74,34 +77,206 @@
           How it fits together <a class="anchor" href="#how" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <figure class="diagram">
+          <svg viewBox="0 0 800 210" role="img" aria-labelledby="how-title">
+            <title id="how-title">
+              The test records frames, the reporter writes them to .describe-me, the viewer shows
+              them
+            </title>
+            <defs>
+              <marker
+                id="how-arrow"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+            </defs>
+
+            <rect class="dg-group" x="1" y="1" width="356" height="208" rx="10" />
+            <text class="dg-group-title" x="16" y="22">In the test · browser mode or jsdom</text>
+            <rect class="dg-group" x="432" y="1" width="208" height="208" rx="10" />
+            <text class="dg-group-title" x="446" y="22">In Node</text>
+
+            <rect class="dg-node" x="16" y="40" width="140" height="150" rx="8" />
+            <text class="dg-title" x="30" y="62">Your test</text>
+            <text class="dg-mono" x="30" y="86">render(…)</text>
+            <text class="dg-mono" x="30" y="104">click(…)</text>
+            <text class="dg-mono" x="30" y="122">step('…', …)</text>
+
+            <path class="dg-edge" d="M156,115 H198" marker-end="url(#how-arrow)" />
+
+            <rect class="dg-node" x="200" y="40" width="142" height="150" rx="8" />
+            <text class="dg-title" x="214" y="62">Recorder</text>
+            <text class="dg-mono" x="214" y="80">@describe-me/core</text>
+            <text class="dg-text" x="214" y="104">DOM and stylesheets</text>
+            <text class="dg-text" x="214" y="120">after every step</text>
+            <text class="dg-mono" x="214" y="144">rrweb-snapshot</text>
+
+            <path class="dg-edge" d="M342,115 H444" marker-end="url(#how-arrow)" />
+            <text class="dg-label mono" x="366" y="108">task.meta</text>
+
+            <rect class="dg-node" x="446" y="40" width="180" height="150" rx="8" />
+            <text class="dg-title" x="460" y="62">Reporter</text>
+            <text class="dg-mono" x="460" y="80">@describe-me/vitest</text>
+            <text class="dg-text" x="460" y="104">writes .describe-me/</text>
+            <text class="dg-mono" x="472" y="122">manifest.json</text>
+            <text class="dg-mono" x="472" y="138">snapshots/</text>
+            <text class="dg-mono" x="472" y="154">styles/</text>
+            <text class="dg-mono" x="472" y="170">assets/</text>
+
+            <path class="dg-edge" d="M626,115 H662" marker-end="url(#how-arrow)" />
+
+            <rect class="dg-node strong" x="664" y="40" width="134" height="150" rx="8" />
+            <text class="dg-title" x="676" y="62">Viewer</text>
+            <text class="dg-text" x="676" y="86">live</text>
+            <text class="dg-mono" x="676" y="102">describe-me dev</text>
+            <text class="dg-text" x="676" y="130">static site</text>
+            <text class="dg-mono" x="676" y="146">describe-me build</text>
+          </svg>
+          <figcaption>
+            Your tests run as before. The recorder hands each frame to the reporter, which writes
+            plain files that the viewer reads, live or as a static site.
+          </figcaption>
+        </figure>
+
+        <p>Four packages share the work:</p>
+
+        <ul>
+          <li>
+            <code>@describe-me/core</code>: the recorder, <code>step()</code> and the manifest
+            types. The other packages depend on it, so you do not add it yourself.
+          </li>
+          <li>
+            <code>@describe-me/react</code>: the recording <code>render</code>, for
+            <code>vitest-browser-react</code> and for <code>@testing-library/react</code>.
+          </li>
+          <li>
+            <code>@describe-me/vitest</code>: the Vitest plugin, the setup files and the reporter.
+          </li>
+          <li><code>describe-me</code>: the viewer and its CLI.</li>
+        </ul>
+
+        <p>
+          <a href="how-it-works.html#architecture">How it works</a> follows a frame from the test to
+          the viewer.
+        </p>
 
         <h2 id="what-you-get">
           What you get
           <a class="anchor" href="#what-you-get" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <div class="cards">
+          <a class="card" href="writing-stories.html#stories"
+            ><h3>Stories from tests</h3>
+            <p>
+              Every <code>describe</code> is a group and every <code>it</code> a story. There is no
+              separate story abstraction.
+            </p></a
+          >
+          <a class="card" href="writing-stories.html#frames"
+            ><h3>A frame for every step</h3>
+            <p>
+              Frames after render, after each interaction and after each <code>step()</code>, on a
+              timeline you can scrub.
+            </p></a
+          >
+          <a class="card" href="writing-stories.html#props"
+            ><h3>Component overview</h3>
+            <p>Props read from TypeScript, and which of their values your tests cover.</p></a
+          >
+          <a class="card" href="troubleshooting.html#diagnostics"
+            ><h3>Diagnostics</h3>
+            <p>
+              What could not be documented, such as anonymous components or missing assets, in the
+              terminal and in the viewer.
+            </p></a
+          >
+          <a class="card" href="viewer.html#hosting"
+            ><h3>A static site</h3>
+            <p><code>describe-me build</code> writes a site you can host anywhere.</p></a
+          >
+        </div>
 
         <h2 id="see-it">
           See it in the examples
           <a class="anchor" href="#see-it" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <div class="cards">
+          <a class="card viewer" href="examples/react-browser/"
+            ><h3>Browser mode</h3>
+            <p>
+              Buttons, a counter, a menu and a search box, recorded in Chromium through Vitest
+              browser mode.
+            </p></a
+          >
+          <a class="card viewer" href="examples/react-jsdom/"
+            ><h3>jsdom</h3>
+            <p>
+              A design-system style suite with Testing Library, user-event and styled-components,
+              recorded in jsdom.
+            </p></a
+          >
+        </div>
+
+        <p>
+          <a href="examples.html">Examples</a> describes both projects. The viewers need the built
+          site, which <code>pnpm site</code> serves locally, and do not open from disk.
+          <a href="examples.html#open">Open the viewers</a> explains why.
+        </p>
 
         <h2 id="not-yet">
           What it does not do yet
           <a class="anchor" href="#not-yet" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <ul>
+          <li>React only. The core is framework-agnostic, but React is the only adapter.</li>
+          <li>Static snapshots. There is no live mount and there are no controls.</li>
+          <li>
+            jsdom has no layout and loads no fonts inside the test. See
+            <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
+          </li>
+          <li>
+            Pseudo-class states such as <code>:hover</code> or <code>:focus-visible</code> are not
+            in the DOM, so no frame shows them.
+          </li>
+        </ul>
+
+        <p><a href="limitations.html">Limitations</a> lists every known limit.</p>
 
         <h2 id="next">
           Where next <a class="anchor" href="#next" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <div class="cards">
+          <a class="card" href="getting-started.html"
+            ><h3>Getting started</h3>
+            <p>From zero to your first frame, in browser mode or jsdom.</p></a
+          >
+          <a class="card" href="examples.html"
+            ><h3>Examples</h3>
+            <p>Two example projects and their viewers.</p></a
+          >
+          <a class="card" href="why.html"
+            ><h3>Why describe-me</h3>
+            <p>What you gain over separate stories, and what it costs.</p></a
+          >
+          <a class="card" href="configuration.html"
+            ><h3>Configuration</h3>
+            <p>The plugin and its options.</p></a
+          >
+          <a class="card" href="how-it-works.html"
+            ><h3>How it works</h3>
+            <p>Recording, storage and replay in detail.</p></a
+          >
+        </div>
 
         <nav class="pager" aria-label="Pages">
           <a class="next" href="getting-started.html"><span>Next</span>Getting started</a>
