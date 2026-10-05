@@ -62,7 +62,8 @@
   },
   "dependencies": {
     "@describe-me/core": "workspace:^",
-    "picomatch": "^4.0.3"
+    "picomatch": "^4.0.3",
+    "std-env": "^4.0.0"
   },
   "peerDependencies": {
     "vitest": "^4.0.0 || ^5.0.0",

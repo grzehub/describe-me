@@ -150,6 +150,10 @@ recording adapter, so existing tests produce frames without any edits.
 For jsdom, the same line works with a jsdom config — see
 [Environments](#environments).
 
+The plugin adds its reporter to the ones your config names. If it names
+none, the reporter joins the ones Vitest picks on its own, such as `minimal`
+for AI agents and `github-actions` in GitHub Actions.
+
 ```sh
 describe-me dev                  # viewer with live updates while vitest --watch runs
 describe-me build --out docs     # self-contained static site: viewer + __data/

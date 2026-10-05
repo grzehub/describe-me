@@ -75,6 +75,10 @@ test page, and the local files it links are copied into the output directory
 interaction, or `{ pending: '<selector>' }` once a loader is gone. See
 [Render frame timing](https://github.com/grzehub/describe-me#render-frame-timing).
 
+The plugin adds its reporter to the ones your config names. If it names
+none, the reporter joins the ones Vitest picks on its own, such as `minimal`
+for AI agents and `github-actions` in GitHub Actions.
+
 The pieces can also be wired by hand. Tests then import from the adapter
 themselves: `render` from `@describe-me/react` in browser mode, and `render`,
 `fireEvent` and `cleanup` from `@describe-me/react/testing-library` in jsdom:
