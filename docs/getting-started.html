@@ -59,15 +59,19 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D2">
+      <main class="page">
         <header class="page-head">
           <h1>Getting started</h1>
-          <p class="page-meta">README.md · examples/</p>
+          <p class="page-meta">
+            README.md · packages/vitest/src/plugin.ts · packages/viewer/cli/parse-args.ts ·
+            examples/react-browser/vitest.config.ts · examples/react-jsdom/vitest.config.ts ·
+            packages/*/package.json
+          </p>
         </header>
 
         <p class="lead">
-          Add one plugin line to your Vitest config, run your tests and open the viewer. This page
-          does it for browser mode and for jsdom.
+          Add one plugin to your Vitest config, run your tests and open the viewer. This page does
+          it for browser mode and for jsdom.
         </p>
 
         <h2 id="requirements">
@@ -75,51 +79,261 @@
           <a class="anchor" href="#requirements" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <dl class="kv">
+          <dt>Node</dt>
+          <dd>
+            What your Vite and Vitest need. Vite 8 needs <code>^20.19.0 || &gt;=22.12.0</code>. The
+            <code>describe-me</code> CLI needs <code>^20.16.0 || &gt;=22.4.0</code>.
+          </dd>
+          <dt>Vitest</dt>
+          <dd>4 or 5 (<code>^4.0.0 || ^5.0.0</code>)</dd>
+          <dt>Vite</dt>
+          <dd>6.4 and later, 7 or 8 (<code>^6.4.0 || ^7.0.0 || ^8.0.0</code>)</dd>
+          <dt>React</dt>
+          <dd>18 or 19</dd>
+          <dt>Test library</dt>
+          <dd>
+            <code>vitest-browser-react</code> 2 for browser mode,
+            <code>@testing-library/react</code> 16 for jsdom
+          </dd>
+        </dl>
+
+        <p>
+          TypeScript, for props docs, and <code>@testing-library/user-event</code> are optional.
+          <a href="installation.html#versions">Supported versions</a> lists every range.
+        </p>
 
         <h2 id="install">
           Install <a class="anchor" href="#install" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <pre><code>pnpm add -D describe-me @describe-me/vitest @describe-me/react</code></pre>
+
+        <p>With npm or yarn:</p>
+
+        <pre><code>npm install -D describe-me @describe-me/vitest @describe-me/react
+yarn add -D describe-me @describe-me/vitest @describe-me/react vite</code></pre>
+
+        <p>
+          Yarn needs <code>vite</code> in the list because it is a peer of <code>describe-me</code>
+          and yarn does not install peers. Keep all describe-me packages on one version, as
+          <a href="installation.html#lockstep">One version for all packages</a> explains.
+          <a href="installation.html#package-managers">Package managers</a> has the details for
+          each.
+        </p>
 
         <h2 id="browser-mode">
           Browser mode
           <a class="anchor" href="#browser-mode" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <ol class="steps">
+          <li>
+            <strong>Add the browser packages</strong> Skip the ones your project already has, then
+            install Chromium.
+            <pre><code>pnpm add -D vitest-browser-react @vitest/browser-playwright playwright
+pnpm exec playwright install chromium</code></pre>
+          </li>
+          <li>
+            <strong>Add the plugin</strong> Put <code>describeMe()</code> into the plugins of your
+            Vitest config.
+            <p class="file">vitest.config.ts</p>
+            <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { playwright } from '@vitest/browser-playwright'
+import { describeMe } from '@describe-me/vitest/plugin' <span class="dim">// describe-me</span>
+
+export default defineConfig({
+  plugins: [react(), describeMe()], <span class="dim">// describe-me</span>
+  test: {
+    browser: {
+      enabled: true,
+      provider: playwright(),
+      instances: [{ browser: 'chromium' }],
+    },
+  },
+})</code></pre>
+          </li>
+          <li>
+            <strong>Run the tests</strong> They write the frames to <code>.describe-me/</code>.
+            <pre><code>pnpm vitest run</code></pre>
+            <a href="installation.html#gitignore">What to commit</a> says what to keep out of git.
+          </li>
+          <li>
+            <strong>Open the viewer</strong> Start it, then open the URL it prints.
+            <pre><code>pnpm describe-me dev</code></pre>
+            By default that is <code>http://localhost:6006</code>. When the port is taken, the
+            viewer takes the next free one.
+          </li>
+        </ol>
+
+        <p>
+          Your existing tests need no change. The plugin redirects <code>render</code> from
+          <code>vitest-browser-react</code> to a recording one, as
+          <a href="configuration.html#plugin">What the plugin changes</a> describes.
+        </p>
 
         <h2 id="jsdom">
           jsdom <a class="anchor" href="#jsdom" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <ol class="steps">
+          <li>
+            <strong>Add the jsdom packages</strong> Skip the ones your project already has.
+            <code>@testing-library/dom</code> is a peer of <code>@testing-library/react</code>.
+            <pre><code>pnpm add -D @testing-library/react @testing-library/dom jsdom
+pnpm add -D @testing-library/user-event <span class="dim"># optional</span></code></pre>
+          </li>
+          <li>
+            <strong>Add the plugin</strong> Put <code>describeMe()</code> into the plugins of your
+            Vitest config.
+            <p class="file">vitest.config.ts</p>
+            <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin' <span class="dim">// describe-me</span>
+
+export default defineConfig({
+  plugins: [react(), describeMe()], <span class="dim">// describe-me</span>
+  test: { environment: 'jsdom' },
+})</code></pre>
+          </li>
+          <li>
+            <strong>Run the tests</strong> They write the frames to <code>.describe-me/</code>.
+            <pre><code>pnpm vitest run</code></pre>
+          </li>
+          <li>
+            <strong>Open the viewer</strong> Start it, then open the URL it prints.
+            <pre><code>pnpm describe-me dev</code></pre>
+          </li>
+        </ol>
+
+        <p>
+          The plugin redirects <code>render</code> from <code>@testing-library/react</code> and
+          turns on <code>test.css</code> unless you set it, so imported stylesheets reach the
+          snapshots. See <a href="environments.html#jsdom">jsdom</a> for the details and
+          <a href="environments.html#choosing">Which one to use</a> to compare the two. What jsdom
+          cannot do inside a test is in
+          <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
+        </p>
 
         <h2 id="first-story">
           Your first story
           <a class="anchor" href="#first-story" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <p>
+          Any test that renders a component is already a story. <code>step()</code> names a part of
+          it:
+        </p>
+
+        <p class="file">src/Counter.test.tsx</p>
+        <pre><code>import { describe, expect, it } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { step } from '@describe-me/vitest'
+import { Counter } from './Counter'
+
+describe('Counter', () =&gt; {
+  it('does not go below the minimum', async () =&gt; {
+    const screen = await render(&lt;Counter initial={1} /&gt;)
+    await step('go down to the minimum', async () =&gt; {
+      await screen.getByRole('button', { name: 'decrement' }).click()
+    })
+
+    await expect.element(screen.getByLabelText('value')).toHaveTextContent('0')
+  })
+})</code></pre>
+
+        <p>
+          In the viewer, <code>Counter</code> is a group in the sidebar and the test is a story in
+          it. Its timeline starts with the render frame. The click records a frame, and the step
+          gives it its name, because its body produced that DOM. A closing frame follows only when
+          the DOM changed after the last frame.
+          <a href="examples/react-browser/#test=f60b4495b818&amp;frame=1"
+            >Open the step frame in the browser example</a
+          >.
+        </p>
+
+        <p>
+          In jsdom the same test imports <code>render</code> from
+          <code>@testing-library/react</code>, as
+          <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=2"
+            >the Disclosure test in the jsdom example</a
+          >
+          does. See <a href="writing-stories.html#frames">What records a frame</a> and
+          <a href="writing-stories.html#step">Naming steps with step()</a>.
+        </p>
 
         <h2 id="viewer">
           Open the viewer <a class="anchor" href="#viewer" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <p>
+          Run <code>describe-me dev</code> next to Vitest in watch mode. Use two terminals, or one
+          script like the examples:
+        </p>
+
+        <p class="file">package.json</p>
+        <pre><code>"dev": "vitest &amp; describe-me dev --data .describe-me; wait"</code></pre>
+
+        <p>
+          The viewer updates whenever the reporter rewrites the manifest. <code>--data</code> points
+          it at another output directory.
+        </p>
+
+        <p>
+          The sidebar lists files, <code>describe</code> blocks and tests. The middle shows the
+          stage and the frame timeline. The inspector shows the test status, the component, its
+          props and the current frame. <a href="viewer.html#layout">Finding your way</a> walks
+          through it, and <a href="viewer.html#cli">The CLI</a> lists the commands.
+        </p>
 
         <h2 id="publish">
           Publish the docs <a class="anchor" href="#publish" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <pre><code>pnpm describe-me build</code></pre>
+
+        <p>
+          It writes a static site, the viewer with your data copied in, to
+          <code>describe-me-dist/</code>. <code>--out</code> picks another directory. The site uses
+          relative URLs, so it works under a sub-path. Serve it over HTTP, because it does not open
+          from disk. The build downloads web fonts into the site unless you pass
+          <code>--no-vendor-fonts</code>.
+        </p>
+
+        <p>
+          <a href="installation.html#ci">Build the docs in CI</a> shows the CI steps.
+          <a href="viewer.html#hosting">Hosting the static site</a> covers where to put it, and
+          <a href="styles-and-fonts.html#vendoring">Fonts in the static build</a> what the build
+          downloads.
+        </p>
 
         <h2 id="next">
           Next steps <a class="anchor" href="#next" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D2.</p>
+        <div class="cards">
+          <a class="card" href="writing-stories.html"
+            ><h3>Writing stories</h3>
+            <p>Frames, <code>step()</code>, naming and the component overview.</p></a
+          >
+          <a class="card" href="configuration.html"
+            ><h3>Configuration</h3>
+            <p>The plugin and its options.</p></a
+          >
+          <a class="card" href="environments.html"
+            ><h3>Environments</h3>
+            <p>Browser mode and jsdom, and how to choose.</p></a
+          >
+          <a class="card" href="viewer.html"
+            ><h3>Viewer and CLI</h3>
+            <p>Everything the viewer shows, and the commands.</p></a
+          >
+          <a class="card" href="troubleshooting.html"
+            ><h3>Troubleshooting</h3>
+            <p>Diagnostics, warnings and common symptoms.</p></a
+          >
+        </div>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="index.html"><span>Previous</span>Overview</a>
