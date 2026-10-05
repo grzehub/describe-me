@@ -36,6 +36,13 @@ cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the na
 cd examples/react-browser && pnpm bench:macro   # plugin and recording cost, interleaved variants
 cd examples/react-jsdom && pnpm bench:macro     # the same in jsdom, plus the switched-off plugin parts
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
+pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links and code samples, after both examples' tests
+pnpm site:build       # docs/ plus both example viewers → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
+pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
+pnpm site             # site:build, then site:serve
+pnpm check-site       # docs.css applies and both viewers load in Chromium, after pnpm site:build
+pnpm docs:screenshots [page.html …]   # light and dark, 1280 and 390 px wide [--out dir]
+pnpm docs:link react-browser "<full test name>" [frame]   # a deep link into an example viewer for a docs page
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] [--react x.y.z] (Node ^20.19 || >=22.12)
 ```
 

@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "smoke": "node scripts/smoke.mjs",
     "changeset": "changeset",
-    "version-packages": "changeset version && pnpm install --lockfile-only && pnpm format",
+    "version-packages": "changeset version && node scripts/sync-docs-version.mjs && pnpm install --lockfile-only && pnpm format",
     "release": "pnpm build && changeset publish",
     "check-manifest": "node scripts/check-manifest.mjs --require-fonts examples/react-browser/.describe-me/manifest.json examples/react-jsdom/.describe-me/manifest.json",
     "check-style-store": "node scripts/check-style-store.mjs",
@@ -23,7 +23,14 @@
     "check-styled-components": "node scripts/check-styled-components.mjs",
     "check-version-guard": "node scripts/check-version-guard.mjs",
     "check-act-parity": "node scripts/check-act-parity.mjs",
-    "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me"
+    "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me",
+    "check-docs": "node scripts/check-docs.mjs",
+    "site:build": "node scripts/build-site.mjs",
+    "site:serve": "node scripts/serve-site.mjs",
+    "site": "node scripts/build-site.mjs && node scripts/serve-site.mjs",
+    "check-site": "node scripts/check-site.mjs",
+    "docs:screenshots": "node scripts/screenshot-docs.mjs",
+    "docs:link": "node scripts/docs-link.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",

@@ -32,6 +32,9 @@ jobs:
       - run: pnpm --filter react-jsdom test
       - run: pnpm --filter react-jsdom check-styles
       - run: pnpm check-manifest
+      - run: pnpm check-docs
+      - run: pnpm site:build --no-vendor-fonts
+      - run: pnpm check-site
       - run: pnpm check-style-store
       - run: pnpm check-font-audit
       - run: pnpm check-vendor-fonts
