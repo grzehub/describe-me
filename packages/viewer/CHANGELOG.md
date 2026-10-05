@@ -1,5 +1,12 @@
 # describe-me
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [[`de9aad9`](https://github.com/grzehub/describe-me/commit/de9aad9c5070af81a22e9e3119c6b2712093bb40)]:
+  - @describe-me/core@0.5.2
+
 ## 0.5.1
 
 ### Patch Changes

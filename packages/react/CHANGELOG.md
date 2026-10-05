@@ -1,5 +1,13 @@
 # @describe-me/react
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [[`de9aad9`](https://github.com/grzehub/describe-me/commit/de9aad9c5070af81a22e9e3119c6b2712093bb40), [`effa0e6`](https://github.com/grzehub/describe-me/commit/effa0e6c90fe85f490a71321189257de1ae4fc74), [`efcd9e9`](https://github.com/grzehub/describe-me/commit/efcd9e9f052ecaee2bf4298b415b3053399c1fcd), [`460d699`](https://github.com/grzehub/describe-me/commit/460d6995fd1d44d9b75e45b53857867bf83ad8d8)]:
+  - @describe-me/core@0.5.2
+  - @describe-me/vitest@0.5.2
+
 ## 0.5.1
 
 ### Patch Changes
