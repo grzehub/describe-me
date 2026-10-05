@@ -59,10 +59,12 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D3">
+      <main class="page">
         <header class="page-head">
           <h1>Why describe-me</h1>
-          <p class="page-meta">README.md</p>
+          <p class="page-meta">
+            README.md · packages/vitest/src/plugin.ts · packages/core/src/recorder.ts
+          </p>
         </header>
 
         <p class="lead">
@@ -74,27 +76,201 @@
           What you get <a class="anchor" href="#benefits" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <div class="cards">
+          <a class="card" href="writing-stories.html#stories"
+            ><h3>Stories that do not rot</h3>
+            <p>Your stories are tests. When one drifts from its component, CI goes red.</p></a
+          >
+          <a class="card" href="configuration.html#plugin"
+            ><h3>No change to your tests</h3>
+            <p>
+              The plugin redirects the <code>render</code> import. Tests that render through
+              vitest-browser-react or @testing-library/react, directly or through your test utils,
+              record as they are.
+            </p></a
+          >
+          <a class="card" href="writing-stories.html#frames"
+            ><h3>A frame per interaction</h3>
+            <p>Every render and every interaction leaves a frame you can step through.</p></a
+          >
+          <a class="card" href="writing-stories.html#props"
+            ><h3>Props and their coverage</h3>
+            <p>
+              Props come from TypeScript, and the overview marks the values your tests passed. A red
+              cross is an invitation to write a test.
+            </p></a
+          >
+          <a class="card" href="troubleshooting.html#diagnostics"
+            ><h3>Diagnostics</h3>
+            <p>
+              The viewer lists what it could not document, such as unnamed components, missing
+              assets and fonts.
+            </p></a
+          >
+          <a class="card" href="how-it-works.html#storage"
+            ><h3>Small output</h3>
+            <p>
+              Identical DOM and large stylesheets are stored once, however many frames share them.
+            </p></a
+          >
+          <a class="card" href="viewer.html#hosting"
+            ><h3>A static site</h3>
+            <p>Any static host can serve the viewer. There is no backend.</p></a
+          >
+          <a class="card" href="how-it-works.html#architecture"
+            ><h3>A framework-agnostic core</h3>
+            <p>Recording and the viewer know nothing about React. React is an adapter.</p></a
+          >
+          <a class="card" href="environments.html#jsdom"
+            ><h3>Existing jsdom suites</h3>
+            <p>Testing Library suites in jsdom record too, styled-components included.</p></a
+          >
+        </div>
+
+        <p>
+          Tests that render some other way are left out, see
+          <a href="writing-stories.html#left-out">what is left out</a>.
+        </p>
 
         <h2 id="storybook">
           Compared with Storybook
           <a class="anchor" href="#storybook" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <p>
+          Storybook is the established tool for component documentation, with a large community. If
+          you know it, this table maps its ideas onto describe-me.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Storybook</th>
+                <th>describe-me</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Story</td>
+                <td>An <code>it</code> test</td>
+                <td>A test that renders a component is a story, named after the test.</td>
+              </tr>
+              <tr>
+                <td>Args</td>
+                <td>Props passed to <code>render</code></td>
+                <td>The viewer shows the props each test passed.</td>
+              </tr>
+              <tr>
+                <td>Decorators</td>
+                <td>The <code>wrapper</code> in your test utils</td>
+                <td>Providers and global styles wrap each render, as they do in your tests.</td>
+              </tr>
+              <tr>
+                <td><code>preview-head.html</code></td>
+                <td><code>previewHead</code></td>
+                <td>
+                  HTML added to the head of every frame, such as font links. You can read an
+                  existing <code>preview-head.html</code> into it.
+                </td>
+              </tr>
+              <tr>
+                <td>Play function</td>
+                <td>The test body</td>
+                <td>Each interaction leaves a frame. The assertions are the test's own.</td>
+              </tr>
+              <tr>
+                <td>Autodocs</td>
+                <td>The component overview</td>
+                <td>The props table, with the values your tests cover.</td>
+              </tr>
+              <tr>
+                <td>Controls</td>
+                <td>A props table without inputs</td>
+                <td>Not yet. You cannot change props in the viewer.</td>
+              </tr>
+              <tr>
+                <td>Addons</td>
+                <td>None</td>
+                <td>Storybook has a large addon ecosystem. describe-me has no plugin system.</td>
+              </tr>
+              <tr>
+                <td>Visual tests (such as Chromatic)</td>
+                <td>None</td>
+                <td>describe-me records DOM and CSS and compares nothing.</td>
+              </tr>
+              <tr>
+                <td>Static build</td>
+                <td><code>describe-me build</code></td>
+                <td>Both produce a static site any static host can serve.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Newer Storybook versions can run your stories as Vitest tests. describe-me goes the other
+          way and turns your tests into stories. If your stories are where your examples live, stay
+          with Storybook. If your tests are, describe-me documents them as they are.
+        </p>
 
         <h2 id="costs">
           What it costs <a class="anchor" href="#costs" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <p>
+          Recording makes every recorded test take longer.
+          <a href="performance.html">Performance</a> has the measurements and ways to cut the cost.
+        </p>
+
+        <ul>
+          <li>
+            The plugin changes your Vitest and Vite config. It redirects the
+            <code>render</code> import and adds a reporter, among other things. See
+            <a href="configuration.html#plugin">the plugin</a>.
+          </li>
+          <li>
+            It writes a <code>.describe-me/</code> directory into your project, which you will want
+            to <a href="installation.html#gitignore">ignore in git</a>.
+          </li>
+          <li>
+            All four packages must share one version. A mismatch can stop the tests with an error,
+            and the viewer warns about data from another version. See
+            <a href="installation.html#lockstep">lockstep versions</a>.
+          </li>
+          <li>
+            describe-me is a prototype. Expect rough edges and changes, see
+            <a href="limitations.html">Limitations</a>.
+          </li>
+        </ul>
 
         <h2 id="when-not">
           When it is not the right tool
           <a class="anchor" href="#when-not" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <ul>
+          <li>
+            You need a live playground with controls. The viewer shows static snapshots, see
+            <a href="limitations.html#roadmap">the roadmap</a>.
+          </li>
+          <li>
+            You use a framework other than React. See <a href="limitations.html#scope">scope</a>.
+          </li>
+          <li>
+            You need visual regression testing. describe-me does not compare frames, so use a visual
+            testing tool.
+          </li>
+          <li>
+            Your components depend on layout and your tests run in jsdom, which does no layout. See
+            <a href="environments.html#jsdom-limits">jsdom's limits</a>.
+          </li>
+          <li>
+            Your suites run tests concurrently. Concurrent tests are never recorded, see
+            <a href="environments.html#both">both environments</a>.
+          </li>
+        </ul>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="examples.html"><span>Previous</span>Examples</a>

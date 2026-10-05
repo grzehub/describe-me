@@ -59,49 +59,521 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D3">
+      <main class="page">
         <header class="page-head">
           <h1>Examples</h1>
           <p class="page-meta">examples/react-browser · examples/react-jsdom</p>
         </header>
 
         <p class="lead">
-          The repository has two example projects. Every push to main runs their tests and builds a
-          viewer for each, so you can browse the result.
+          The repository has two example projects with plain component tests, one in Vitest browser
+          mode and one in jsdom. Their viewers show what describe-me makes of those tests.
         </p>
 
         <h2 id="open">
           Open the viewers <a class="anchor" href="#open" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <div class="cards">
+          <a class="card viewer" href="examples/react-browser/"
+            ><h3>React in browser mode</h3>
+            <p>
+              Vitest browser mode in Chromium, with tests that render through vitest-browser-react.
+            </p></a
+          >
+          <a class="card viewer" href="examples/react-jsdom/"
+            ><h3>React in jsdom</h3>
+            <p>
+              jsdom with Testing Library and styled-components, shaped like a typical existing
+              suite.
+            </p></a
+          >
+        </div>
+
+        <div class="callout">
+          <strong>Note.</strong> The viewers are part of this site. On your machine,
+          <code>pnpm site</code> builds them with the pages and serves everything at
+          <code>http://localhost:6060/</code>. They do not open from disk. The viewer is a
+          JavaScript module that fetches its data, and browsers allow neither over
+          <code>file://</code>. <a href="viewer.html#hosting">Hosting the viewer</a> has the
+          details.
+        </div>
 
         <h2 id="react-browser">
           React in browser mode
           <a class="anchor" href="#react-browser" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <p>
+          The project runs Vitest in browser mode with Playwright and Chromium, set up as in
+          <a href="getting-started.html#browser-mode">Getting started</a>. Its tests import
+          <code>render</code> from <code>vitest-browser-react</code> and interact through
+          <code>Locator</code> methods and <code>userEvent</code> from <code>vitest/browser</code>.
+          Nothing in them is written for describe-me apart from two calls to <code>step()</code>.
+        </p>
+
+        <p class="file">examples/react-browser/src/Counter.test.tsx</p>
+        <pre><code>import { render } from 'vitest-browser-react'
+import { step } from '@describe-me/vitest'
+import { Counter } from './Counter'
+
+it('does not go below the minimum', async () =&gt; {
+  const screen = await render(&lt;Counter initial={1} /&gt;)
+  await step('go down to the minimum', async () =&gt; {
+    await screen.getByRole('button', { name: 'decrement' }).click()
+  })
+  <span class="dim">// …assertions</span>
+})</code></pre>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>What its tests show</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="name"><code>Counter</code></td>
+                <td>
+                  Every <code>.click()</code> on a <code>Locator</code> is a frame, so
+                  <a href="examples/react-browser/#test=66477549da04&amp;frame=2"
+                    >the second click</a
+                  >
+                  shows the count at 2. <code>step()</code> names a frame after what it does:
+                  <a href="examples/react-browser/#test=f60b4495b818&amp;frame=1"
+                    >go down to the minimum</a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Chip</code></td>
+                <td>
+                  <code>.click()</code> on the remove button, with
+                  <a href="examples/react-browser/#test=a2a42d3ef562&amp;frame=1"
+                    >the click as its own frame</a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>SearchBox</code></td>
+                <td>
+                  <a href="examples/react-browser/#test=0801c3b63dda&amp;frame=1"
+                    ><code>.fill()</code> on a <code>Locator</code></a
+                  >, and <code>userEvent.type</code> and <code>userEvent.keyboard</code>, which
+                  <a href="examples/react-browser/#test=0b39150af1c6&amp;frame=1">type the query</a>
+                  and submit it.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Menu</code></td>
+                <td>
+                  <code>userEvent.click</code>
+                  <a href="examples/react-browser/#test=97caf9925f8f&amp;frame=1">opens the menu</a>
+                  and <code>userEvent.keyboard('{Escape}')</code>
+                  <a href="examples/react-browser/#test=97caf9925f8f&amp;frame=2">closes it</a>. In
+                  the second test a <code>step()</code> names
+                  <a href="examples/react-browser/#test=d5b51b54fed9&amp;frame=1"
+                    >the frame that opens the menu</a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Button</code></td>
+                <td>
+                  Variants, sizes and states. A <code>rerender</code> is a frame of its own:
+                  <a href="examples/react-browser/#test=361e12ef3980&amp;frame=1"
+                    >large, then small</a
+                  >. <code>userEvent.click</code> with <code>force: true</code> clicks
+                  <a href="examples/react-browser/#test=f98c899a3981&amp;frame=1"
+                    >a loading button</a
+                  >
+                  that swallows the click.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Postcard</code></td>
+                <td>
+                  <a href="examples/react-browser/#test=1b944868ad08&amp;frame=0"
+                    >An imported image on a stylesheet <code>url()</code> background</a
+                  >. The viewer serves both files long after the test ran. The caption is set in
+                  Lora, which <code>previewHead</code> loads.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>StyledText</code></td>
+                <td>
+                  Four lines, styled by an inline style, a <code>&lt;style&gt;</code> tag, a CSSOM
+                  <code>insertRule</code> and <code>adoptedStyleSheets</code>.
+                  <a href="examples/react-browser/#test=5ecfadd98c6d&amp;frame=0"
+                    >All four colours survive</a
+                  >.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          The components import their CSS like app code does: <code>styles.css</code>,
+          <code>Chip.css</code> and <code>postcard.css</code>. Every frame carries the styles the
+          page had, see <a href="styles-and-fonts.html#captured">what is captured</a>.
+          <code>previewHead</code> in <code>vitest.config.ts</code> loads Inter from Google Fonts
+          and Lora from a local <code>fonts.css</code>, the way an app shell would. See
+          <a href="styles-and-fonts.html#fonts">Fonts</a>.
+        </p>
+
+        <p>
+          <code>Naming.test.tsx</code> renders components inside a context provider, from a
+          test-local <code>memo</code>, inside a fragment, inside <code>Suspense</code> and after a
+          rerender from an empty fragment. Each test is documented under the component it rendered,
+          not the wrapper around it. <a href="#compare">One test, two environments</a> lists the
+          cases, and <a href="writing-stories.html#naming">Naming</a> explains the rules.
+        </p>
 
         <h2 id="react-jsdom">
           React in jsdom
           <a class="anchor" href="#react-jsdom" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <p>
+          The project runs Vitest in jsdom with Testing Library and <code>globals: true</code>, set
+          up as in <a href="getting-started.html#jsdom">Getting started</a>. Its tests import
+          <code>render</code> from <code>@testing-library/react</code> or from a custom
+          <code>render</code> in <code>src/test-utils.tsx</code>. <code>render</code> is
+          synchronous, and most tests have no <code>await</code>. Recording adds no act warnings,
+          see <a href="environments.html#jsdom">jsdom</a>.
+        </p>
+
+        <p>
+          The custom <code>render</code> wraps every test in a styled-components
+          <code>ThemeProvider</code> and <code>GlobalStyles</code>, as many design systems do. It
+          imports <code>@testing-library/react</code> itself, so its tests record without a change.
+        </p>
+
+        <p class="file">examples/react-jsdom/src/test-utils.tsx</p>
+        <pre><code>function AllTheProviders({ children }: { children: ReactNode }) {
+  return (
+    &lt;ThemeProvider theme={theme}&gt;
+      &lt;GlobalStyles /&gt;
+      {children}
+    &lt;/ThemeProvider&gt;
+  )
+}
+
+function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrapper'&gt;) {
+  return render(ui, { wrapper: AllTheProviders, ...options })
+}</code></pre>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>What its tests show</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="name"><code>Heading</code></td>
+                <td>
+                  A synchronous <code>render</code> through the test utils.
+                  <a href="examples/react-jsdom/#test=ae5575a20d6f&amp;frame=0"
+                    >The heading takes its colour from the theme</a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Text</code></td>
+                <td>Body copy and small muted copy, through the test utils.</td>
+              </tr>
+              <tr>
+                <td class="name"><code>Button</code></td>
+                <td>
+                  Exported from <code>PolymorphicButton.tsx</code>. With
+                  <code>component="a"</code> it
+                  <a href="examples/react-jsdom/#test=94ebcf21f3fc&amp;frame=0">renders as a link</a
+                  >. It is an anonymous generic <code>forwardRef</code>, documented under its
+                  export.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Badge</code></td>
+                <td>
+                  A styled-components pill in
+                  <a href="examples/react-jsdom/#test=23df33da3f17&amp;frame=0">two tones</a>.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Panel</code></td>
+                <td>
+                  <a href="examples/react-jsdom/#test=cd48da2334a3&amp;frame=0"
+                    >A plain CSS import</a
+                  >, the most common case.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Disclosure</code></td>
+                <td>
+                  <code>fireEvent.click</code>
+                  <a href="examples/react-jsdom/#test=4effdae8b6db&amp;frame=1"
+                    >opens it in one frame</a
+                  >. user-event works as a setup instance,
+                  <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=1"
+                    ><code>user.click</code></a
+                  >, and through the direct API,
+                  <a href="examples/react-jsdom/#test=943dfd40f744&amp;frame=1"
+                    ><code>userEvent.click</code></a
+                  >, with one frame per click either way. A <code>step()</code> names
+                  <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=2">close it again</a>.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>AsyncGreeting</code></td>
+                <td>
+                  With the default eager render frame,
+                  <a href="examples/react-jsdom/#test=c4531c7f5c42&amp;frame=0"
+                    >the render frame shows the loader</a
+                  >
+                  and
+                  <a href="examples/react-jsdom/#test=c4531c7f5c42&amp;frame=1"
+                    >the closing frame shows the greeting</a
+                  >. See <a href="configuration.html#render-frame">render frames</a>.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Toast</code></td>
+                <td>
+                  The file turns on fake timers and calls <code>cleanup</code> in
+                  <code>afterEach</code>. A <code>fireEvent</code> inside a <code>step()</code>
+                  <a href="examples/react-jsdom/#test=3f58c216c274&amp;frame=1">dismisses it</a>.
+                  After the timers advance,
+                  <a href="examples/react-jsdom/#test=1ae901275128&amp;frame=1"
+                    >the closing frame shows the empty status region</a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>Postcard</code></td>
+                <td>
+                  <a href="examples/react-jsdom/#test=1b944868ad08&amp;frame=0"
+                    >The same postcard as in browser mode</a
+                  >. Here <code>Postcard.tsx</code> imports Lora's <code>fonts.css</code> like any
+                  stylesheet, and <code>previewHead</code> loads only Inter.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>StyledText</code></td>
+                <td>
+                  The same four lines as in browser mode.
+                  <a href="examples/react-jsdom/#test=5ecfadd98c6d&amp;frame=0"
+                    >The <code>adoptedStyleSheets</code> line keeps its default colour</a
+                  >, because jsdom has no constructable stylesheets.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <code>Naming.test.tsx</code> has the five cases of browser mode with its own components,
+          plus one that renders through the test utils:
+          <a href="examples/react-jsdom/#test=b65498d13018&amp;frame=0"
+            >Badge under the test-utils wrapper</a
+          >
+          is documented as <code>Badge</code>, not as the <code>ThemeProvider</code> around it. See
+          <a href="styles-and-fonts.html#styled-components">styled-components</a> for how its styles
+          reach the viewer.
+        </p>
+
+        <p>
+          Three test files render nothing the viewer can show, so they have no entry in it. They run
+          like any other test. See <a href="writing-stories.html#left-out">what is left out</a>.
+        </p>
+
+        <ul>
+          <li>
+            <a
+              href="https://github.com/grzehub/describe-me/blob/main/examples/react-jsdom/src/use-toggle.test.tsx"
+              ><code>use-toggle.test.tsx</code></a
+            >
+            tests a hook with <code>renderHook</code>, which records no frames.
+          </li>
+          <li>
+            <a
+              href="https://github.com/grzehub/describe-me/blob/main/examples/react-jsdom/src/format-count.test.tsx"
+              ><code>format-count.test.tsx</code></a
+            >
+            tests pure logic.
+          </li>
+          <li>
+            <a
+              href="https://github.com/grzehub/describe-me/blob/main/examples/react-jsdom/src/act-environment.test.tsx"
+              ><code>act-environment.test.tsx</code></a
+            >
+            checks that <code>IS_REACT_ACT_ENVIRONMENT</code> is set.
+          </li>
+        </ul>
 
         <h2 id="compare">
           One test, two environments
           <a class="anchor" href="#compare" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <p>
+          Some tests exist in both examples. Open them side by side to see what the environment
+          changes.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Browser mode</th>
+                <th>jsdom</th>
+                <th>What differs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A photo on a patterned card</td>
+                <td>
+                  <a href="examples/react-browser/#test=1b944868ad08&amp;frame=0">Postcard</a>
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=1b944868ad08&amp;frame=0">Postcard</a>
+                </td>
+                <td>
+                  Both look the same. Lora comes from <code>previewHead</code> in browser mode and
+                  from an imported <code>fonts.css</code> in jsdom.
+                </td>
+              </tr>
+              <tr>
+                <td>Four style techniques</td>
+                <td>
+                  <a href="examples/react-browser/#test=5ecfadd98c6d&amp;frame=0">StyledText</a>
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=5ecfadd98c6d&amp;frame=0">StyledText</a>
+                </td>
+                <td>
+                  The <code>adoptedStyleSheets</code> line is orange in browser mode only. jsdom has
+                  no constructable stylesheets.
+                </td>
+              </tr>
+              <tr>
+                <td>Inside a provider</td>
+                <td>
+                  <a href="examples/react-browser/#test=7d56bd2e9338&amp;frame=0"
+                    >Button variant=secondary</a
+                  >
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=124fb9e029d1&amp;frame=0"
+                    >Badge tone=danger</a
+                  >
+                </td>
+                <td>
+                  A React context provider in browser mode, the styled-components
+                  <code>ThemeProvider</code> in jsdom.
+                </td>
+              </tr>
+              <tr>
+                <td>From a test-local <code>memo</code></td>
+                <td>
+                  <a href="examples/react-browser/#test=8f44b22adcb0&amp;frame=0"
+                    >Chip tone=accent</a
+                  >
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=a5e8f201d2f2&amp;frame=0">Badge tone=info</a>
+                </td>
+                <td>Nothing but the component. Both skip the memo the test file defines.</td>
+              </tr>
+              <tr>
+                <td>Inside a fragment</td>
+                <td>
+                  <a href="examples/react-browser/#test=0a180b03f7ee&amp;frame=0">Button size=sm</a>
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=dbb43dd3fffb&amp;frame=0">Text size=small</a>
+                </td>
+                <td>jsdom renders through the test-utils wrapper, browser mode without one.</td>
+              </tr>
+              <tr>
+                <td>Inside <code>Suspense</code></td>
+                <td>
+                  <a href="examples/react-browser/#test=372e3c412d12&amp;frame=0"
+                    >Counter initial=2</a
+                  >
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=18624e05159a&amp;frame=0"
+                    >Panel title=Suspended</a
+                  >
+                </td>
+                <td>
+                  Browser mode puts the component straight inside <code>Suspense</code>. jsdom wraps
+                  it in a test-local component and gives <code>Suspense</code> a fallback.
+                </td>
+              </tr>
+              <tr>
+                <td>After a rerender from an empty fragment</td>
+                <td>
+                  <a href="examples/react-browser/#test=bf0fdd9215a9&amp;frame=1"
+                    >Button variant=ghost</a
+                  >
+                </td>
+                <td>
+                  <a href="examples/react-jsdom/#test=61f0073d8fd3&amp;frame=1"
+                    >Badge tone=danger</a
+                  >
+                </td>
+                <td>
+                  Browser mode awaits <code>rerender</code>, jsdom calls it synchronously. Both show
+                  an empty first frame.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <a href="environments.html#choosing">Choosing an environment</a> weighs browser mode
+          against jsdom.
+        </p>
 
         <h2 id="locally">
           Run them locally <a class="anchor" href="#locally" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D3.</p>
+        <p>In a clone of the repository:</p>
+
+        <ol class="steps">
+          <li><strong>Install</strong> <code>pnpm install</code></li>
+          <li><strong>Build the packages</strong> <code>pnpm build</code></li>
+          <li>
+            <strong>Install Chromium</strong> once, for browser mode:
+            <code>pnpm --filter react-browser exec playwright install chromium</code>
+          </li>
+          <li>
+            <strong>Run the browser-mode tests</strong>
+            <code>pnpm --filter react-browser test</code>
+          </li>
+          <li><strong>Run the jsdom tests</strong> <code>pnpm --filter react-jsdom test</code></li>
+          <li>
+            <strong>Build and serve the site</strong> <code>pnpm site</code>, then open
+            <code>http://localhost:6060/examples.html</code>.
+          </li>
+        </ol>
+
+        <p>
+          To work on one example, run <code>pnpm dev</code> inside it. It runs
+          <code>vitest</code> and <code>describe-me dev</code> side by side, so the viewer follows
+          the tests as they rerun. See <a href="viewer.html#cli">the CLI</a>.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="getting-started.html"><span>Previous</span>Getting started</a>
