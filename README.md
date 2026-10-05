@@ -224,8 +224,10 @@ test. Everything else behaves as with plain Testing Library:
   `vi.useFakeTimers()` left on never hangs a capture.
 - Switching auto-cleanup off also skips Testing Library's
   `IS_REACT_ACT_ENVIRONMENT` setup, so `setup-dom` sets the flag where Testing
-  Library would (with Vitest globals). React's act warnings match a run
-  without describe-me.
+  Library would (with Vitest globals). The flag is off while the recorder
+  waits for the page to settle, after an interaction and at the end of a test,
+  as it is inside Testing Library's `waitFor` and user-event. So React's act
+  warnings match a run without describe-me.
 - `@testing-library/user-event` is optional.
 
 `examples/react-jsdom` is the jsdom counterpart of `examples/react-browser`. Only
@@ -792,14 +794,16 @@ version".
 ## Switches
 
 There is no `.env`: nothing here is per-environment configuration or a secret.
-The variables below are one-shot switches for the examples' benchmarks, set
-inline for a single run. All three work in both examples.
+The variables below are one-shot switches for the examples' benchmarks and
+checks, set inline for a single run. `ACT_PARITY` works in
+`examples/react-jsdom` only, the others in both examples.
 
-| Variable           | Effect                                                       |
-| ------------------ | ------------------------------------------------------------ |
-| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`). |
-| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.   |
-| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size).   |
+| Variable           | Effect                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`).                       |
+| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.                         |
+| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size).                         |
+| `ACT_PARITY=1`     | Run `act-parity/` instead of `src/`, with lazy render frames (`check-act-parity`). |
 
 `DESCRIBE_ME_DIR` is set by the `describe-me` CLI for the viewer; use `--data`
 instead of setting it yourself.

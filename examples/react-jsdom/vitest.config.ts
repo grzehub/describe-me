@@ -5,6 +5,22 @@ import { describeMe } from '@describe-me/vitest/plugin'
 // BENCH_OUT=<file> swaps the console reporter for JSON with per-test durations.
 const benchOut = process.env.BENCH_OUT
 
+// ACT_PARITY=1 runs the fixtures of `pnpm check-act-parity`, with lazy render
+// frames so that every wait of the recorder runs.
+const actParity = Boolean(process.env.ACT_PARITY)
+
+function testFiles(): string[] {
+  if (actParity) {
+    return ['act-parity/**/*.test.tsx']
+  }
+
+  if (process.env.BENCH_MICRO) {
+    return ['bench/**/*.test.tsx']
+  }
+
+  return ['src/**/*.test.tsx']
+}
+
 // The font an app shell would load. Lora comes from fonts.css instead, which
 // Postcard.tsx imports like any other stylesheet.
 const previewHead = `
@@ -18,11 +34,18 @@ const previewHead = `
 // recording adapter and turns on CSS processing.
 export default defineConfig({
   // DESCRIBE_ME=off runs the same tests without recording, e.g. to compare act warnings.
-  plugins: [react(), describeMe({ enabled: process.env.DESCRIBE_ME !== 'off', previewHead })],
+  plugins: [
+    react(),
+    describeMe({
+      enabled: process.env.DESCRIBE_ME !== 'off',
+      previewHead,
+      renderFrame: actParity ? 'lazy' : 'eager',
+    }),
+  ],
   test: {
     environment: 'jsdom',
     globals: true,
-    include: process.env.BENCH_MICRO ? ['bench/**/*.test.tsx'] : ['src/**/*.test.tsx'],
+    include: testFiles(),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
   },
 })

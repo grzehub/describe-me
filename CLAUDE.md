@@ -29,6 +29,7 @@ pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after 
 pnpm check-frame-timing   # frame compaction and renderFrame validation, after pnpm build
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
+pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup

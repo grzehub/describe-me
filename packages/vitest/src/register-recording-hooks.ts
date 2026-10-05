@@ -1,5 +1,6 @@
 import { afterEach, beforeEach } from 'vitest'
 import { META_KEY, recorder } from '@describe-me/core'
+import type { AroundWait } from '@describe-me/core'
 import { fileFilter } from './file-filter.js'
 import type { RuntimeOptions } from './runtime-options.js'
 
@@ -11,11 +12,11 @@ import type { RuntimeOptions } from './runtime-options.js'
  * jsdom. Concurrent tests would share the one recorder, so they are not
  * recorded.
  */
-export function registerRecordingHooks(options: RuntimeOptions): void {
+export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: AroundWait): void {
   const isRecordedFile = fileFilter(options)
   let warnedConcurrent = false
 
-  recorder.configure({ renderFrame: options.renderFrame })
+  recorder.configure({ renderFrame: options.renderFrame, aroundWait })
 
   beforeEach((context) => {
     if (context.task.concurrent) {
