@@ -5,8 +5,9 @@ import { dirname, join, relative } from 'node:path'
 const IMPORT_FROM = /^[ \t]*import\b([^'";]*?)\bfrom\s*(['"])([^'"\n]+)\2/gm
 // `import 'x'` and `import('x')`, which take no names.
 const IMPORT_ONLY = /\bimport\s*(\(\s*)?(['"`])([^'"`\n]+)\2/g
-const STRING = /(['"`])(@describe-me\/[a-z0-9-]+(?:\/[a-z0-9._-]+)*)\1/g
-const OUR_PACKAGE = /^(?:describe-me|@describe-me\/[a-z0-9-]+)(?=\/|$)/
+// Any quoted text that starts like one of our specifiers, so a typo such as `setupDom` is caught too.
+const STRING = /(['"`])(@describe-me\/[^'"`\s]*)\1/g
+const SCOPE = '@describe-me'
 const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm
 const DECLARED =
   /\bexport\s+(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:function\s*\*?|const|let|var|class|interface|type|enum|namespace)\s+([\w$]+)/g
@@ -30,52 +31,8 @@ export default function codeSamples(context) {
 
   for (const [file, html] of context.html) {
     for (const code of context.helpers.codeBlocks(html)) {
-      problems.push(
-        ...checkStrings(file, code, entries),
-        ...checkImports(file, code, entries),
-        ...checkImportsWithoutNames(file, code),
-      )
-    }
-  }
-
-  return problems
-}
-
-function checkStrings(file, code, entries) {
-  return [...code.matchAll(STRING)]
-    .map((match) => entries.subpathProblem(match[2]))
-    .filter(Boolean)
-    .map((problem) => `${file}: ${problem}`)
-}
-
-function checkImports(file, code, entries) {
-  const problems = []
-
-  for (const match of code.matchAll(IMPORT_FROM)) {
-    const specifier = match[3]
-
-    if (!OUR_PACKAGE.test(specifier)) {
-      continue
-    }
-
-    const statement = match[0].trim().replace(/\s+/g, ' ')
-
-    if (isCli(specifier)) {
-      problems.push(`${file}: ${statement}: ${CLI_PROBLEM}`)
-
-      continue
-    }
-
-    // A wrong subpath is reported once, by checkStrings.
-    const exported = entries.exportsOf(specifier)
-
-    if (exported === null || exported.open) {
-      continue
-    }
-
-    for (const name of importedNames(match[1])) {
-      if (!exported.names.has(name)) {
-        problems.push(`${file}: ${statement}: ${missingExport(entries, specifier, name, exported)}`)
+      for (const use of specifiersIn(code)) {
+        problems.push(...checkSpecifier(use, entries).map((problem) => `${file}: ${problem}`))
       }
     }
   }
@@ -83,19 +40,84 @@ function checkImports(file, code, entries) {
   return problems
 }
 
-/** `@describe-me/…` subpaths of these imports are checked by checkStrings, so only the CLI is left. */
-function checkImportsWithoutNames(file, code) {
-  return [...code.matchAll(IMPORT_ONLY)]
-    .filter((match) => isCli(match[3]))
-    .map((match) => {
-      const statement = match[1] ? `import('${match[3]}')` : `import '${match[3]}'`
+/**
+ * Every use of one of our packages in a code block: each import with its
+ * statement and the names it takes, then every other quoted specifier.
+ */
+function specifiersIn(code) {
+  const uses = []
+  const importQuotes = new Set()
 
-      return `${file}: ${statement}: ${CLI_PROBLEM}`
+  for (const match of code.matchAll(IMPORT_FROM)) {
+    importQuotes.add(quoteIndex(match))
+    uses.push({
+      statement: match[0].trim().replace(/\s+/g, ' '),
+      specifier: match[3],
+      names: importedNames(match[1]),
     })
+  }
+
+  for (const match of code.matchAll(IMPORT_ONLY)) {
+    importQuotes.add(quoteIndex(match))
+    uses.push({
+      statement: match[1] ? `import('${match[3]}')` : `import '${match[3]}'`,
+      specifier: match[3],
+      names: [],
+    })
+  }
+
+  for (const match of code.matchAll(STRING)) {
+    if (!importQuotes.has(match.index)) {
+      uses.push({ statement: null, specifier: match[2], names: [] })
+    }
+  }
+
+  return uses.filter((use) => packageOf(use.specifier) !== null)
 }
 
-function isCli(specifier) {
-  return specifier === 'describe-me' || specifier.startsWith('describe-me/')
+/** Where the specifier's opening quote is. Both import patterns end with the closing quote. */
+function quoteIndex(match) {
+  return match.index + match[0].length - match[3].length - 2
+}
+
+/** The package a specifier belongs to, if it is one of ours: `describe-me` or `@describe-me/<name>`. */
+function packageOf(specifier) {
+  if (specifier === 'describe-me' || specifier.startsWith('describe-me/')) {
+    return 'describe-me'
+  }
+
+  if (specifier !== SCOPE && !specifier.startsWith(`${SCOPE}/`)) {
+    return null
+  }
+
+  const slash = specifier.indexOf('/', SCOPE.length + 1)
+
+  return slash < 0 ? specifier : specifier.slice(0, slash)
+}
+
+function checkSpecifier(use, entries) {
+  const where = use.statement ?? `'${use.specifier}'`
+
+  if (packageOf(use.specifier) === 'describe-me') {
+    // Outside an import, `describe-me` is a package name, as in package.json.
+    return use.statement ? [`${where}: ${CLI_PROBLEM}`] : []
+  }
+
+  const problem = entries.subpathProblem(use.specifier)
+
+  if (problem !== null) {
+    return [`${where}: ${problem}`]
+  }
+
+  const exported = entries.exportsOf(use.specifier)
+
+  if (exported.open) {
+    return []
+  }
+
+  return use.names
+    .filter((name) => !exported.names.has(name))
+    .map((name) => `${where}: ${missingExport(entries, use.specifier, name, exported)}`)
 }
 
 function missingExport(entries, specifier, name, exported) {
@@ -153,7 +175,7 @@ class EntryPoints {
   }
 
   split(specifier) {
-    const name = specifier.match(OUR_PACKAGE)[0]
+    const name = packageOf(specifier)
 
     return { name, subpath: `.${specifier.slice(name.length)}` }
   }
@@ -164,15 +186,16 @@ class EntryPoints {
     const pkg = this.packages.get(name)
 
     if (!pkg) {
-      return `'${specifier}': there is no package ${name}`
+      return `there is no package ${name}${suggestion([...this.packages.keys()], name)}`
     }
 
     const exports = Object.keys(pkg.json.exports ?? {})
 
     if (!exports.includes(subpath)) {
       const known = exports.length > 0 ? exports.join(', ') : 'nothing'
+      const specifiers = exports.map((entry) => name + entry.slice(1))
 
-      return `'${specifier}' is not an entry point of ${name}, which exports ${known}`
+      return `not an entry point of ${name}, which exports ${known}${suggestion(specifiers, specifier)}`
     }
 
     return null
@@ -222,6 +245,14 @@ class EntryPoints {
         return exported !== null && !exported.open && exported.names.has(name)
       })
   }
+}
+
+/** A hint for a slip in case or separators, such as `setupDom` for `setup-dom`. */
+function suggestion(candidates, written) {
+  const loose = (text) => text.toLowerCase().replace(/[^a-z0-9@]/g, '')
+  const match = candidates.find((candidate) => loose(candidate) === loose(written))
+
+  return match ? `. Did you mean ${match}?` : ''
 }
 
 function exportTarget(target) {
