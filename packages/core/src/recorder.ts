@@ -6,6 +6,7 @@ import { serializeDocument } from './serialize-document.js'
 import { settle } from './settle.js'
 import {
   ANONYMOUS_COMPONENT,
+  type AroundWait,
   type CaptureOptions,
   type ComponentInfo,
   type FrameKind,
@@ -20,7 +21,7 @@ type Teardown = () => void
  * Bump it whenever the contract between the recorder and the adapters or setup
  * files changes: a method or property added, removed or changed in meaning.
  */
-const RECORDER_PROTOCOL = 1
+const RECORDER_PROTOCOL = 2
 
 type DeferredMode = Exclude<RenderFrameMode, 'eager'>
 
@@ -51,6 +52,7 @@ class Recorder {
   private deferred: FrameSlot | null = null
   private pending: PendingRender | null = null
   private renderFrame: RenderFrameMode = 'eager'
+  private aroundWait: AroundWait = (wait) => wait()
   private component?: ComponentInfo
   private startedAt = 0
   private active = false
@@ -82,12 +84,17 @@ class Recorder {
   }
 
   /**
-   * Choose when the render frame is taken, from the next render capture on.
-   * The setup files call it with the plugin's options. A `pending` selector
-   * the DOM rejects falls back to `'lazy'` with a warning.
+   * Choose when the render frame is taken, from the next render capture on,
+   * and what runs around each wait. The setup files call it with the plugin's
+   * options. A `pending` selector the DOM rejects falls back to `'lazy'` with
+   * a warning.
    */
   configure(options: RecorderOptions): void {
     const renderFrame = options.renderFrame ?? 'eager'
+
+    if (options.aroundWait !== undefined) {
+      this.aroundWait = options.aroundWait
+    }
 
     if (
       typeof renderFrame === 'object' &&
@@ -210,7 +217,7 @@ class Recorder {
 
     const generation = this.currentGeneration
 
-    await settle()
+    await this.waitToSettle()
 
     // The test ended, or an interaction took the frame, while this settled.
     if (generation !== this.currentGeneration || this.deferred !== slot) {
@@ -281,8 +288,14 @@ class Recorder {
     this.pending = null
   }
 
+  // Only the wait runs inside `aroundWait`, so whatever the wrapper changes is
+  // undone before the snapshot and the teardown.
+  private waitToSettle(): Promise<void> {
+    return this.aroundWait(settle)
+  }
+
   private async settleThenFill(slot: FrameSlot, generation: number): Promise<void> {
-    await settle()
+    await this.waitToSettle()
 
     if (generation === this.currentGeneration) {
       this.fill(slot)

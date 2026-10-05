@@ -34,24 +34,6 @@ async function importRecorder(query) {
   return recorder
 }
 
-async function expectAccepted(name, query, planted) {
-  globalThis[RECORDER_KEY] = planted
-
-  let recorder
-
-  try {
-    recorder = await importRecorder(query)
-  } catch (error) {
-    fail(name, `threw: ${errorMessage(error)}`)
-  }
-
-  if (recorder !== planted) {
-    fail(name, 'the import did not return the stored recorder')
-  }
-
-  pass(name)
-}
-
 async function expectRejected(name, query, planted, fragments) {
   globalThis[RECORDER_KEY] = planted
 
@@ -130,11 +112,17 @@ const expected = first.protocol
 
 await checkSameProtocol(first)
 
-await expectAccepted('0.5.0 recorder: accepted without a protocol', 'recorder-0-5-0', {
-  flush() {},
-  beforeInteraction() {},
-  configure() {},
-})
+await expectRejected(
+  '0.5.0 recorder: rejected',
+  'recorder-0-5-0',
+  { flush() {}, beforeInteraction() {}, configure() {} },
+  [SAME_VERSION, 'protocol 1'],
+)
+
+await expectRejected('0.5.1 recorder: rejected', 'recorder-0-5-1', { protocol: 1, flush() {} }, [
+  SAME_VERSION,
+  'protocol 1',
+])
 
 await expectRejected(
   '0.4 recorder: rejected',

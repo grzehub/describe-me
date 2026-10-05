@@ -54,10 +54,19 @@ export const STYLE_URL_PREFIX = 'describe-me-style:' as const
  */
 export type RenderFrameMode = 'eager' | 'lazy' | { pending: string; timeout?: number }
 
+/** Runs one wait of the recorder. It must call `wait` once and resolve after it. */
+export type AroundWait = (wait: () => Promise<void>) => Promise<void>
+
 /** Options for `recorder.configure()`. */
 export interface RecorderOptions {
   /** When the render frame is taken. Default: `'eager'`. */
   renderFrame?: RenderFrameMode
+  /**
+   * Runs each wait of the recorder. It is kept when omitted, so a later
+   * `configure({ renderFrame })` keeps the setup file's wrapper. By default
+   * it runs `wait` as is.
+   */
+  aroundWait?: AroundWait
 }
 
 /** Options for `recorder.capture()`. */

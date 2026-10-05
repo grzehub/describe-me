@@ -22,6 +22,7 @@
     "check-frame-timing": "node scripts/check-frame-timing.mjs",
     "check-styled-components": "node scripts/check-styled-components.mjs",
     "check-version-guard": "node scripts/check-version-guard.mjs",
+    "check-act-parity": "node scripts/check-act-parity.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me"
   },
   "devDependencies": {
