@@ -326,6 +326,7 @@ function runFixtures(recording) {
   delete env.DESCRIBE_ME
   delete env.BENCH_MICRO
   delete env.BENCH_OUT
+  delete env.BENCH_SKIP
 
   if (!recording) {
     env.DESCRIBE_ME = 'off'

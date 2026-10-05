@@ -795,45 +795,71 @@ version".
 
 There is no `.env`: nothing here is per-environment configuration or a secret.
 The variables below are one-shot switches for the examples' benchmarks and
-checks, set inline for a single run. `ACT_PARITY` works in
+checks, set inline for a single run. `ACT_PARITY` and `BENCH_SKIP` work in
 `examples/react-jsdom` only, the others in both examples.
 
-| Variable           | Effect                                                                             |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| `DESCRIBE_ME=off`  | Same tests, recording disabled (baseline for `bench:macro`).                       |
-| `BENCH_OUT=<file>` | Replace the console reporter with JSON per-test durations.                         |
-| `BENCH_MICRO=1`    | Run `bench/` instead of `src/` (capture cost by DOM size).                         |
-| `ACT_PARITY=1`     | Run `act-parity/` instead of `src/`, with lazy render frames (`check-act-parity`). |
+| Variable            | Effect                                                                                       |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| `DESCRIBE_ME=off`   | Same tests without the plugin (baseline for `bench:macro`).                                  |
+| `DESCRIBE_ME=idle`  | Same tests with the plugin and `exclude: '**'`, writing to `node_modules/.describe-me-idle`. |
+| `BENCH_SKIP=<list>` | With `DESCRIBE_ME=idle`, switch off `css` (`test.css`), `styled` or `exports`.               |
+| `BENCH_OUT=<file>`  | Replace the console reporter with JSON per-test durations.                                   |
+| `BENCH_MICRO=1`     | Run `bench/` instead of `src/` (capture cost by DOM size).                                   |
+| `ACT_PARITY=1`      | Run `act-parity/` instead of `src/`, with lazy render frames (`check-act-parity`).           |
 
 `DESCRIBE_ME_DIR` is set by the `describe-me` CLI for the viewer; use `--data`
 instead of setting it yourself.
 
 ## Overhead
 
-Each example suite runs with recording off (`DESCRIBE_ME=off`) and on, and the
-figures below compare the two. `node ../../scripts/bench-macro.mjs 9`, run in
-`examples/react-browser` and `examples/react-jsdom`, runs `vitest run` 9 times
-per variant, off and on in turn, and reports medians. `pnpm bench:macro` does
-the same with 5 runs. `pnpm bench:micro` in both examples measures single
+`node ../../scripts/bench-macro.mjs 9 <variants>`, run in an example directory,
+runs `vitest run` 9 times per variant, in turn and after one uncounted warm-up
+run, and reports medians. The variants are:
+
+- `off`: no plugin (`DESCRIBE_ME=off`).
+- `idle`: the plugin with `exclude: '**'`, so it records nothing
+  (`DESCRIBE_ME=idle`).
+- `idle-no-css`, `idle-no-styled`, `idle-no-exports`: `idle` with
+  `test.css: false`, `styledComponentsBrowserBuild: false` or
+  `registerExports: false` (`BENCH_SKIP`, jsdom only).
+- `on`: recording.
+
+The plugin cost is `idle − off`, the recording cost `on − idle`. Every variant
+reports through the same JSON reporter, so the console reporter Vitest picks
+per environment never differs between them. `pnpm bench:macro` does 5 runs of
+`off`, `idle` and `on` in `examples/react-browser`, and of all six variants in
+`examples/react-jsdom`. `pnpm bench:micro` in both examples measures single
 captures. Measured on an Apple M2 with Node 20.19.5.
 
 ### Example suites
 
-Browser mode, `examples/react-browser` in headless Chromium: 25 tests, 44
-frames.
-
-|                            | recording off | recording on | overhead        |
-| -------------------------- | ------------- | ------------ | --------------- |
-| sum of test durations      | 1421 ms       | 1635 ms      | +214 ms (+15 %) |
-| wall clock of `vitest run` | 2599 ms       | 3438 ms      | +838 ms (+32 %) |
-
 jsdom, `examples/react-jsdom`: 28 tests, 23 of them in the manifest, 33
 frames.
 
-|                            | recording off | recording on | overhead         |
-| -------------------------- | ------------- | ------------ | ---------------- |
-| sum of test durations      | 620 ms        | 1022 ms      | +401 ms (+65 %)  |
-| wall clock of `vitest run` | 2013 ms       | 3091 ms      | +1078 ms (+54 %) |
+|                            | no plugin (`DESCRIBE_ME=off`) | plugin without recording (`exclude: '**'`) | recording | plugin cost     | recording cost  |
+| -------------------------- | ----------------------------- | ------------------------------------------ | --------- | --------------- | --------------- |
+| sum of test durations      | 543 ms                        | 536 ms                                     | 846 ms    | -8 ms (-1 %)    | +310 ms (+58 %) |
+| wall clock of `vitest run` | 1956 ms                       | 2265 ms                                    | 2993 ms   | +309 ms (+16 %) | +728 ms (+32 %) |
+
+Wall clock of the jsdom run without recording, with one part of the plugin
+switched off, against the plugin without recording:
+
+|                                       | wall clock | change        |
+| ------------------------------------- | ---------- | ------------- |
+| `test.css: false`                     | 2272 ms    | +7 ms (+0 %)  |
+| `styledComponentsBrowserBuild: false` | 2235 ms    | -30 ms (-1 %) |
+| `registerExports: false`              | 2207 ms    | -58 ms (-3 %) |
+
+These are not settings to recommend. The first two drop stylesheets from the
+snapshots, and the third weakens the lookup of component names and props.
+
+Browser mode, `examples/react-browser` in headless Chromium: 25 tests, 44
+frames.
+
+|                            | no plugin (`DESCRIBE_ME=off`) | plugin without recording (`exclude: '**'`) | recording | plugin cost   | recording cost  |
+| -------------------------- | ----------------------------- | ------------------------------------------ | --------- | ------------- | --------------- |
+| sum of test durations      | 1429 ms                       | 1493 ms                                    | 1594 ms   | +65 ms (+5 %) | +101 ms (+7 %)  |
+| wall clock of `vitest run` | 2525 ms                       | 2617 ms                                    | 3334 ms   | +91 ms (+4 %) | +717 ms (+27 %) |
 
 The wall clock also covers the reporter: component docs, snapshot files,
 stylesheets and assets.

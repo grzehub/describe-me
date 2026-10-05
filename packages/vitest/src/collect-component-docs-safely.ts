@@ -22,6 +22,14 @@ export async function collectComponentDocsSafely(
   root: string,
   entries: Iterable<ComponentEntry>,
 ): Promise<Record<string, ComponentDoc>> {
+  const rendered = Array.from(entries)
+
+  // Importing TypeScript takes a few hundred milliseconds, wasted on a run
+  // that recorded no component.
+  if (rendered.length === 0) {
+    return {}
+  }
+
   try {
     await import('typescript')
   } catch {
@@ -31,5 +39,5 @@ export async function collectComponentDocsSafely(
 
   const { collectComponentDocs } = await import('./collect-component-docs.js')
 
-  return collectComponentDocs(root, entries)
+  return collectComponentDocs(root, rendered)
 }
