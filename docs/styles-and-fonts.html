@@ -59,15 +59,19 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D6">
+      <main class="page">
         <header class="page-head">
           <h1>Styles, fonts and assets</h1>
-          <p class="page-meta">packages/vitest/src · packages/viewer/cli</p>
+          <p class="page-meta">
+            packages/vitest/src/asset-store.ts · font-audit.ts · styled-components-browser-build.ts
+            · packages/viewer/cli/vendor-fonts.ts
+          </p>
         </header>
 
         <p class="lead">
           A frame is DOM plus stylesheets. What was on the page during the test is what the viewer
-          shows, plus the preview head. This page covers how to get the rest in.
+          shows, plus the preview head. This page covers how to get the rest in: global styles,
+          fonts and the files your CSS points at.
         </p>
 
         <h2 id="captured">
@@ -75,54 +79,515 @@
           <a class="anchor" href="#captured" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          Each frame is the DOM of the page and its stylesheets, serialized by rrweb-snapshot. There
+          is no layout and no screenshot. The viewer rebuilds the DOM in an iframe and your browser
+          lays it out again. The iframe is sandboxed with <code>allow-same-origin</code> only, so no
+          script runs in the viewer, neither the page's nor the preview head's.
+        </p>
+        <p>
+          So a style shows when it was on the page during the test, in a form rrweb can read. The
+          <a href="#techniques">table below</a> says which forms that covers. Pseudo-class states
+          such as <code>:hover</code> and <code>:focus</code> are not captured (<a
+            href="environments.html#both"
+            >both environments</a
+          >).
+        </p>
+        <p>
+          <a href="configuration.html#option-previewHead"><code>previewHead</code></a> is the one
+          addition. The viewer adds it at the start of every frame's <code>&lt;head&gt;</code> at
+          replay. It never reaches the test page, so the test cannot see it.
+          <a href="how-it-works.html#snapshot">Snapshots</a> and
+          <a href="how-it-works.html#replay">replay</a> explain the internals.
+        </p>
 
         <h2 id="techniques">
           Styling techniques
           <a class="anchor" href="#techniques" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Technique</th>
+                <th>Used by</th>
+                <th>Browser mode</th>
+                <th>jsdom</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>style</code> attributes</td>
+                <td>everyone</td>
+                <td>yes</td>
+                <td>yes</td>
+              </tr>
+              <tr>
+                <td><code>&lt;style&gt;</code> in the document</td>
+                <td>
+                  CSS imports, CSS modules, Tailwind, vanilla-extract, dev builds of emotion and
+                  styled-components
+                </td>
+                <td>yes</td>
+                <td>
+                  yes. CSS imports need <code>test.css</code>, which the plugin turns on (<a
+                    href="configuration.html#plugin"
+                    >what the plugin changes</a
+                  >)
+                </td>
+              </tr>
+              <tr>
+                <td><code>&lt;link rel="stylesheet"&gt;</code></td>
+                <td>stylesheets and web fonts that a setup file or a library links</td>
+                <td>same-origin sheets are inlined, cross-origin ones stay links</td>
+                <td>
+                  the link never loads during the test. A project file is copied with its
+                  <code>url()</code> targets (<a href="#assets">assets</a>). Remote URLs load from
+                  the network, except font stylesheets that <code>describe-me build</code> downloads
+                  (<a href="#vendoring">vendoring</a>)
+                </td>
+              </tr>
+              <tr>
+                <td>CSSOM <code>insertRule</code> into an empty <code>&lt;style&gt;</code></td>
+                <td>emotion and styled-components in production ("speedy") mode</td>
+                <td>yes, rrweb reads <code>cssRules</code></td>
+                <td>yes, for simple rules</td>
+              </tr>
+              <tr>
+                <td><code>document.adoptedStyleSheets</code></td>
+                <td>Lit and other web components</td>
+                <td>yes, copied into a temporary <code>&lt;style&gt;</code> during capture</td>
+                <td>no, jsdom has no constructable stylesheets</td>
+              </tr>
+              <tr>
+                <td><code>adoptedStyleSheets</code> on a shadow root</td>
+                <td>web components with shadow DOM</td>
+                <td>not yet</td>
+                <td>no</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <code>StyledText.test.tsx</code> in both examples renders one line per technique. Compare
+          it in the <a href="examples/react-browser/#test=5ecfadd98c6d">browser-mode viewer</a> and
+          the <a href="examples/react-jsdom/#test=5ecfadd98c6d">jsdom viewer</a>: the
+          <code>adoptedStyleSheets</code> line loses its orange in jsdom. In
+          <code>examples/react-jsdom</code>, <code>pnpm check-styles</code> checks that each rule
+          and its colour are in the snapshots.
+        </p>
+        <p>
+          In jsdom, rules go through jsdom's own CSS parser, which drops what it does not
+          understand. Simple rules are verified. Nesting, <code>@layer</code> and
+          <code>@container</code> are not verified yet (<a href="limitations.html#styles"
+            >limitations</a
+          >).
+        </p>
 
         <h2 id="global-styles">
           Global styles
           <a class="anchor" href="#global-styles" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          Your app shell or Storybook's preview usually adds a reset and a
+          <code>body { font-family }</code> around every component. A test renders the component
+          alone, so they are missing from the frames too: buttons show the browser's grey default
+          and text shows in Times. Put them in the wrapper of your custom <code>render</code>, next
+          to your providers:
+        </p>
+
+        <p class="file">src/test-utils.tsx</p>
+        <pre><code>import { render, type RenderOptions, type RenderResult } from '@testing-library/react'
+import type { ReactElement, ReactNode } from 'react'
+import { ThemeProvider } from 'styled-components'
+import { GlobalStyles } from './GlobalStyles'
+import { theme } from './theme'
+
+export * from '@testing-library/react'
+
+function AllTheProviders({ children }: { children: ReactNode }) {
+  return (
+    &lt;ThemeProvider theme={theme}&gt;
+      &lt;GlobalStyles /&gt;
+      {children}
+    &lt;/ThemeProvider&gt;
+  )
+}
+
+function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrapper'&gt;): RenderResult {
+  return render(ui, { wrapper: AllTheProviders, ...options })
+}
+
+export { customRender as render }</code></pre>
+
+        <p>
+          Tests import <code>render</code> from this file. It imports
+          <code>@testing-library/react</code> itself, so the plugin's redirect records through it
+          and neither the tests nor this file need to know. The jsdom example's
+          <a href="examples/react-jsdom/#test=ae5575a20d6f">Heading test</a> renders this way and
+          takes its colour from the theme. In jsdom with styled-components, also read the
+          <a href="#styled-components">next section</a>.
+        </p>
 
         <h2 id="styled-components">
           styled-components in jsdom
           <a class="anchor" href="#styled-components" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          Vitest loads the Node build of styled-components in jsdom. Its
+          <code>createGlobalStyle</code> never inserts its CSS on the client, so
+          <code>&lt;GlobalStyles /&gt;</code> silently does nothing and the reset and fonts are
+          missing from every frame. With styled-components 5 or later in a DOM environment, the
+          plugin fixes this on its own.
+          <a href="configuration.html#plugin">What the plugin changes</a> lists the config it adds.
+          This is why:
+        </p>
+        <ul>
+          <li>
+            <strong>The browser build.</strong> An alias points <code>styled-components</code> at
+            its browser ES module build, whose <code>createGlobalStyle</code> works.
+          </li>
+          <li>
+            <strong>One instance.</strong> <code>jest-styled-components</code> loads
+            styled-components through Node, which ignores the alias. It would get a second instance
+            whose styles its serializer cannot see. The plugin pre-bundles both together, so they
+            share one instance and <code>toMatchSnapshot</code> output stays the same.
+          </li>
+          <li>
+            <strong>tslib.</strong> styled-components 6.0 to 6.3 import tslib. Vite's optimizer
+            bundles tslib's UMD file without its default export, and every test that imports
+            styled-components fails with an error that contains:
+          </li>
+        </ul>
+
+        <pre>Cannot destructure property '__extends'</pre>
+
+        <p>
+          So the plugin points <code>tslib</code> at the <code>tslib.es6.mjs</code> of the tslib
+          that styled-components resolves, and you need no tslib alias of your own. tslib ships that
+          file from 2.5.3. styled-components 6.1.3 to 6.1.9 pin tslib 2.5.0, which has none. Then
+          the plugin leaves tslib alone, and the reporter prints a
+          <a href="troubleshooting.html#diag-setupWarnings">setup warning</a> after the run, for
+          example:
+        </p>
+
+        <pre>
+styled-components 6.1.5 resolves tslib 2.5.0, which has no tslib.es6.mjs, so its browser build may fail to load ("Cannot destructure property '__extends'"). Upgrade styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later.</pre>
+
+        <p>
+          To keep the Node build, turn all of this off with
+          <a href="configuration.html#option-styledComponentsBrowserBuild"
+            ><code>styledComponentsBrowserBuild: false</code></a
+          >. Global styles from <code>createGlobalStyle</code> are then missing again.
+        </p>
 
         <h2 id="fonts">
           Fonts <a class="anchor" href="#fonts" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          Fonts usually go missing because the app shell loads them, and tests never run the shell:
+          a Google Fonts <code>&lt;link&gt;</code> in <code>index.html</code>, a font loader called
+          at startup, or a <code>fonts.css</code> that only the app entry imports. Give the viewer
+          the same links with <code>previewHead</code>, like Storybook's
+          <code>preview-head.html</code>:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>describeMe({
+  previewHead: `
+    &lt;link rel="preconnect" href="https://fonts.gstatic.com" crossorigin&gt;
+    &lt;link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;display=swap"&gt;
+    &lt;link rel="stylesheet" href="/src/fonts.css"&gt;
+  `,
+})</code></pre>
+
+        <p>A project that already has a <code>preview-head.html</code> can pass it as it is:</p>
+
+        <pre><code>import { readFileSync } from 'node:fs'
+
+describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') })</code></pre>
+
+        <p>
+          The head is stored once, in the manifest. The viewer adds it to the start of every frame's
+          <code>&lt;head&gt;</code>, so the captured styles win ties. It waits at most 3 seconds for
+          the fonts and fits the frame again once they have loaded. A note under the frame names the
+          fonts and stylesheets that did not load in your browser.
+        </p>
+        <p>
+          Local files that the head links with <code>href</code> or <code>src</code>, and the
+          <code>url()</code>s in its <code>&lt;style&gt;</code> blocks, are copied into the output
+          directory. A relative path counts from the project root. <code>/src/fonts.css</code>
+          above is copied together with the fonts it points at. The browser-mode example loads Inter
+          from Google Fonts and a local Lora this way. Its
+          <a href="examples/react-browser/#test=1b944868ad08">Postcard test</a> shows the caption in
+          Lora.
+        </p>
+
+        <h3>Local fonts of an app shell</h3>
+        <p>
+          Say the app shell loads <code>src/app-shell/fonts.css</code>, with
+          <code>@font-face</code> rules that point at <code>.ttf</code> files. There are two ways
+          in. The first is the preview head:
+        </p>
+
+        <pre><code>describeMe({ previewHead: '&lt;link rel="stylesheet" href="/src/app-shell/fonts.css"&gt;' })</code></pre>
+
+        <p>
+          The CSS is stored once, outside the snapshots, and copied with its <code>.ttf</code>
+          files. It must be plain CSS, see the list below.
+        </p>
+        <p>The second is a setup file that only the describe-me run loads:</p>
+
+        <p class="file">describe-me.setup.ts</p>
+        <pre><code>import './src/app-shell/fonts.css'</code></pre>
+
+        <p>
+          Add it to the <code>test</code> block of a
+          <a href="configuration.html#separate-config">config of its own</a>, and the regular run
+          stays as it is:
+        </p>
+
+        <pre><code>test: { setupFiles: ['./describe-me.setup.ts'] },</code></pre>
+
+        <p>
+          The CSS goes through Vite, so aliases and PostCSS work. It lands in the styles of every
+          snapshot, its fonts are copied, and the <a href="#font-check">font check</a> counts the
+          family as loaded. The same import in an existing setup file works too, in every run.
+        </p>
+        <p>
+          Do not call the app's font loaders in tests. The <code>&lt;link&gt;</code> a loader adds
+          lands in every snapshot, and in jsdom it never loads. The preview head does the same job
+          once.
+        </p>
+
+        <h3>Keep in mind</h3>
+        <ul>
+          <li>
+            The viewer ignores scripts in the head. The reporter warns about a
+            <code>&lt;script&gt;</code>.
+          </li>
+          <li>
+            Fonts never load inside jsdom, so the test itself never sees them. Only the viewer shows
+            them (<a href="environments.html#jsdom-limits">jsdom limits</a>).
+          </li>
+          <li>
+            CSS linked from the head is copied as it is on disk. It skips PostCSS, Tailwind and
+            every other Vite transform, so link plain CSS.
+          </li>
+          <li>
+            <code>describe-me dev</code> loads remote fonts from the network.
+            <code>describe-me build</code> downloads them into the site (<a href="#vendoring"
+              >next section</a
+            >).
+          </li>
+        </ul>
 
         <h2 id="vendoring">
           Fonts in the static build
           <a class="anchor" href="#vendoring" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          <code>describe-me build</code> copies the data into the site, then downloads the web fonts
+          that the copy loads from known font hosts. It scans the preview head, the snapshots, the
+          style chunks and the CSS assets of the copy, so a link that a font loader added during a
+          test is covered too. The data directory itself never changes.
+          <code>describe-me dev</code> never downloads fonts.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Hosts</th>
+                <th>In the build</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Google Fonts</td>
+                <td><code>fonts.googleapis.com</code>, <code>fonts.gstatic.com</code></td>
+                <td>downloaded</td>
+              </tr>
+              <tr>
+                <td>Bunny Fonts</td>
+                <td><code>fonts.bunny.net</code></td>
+                <td>downloaded</td>
+              </tr>
+              <tr>
+                <td>Fontsource on jsDelivr</td>
+                <td><code>cdn.jsdelivr.net</code>, Fontsource paths only</td>
+                <td>downloaded</td>
+              </tr>
+              <tr>
+                <td>Adobe Fonts</td>
+                <td><code>use.typekit.net</code> and others</td>
+                <td>stays remote: "Adobe Fonts do not allow self-hosting"</td>
+              </tr>
+              <tr>
+                <td>any other host</td>
+                <td>a stylesheet or font file elsewhere</td>
+                <td>stays remote: "not on the font allowlist"</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ul>
+          <li>
+            <strong>All or nothing.</strong> A stylesheet is replaced only when it and every font
+            and nested <code>@import</code> it names downloaded. Otherwise it keeps loading from the
+            network, and the build names the URL.
+          </li>
+          <li>
+            <strong>Every subset.</strong> Every <code>unicode-range</code> subset of a stylesheet
+            is downloaded, so the site grows (<a href="performance.html#output">output size</a>).
+          </li>
+          <li>
+            <strong>The cache.</strong> Downloads are kept in
+            <code>node_modules/.cache/describe-me/fonts</code>, in the nearest
+            <code>node_modules</code> at or above the data directory. Without one, they go to
+            <code>describe-me-fonts</code> in the system temp directory.
+          </li>
+          <li>
+            <strong>Freshness.</strong> Font files are cached for good. A stylesheet is fresh for 7
+            days. After that it is fetched again, and the stale copy is used when the network fails.
+            So after one online build, later builds of the same data run offline.
+          </li>
+          <li>
+            <strong>Slow hosts.</strong> Each request times out after 10 seconds. A host that cannot
+            be reached is skipped for the rest of the build.
+          </li>
+          <li>
+            <strong>The budget.</strong> One build downloads at most 100 MB of fonts. What is left
+            then stays remote.
+          </li>
+          <li>
+            <strong>Never fatal.</strong> Font downloads never fail the build. What did not download
+            keeps loading from the network.
+          </li>
+        </ul>
+
+        <p>The build says what it did:</p>
+
+        <pre>
+describe-me: vendored 1 stylesheet from fonts.googleapis.com and 7 font files (…) into __data/assets
+describe-me: left remote: use.typekit.net (Adobe Fonts do not allow self-hosting)
+describe-me: https://fonts.bunny.net/css?family=… did not download (…). It keeps loading from the network.</pre>
+
+        <p>
+          It lists at most five URLs that did not download, then how many more. To keep the build
+          off the network, pass
+          <a href="viewer.html#flag-no-vendor-fonts"><code>--no-vendor-fonts</code></a
+          >. Fonts then load from their hosts, as in <code>describe-me dev</code>.
+        </p>
 
         <h2 id="font-check">
           The font check
           <a class="anchor" href="#font-check" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          After each run, the reporter warns about font families that the captured CSS uses but
+          nothing loads. The viewer lists them in the issues menu as "Fonts not loaded", with the
+          number of tests and a link to the first. This is the rule:
+        </p>
+        <ul>
+          <li>
+            <strong>Used.</strong> The first family of every <code>font-family</code> and
+            <code>font</code> declaration, in a frame's stylesheets, the CSS files they link or
+            import, and its <code>style</code> attributes. The fallbacks after the first family do
+            not count.
+          </li>
+          <li>
+            <strong><code>var()</code>.</strong> A <code>var()</code> in the place of the first
+            family is followed through the frame's custom properties, up to 3 levels, else its
+            fallback.
+          </li>
+          <li>
+            <strong>Ignored.</strong> CSS-wide keywords such as <code>inherit</code>, generic
+            families such as <code>sans-serif</code> and <code>system-ui</code>, and families that
+            ship with common operating systems, such as Arial, Helvetica, Segoe UI, Georgia and
+            <code>-apple-system</code>. Roboto, Open Sans, Noto Sans and Inter are not ignored. They
+            are Google Fonts too, and a page that uses them usually loads them.
+          </li>
+          <li>
+            <strong>Loaded.</strong> An <code>@font-face</code> rule in the frame or in the preview
+            head, or a stylesheet from Google Fonts, Bunny Fonts or Fontsource on jsDelivr, whose
+            URL names the family. What the preview head uses itself does not count, only what it
+            loads.
+          </li>
+          <li>
+            <strong>Unknown hosts.</strong> A stylesheet from any other host, such as Adobe Fonts or
+            your own CDN, turns the check off for that frame, because its URL does not say which
+            families it loads. Linked from the preview head, it turns the check off for every frame.
+          </li>
+          <li>
+            <strong>Your machine.</strong> A family installed only on your machine still counts as
+            missing. It would not show for anyone else.
+          </li>
+        </ul>
+
+        <p>
+          The reporter also lists the hosts that frames load stylesheets from. The test server
+          (<code>localhost</code>, <code>127.0.0.1</code>) is never one of them. The check reads the
+          data, so it cannot see a font that fails only in your browser. The note under the frame
+          names those. <a href="troubleshooting.html#diag-fontsMissing">Troubleshooting</a> says
+          what to do about each family.
+        </p>
 
         <h2 id="assets">
           Assets <a class="anchor" href="#assets" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          rrweb records images, videos, fonts and CSS <code>url()</code>s as absolute URLs on the
+          test page, such as <code>http://localhost:3000/src/logo.svg</code> in jsdom or the Vitest
+          server in browser mode. Those stop working once the tests end. So when the snapshots are
+          written, every one of them that points at a project file is copied into
+          <code>.describe-me/assets/</code>, and the snapshot points at the copy. They load in
+          <code>describe-me dev</code> and in the static build alike.
+        </p>
+        <ul>
+          <li>
+            <strong>Lookup.</strong> A <code>/@fs/</code> path, which Vite uses for files outside
+            the root, is read from its place on disk. Any other path is looked up under the project
+            root, then under <code>public/</code>.
+          </li>
+          <li>
+            <strong>Missing files.</strong> A path with a file extension that is not found is listed
+            as <code>assetsMissing</code> in the manifest, in the reporter's output and in the
+            issues menu (<a href="troubleshooting.html#diag-assetsMissing">assetsMissing</a>).
+          </li>
+          <li>
+            <strong>Left alone.</strong> Links to pages, such as <code>&lt;a href="/"&gt;</code>,
+            scripts and the dev server's own paths are not assets and stay as they are.
+          </li>
+          <li>
+            <strong>CSS files.</strong> A copied CSS file keeps working, because its
+            <code>url()</code> and <code>@import</code> targets are copied with it and the copy
+            points at them. Only stylesheets, fonts, images and cursors are pulled in this way, so a
+            stylesheet cannot publish a source file or a secret.
+          </li>
+          <li>
+            <strong>The preview head.</strong> Its local files are copied too, see
+            <a href="#fonts">fonts</a>.
+          </li>
+        </ul>
+
+        <p>
+          The <code>Postcard</code> test shows a photo imported as a module on a background from a
+          stylesheet <code>url()</code>, both copied. See it in the
+          <a href="examples/react-browser/#test=1b944868ad08">browser-mode viewer</a> and the
+          <a href="examples/react-jsdom/#test=1b944868ad08">jsdom viewer</a>.
+          <a href="how-it-works.html#storage">Storage</a> covers file names and garbage collection.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="writing-stories.html"><span>Previous</span>Writing stories</a>

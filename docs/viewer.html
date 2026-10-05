@@ -59,74 +59,399 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D6">
+      <main class="page">
         <header class="page-head">
           <h1>Viewer and CLI</h1>
-          <p class="page-meta">packages/viewer/cli · packages/viewer/src</p>
+          <p class="page-meta">packages/viewer/cli · packages/viewer/src · vite.config.ts</p>
         </header>
 
         <p class="lead">
           <code>describe-me dev</code> shows the frames live while Vitest watches.
-          <code>describe-me build</code> writes the same viewer as a static site.
+          <code>describe-me build</code> writes the same viewer as a static site. This page covers
+          both commands and everything the viewer does.
         </p>
 
         <h2 id="cli">
           The CLI <a class="anchor" href="#cli" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>The <code>describe-me</code> package installs one binary. It always needs a command:</p>
+
+        <pre><code>describe-me dev   [--data .describe-me] [--port 6006]
+describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]</code></pre>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Command or flag</th>
+                <th>Default</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="cmd-dev">
+                <td><code>describe-me dev</code></td>
+                <td class="nowrap">—</td>
+                <td>
+                  Starts a Vite dev server for the viewer and serves the data directory under
+                  <code>/__data</code>. When the reporter rewrites <code>manifest.json</code>, the
+                  server tells the page, and the viewer loads the manifest again. Vite prints the
+                  URL. It never downloads fonts.
+                </td>
+              </tr>
+              <tr id="cmd-build">
+                <td><code>describe-me build</code></td>
+                <td class="nowrap">—</td>
+                <td>
+                  Writes the viewer as a static site to <code>--out</code> and copies the data
+                  directory into it as <code>__data/</code>. Then it downloads web fonts into that
+                  copy (<a href="styles-and-fonts.html#vendoring">fonts in the static build</a>).
+                  The data directory itself never changes.
+                </td>
+              </tr>
+              <tr id="cmd-help">
+                <td><code>describe-me --help</code></td>
+                <td class="nowrap">—</td>
+                <td>
+                  Prints the usage. So does <code>describe-me</code> without a command, also when it
+                  has flags.
+                </td>
+              </tr>
+              <tr id="flag-data">
+                <td><code>--data</code></td>
+                <td class="nowrap"><code>.describe-me</code></td>
+                <td>
+                  <code>dev</code> and <code>build</code>. The directory the reporter wrote,
+                  relative to the current directory. When you set the plugin's
+                  <a href="configuration.html#option-outDir"><code>outDir</code></a
+                  >, pass the same directory here.
+                </td>
+              </tr>
+              <tr id="flag-out">
+                <td><code>--out</code></td>
+                <td class="nowrap"><code>describe-me-dist</code></td>
+                <td>
+                  <code>build</code> only. Where the static site goes. The directory is emptied
+                  first, so never point it at a folder that holds other files.
+                </td>
+              </tr>
+              <tr id="flag-port">
+                <td><code>--port</code></td>
+                <td class="nowrap"><code>6006</code></td>
+                <td>
+                  <code>dev</code> only. The port of the dev server. When it is busy, Vite moves on
+                  to the next free port. Read the URL it prints.
+                </td>
+              </tr>
+              <tr id="flag-help">
+                <td><code>--help</code>, <code>-h</code></td>
+                <td class="nowrap">—</td>
+                <td>Any command. Prints the usage instead of running it.</td>
+              </tr>
+              <tr id="flag-no-vendor-fonts">
+                <td><code>--no-vendor-fonts</code></td>
+                <td class="nowrap">fonts are downloaded</td>
+                <td>
+                  <code>build</code> only. Leaves web fonts on their hosts, so the build makes no
+                  network requests. Use it in CI without network access or under privacy rules.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ul>
+          <li>
+            Any first word other than <code>build</code>, a typo included, starts the dev server.
+            Use <code>--help</code> for the usage.
+          </li>
+          <li>
+            A flag of the other command is ignored, so <code>--port</code> does nothing on
+            <code>build</code>.
+          </li>
+          <li>
+            Without data, <code>build</code> warns <code>no data at …; run vitest first</code> and
+            still finishes. The site then says "no manifest yet — run vitest first".
+          </li>
+          <li>An unknown flag stops the CLI. It prints the error and exits with code 1:</li>
+        </ul>
+
+        <pre>
+describe-me: Unknown option '--prot'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--prot"</pre>
 
         <h2 id="layout">
           Finding your way <a class="anchor" href="#layout" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <ul>
+          <li>
+            <strong>Header.</strong> The number of tests, how many passed and failed, the
+            <a href="#issues">issues chip</a> and the time of the last run.
+          </li>
+          <li>
+            <strong>Sidebar.</strong> The search field, then one block per test file with its
+            <code>describe</code> blocks and tests in source order. A file with a single top-level
+            <code>describe</code> shows its name over the file path. Each test shows its status and
+            its number of frames. A click on a file or <code>describe</code> row opens its
+            <a href="#overview">overview</a>. The arrow in front of it collapses it.
+          </li>
+          <li>
+            <strong>Stage.</strong> The test's path and the <a href="#viewport">viewport toolbar</a>
+            above the replayed frame. A note under the frame names the fonts and stylesheets that
+            did not load in your browser.
+          </li>
+          <li>
+            <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
+            time into the test. A click shows that frame.
+          </li>
+          <li>
+            <strong>Inspector.</strong> The test's status and duration, the component with its
+            props, the current frame as "frame 2 / 3" with its label, and the errors of a failed
+            test.
+          </li>
+        </ul>
+
+        <p>
+          The <a href="examples/react-browser/#test=66477549da04&amp;frame=2">Counter increments</a>
+          test in the browser-mode example has three frames. Step through them with
+          <kbd>←</kbd> and <kbd>→</kbd>.
+        </p>
 
         <h2 id="search">
           Search and collapsing
           <a class="anchor" href="#search" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          The field at the top of the sidebar filters the tests. Every word you type must occur,
+          case-insensitive, in the test's full name with its suites, in its file path or in its
+          component's name. Different words may match different fields, so
+          <code>counter.test reset</code> finds the Counter test that resets, by its file and its
+          name. A search shows matches inside collapsed suites too. The search is not part of the
+          link and is not stored.
+        </p>
+        <p>
+          The arrow in front of a file or <code>describe</code> row collapses it. The browser keeps
+          the collapsed rows in <code>localStorage</code>, per project, so several projects on
+          <code>localhost:6006</code> do not mix. Without storage, as in a private window that
+          blocks it, collapsing still works until you reload. Opening a test expands the rows around
+          it.
+        </p>
 
         <h2 id="keyboard">
           Keyboard <a class="anchor" href="#keyboard" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Where</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap"><kbd>←</kbd> <kbd>→</kbd></td>
+                <td>a test</td>
+                <td>The previous or next frame.</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>↑</kbd> <kbd>↓</kbd></td>
+                <td>a test</td>
+                <td>
+                  The previous or next test the sidebar shows, so they follow the search and skip
+                  collapsed suites. From a test hidden in a collapsed suite, they go to the nearest
+                  row the sidebar shows. From a test the search does not match, <kbd>↓</kbd> goes to
+                  the first match and <kbd>↑</kbd> to the last.
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>↑</kbd> <kbd>↓</kbd></td>
+                <td>an overview</td>
+                <td><kbd>↓</kbd> opens its first test, <kbd>↑</kbd> its last.</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>/</kbd></td>
+                <td>anywhere</td>
+                <td>
+                  Focuses the search and selects its text. Not with <kbd>Ctrl</kbd>,
+                  <kbd>Meta</kbd> or <kbd>Alt</kbd> held, which leaves the key to the browser.
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>Esc</kbd></td>
+                <td>the search field</td>
+                <td>Clears the search and leaves the field.</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>Enter</kbd> <kbd>↓</kbd></td>
+                <td>the search field</td>
+                <td>Opens the first match and leaves the field, so the arrow keys work again.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Shortcuts are off while you type in an input, a textarea, a select or an editable element,
+          and until the manifest has loaded.
+        </p>
 
         <h2 id="viewport">
           Viewport size <a class="anchor" href="#viewport" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          The toolbar above the stage sets the size of the replayed page in CSS pixels. The presets
+          are <code>100%</code>, <code>768px</code> and <code>375px</code>. The W and H fields take
+          any width and height.
+        </p>
+        <ul>
+          <li>
+            Sizes are whole numbers up to 10000. W starts at 1 and H at 120. A smaller H is raised
+            to 120. Anything else, an empty field included, means auto.
+          </li>
+          <li>An auto width fills the stage. <code>100%</code> is the auto width.</li>
+          <li>
+            An auto height fits what the frame paints, at least 120 pixels, and is measured again
+            once the web fonts have loaded. Content sized to the viewport, such as a full-height
+            layout or a dialog on a backdrop, gets the height of the stage. A dialog taller than the
+            stage gets room for all of it.
+          </li>
+          <li>
+            A viewport wider than the stage is scaled down to fit, and the toolbar shows the zoom,
+            such as <code>52%</code>.
+          </li>
+        </ul>
 
         <h2 id="links">
           Links <a class="anchor" href="#links" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>The address holds the view, so you can copy it to share a frame at a size:</p>
+
+        <pre><code>#test=a7f4d7422f6a&amp;frame=1&amp;w=375</code></pre>
+
+        <ul>
+          <li>
+            <code>test</code> is the test's id, <code>frame</code> counts from 0, and
+            <code>w</code> and <code>h</code> are the viewport size. <code>frame=1</code> is the
+            inspector's "frame 2". The link leaves out frame 0 and an auto size.
+          </li>
+          <li>
+            <code>suite</code> takes the place of <code>test</code> for an
+            <a href="#overview">overview</a>.
+          </li>
+          <li>
+            Opening a test or an overview adds a history entry, so Back and Forward move between
+            them. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd> and changing the
+            size replace the current entry.
+          </li>
+          <li>
+            A test id stays the same on other machines and when other tests are added, removed or
+            reordered. Renaming a test or moving it to another suite or file changes it. A link to a
+            test that no longer exists opens the first test.
+          </li>
+          <li>
+            A link written by 0.4 holds Vitest's own test id. It still opens its test, and the
+            viewer rewrites the address.
+          </li>
+        </ul>
+
+        <p>
+          That link opens the second frame of a
+          <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=1&amp;w=375"
+            >Disclosure test</a
+          >
+          in the jsdom example, 375 pixels wide.
+        </p>
 
         <h2 id="overview">
           Component overview
           <a class="anchor" href="#overview" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          A click on a file or <code>describe</code> row in the sidebar opens its overview. It shows
+          the props of each component its tests render, which values the tests cover, and the last
+          frame of every test as a thumbnail. Try the
+          <a href="examples/react-browser/#suite=src%2FButton.test.tsx%3A%3AButton"
+            >Button overview</a
+          >
+          in the browser-mode example.
+          <a href="writing-stories.html#props">Writing stories</a> explains how coverage is counted.
+        </p>
 
         <h2 id="issues">
           Issues and the version banner
           <a class="anchor" href="#issues" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          The issues chip in the header counts what this run could not document: setup problems,
+          anonymous components, components without props docs, missing assets, fonts that nothing
+          loads and remote stylesheet hosts. It opens a list with links to the tests. When there is
+          nothing to report, the chip is not there.
+          <a href="troubleshooting.html#diagnostics">Troubleshooting</a> explains each entry.
+        </p>
+
+        <p>
+          The manifest names the describe-me release that wrote it. When its major.minor differs
+          from the viewer's own, a banner under the header says so, for example:
+        </p>
+
+        <pre>
+Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frames may not show correctly. Install every describe-me package at the same version.</pre>
+
+        <p>
+          The versions in it are those of your packages. Data from 0.5.0 and older names no writer
+          and never shows the banner. Upgrade <code>describe-me</code> and
+          <code>@describe-me/vitest</code> together, run the tests again and reload (<a
+            href="installation.html#lockstep"
+            >one version for all packages</a
+          >). <a href="how-it-works.html#versions">How it works</a> explains which versions read
+          which data.
+        </p>
 
         <h2 id="hosting">
           Hosting the static site
           <a class="anchor" href="#hosting" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D6.</p>
+        <p>
+          <code>describe-me build</code> writes plain files: the viewer, its assets and
+          <code>__data/</code>. Any static file server or host can serve them.
+        </p>
+        <ul>
+          <li>
+            <strong>Any sub-path.</strong> Every URL in the site is relative, the data included, so
+            it works at <code>/docs/</code> or under a GitHub Pages project path as well as at the
+            root.
+          </li>
+          <li>
+            <strong>No rewrites.</strong> The view lives in the part after <code>#</code>, so the
+            server only ever serves <code>index.html</code> and files.
+          </li>
+          <li>
+            <strong>Not from disk.</strong> The viewer is a module script that fetches its data,
+            which browsers do not allow from <code>file://</code>. Serve the folder, even to look at
+            it locally:
+          </li>
+        </ul>
+
+        <pre><code>python3 -m http.server 8080 --directory describe-me-dist</code></pre>
+
+        <p>
+          Then open <code>http://localhost:8080/</code>. An open page checks the manifest every 60
+          seconds and repaints only when a new run has been deployed.
+        </p>
+        <p>
+          <a href="installation.html#ci">Build the docs in CI</a> has a GitHub Actions workflow that
+          runs the tests, builds the site and publishes it to GitHub Pages.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="styles-and-fonts.html"><span>Previous</span>Styles and fonts</a>
