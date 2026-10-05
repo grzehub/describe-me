@@ -56,15 +56,15 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D7">
+      <main class="page">
         <header class="page-head">
           <h1>API</h1>
-          <p class="page-meta">packages/*/package.json · exports</p>
+          <p class="page-meta">packages/*/package.json · exports · packages/*/src</p>
         </header>
 
         <p class="lead">
           Most projects need only the plugin and now and then <code>step()</code>. This page lists
-          every entry point the packages export, for everything else.
+          every entry point of the four packages and everything each one exports.
         </p>
 
         <h2 id="vitest">
@@ -72,25 +72,914 @@
           <a class="anchor" href="#vitest" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The Vitest integration: the plugin, the two setup files, the reporter and
+          <code>step()</code>. Your <code>vitest.config.ts</code> imports the plugin, and your tests
+          import <code>step()</code>.
+        </p>
+
+        <h3 id="entry-vitest">
+          <code>@describe-me/vitest</code>
+          <a class="anchor" href="#entry-vitest" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          Import from it in a test or in a setup file of your own. Both names come from
+          <code>@describe-me/core</code>, re-exported so that a test needs only this package.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>step</code></td>
+                <td>
+                  <code
+                    >step&lt;T&gt;(label: string, fn: () =&gt; T | Promise&lt;T&gt;):
+                    Promise&lt;T&gt;</code
+                  >
+                </td>
+                <td>
+                  Names a phase of the test and takes a frame after <code>fn</code> resolves.
+                  <a href="writing-stories.html#step">Writing stories</a> shows how to use it.
+                </td>
+              </tr>
+              <tr>
+                <td><code>recorder</code></td>
+                <td><code>const recorder: Recorder</code></td>
+                <td>
+                  The test recorder of the page. A setup file of your own calls
+                  <code>recorder.configure()</code>. Its methods are listed under
+                  <a href="#entry-core"><code>@describe-me/core</code></a
+                  >.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-vitest-setup">
+          <code>@describe-me/vitest/setup</code>
+          <a class="anchor" href="#entry-vitest-setup" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>The setup file for browser mode. It exports nothing. Importing it:</p>
+
+        <ul>
+          <li>
+            patches Vitest's <code>Locator</code> and the keyboard methods of
+            <code>userEvent</code> from <code>vitest/browser</code>, so that every interaction
+            records a frame
+          </li>
+          <li>
+            registers the <code>beforeEach</code> and <code>afterEach</code> hooks that record each
+            test and hand its frames to the reporter
+          </li>
+          <li>
+            reads <code>include</code>, <code>exclude</code> and <code>renderFrame</code> from the
+            plugin
+          </li>
+        </ul>
+
+        <p>
+          The plugin adds it to <code>setupFiles</code> in browser mode.
+          <a href="configuration.html#without-plugin">Without the plugin</a> shows how to list it
+          yourself.
+        </p>
+
+        <h3 id="entry-vitest-setup-dom">
+          <code>@describe-me/vitest/setup-dom</code>
+          <a class="anchor" href="#entry-vitest-setup-dom" aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          The setup file for jsdom and other DOM environments. It exports nothing and never imports
+          <code>vitest/browser</code>. Importing it:
+        </p>
+
+        <ul>
+          <li>
+            patches <code>@testing-library/user-event</code>, when it is installed, so that every
+            interaction records a frame
+          </li>
+          <li>
+            sets React's <code>IS_REACT_ACT_ENVIRONMENT</code> flag for each test file, as Testing
+            Library's own setup would if <code>RTL_SKIP_AUTO_CLEANUP</code> did not skip it
+          </li>
+          <li>
+            registers the same hooks as <code>@describe-me/vitest/setup</code>, with the act flag
+            off while the recorder waits, as in Testing Library's own waits
+          </li>
+          <li>
+            reads <code>include</code>, <code>exclude</code> and <code>renderFrame</code> from the
+            plugin
+          </li>
+        </ul>
+
+        <p>
+          The plugin adds it to <code>setupFiles</code> in DOM environments.
+          <a href="configuration.html#without-plugin">Without the plugin</a> shows how to list it
+          yourself.
+        </p>
+
+        <h3 id="entry-vitest-reporter">
+          <code>@describe-me/vitest/reporter</code>
+          <a class="anchor" href="#entry-vitest-reporter" aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          The Vitest reporter that writes the output directory. The plugin creates it for you. You
+          import it in <code>vitest.config.ts</code> only to wire describe-me by hand.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>DescribeMeReporter</code></td>
+                <td>
+                  <code>new DescribeMeReporter(options?: DescribeMeReporterOptions)</code>
+                </td>
+                <td>
+                  The default export, a Vitest reporter. It writes <code>manifest.json</code>,
+                  <code>snapshots/</code>, <code>styles/</code> and <code>assets/</code>, as
+                  <a href="how-it-works.html#storage">How it works</a> explains.
+                </td>
+              </tr>
+              <tr>
+                <td><code>DescribeMeReporterOptions</code></td>
+                <td>
+                  <code
+                    >{ outDir?: string; include?: string | string[]; exclude?: string | string[];
+                    previewHead?: string; setupWarnings?: string[] }</code
+                  >
+                </td>
+                <td>
+                  Its options, all optional.
+                  <a href="configuration.html#without-plugin">Without the plugin</a> explains each
+                  one.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-vitest-plugin">
+          <code>@describe-me/vitest/plugin</code>
+          <a class="anchor" href="#entry-vitest-plugin" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>The Vite plugin, in <code>plugins</code> of <code>vitest.config.ts</code>.</p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>describeMe</code></td>
+                <td>
+                  <code>describeMe(options: DescribeMeOptions = {}): VitePlugin</code>
+                </td>
+                <td>
+                  The whole integration in one line. It adds the setup file and the reporter, and
+                  redirects the <code>render</code> import to the recording adapter.
+                  <a href="configuration.html#plugin">What the plugin changes</a> lists every
+                  change.
+                </td>
+              </tr>
+              <tr>
+                <td><code>DescribeMeOptions</code></td>
+                <td><code>interface DescribeMeOptions { … }</code></td>
+                <td>
+                  Its options, all optional.
+                  <a href="configuration.html#options">Options</a> lists each one.
+                </td>
+              </tr>
+              <tr>
+                <td><code>DescribeMeEnvironment</code></td>
+                <td><code>'browser' | 'dom'</code></td>
+                <td>
+                  Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. The
+                  type of the <code>environment</code> option.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="react">
           @describe-me/react <a class="anchor" href="#react" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The recording <code>render</code> for React, the only code of describe-me that knows
+          React. Your tests keep importing <code>vitest-browser-react</code> or
+          <code>@testing-library/react</code>, and the plugin sends those imports here. You import
+          this package yourself only without the plugin.
+        </p>
+
+        <h3 id="entry-react">
+          <code>@describe-me/react</code>
+          <a class="anchor" href="#entry-react" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          For tests in browser mode. The plugin redirects imports of
+          <code>vitest-browser-react</code> here, so your tests keep their import.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>render</code></td>
+                <td>
+                  <code
+                    >render(ui: ReactElement, options?: RenderOptions): Promise&lt;Screen&gt;</code
+                  >
+                </td>
+                <td>
+                  Drop-in for <code>render</code> of <code>vitest-browser-react</code>, async like
+                  it, with its options and its screen. It records a frame after mount and after
+                  every <code>rerender</code>, and names the component and its props.
+                </td>
+              </tr>
+              <tr>
+                <td><code>step</code></td>
+                <td>
+                  <code
+                    >step&lt;T&gt;(label: string, fn: () =&gt; T | Promise&lt;T&gt;):
+                    Promise&lt;T&gt;</code
+                  >
+                </td>
+                <td>The same <code>step()</code> as in <code>@describe-me/vitest</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Everything else of <code>vitest-browser-react</code> is re-exported as it is, so the
+          adapter can stand in for the whole module.
+        </p>
+
+        <h3 id="entry-react-testing-library">
+          <code>@describe-me/react/testing-library</code>
+          <a
+            class="anchor"
+            href="#entry-react-testing-library"
+            aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          For tests in jsdom and other DOM environments. There, the plugin redirects imports of
+          <code>@testing-library/react</code> here, so your tests keep their import.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>render</code></td>
+                <td>
+                  <code>render(ui: ReactElement, options?: RenderOptions): RenderResult</code>
+                </td>
+                <td>
+                  Drop-in for Testing Library's <code>render</code>, synchronous like it. It records
+                  a frame after mount and after every <code>rerender</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>fireEvent</code></td>
+                <td><code>const fireEvent: FireEvent</code></td>
+                <td>
+                  Testing Library's <code>fireEvent</code>, the function and each method. Every call
+                  records one frame, labelled like <code>click(button "Save")</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>cleanup</code></td>
+                <td><code>cleanup(): void</code></td>
+                <td>
+                  Takes the closing frame, then unmounts. With <code>afterEach(cleanup)</code> in a
+                  test file, the last frame shows the last state, not an empty page.
+                </td>
+              </tr>
+              <tr>
+                <td><code>step</code></td>
+                <td>
+                  <code
+                    >step&lt;T&gt;(label: string, fn: () =&gt; T | Promise&lt;T&gt;):
+                    Promise&lt;T&gt;</code
+                  >
+                </td>
+                <td>The same <code>step()</code> as in <code>@describe-me/vitest</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Everything else of <code>@testing-library/react</code> is re-exported as it is. Importing
+          this entry point hands unmounting to the recorder, which runs it after the closing frame.
+          The plugin switches Testing Library's own cleanup off with
+          <code>RTL_SKIP_AUTO_CLEANUP</code>.
+        </p>
 
         <h2 id="core">
           @describe-me/core <a class="anchor" href="#core" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The part that knows no framework: the recorder, <code>step()</code> and the types of the
+          manifest. The other packages depend on it, so tests rarely import it. Adapters for other
+          frameworks and tools that read <code>manifest.json</code> do.
+        </p>
+
+        <h3 id="entry-core">
+          <code>@describe-me/core</code>
+          <a class="anchor" href="#entry-core" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          For adapters, setup files and tools. A test imports <code>step</code> and
+          <code>recorder</code> from <code>@describe-me/vitest</code> instead.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>cssReferences</code></td>
+                <td><code>cssReferences(cssText: string): CssReference[]</code></td>
+                <td>
+                  Every <code>url()</code> and <code>@import</code> target in CSS text, in source
+                  order. Also in
+                  <a href="#entry-core-css-references"
+                    ><code>@describe-me/core/css-references</code></a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td><code>CssReference</code></td>
+                <td>
+                  <code>{ url: string; start: number; end: number; kind: 'url' | 'import' }</code>
+                </td>
+                <td>One target, as written, with its offsets in the scanned text.</td>
+              </tr>
+              <tr>
+                <td><code>describeComponentType</code></td>
+                <td>
+                  <code
+                    >describeComponentType(type: unknown): Pick&lt;ComponentInfo, 'name' |
+                    'file'&gt;</code
+                  >
+                </td>
+                <td>
+                  Names a component type the way its author would: the export the plugin registered,
+                  then <code>displayName</code>, then the function name, then the same for what a
+                  <code>memo</code> or <code>forwardRef</code> wraps. <code>Anonymous</code> when
+                  nothing names it.
+                </td>
+              </tr>
+              <tr>
+                <td><code>elementLabel</code></td>
+                <td><code>elementLabel(target: unknown): string | undefined</code></td>
+                <td>
+                  A readable target for a frame label, such as <code>button "show details"</code>:
+                  the role and the name of an element. <code>undefined</code> for anything that is
+                  not an <code>Element</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>manifestDiagnostics</code></td>
+                <td>
+                  <code>manifestDiagnostics(manifest: Manifest): ManifestDiagnostics</code>
+                </td>
+                <td>
+                  What a manifest could not document. Also in
+                  <a href="#entry-core-diagnostics"><code>@describe-me/core/diagnostics</code></a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td><code>recorder</code></td>
+                <td><code>const recorder: Recorder</code></td>
+                <td>
+                  The test recorder. There is one per page, kept on <code>globalThis</code>, even
+                  when two copies of this package are loaded. Its methods are below.
+                </td>
+              </tr>
+              <tr>
+                <td><code>serializeValue</code></td>
+                <td><code>serializeValue(value: unknown, depth = 0): unknown</code></td>
+                <td>
+                  Turns props into readable, JSON-safe values. A function becomes
+                  <code>ƒ name</code>, a React element <code>&lt;Name /&gt;</code>, and anything
+                  nested deeper than three levels <code>…</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>step</code></td>
+                <td>
+                  <code
+                    >step&lt;T&gt;(label: string, fn: () =&gt; T | Promise&lt;T&gt;):
+                    Promise&lt;T&gt;</code
+                  >
+                </td>
+                <td>Names a phase of the test and takes a frame after <code>fn</code> resolves.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The methods of <code>recorder</code> that a test or a setup file calls:</p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>configure</code></td>
+                <td><code>configure(options: RecorderOptions): void</code></td>
+                <td>
+                  Sets when the render frame is taken and what runs around each wait. The setup
+                  files call it with the plugin's options.
+                  <a href="configuration.html#without-plugin">Without the plugin</a>, you call it in
+                  a setup file of your own.
+                </td>
+              </tr>
+              <tr>
+                <td><code>setComponent</code></td>
+                <td><code>setComponent(info: ComponentInfo): void</code></td>
+                <td>
+                  Names the component the test documents. The first name stays, unless it is
+                  <code>Anonymous</code> and the new one is not, or the new one adds a
+                  <code>file</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>flush</code></td>
+                <td><code>flush(): Promise&lt;boolean&gt;</code></td>
+                <td>
+                  Waits for the captures in flight, then takes a render frame that
+                  <code>renderFrame</code> held back. Resolves to whether it took one.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Adapters and setup files call the rest of <code>class Recorder</code> in
+          <code>packages/core/src/recorder.ts</code>: <code>begin()</code>, <code>capture()</code>,
+          <code>beforeInteraction()</code>, <code>end()</code>, <code>onTeardown()</code> and
+          <code>teardown()</code>, and they read <code>generation</code>, <code>isActive</code> and
+          <code>protocol</code>. <a href="how-it-works.html#recording">One test, step by step</a>
+          shows when each one runs.
+        </p>
+
+        <p>
+          The root entry point also exports the 26 names of
+          <a href="#entry-core-types"><code>@describe-me/core/types</code></a
+          >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
+          <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
+          <code>ASSET_URL_PREFIX</code>, <code>STYLE_URL_PREFIX</code>,
+          <code>RenderFrameMode</code>, <code>AroundWait</code>, <code>RecorderOptions</code>,
+          <code>CaptureOptions</code>, <code>Frame</code>, <code>TestRecord</code>,
+          <code>META_KEY</code>, <code>TestState</code>, <code>ManifestFrame</code>,
+          <code>ManifestTest</code>, <code>ManifestModule</code>, <code>PropKind</code>,
+          <code>PropDoc</code>, <code>ComponentDoc</code>, <code>ManifestGenerator</code>,
+          <code>Manifest</code>, <code>FontMissing</code>, <code>RemoteStylesheet</code>,
+          <code>ANONYMOUS_COMPONENT</code> and <code>ManifestDiagnostics</code>.
+        </p>
+
+        <h3 id="entry-core-types">
+          <code>@describe-me/core/types</code>
+          <a class="anchor" href="#entry-core-types" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          For tools that read <code>manifest.json</code>, and for adapters. It holds no DOM code, so
+          it is safe to import from Node.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Shape</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>FrameKind</code></td>
+                <td><code>'render' | 'action' | 'step' | 'end'</code></td>
+                <td>
+                  What took a frame: a render, an interaction, a <code>step()</code> or the end of
+                  the test.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ComponentInfo</code></td>
+                <td>
+                  <code>{ name: string; props: Record&lt;string, unknown&gt;; file?: string }</code>
+                </td>
+                <td>
+                  The component a test documents and the props it was rendered with.
+                  <code>file</code> is its source file, when the plugin registered its exports.
+                </td>
+              </tr>
+              <tr>
+                <td><code>RegisteredExport</code></td>
+                <td><code>{ name: string; file: string }</code></td>
+                <td>
+                  What the plugin registers for each top-level export of a project module: the
+                  export name and the module, relative to the project root.
+                </td>
+              </tr>
+              <tr>
+                <td><code>EXPORT_REGISTRY_KEY</code></td>
+                <td><code>'describe-me.exports'</code></td>
+                <td>
+                  The <code>Symbol.for()</code> key of the registry on <code>globalThis</code>, a
+                  <code>WeakMap&lt;object, RegisteredExport&gt;</code>. A global, because a project
+                  module cannot always resolve <code>@describe-me/core</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ASSET_URL_PREFIX</code></td>
+                <td><code>'describe-me-asset:'</code></td>
+                <td>
+                  The prefix of project asset URLs in stored snapshots, followed by the stored file
+                  name. The viewer resolves it against <code>__data/assets/</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>STYLE_URL_PREFIX</code></td>
+                <td><code>'describe-me-style:'</code></td>
+                <td>
+                  The prefix of stylesheet references in stored snapshots, followed by the hashes of
+                  the sheet's chunks, joined with <code>+</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>RenderFrameMode</code></td>
+                <td>
+                  <code>'eager' | 'lazy' | { pending: string; timeout?: number }</code>
+                </td>
+                <td>
+                  When the render frame is taken.
+                  <a href="configuration.html#render-frame">Render frame timing</a> explains each
+                  mode.
+                </td>
+              </tr>
+              <tr>
+                <td><code>AroundWait</code></td>
+                <td><code>(wait: () =&gt; Promise&lt;void&gt;) =&gt; Promise&lt;void&gt;</code></td>
+                <td>
+                  Runs one wait of the recorder and must call <code>wait</code> once. The jsdom
+                  setup file uses it to switch React's act flag off while the recorder waits.
+                </td>
+              </tr>
+              <tr>
+                <td><code>RecorderOptions</code></td>
+                <td>
+                  <code>{ renderFrame?: RenderFrameMode; aroundWait?: AroundWait }</code>
+                </td>
+                <td>The options of <code>recorder.configure()</code>.</td>
+              </tr>
+              <tr>
+                <td><code>CaptureOptions</code></td>
+                <td><code>{ settle?: boolean; generation?: number }</code></td>
+                <td>
+                  The options of <code>recorder.capture()</code>. <code>settle: false</code> takes
+                  the snapshot at once, for DOM that is already committed. A
+                  <code>generation</code> from an earlier test drops the capture.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Frame</code></td>
+                <td>
+                  <code
+                    >{ id: string; kind: FrameKind; label: string; at: number; meta?:
+                    Record&lt;string, unknown&gt;; snapshot: string }</code
+                  >
+                </td>
+                <td>
+                  A frame as the recorder took it. <code>snapshot</code> is the serialized document
+                  as JSON text, <code>at</code> the time since the test began, in ms.
+                </td>
+              </tr>
+              <tr>
+                <td><code>TestRecord</code></td>
+                <td>
+                  <code>{ frames: Frame[]; component?: ComponentInfo; origin?: string }</code>
+                </td>
+                <td>
+                  What a test hands to the reporter. <code>origin</code> is the page's
+                  <code>location.origin</code>, which the reporter needs to find project assets.
+                </td>
+              </tr>
+              <tr>
+                <td><code>META_KEY</code></td>
+                <td><code>'describeMe'</code></td>
+                <td>The key of <code>task.meta</code> that carries a test's record.</td>
+              </tr>
+              <tr>
+                <td><code>TestState</code></td>
+                <td><code>'passed' | 'failed' | 'skipped' | 'pending'</code></td>
+                <td>The result of a test in the manifest.</td>
+              </tr>
+              <tr>
+                <td><code>ManifestFrame</code></td>
+                <td>
+                  <code
+                    >{ id: string; kind: FrameKind; label: string; at: number; meta?:
+                    Record&lt;string, unknown&gt;; snapshot: string }</code
+                  >
+                </td>
+                <td>
+                  A frame in the manifest. <code>snapshot</code> is the path of its file, relative
+                  to the manifest. <a href="how-it-works.html#manifest">The manifest</a> describes
+                  it.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ManifestTest</code></td>
+                <td>
+                  <code
+                    >{ id, vitestId?, name, path, fullName, state, duration?, errors?, component?,
+                    frames }</code
+                  >
+                </td>
+                <td>
+                  A test in the manifest, with an id that stays the same across runs and machines.
+                  <a href="how-it-works.html#manifest">The manifest</a> describes each field.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ManifestModule</code></td>
+                <td><code>{ id: string; tests: ManifestTest[] }</code></td>
+                <td>A test file, by its path from the project root, and its recorded tests.</td>
+              </tr>
+              <tr>
+                <td><code>PropKind</code></td>
+                <td>
+                  <code
+                    >'literals' | 'boolean' | 'number' | 'string' | 'function' | 'node' |
+                    'other'</code
+                  >
+                </td>
+                <td>How tests can cover a prop, decided by its type.</td>
+              </tr>
+              <tr>
+                <td><code>PropDoc</code></td>
+                <td>
+                  <code
+                    >{ name: string; type: string; required: boolean; defaultValue?: string; kind:
+                    PropKind; values?: string[]; description?: string }</code
+                  >
+                </td>
+                <td>
+                  One prop of a component, read from its TypeScript type.
+                  <a href="writing-stories.html#props">Writing stories</a> shows how the viewer uses
+                  it.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ComponentDoc</code></td>
+                <td><code>{ name: string; file: string; props: PropDoc[] }</code></td>
+                <td>What the viewer shows about a component beyond its tests.</td>
+              </tr>
+              <tr>
+                <td><code>ManifestGenerator</code></td>
+                <td><code>{ name: string; version: string }</code></td>
+                <td>The package and the version that wrote a manifest.</td>
+              </tr>
+              <tr>
+                <td><code>Manifest</code></td>
+                <td>
+                  <code
+                    >{ version, generator?, generatedAt, root, modules, components, assetsMissing?,
+                    head?, fontsMissing?, remoteStylesheets?, setupWarnings? }</code
+                  >
+                </td>
+                <td>
+                  The whole of <code>manifest.json</code>.
+                  <a href="how-it-works.html#manifest">The manifest</a> describes every field.
+                </td>
+              </tr>
+              <tr>
+                <td><code>FontMissing</code></td>
+                <td><code>{ family: string; tests: number; testId: string }</code></td>
+                <td>
+                  A font family that frames use but nothing loads, how many tests miss it, and the
+                  first of them.
+                </td>
+              </tr>
+              <tr>
+                <td><code>RemoteStylesheet</code></td>
+                <td><code>{ host: string; frames: number }</code></td>
+                <td>A host that frames load stylesheets from, and how many frames do.</td>
+              </tr>
+              <tr>
+                <td><code>ANONYMOUS_COMPONENT</code></td>
+                <td><code>'Anonymous'</code></td>
+                <td>The name adapters give a component that has no usable name.</td>
+              </tr>
+              <tr>
+                <td><code>ManifestDiagnostics</code></td>
+                <td>
+                  <code
+                    >{ anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets,
+                    setupWarnings }</code
+                  >
+                </td>
+                <td>
+                  What keeps a manifest from documenting everything its tests rendered.
+                  <code>manifestDiagnostics()</code> computes it, and
+                  <a href="troubleshooting.html#diagnostics">Troubleshooting</a> explains each key.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-core-diagnostics">
+          <code>@describe-me/core/diagnostics</code>
+          <a class="anchor" href="#entry-core-diagnostics" aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          For a tool that reads <code>manifest.json</code> and wants the same list of problems as
+          the reporter and the viewer.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>manifestDiagnostics</code></td>
+                <td>
+                  <code>manifestDiagnostics(manifest: Manifest): ManifestDiagnostics</code>
+                </td>
+                <td>
+                  Lists anonymous components, named ones without props, assets that will not load,
+                  fonts that nothing loads, hosts of remote stylesheets and setup warnings. The
+                  reporter prints the list after a run, and the viewer shows it in its header.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-core-css-references">
+          <code>@describe-me/core/css-references</code>
+          <a class="anchor" href="#entry-core-css-references" aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          For a tool that scans CSS text for the files it loads. The reporter and
+          <code>describe-me build</code> use it to find assets and fonts.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>cssReferences</code></td>
+                <td><code>cssReferences(cssText: string): CssReference[]</code></td>
+                <td>
+                  Every <code>url()</code> and <code>@import</code> target in CSS text, in source
+                  order, remote, <code>data:</code> and <code>#fragment</code> URLs included.
+                  Comments and other strings are skipped, so <code>content: "url(x)"</code> yields
+                  nothing.
+                </td>
+              </tr>
+              <tr>
+                <td><code>CssReference</code></td>
+                <td>
+                  <code>{ url: string; start: number; end: number; kind: 'url' | 'import' }</code>
+                </td>
+                <td>
+                  One target. <code>url</code> is the URL as written, without quotes.
+                  <code>start</code> and <code>end</code> are its offsets in the scanned text.
+                  <code>kind</code> is <code>import</code> for an <code>@import</code> target.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="cli">
           describe-me <a class="anchor" href="#cli" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The viewer and its CLI. The package has no entry point to import: its
+          <code>package.json</code> has a <code>bin</code> and no <code>exports</code>. You run it
+          from a script or the command line.
+        </p>
+
+        <h3 id="entry-cli">
+          <code>describe-me</code>
+          <a class="anchor" href="#entry-cli" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          The binary <code>describe-me</code>, in a <code>package.json</code> script or through your
+          package manager. <a href="viewer.html#cli">Viewer and CLI</a> lists its commands and
+          flags.
+        </p>
+
+        <dl class="kv">
+          <dt><code>dev</code></dt>
+          <dd>
+            Serves the viewer on your output directory and updates it whenever the reporter writes a
+            new manifest.
+          </dd>
+          <dt><code>build</code></dt>
+          <dd>
+            Builds a static site: the viewer, with the output directory copied in as
+            <code>__data/</code>.
+          </dd>
+          <dt><code>--help</code></dt>
+          <dd>Prints the usage, as does <code>describe-me</code> without a command.</dd>
+        </dl>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="troubleshooting.html"><span>Previous</span>Troubleshooting</a>

@@ -59,10 +59,12 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D7">
+      <main class="page">
         <header class="page-head">
           <h1>How it works</h1>
-          <p class="page-meta">packages/core · packages/vitest · packages/viewer</p>
+          <p class="page-meta">
+            packages/core · packages/react · packages/vitest · packages/viewer
+          </p>
         </header>
 
         <p class="lead">
@@ -75,55 +77,819 @@
           <a class="anchor" href="#architecture" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <figure class="diagram">
+          <svg viewBox="0 0 800 470" role="img" aria-labelledby="arch-title">
+            <title id="arch-title">
+              The plugin sets up both sides once. In the test, the render adapter and the patched
+              interactions call the recorder, which hands its frames to the reporter in Node through
+              task.meta. The reporter writes .describe-me, which describe-me dev and describe-me
+              build read.
+            </title>
+            <defs>
+              <marker
+                id="arch-arrow"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+              <marker
+                id="arch-arrow-accent"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head accent" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+            </defs>
+
+            <rect class="dg-node" x="150" y="4" width="500" height="50" rx="8" />
+            <text class="dg-title mono" x="166" y="25">@describe-me/vitest/plugin</text>
+            <text class="dg-text" x="166" y="43">
+              at config time: setup file, reporter, render redirect
+            </text>
+
+            <path class="dg-edge dashed" d="M210,54 V94" marker-end="url(#arch-arrow)" />
+            <text class="dg-label mono" x="220" y="80">setupFiles · resolveId</text>
+            <path class="dg-edge dashed" d="M650,29 H680 V94" marker-end="url(#arch-arrow)" />
+            <text class="dg-label mono" x="690" y="80">reporters</text>
+
+            <rect class="dg-group" x="1" y="96" width="410" height="220" rx="10" />
+            <text class="dg-group-title" x="16" y="118">
+              In the test · browser-mode iframe or jsdom
+            </text>
+
+            <rect class="dg-node" x="16" y="132" width="212" height="60" rx="8" />
+            <text class="dg-title" x="30" y="155">Render adapter</text>
+            <text class="dg-mono" x="30" y="175">@describe-me/react</text>
+
+            <rect class="dg-node" x="16" y="208" width="212" height="92" rx="8" />
+            <text class="dg-title" x="30" y="231">Patches and hooks</text>
+            <text class="dg-mono" x="30" y="251">@describe-me/vitest/setup</text>
+            <text class="dg-mono" x="30" y="267">or …/setup-dom</text>
+            <text class="dg-text" x="30" y="289">beforeEach · afterEach</text>
+
+            <path class="dg-edge" d="M228,162 H254" marker-end="url(#arch-arrow)" />
+            <path class="dg-edge" d="M228,254 H254" marker-end="url(#arch-arrow)" />
+
+            <rect class="dg-node strong" x="256" y="132" width="140" height="168" rx="8" />
+            <text class="dg-title" x="270" y="155">Recorder</text>
+            <text class="dg-mono" x="270" y="175">@describe-me/core</text>
+            <text class="dg-text" x="270" y="205">settles, then</text>
+            <text class="dg-text" x="270" y="222">serializes the DOM</text>
+            <text class="dg-mono" x="270" y="250">rrweb-snapshot</text>
+
+            <path class="dg-edge accent" d="M396,216 H574" marker-end="url(#arch-arrow-accent)" />
+            <text class="dg-label mono" x="424" y="208">task.meta.describeMe</text>
+
+            <rect class="dg-group" x="560" y="96" width="239" height="220" rx="10" />
+            <text class="dg-group-title" x="576" y="118">In Node</text>
+
+            <rect class="dg-node" x="576" y="132" width="208" height="168" rx="8" />
+            <text class="dg-title" x="590" y="155">Reporter</text>
+            <text class="dg-mono" x="590" y="175">@describe-me/vitest/reporter</text>
+            <text class="dg-text" x="590" y="205">writes .describe-me/</text>
+            <text class="dg-mono" x="602" y="227">manifest.json</text>
+            <text class="dg-mono" x="602" y="245">snapshots/</text>
+            <text class="dg-mono" x="602" y="263">styles/</text>
+            <text class="dg-mono" x="602" y="281">assets/</text>
+
+            <path class="dg-edge" d="M600,300 V332 H453 V386" marker-end="url(#arch-arrow)" />
+            <text class="dg-label" x="470" y="326">served live</text>
+            <path class="dg-edge" d="M680,300 V386" marker-end="url(#arch-arrow)" />
+            <text class="dg-label" x="690" y="342">copied as __data/</text>
+
+            <rect class="dg-group" x="330" y="352" width="469" height="116" rx="10" />
+            <text class="dg-group-title" x="346" y="374">Viewer · describe-me</text>
+
+            <rect class="dg-node" x="346" y="388" width="214" height="64" rx="8" />
+            <text class="dg-title mono" x="360" y="411">describe-me dev</text>
+            <text class="dg-text" x="360" y="434">live, watches manifest.json</text>
+
+            <rect class="dg-node" x="576" y="388" width="208" height="64" rx="8" />
+            <text class="dg-title mono" x="590" y="411">describe-me build</text>
+            <text class="dg-text" x="590" y="434">a static site</text>
+
+            <path class="dg-edge dashed" d="M16,380 H56" />
+            <text class="dg-text" x="66" y="384">set up once, at config time</text>
+            <path class="dg-edge" d="M16,408 H56" />
+            <text class="dg-text" x="66" y="412">calls and files, in every run</text>
+            <path class="dg-edge accent" d="M16,436 H56" />
+            <text class="dg-text" x="66" y="440">the hand-over to Node</text>
+          </svg>
+          <figcaption>
+            The plugin sets up both sides once. After that, every frame goes from the recorder in
+            the test to the reporter in Node, which writes plain files for the viewer.
+          </figcaption>
+        </figure>
+
+        <p>What each part does, one level below <a href="index.html#how">the overview</a>:</p>
+
+        <ul>
+          <li>
+            <code>@describe-me/vitest/plugin</code> runs once, when Vitest loads its config. It
+            picks the environment, adds the setup file and the reporter, redirects the
+            <code>render</code> import, and hands <code>include</code>, <code>exclude</code> and
+            <code>renderFrame</code> to the setup file through Vitest's <code>provide</code>.
+          </li>
+          <li>
+            <code>@describe-me/react</code> wraps the <code>render</code> your tests call. It takes
+            the render frame and names the component and its props.
+          </li>
+          <li>
+            <code>@describe-me/vitest/setup</code> or <code>setup-dom</code> runs in every test
+            file. It patches the interactions at their source and registers the hooks that begin and
+            end each recording.
+          </li>
+          <li>
+            <code>@describe-me/core</code> holds the recorder, one per page on
+            <code>globalThis</code>. It waits for the framework to settle, serializes the DOM with
+            rrweb-snapshot and keeps the frames in the order the test asked for them.
+          </li>
+          <li>
+            <code>@describe-me/vitest/reporter</code> runs in Node. It reads each test's frames from
+            <code>task.meta</code>, stores them by content hash and writes
+            <code>manifest.json</code>.
+          </li>
+          <li>
+            <code>describe-me</code> reads that directory. <code>describe-me dev</code> serves it
+            live, <code>describe-me build</code> copies it into a static site.
+          </li>
+        </ul>
 
         <h2 id="recording">
           One test, step by step
           <a class="anchor" href="#recording" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          This is the test <code>Menu &gt; selects an item and reports it</code> of the browser-mode
+          example. It renders a menu, opens it inside a <code>step()</code> and clicks an item.
+        </p>
+
+        <figure class="diagram">
+          <svg viewBox="0 0 800 690" role="img" aria-labelledby="seq-title">
+            <title id="seq-title">
+              The hooks begin the recording. The render adapter and each patched interaction call
+              capture on the recorder, and step captures after its body. After the test, the hooks
+              flush, take the closing frame, end the recording, hand the frames to the reporter
+              through task.meta and tear down. The reporter builds the test entry when the module
+              ends and writes the manifest when the run ends.
+            </title>
+            <defs>
+              <marker
+                id="seq-arrow"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+              <marker
+                id="seq-arrow-accent"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head accent" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+            </defs>
+
+            <rect class="dg-node" x="4" y="4" width="144" height="46" rx="8" />
+            <text class="dg-title" x="16" y="24">Test</text>
+            <text class="dg-mono" x="16" y="41">Menu.test.tsx</text>
+            <rect class="dg-node" x="164" y="4" width="144" height="46" rx="8" />
+            <text class="dg-title" x="176" y="24">Adapter or patch</text>
+            <text class="dg-mono" x="176" y="41">render · userEvent</text>
+            <rect class="dg-node strong" x="328" y="4" width="144" height="46" rx="8" />
+            <text class="dg-title" x="340" y="24">Recorder</text>
+            <text class="dg-mono" x="340" y="41">@describe-me/core</text>
+            <rect class="dg-node" x="492" y="4" width="144" height="46" rx="8" />
+            <text class="dg-title" x="504" y="24">Hooks</text>
+            <text class="dg-mono" x="504" y="41">setup file</text>
+            <rect class="dg-node" x="652" y="4" width="144" height="46" rx="8" />
+            <text class="dg-title" x="664" y="24">Reporter</text>
+            <text class="dg-mono" x="664" y="41">in Node</text>
+
+            <line class="dg-lifeline" x1="76" y1="50" x2="76" y2="530" />
+            <line class="dg-lifeline" x1="236" y1="50" x2="236" y2="530" />
+            <line class="dg-lifeline" x1="400" y1="50" x2="400" y2="530" />
+            <line class="dg-lifeline" x1="564" y1="50" x2="564" y2="530" />
+            <line class="dg-lifeline" x1="724" y1="50" x2="724" y2="616" />
+
+            <path class="dg-edge" d="M564,86 H404" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="412" y="80">beforeEach · begin()</text>
+
+            <path class="dg-edge" d="M76,126 H232" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="84" y="120">render(&lt;Menu /&gt;)</text>
+            <path class="dg-edge" d="M236,154 H396" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="244" y="148">capture('render')</text>
+            <text class="dg-text" x="410" y="158">renderFrame decides when</text>
+
+            <path class="dg-edge" d="M76,198 H232" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="84" y="192">userEvent.click(…)</text>
+            <path class="dg-edge" d="M236,226 H396" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="244" y="220">beforeInteraction()</text>
+            <path class="dg-edge" d="M236,254 H396" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="244" y="248">capture('action', label)</text>
+            <text class="dg-text" x="410" y="258">settle, then serialize</text>
+
+            <path class="dg-edge" d="M76,298 H396" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="84" y="292">step(label, fn)</text>
+            <text class="dg-text" x="410" y="302">fn, then capture('step')</text>
+
+            <path class="dg-edge" d="M564,346 H404" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="412" y="340">afterEach · flush()</text>
+            <path class="dg-edge" d="M564,374 H404" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="412" y="368">capture('end')</text>
+            <text class="dg-text" x="392" y="378" text-anchor="end">unless flush() took one</text>
+            <path class="dg-edge" d="M564,402 H404" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="412" y="396">end()</text>
+            <text class="dg-text" x="392" y="406" text-anchor="end">compacts the frames</text>
+            <path class="dg-edge dashed" d="M400,430 H560" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="412" y="424">TestRecord</text>
+
+            <path class="dg-edge accent" d="M564,466 H720" marker-end="url(#seq-arrow-accent)" />
+            <text class="dg-label mono" x="572" y="460">task.meta.describeMe</text>
+            <text class="dg-text" x="556" y="470" text-anchor="end">only with frames</text>
+
+            <path class="dg-edge" d="M564,502 H404" marker-end="url(#seq-arrow)" />
+            <text class="dg-label mono" x="412" y="496">teardown()</text>
+            <text class="dg-text" x="392" y="506" text-anchor="end">adapters unmount</text>
+
+            <rect class="dg-node" x="652" y="544" width="144" height="62" rx="8" />
+            <text class="dg-title mono" x="664" y="564">onTestModuleEnd</text>
+            <text class="dg-text" x="664" y="582">test entries and</text>
+            <text class="dg-text" x="664" y="598">snapshot files</text>
+            <rect class="dg-node" x="652" y="616" width="144" height="62" rx="8" />
+            <text class="dg-title mono" x="664" y="636">onTestRunEnd</text>
+            <text class="dg-text" x="664" y="654">clean-up, then</text>
+            <text class="dg-text" x="664" y="670">manifest.json</text>
+          </svg>
+          <figcaption>
+            Solid arrows are calls inside the test. The accent arrow is the only way a frame leaves
+            the test: Vitest sends <code>task.meta</code> to Node.
+          </figcaption>
+        </figure>
+
+        <ol class="steps">
+          <li>
+            <strong>Before the test</strong> The setup file's <code>beforeEach</code> calls
+            <code>recorder.begin()</code> when the test file is one the plugin records. A concurrent
+            test is not recorded, because it would share the one recorder of the page. The hook
+            prints a warning once.
+          </li>
+          <li>
+            <strong>Render</strong> The adapter calls the original <code>render</code>, names the
+            component and its props with <code>setComponent()</code>, and calls
+            <code>capture('render')</code>. The <code>renderFrame</code> option decides when that
+            frame is taken: right away, before the next interaction, or once a loader is gone. See
+            <a href="configuration.html#render-frame">Render frame timing</a>.
+          </li>
+          <li>
+            <strong>Interactions</strong> Each patched interaction calls
+            <code>beforeInteraction()</code>, which takes a render frame still held back. Then the
+            interaction runs, and <code>capture('action', label)</code> settles and serializes.
+            Settling waits one macrotask on real timers, which is enough for React to commit, also
+            under fake timers. It does not wait for <code>requestAnimationFrame</code>, because a
+            frame holds the DOM and its styles, not layout. In jsdom the wait runs with React's act
+            flag off, as Testing Library's own waits do.
+          </li>
+          <li>
+            <strong><code>step()</code></strong> It takes a held-back render frame, runs its body
+            and captures after it. When the body already produced this exact DOM, as the click does
+            here, the step only names that frame: <code>open the menu · click(button)</code>.
+          </li>
+          <li>
+            <strong>After the test</strong> The <code>afterEach</code> hook calls
+            <code>flush()</code>, which waits for the captures still in flight and takes a held-back
+            render frame. Unless it took one, the hook calls <code>capture('end')</code>, which
+            costs nothing when the test recorded no frame. <code>end()</code> compacts the frames. A
+            closing frame equal to the frame before it is dropped, and a step equal to the frame
+            before it names that frame. The record goes into <code>task.meta.describeMe</code> only
+            when there are frames. Then <code>teardown()</code> lets the adapters unmount.
+          </li>
+          <li>
+            <strong>In Node</strong> When a test file ends, the reporter's
+            <code>onTestModuleEnd</code> builds the entry of each recorded test and writes its
+            snapshots. When the run ends, <code>onTestRunEnd</code> reads the props of the
+            components, deletes the files no frame needs and writes <code>manifest.json</code>.
+          </li>
+        </ol>
+
+        <p>
+          Every <code>begin()</code> and <code>end()</code> starts a new generation of the recorder.
+          An interaction reads it when it starts, so a capture that finishes after its test ended is
+          dropped.
+        </p>
+
+        <p>
+          In jsdom, Testing Library runs <code>render</code>, <code>rerender</code> and
+          <code>fireEvent</code> inside <code>act()</code>, so the DOM is committed when they
+          return. Their frames are taken right away, without settling, before the test's next line
+          can change the DOM.
+        </p>
+
+        <p>
+          Open
+          <a href="examples/react-browser/#test=d5b51b54fed9&amp;frame=1"
+            >the step frame of this test in the browser-mode example</a
+          >. <a href="writing-stories.html#frames">Writing stories</a> lists which frames are taken,
+          and <a href="writing-stories.html#left-out">which tests are left out</a>.
+        </p>
 
         <h2 id="interception">
           Intercepting interactions
           <a class="anchor" href="#interception" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          Your tests stay as they are. describe-me reaches into them in two ways, both set up by the
+          plugin.
+        </p>
+
+        <h3>The render redirect</h3>
+
+        <p>
+          The plugin's <code>resolveId</code> hook runs before other plugins (<code
+            >enforce: 'pre'</code
+          >). When a module imports <code>vitest-browser-react</code> in browser mode, or
+          <code>@testing-library/react</code> in a DOM environment, it resolves
+          <code>@describe-me/react</code> or <code>@describe-me/react/testing-library</code>
+          instead. Imports from the adapter's own files keep the original, because the adapter wraps
+          it. The hook knows them by the root of the installed adapter package.
+        </p>
+
+        <p>
+          When the adapter cannot be resolved, the import fails. Falling back to the original module
+          would look like success and record nothing. In jsdom every test would also stay mounted,
+          because Testing Library's own cleanup is off.
+        </p>
+
+        <pre>
+describe-me: cannot resolve @describe-me/react (the recording replacement for vitest-browser-react). Install @describe-me/react.</pre>
+
+        <p>
+          In browser mode the plugin also lists the adapter and the original module in
+          <code>optimizeDeps.include</code>. Vite's dependency scanner runs before
+          <code>resolveId</code> and never sees the adapter. Finding it mid-run makes Vite optimize
+          again and reload, and the test ends up with two copies of the bundled dependencies
+          ("Vitest failed to find the runner"). Listing both up front keeps one optimization pass.
+        </p>
+
+        <h3>Patches at the source</h3>
+
+        <p>
+          Interactions do not go through the adapter, so the setup file wraps them where they are
+          defined, once per test file:
+        </p>
+
+        <ul>
+          <li>
+            In browser mode, <code>patch-locators.ts</code> asks
+            <code>page.elementLocator()</code> for a locator, walks up its prototype chain and wraps
+            each action method on the prototype that defines it. So
+            <code>screen.getByRole('button').click()</code> records just like
+            <code>userEvent.click()</code>.
+          </li>
+          <li>
+            <code>patch-user-event.ts</code> wraps the methods of <code>userEvent</code> from
+            <code>vitest/browser</code> that do not go through a locator, such as the keyboard ones.
+          </li>
+          <li>
+            In jsdom, <code>patch-testing-library-user-event.ts</code> imports
+            <code>@testing-library/user-event</code> when it is installed. It wraps the direct API
+            and every instance that <code>userEvent.setup()</code> returns.
+          </li>
+        </ul>
+
+        <p>
+          Each wrapper runs the original through <code>record-action.ts</code>: take a held-back
+          render frame, run the interaction, then capture. It counts how deep the calls are nested
+          in the current test, so a gesture that delegates to another records one frame, for the
+          outermost call. <code>userEvent.click()</code> delegates to the locator's
+          <code>click()</code>, and the direct API of user-event delegates to an instance. A marker
+          on each wrapper keeps a second patch from wrapping it again.
+        </p>
+
+        <p>
+          In jsdom, <code>fireEvent</code> is not patched. The adapter exports its own, which
+          records one frame per call. <a href="writing-stories.html#frames">Writing stories</a>
+          lists the methods that record, and
+          <a href="configuration.html#plugin">What the plugin changes</a> lists every other change
+          to your config.
+        </p>
 
         <h2 id="snapshot">
           What a frame holds
           <a class="anchor" href="#snapshot" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>A frame (<code>Frame</code> in <code>@describe-me/core/types</code>) holds:</p>
+
+        <dl class="kv">
+          <dt><code>id</code></dt>
+          <dd><code>f0</code>, <code>f1</code> and so on, in the order the test asked for them.</dd>
+          <dt><code>kind</code></dt>
+          <dd><code>render</code>, <code>action</code>, <code>step</code> or <code>end</code>.</dd>
+          <dt><code>label</code></dt>
+          <dd>What the timeline shows, such as <code>click(menuitem "Rename")</code>.</dd>
+          <dt><code>at</code></dt>
+          <dd>When the snapshot was taken, in ms since the test began, on real timers.</dd>
+          <dt><code>meta</code></dt>
+          <dd>Render frames carry the props they were rendered with.</dd>
+          <dt><code>snapshot</code></dt>
+          <dd>The whole document, serialized to JSON text.</dd>
+        </dl>
+
+        <p>
+          rrweb-snapshot serializes the document into a tree of nodes, with the text of every
+          stylesheet inlined as <code>_cssText</code>. It never sees
+          <code>document.adoptedStyleSheets</code>, which Lit and other web component libraries use.
+          So <code>materialize-adopted-styles.ts</code> copies their rules into a temporary
+          <code>&lt;style&gt;</code> for the length of each capture. It does this for the document,
+          not for shadow roots.
+        </p>
+
+        <p>
+          rrweb numbers the nodes from a counter that only <code>cleanupSnapshot()</code> resets.
+          <code>serialize-document.ts</code> calls it before every capture, so the ids start at 1
+          each time and identical DOM gives identical text. That is what lets the reporter store it
+          once.
+        </p>
+
+        <p>
+          A frame has no layout and no screenshot. The viewer's browser lays the DOM out again from
+          its styles, at the width you pick.
+        </p>
 
         <h2 id="storage">
           The output directory
           <a class="anchor" href="#storage" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The reporter writes everything the viewer shows into one directory,
+          <code>.describe-me/</code> unless <code>outDir</code> says otherwise:
+        </p>
+
+        <pre>
+.describe-me/
+  manifest.json
+  snapshots/&lt;hash&gt;.json
+  styles/&lt;hash&gt;.css
+  assets/&lt;hash&gt;.&lt;ext&gt;</pre>
+
+        <p>
+          Every file but the manifest is named after the first 16 hex characters of a SHA-1 of its
+          content. Identical content is written once, however many frames, tests and runs produce
+          it.
+        </p>
+
+        <p>For every frame, in this order, the reporter:</p>
+
+        <ol>
+          <li>
+            Copies the project files the snapshot points at into <code>assets/</code>. rrweb made
+            their URLs absolute against the test page, whose server is gone after the run. A URL
+            that names a file in the project root or its <code>public/</code> folder becomes
+            <code>describe-me-asset:</code> and the stored name. A CSS file is copied with the
+            fonts, images and stylesheets it points at.
+          </li>
+          <li>
+            Moves every stylesheet of 256 characters or more to <code>styles/</code>. The sheet is
+            cut between top-level rules into chunks of about 4 KB, and the content of the rules
+            decides where a chunk ends. So a sheet that grows from test to test shares most of its
+            chunks. The snapshot keeps <code>describe-me-style:&lt;hash&gt;+&lt;hash&gt;…</code>.
+          </li>
+          <li>Writes the snapshot to <code>snapshots/</code>.</li>
+        </ol>
+
+        <p>Assets come first, so the stored stylesheets point at the copied files too.</p>
+
+        <p>
+          After every run, garbage collection deletes the snapshots no frame points at, then the
+          style chunks no kept snapshot refers to, then the assets that nothing kept refers to: no
+          snapshot, chunk, preview head or kept CSS file. Folders inside the three directories are
+          left alone.
+        </p>
+
+        <p>
+          A filtered run, such as <code>vitest run Button.test.tsx</code>, starts from the previous
+          manifest. Modules whose file is gone or no longer recorded are dropped, the rest stay. A
+          test skipped in the run keeps its previous entry.
+        </p>
+
+        <p>
+          <code>describe-me build</code> copies the directory into the site as
+          <code>__data/</code> and downloads web fonts into the copy. The directory itself never
+          changes. <a href="styles-and-fonts.html#assets">Styles and fonts</a> says which files are
+          copied, <a href="styles-and-fonts.html#vendoring">Vendoring fonts</a> how fonts are
+          downloaded, and <a href="performance.html#output">Performance</a> how large the output
+          gets.
+        </p>
 
         <h2 id="manifest">
           The manifest <a class="anchor" href="#manifest" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          <code>manifest.json</code> is the index of the directory:
+          <code>interface Manifest</code> in <code>@describe-me/core/types</code>. The reporter
+          writes it at the end of every run. These are its fields:
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Absent</th>
+                <th>What it holds</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="manifest-version">
+                <td><code>version</code></td>
+                <td class="nowrap"><code>1</code></td>
+                <td class="nowrap">never</td>
+                <td>The format of the manifest. Every release so far writes <code>1</code>.</td>
+              </tr>
+              <tr id="manifest-generator">
+                <td><code>generator</code></td>
+                <td class="nowrap"><code>ManifestGenerator</code></td>
+                <td class="nowrap">before 0.5.1</td>
+                <td>
+                  The package and version that wrote the manifest, such as
+                  <code>@describe-me/vitest</code> and its version. Also absent when the reporter
+                  cannot read its own <code>package.json</code>.
+                  <a href="#versions">Versions</a> explains what the viewer does with it.
+                </td>
+              </tr>
+              <tr id="manifest-generatedAt">
+                <td><code>generatedAt</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td class="nowrap">never</td>
+                <td>
+                  When the run ended, as an ISO 8601 date. The viewer repaints only when it changes.
+                </td>
+              </tr>
+              <tr id="manifest-root">
+                <td><code>root</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td class="nowrap">never</td>
+                <td>
+                  The Vitest root of the run, as an absolute path. Module ids and component files
+                  are relative to it.
+                </td>
+              </tr>
+              <tr id="manifest-modules">
+                <td><code>modules</code></td>
+                <td class="nowrap"><code>ManifestModule[]</code></td>
+                <td class="nowrap">never</td>
+                <td>
+                  The recorded test files, sorted by path, each with its tests and their frames.
+                  Their shape is below the table.
+                </td>
+              </tr>
+              <tr id="manifest-components">
+                <td><code>components</code></td>
+                <td class="nowrap"><code>Record&lt;string, ComponentDoc&gt;</code></td>
+                <td class="nowrap">never</td>
+                <td>
+                  The props of the components the tests rendered, read from their TypeScript types
+                  and keyed by the name the adapter gave each one. A component whose props cannot be
+                  read is missing here, and the diagnostics name it.
+                </td>
+              </tr>
+              <tr id="manifest-assetsMissing">
+                <td><code>assetsMissing</code></td>
+                <td class="nowrap"><code>string[]</code></td>
+                <td class="nowrap">before 0.4</td>
+                <td>
+                  Paths that snapshots, the preview head or copied CSS files point at but that do
+                  not exist, so they will not load in the viewer. They are root-relative, or
+                  <code>/@fs/…</code> outside the root. Only what this run found.
+                </td>
+              </tr>
+              <tr id="manifest-head">
+                <td><code>head</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td class="nowrap">no <code>previewHead</code></td>
+                <td>
+                  The preview head HTML, with project files as <code>describe-me-asset:</code> URLs.
+                </td>
+              </tr>
+              <tr id="manifest-fontsMissing">
+                <td><code>fontsMissing</code></td>
+                <td class="nowrap"><code>FontMissing[]</code></td>
+                <td class="nowrap">before 0.5</td>
+                <td>
+                  Font families that frames use but nothing loads, most tests first. Each names the
+                  first test that misses it. A missing list counts as empty.
+                </td>
+              </tr>
+              <tr id="manifest-remoteStylesheets">
+                <td><code>remoteStylesheets</code></td>
+                <td class="nowrap"><code>RemoteStylesheet[]</code></td>
+                <td class="nowrap">before 0.5</td>
+                <td>
+                  Hosts that frames load stylesheets from, most frames first. A missing list counts
+                  as empty.
+                </td>
+              </tr>
+              <tr id="manifest-setupWarnings">
+                <td><code>setupWarnings</code></td>
+                <td class="nowrap"><code>string[]</code></td>
+                <td class="nowrap">before 0.5.1</td>
+                <td>
+                  Problems the plugin found in the project's setup, one sentence each. They come
+                  from this run only, never from the previous manifest. Absent when there are none,
+                  which counts as empty.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The nested shapes, from the outside in:</p>
+
+        <ul>
+          <li>
+            A module (<code>ManifestModule</code>) has an <code>id</code>, the test file's path from
+            the root, and its <code>tests</code>.
+          </li>
+          <li>
+            A test (<code>ManifestTest</code>) has an <code>id</code>: the first 12 hex characters
+            of a SHA-1 of the module path, the suite path, the name and, for a repeated name, its
+            occurrence. It stays the same across runs and machines. <code>vitestId</code> is
+            Vitest's own id in the run that recorded it, absent before 0.5. Then <code>name</code>,
+            <code>path</code> (the suite names, outermost first), <code>fullName</code>,
+            <code>state</code>, <code>duration</code>, <code>errors</code>,
+            <code>component</code> (name, props and source file) and <code>frames</code>.
+          </li>
+          <li>
+            A frame (<code>ManifestFrame</code>) is a <a href="#snapshot">frame</a> whose
+            <code>snapshot</code> is the path of its file, such as
+            <code>snapshots/4c0bbe491dd8a500.json</code>.
+          </li>
+          <li>
+            A component (<code>ComponentDoc</code>) has a <code>name</code>, a <code>file</code> and
+            its <code>props</code>. Each prop (<code>PropDoc</code>) has its name, its type as
+            TypeScript prints it, whether it is required, its default, its kind, its literal values
+            and its JSDoc. <a href="writing-stories.html#props">Writing stories</a> shows how the
+            viewer uses them for coverage.
+          </li>
+        </ul>
+
+        <p class="file">manifest.json, one test of the browser-mode example, shortened</p>
+        <pre><code>{
+  "id": "src/Menu.test.tsx",
+  "tests": [
+    {
+      "id": "d5b51b54fed9",
+      "vitestId": "99171413_0_1",
+      "name": "selects an item and reports it",
+      "path": ["Menu"],
+      "fullName": "Menu &gt; selects an item and reports it",
+      "state": "passed",
+      "component": { "name": "Menu", "file": "src/Menu.tsx", "props": { … } },
+      "frames": [
+        { "id": "f0", "kind": "render", … },
+        {
+          "id": "f1",
+          "kind": "step",
+          "label": "open the menu · click(button)",
+          "at": 49,
+          "snapshot": "snapshots/4c0bbe491dd8a500.json"
+        },
+        { "id": "f2", "kind": "action", … }
+      ]
+    }
+  ]
+}</code></pre>
+
+        <p>
+          <code>ManifestDiagnostics</code> is not stored. <code>manifestDiagnostics()</code>
+          computes it from the manifest, for the reporter's summary and the viewer's header.
+          <a href="troubleshooting.html#diagnostics">Troubleshooting</a> explains each key.
+        </p>
 
         <h2 id="replay">
           How the viewer replays a frame
           <a class="anchor" href="#replay" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The viewer is a static page that fetches <code>__data/manifest.json</code>. It hides tests
+          that recorded nothing but a closing frame, which older versions still wrote.
+        </p>
+
+        <p>
+          Under <code>describe-me dev</code>, the viewer's Vite config serves the data directory as
+          <code>__data/</code> and watches it. When <code>manifest.json</code> changes, it sends a
+          <code>describe-me:update</code> event through Vite's live-reload socket, and the viewer
+          fetches the manifest again. A static site has no such socket, so the viewer polls every 60
+          seconds instead. Either way it repaints only when <code>generatedAt</code> changed.
+        </p>
+
+        <p>To show a frame, the viewer:</p>
+
+        <ol>
+          <li>
+            Fetches the snapshot and makes every <code>describe-me-asset:</code> URL absolute
+            against <code>__data/assets/</code>. The frame replays in an iframe that has no base URL
+            of its own.
+          </li>
+          <li>
+            Joins each stored stylesheet back from its chunks in <code>__data/styles/</code>. A
+            chunk that fails to load is tried once more after half a second. If it still fails, the
+            sheet keeps a gap and counts as incomplete, and the frame loads again the next time it
+            is shown.
+          </li>
+          <li>
+            Has rrweb rebuild the DOM into a fresh iframe, sandboxed with
+            <code>allow-same-origin</code> only, so no script ever runs. The preview head goes first
+            in its <code>&lt;head&gt;</code>, so the captured styles win ties.
+          </li>
+          <li>
+            Builds the new frame in a hidden slot next to the visible one, and swaps it in once its
+            stylesheets and fonts have loaded, or after 200 ms. The stage never goes blank.
+          </li>
+        </ol>
+
+        <p>
+          <a href="viewer.html#hosting">Viewer and CLI</a> explains how to host the static site.
+        </p>
 
         <h2 id="versions">
           Versions and compatibility
           <a class="anchor" href="#versions" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D7.</p>
+        <p>
+          The reporter reads its own <code>package.json</code> and writes its name and version to
+          <code>generator</code>. When the major and minor version there differ from the viewer's
+          own, the viewer shows a banner under its header:
+        </p>
+
+        <div class="callout warn">
+          Written by @describe-me/vitest &lt;version&gt;. This viewer is describe-me
+          &lt;version&gt;, so frames may not show correctly. Install every describe-me package at
+          the same version.
+        </div>
+
+        <p>
+          A manifest without <code>generator</code> was written before 0.5.1. This viewer reads all
+          of those, so it shows no banner for them.
+        </p>
+
+        <p>
+          In the test, two copies of <code>@describe-me/core</code> can meet: Vite bundles the
+          adapter with its own copy, while a linked workspace serves the setup file's copy from
+          source. So the recorder lives on <code>globalThis</code>, one per page, and carries a
+          protocol number. A copy of core that finds a recorder with another number, or with none,
+          throws, and every test file fails with:
+        </p>
+
+        <pre>
+describe-me: all describe-me packages must be on the same version. Another copy of @describe-me/core created the test recorder (protocol …, expected …). Install @describe-me/core, @describe-me/react, @describe-me/vitest and describe-me at one version.</pre>
+
+        <p>Data written by older versions keeps working in this viewer:</p>
+
+        <ul>
+          <li>
+            Fields added since 0.4 are optional, and the viewer counts a missing list as empty.
+          </li>
+          <li>Snapshots without style references load as they are.</li>
+          <li>
+            Tests written before 0.5 carry Vitest's id. A link to one still opens it, through
+            <code>vitestId</code>. The next run gives every such test its stable id and keeps the
+            old one as <code>vitestId</code>.
+          </li>
+        </ul>
+
+        <p>
+          It does not work the other way round. Style references came with 0.5.0, and a 0.4 viewer
+          takes them for CSS text, so frames written since show there without their styles.
+          <a href="installation.html#upgrading">Upgrading</a> and
+          <a href="installation.html#lockstep">One version for all packages</a> say how to keep the
+          packages together.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="api.html"><span>Previous</span>API</a>
