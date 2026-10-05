@@ -1,5 +1,32 @@
 # @describe-me/vitest
 
+## 0.5.2
+
+### Patch Changes
+
+- [#53](https://github.com/grzehub/describe-me/pull/53) [`de9aad9`](https://github.com/grzehub/describe-me/commit/de9aad9c5070af81a22e9e3119c6b2712093bb40) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Recording no longer adds React act warnings in jsdom.
+
+  - **The recorder waits with React's act flag off** (`@describe-me/vitest`). After each interaction or step, and before a deferred render frame or the closing frame, the recorder waits one macrotask for the page to settle. `setup-dom` turns `IS_REACT_ACT_ENVIRONMENT` off for that wait and restores it afterwards, as Testing Library's async utilities do. An update that landed in the wait used to log an act warning that a run without describe-me never showed. Browser mode is unchanged.
+  - **`RecorderOptions.aroundWait`** (`@describe-me/core`). An optional function that runs each wait of the recorder, passed to `recorder.configure()`. A later `configure()` without it keeps the current one. Its type is exported as `AroundWait`.
+  - **Recorder protocol 2.** A copy of `@describe-me/core` from 0.5.1 or earlier next to these packages fails with "all describe-me packages must be on the same version" instead of silently losing the fix.
+
+- [#50](https://github.com/grzehub/describe-me/pull/50) [`effa0e6`](https://github.com/grzehub/describe-me/commit/effa0e6c90fe85f490a71321189257de1ae4fc74) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - An empty `include` records nothing.
+
+  - **`include: []` selects no test file** (`describeMe()` and `DescribeMeReporter`). It used to select every file, like a missing `include`. The reporter warns once when Vitest starts. Leaving `include` out still records every test file.
+  - **`exclude: '**'` keeps the plugin on and records nothing**, without a warning. The README describes both.
+  - The `'describe-me'` key on Vitest's `ProvidedContext` types `include` as `CompiledGlob[] | null`, where `null` means every test file.
+
+  No exports change.
+
+- [#52](https://github.com/grzehub/describe-me/pull/52) [`efcd9e9`](https://github.com/grzehub/describe-me/commit/efcd9e9f052ecaee2bf4298b415b3053399c1fcd) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - The plugin keeps Vitest's default reporters. When the config named no reporters, the plugin set `['default', <its reporter>]`, which replaced the list Vitest picks on its own. AI agent sessions lost `minimal` (`agent` on Vitest 4.1), which hides what passing tests print, and GitHub Actions lost the `github-actions` annotations. The plugin adds its reporter to that list instead. Reporters named in the config still win, and the plugin adds only its own next to them.
+
+  `@describe-me/vitest` depends on `std-env`, which Vitest itself uses to detect agents. No exports change.
+
+- [#54](https://github.com/grzehub/describe-me/pull/54) [`460d699`](https://github.com/grzehub/describe-me/commit/460d6995fd1d44d9b75e45b53857867bf83ad8d8) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - A run that records no component no longer loads TypeScript. The reporter reads props with TypeScript only when a recorded test rendered a component, so runs with `exclude: '**'` or `include: []` skip it. In the jsdom example this takes 324 ms off a run with `exclude: '**'`. A JavaScript-only project sees the "typescript is not installed" warning only when there are props to document. No exports change.
+- Updated dependencies [[`de9aad9`](https://github.com/grzehub/describe-me/commit/de9aad9c5070af81a22e9e3119c6b2712093bb40)]:
+  - @describe-me/core@0.5.2
+  - describe-me@0.5.2
+
 ## 0.5.1
 
 ### Patch Changes
