@@ -25,6 +25,9 @@
  * took the frame before `recorder.flush()` could. The rejected selector must
  * pass with one warning, for its one test file, and record the lazy run's
  * frames.
+ * A jsdom run with `include: []` has two test files that must not record. The
+ * reporter must warn once, not once per file, and write a manifest with no
+ * module and no setup warning.
  * A jsdom run renders a styled component with styled-components 6.3, whose
  * browser build imports tslib. Its one test must pass and record exactly its
  * render frame, which must carry both the global style and the component's
@@ -837,6 +840,59 @@ describe('Mixed', () => {
   )
 }
 
+/** Two test files under `include: []`, so a warning repeated per file would show. */
+function scaffoldIncludeEmpty() {
+  mkdirSync(join(app, 'include-empty'), { recursive: true })
+
+  writeFileSync(
+    join(app, 'vitest.include-empty.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ outDir: '.describe-me-include-empty', include: [] })],
+  test: {
+    environment: 'jsdom',
+    include: ['include-empty/*.test.tsx'],
+  },
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'include-empty', 'Hello.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { recorder } from '@describe-me/vitest'
+import { Hello } from '../src/Hello'
+
+describe('Hello', () => {
+  it('waves without recording', async () => {
+    const screen = render(<Hello name="Ada" />)
+    await userEvent.setup().click(screen.getByRole('button'))
+    expect(screen.getByRole('button').textContent).toBe('waved 1 times')
+    expect(recorder.isActive).toBe(false)
+  })
+})
+`,
+  )
+
+  writeFileSync(
+    join(app, 'include-empty', 'Inactive.test.tsx'),
+    `import { describe, expect, it } from 'vitest'
+import { recorder } from '@describe-me/vitest'
+
+describe('Inactive', () => {
+  it('does not record', () => {
+    expect(recorder.isActive).toBe(false)
+  })
+})
+`,
+  )
+}
+
 /** A styled component with a global style, loaded through the browser build in jsdom. */
 function scaffoldStyled() {
   mkdirSync(join(app, 'styled'), { recursive: true })
@@ -1452,6 +1508,37 @@ function verifyBrokenPending(output) {
   verifyTiming(BROKEN_PENDING)
 }
 
+const INCLUDE_EMPTY = {
+  config: 'vitest.include-empty.config.ts',
+  outDir: '.describe-me-include-empty',
+}
+
+const EMPTY_INCLUDE_WARNING = 'include is an empty list'
+
+/** Two test files, but the reporter warns once per Vitest start. */
+function verifyIncludeEmpty(output) {
+  const warnings = output.split(EMPTY_INCLUDE_WARNING).length - 1
+
+  assert(
+    warnings === 1,
+    `expected "${EMPTY_INCLUDE_WARNING}" once (${INCLUDE_EMPTY.outDir}), got ${warnings}`,
+  )
+
+  const manifest = readJson(join(app, INCLUDE_EMPTY.outDir, 'manifest.json'))
+
+  assert(
+    manifest.modules.length === 0,
+    `expected no modules (${INCLUDE_EMPTY.outDir}), got ${manifest.modules.length}`,
+  )
+
+  assert(
+    manifest.setupWarnings === undefined,
+    `expected no setup warnings (${INCLUDE_EMPTY.outDir}), got ${JSON.stringify(manifest.setupWarnings)}`,
+  )
+
+  console.log('\ninclude-empty: 1 warning, 0 modules')
+}
+
 const LAZY_BROWSER = {
   config: 'vitest.lazy-browser.config.ts',
   outDir: '.describe-me-lazy-browser',
@@ -1682,6 +1769,7 @@ try {
   scaffold()
   scaffoldTiming()
   scaffoldMixed()
+  scaffoldIncludeEmpty()
   scaffoldStyled()
   scaffoldNaming()
   scaffoldWithoutUserEvent()
@@ -1700,6 +1788,7 @@ try {
   }
 
   const brokenPending = runPassing(`pnpm exec vitest run --config ${BROKEN_PENDING.config}`, app)
+  const includeEmpty = runPassing(`pnpm exec vitest run --config ${INCLUDE_EMPTY.config}`, app)
 
   for (const naming of NAMING_RUNS) {
     run(`pnpm exec vitest run --config ${naming.config}`, app)
@@ -1718,6 +1807,7 @@ try {
   }
 
   verifyBrokenPending(brokenPending)
+  verifyIncludeEmpty(includeEmpty)
   verifyLazyBrowser(LAZY_BROWSER)
 
   for (const naming of NAMING_RUNS) {

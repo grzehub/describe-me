@@ -18,6 +18,7 @@ import {
 import { AssetStore } from './asset-store.js'
 import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
 import { compileGlobs } from './compile-globs.js'
+import { compileInclude } from './compile-include.js'
 import { componentEntries } from './component-entries.js'
 import { fileFilter } from './file-filter.js'
 import { FontAudit } from './font-audit.js'
@@ -34,7 +35,8 @@ export interface DescribeMeReporterOptions {
   outDir?: string
   /**
    * Which test files appear in the manifest: globs relative to the Vitest
-   * root, matched with picomatch, dotfiles included. Default: every test file.
+   * root, matched with picomatch, dotfiles included. An empty list leaves every
+   * file out of the manifest and warns. Default: every test file.
    */
   include?: string | string[]
   /**
@@ -63,6 +65,7 @@ function recordOf(tc: TestCase): TestRecord | undefined {
 export default class DescribeMeReporter implements Reporter {
   private readonly outDirOption: string
   private readonly isRecordedFile: (fileName: string) => boolean
+  private readonly emptyInclude: boolean
   private readonly previewHead: string | undefined
   private readonly generator: ManifestGenerator | undefined
   private readonly setupWarnings: string[]
@@ -76,10 +79,9 @@ export default class DescribeMeReporter implements Reporter {
 
   constructor(options: DescribeMeReporterOptions = {}) {
     this.outDirOption = options.outDir ?? '.describe-me'
-    this.isRecordedFile = fileFilter({
-      include: compileGlobs(options.include),
-      exclude: compileGlobs(options.exclude),
-    })
+    const include = compileInclude(options.include)
+    this.isRecordedFile = fileFilter({ include, exclude: compileGlobs(options.exclude) })
+    this.emptyInclude = include !== null && include.length === 0
 
     // A blank head, such as an empty preview-head.html, is the same as none.
     this.previewHead = options.previewHead?.trim() ? options.previewHead : undefined
@@ -98,6 +100,14 @@ export default class DescribeMeReporter implements Reporter {
 
     if (this.previewHead !== undefined && /<script\b/i.test(this.previewHead)) {
       console.warn('describe-me: previewHead contains a <script>, which the viewer never runs.')
+    }
+
+    // Here and not in the constructor: the plugin builds the reporter in
+    // `config()`, which also runs for a `vite build` that shares the config.
+    if (this.emptyInclude) {
+      console.warn(
+        "describe-me: include is an empty list, so no test file is recorded. Leave include out to record every test file, or set exclude: '**' to record none without this warning.",
+      )
     }
   }
 

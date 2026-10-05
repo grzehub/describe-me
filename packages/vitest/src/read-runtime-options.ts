@@ -5,7 +5,7 @@ import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
 export function readRuntimeOptions(): RuntimeOptions {
   return (
     (inject(RUNTIME_OPTIONS_KEY) as RuntimeOptions | undefined) ?? {
-      include: [],
+      include: null,
       exclude: [],
       renderFrame: 'eager',
     }
