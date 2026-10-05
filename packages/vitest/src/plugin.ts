@@ -2,6 +2,7 @@ import type { ViteUserConfig } from 'vitest/config'
 import type { RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
 import { compileGlobs } from './compile-globs.js'
+import { compileInclude } from './compile-include.js'
 import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
@@ -46,7 +47,8 @@ export interface DescribeMeOptions {
   /**
    * Test files to record, as globs relative to the Vitest root, matched with
    * picomatch, dotfiles included. Tests in other files still run, but record
-   * nothing and leave the manifest. Default: every test file.
+   * nothing and leave the manifest. An empty list records no test file and
+   * warns. Default: every test file.
    */
   include?: string | string[]
   /** Test files never to record, as globs like `include`. Wins over `include`. Default: none. */
@@ -204,7 +206,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       // Checked here, so invalid options fail before any test runs. Vite
       // deep-merges `provide`, so the user's own keys survive.
       const runtimeOptions: RuntimeOptions = {
-        include: compileGlobs(options.include),
+        include: compileInclude(options.include),
         exclude: compileGlobs(options.exclude),
         renderFrame: validateRenderFrame(options.renderFrame),
       }

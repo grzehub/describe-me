@@ -272,7 +272,7 @@ component puts it into the DOM.
 | `outDir`                       | `'.describe-me'` | Output directory, relative to the Vitest root.                                                                |
 | `registerExports`              | `true`           | Name components after their export, see [Component overview](#component-overview).                            |
 | `styledComponentsBrowserBuild` | `true`           | DOM environments: load the browser build of styled-components, see [Global styles](#global-styles-and-fonts). |
-| `include`                      | every test file  | Test files to record.                                                                                         |
+| `include`                      | every test file  | Test files to record. An empty list records none, with a warning.                                             |
 | `exclude`                      | none             | Test files never to record. Wins over `include`.                                                              |
 | `previewHead`                  | none             | HTML the viewer adds to the start of every frame's `<head>`, see [Fonts](#fonts).                             |
 | `renderFrame`                  | `'eager'`        | When the render frame is taken, see [Render frame timing](#render-frame-timing).                              |
@@ -283,6 +283,11 @@ path relative to the Vitest root, dotfiles included. A leading `./` is
 ignored, and `exclude` wins over `include`. Tests in other files still run
 and report as usual, but record nothing, and their modules leave the
 manifest, including ones kept from an earlier run.
+
+Leave `include` out to record every test file. `include: []` records none,
+and the reporter warns when Vitest starts. To keep the plugin on (setup file,
+render redirect, CSS handling) and record nothing, use `exclude: '**'`, which
+does not warn. `enabled: false` removes the plugin instead.
 
 With `test.projects` entries that set their own `root`, the two sides disagree
 on the path. The test run matches `include` and `exclude` against the path

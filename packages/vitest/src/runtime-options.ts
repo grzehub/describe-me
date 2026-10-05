@@ -13,8 +13,11 @@ export interface CompiledGlob {
 }
 
 export interface RuntimeOptions {
-  /** Empty means every test file. */
-  include: CompiledGlob[]
+  /**
+   * `null` means every test file, an empty list means none. `null` survives
+   * `provide` / `inject` and Vite's config merge, `undefined` would not.
+   */
+  include: CompiledGlob[] | null
   /** Wins over `include`. */
   exclude: CompiledGlob[]
   renderFrame: RenderFrameMode
