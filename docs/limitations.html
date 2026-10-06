@@ -59,10 +59,14 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D8">
+      <main class="page">
         <header class="page-head">
           <h1>Limitations</h1>
-          <p class="page-meta">README.md</p>
+          <p class="page-meta">
+            README.md · packages/core/src/serialize-document.ts · materialize-adopted-styles.ts ·
+            packages/react/src/record-sync-action.ts ·
+            packages/vitest/src/register-recording-hooks.ts · packages/viewer/src/data.ts
+          </p>
         </header>
 
         <p class="lead">
@@ -74,46 +78,412 @@
           At a glance <a class="anchor" href="#summary" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          <span class="badge status-open">open</span> has no fix announced.
+          <span class="badge status-planned">planned</span> is on the
+          <a href="#roadmap">roadmap</a>. <span class="badge status-by-design">by design</span>
+          follows from how describe-me or the environment works.
+          <span class="badge status-fixed">fixed in 0.5.2</span> names the release with the fix.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Limitation</th>
+                <th>Applies to</th>
+                <th>Workaround</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="limit-fire-event-in-act">
+                <td>
+                  <code>fireEvent</code> inside your own <code>act()</code> records before React
+                  flushes, so its frame shows the DOM from before the update. See
+                  <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>
+                  Drop your own <code>act()</code>, because Testing Library already wraps
+                  <code>fireEvent</code> in one. Or call <code>step()</code> after it, which adds a
+                  frame with the update.
+                </td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-concurrent-tests">
+                <td>
+                  Concurrent tests are never recorded, because they would share one recorder. See
+                  <a href="environments.html#both">Environments</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Make the tests you want in the docs sequential.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-pseudo-classes">
+                <td>
+                  States such as <code>:hover</code> or <code>:focus-visible</code> are not part of
+                  the DOM, so no snapshot holds them. See
+                  <a href="environments.html#both">Environments</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  A state shows when the component puts it into the DOM, for example as a class or
+                  an attribute.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-naming-wrappers">
+                <td>
+                  A <code>wrapper</code> that ignores <code>children</code> never mounts your
+                  element, so the test gets no component name. See
+                  <a href="writing-stories.html#naming">Naming</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  Call <code>recorder.setComponent()</code> with <code>name</code> and
+                  <code>file</code> after <code>render</code>.
+                </td>
+                <td><span class="badge status-planned">planned</span></td>
+              </tr>
+              <tr id="limit-projects-include">
+                <td>
+                  With <code>test.projects</code> entries that set their own <code>root</code>,
+                  <code>include</code> and <code>exclude</code> match different paths in the test
+                  run and in the reporter. See
+                  <a href="configuration.html#include-exclude">Which tests record</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  Use globs that start with <code>**/</code>, or leave <code>include</code> and
+                  <code>exclude</code> out.
+                </td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-filtered-run">
+                <td>
+                  A test skipped in a filtered run (<code>-t</code>, <code>.only</code>,
+                  <code>.skip</code>) keeps what the last run recorded for it. See
+                  <a href="writing-stories.html#left-out">Tests that are left out</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Run the whole suite before you publish the docs.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-overhead">
+                <td>
+                  Recording adds time to every recorded test and to the end of the run. See
+                  <a href="performance.html#summary">Performance</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Record fewer files, or record in a docs run of its own.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-lockstep">
+                <td>
+                  All four describe-me packages must be on one version. Mixed copies of
+                  <code>@describe-me/core</code> fail every test file. See
+                  <a href="installation.html#lockstep">One version for all packages</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Upgrade them together, and group them in your update bot.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-act-warnings">
+                <td>
+                  Recording added React act warnings in jsdom. See
+                  <a href="troubleshooting.html#symptoms">Troubleshooting</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>On 0.5.1, upgrade all packages.</td>
+                <td><span class="badge status-fixed">fixed in 0.5.2</span></td>
+              </tr>
+              <tr id="limit-default-reporters">
+                <td>
+                  The plugin replaced Vitest's default reporters, such as <code>minimal</code> for
+                  AI agents and <code>github-actions</code>. See
+                  <a href="configuration.html#reporters">Reporters</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>On 0.5.1, name your reporters in the config.</td>
+                <td><span class="badge status-fixed">fixed in 0.5.2</span></td>
+              </tr>
+              <tr id="limit-empty-include">
+                <td>
+                  <code>include: []</code> recorded every test file. See
+                  <a href="configuration.html#include-exclude">Which tests record</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>On 0.5.1, use <code>exclude: '**'</code> to record none.</td>
+                <td><span class="badge status-fixed">fixed in 0.5.2</span></td>
+              </tr>
+              <tr id="limit-jsdom-popovers">
+                <td>
+                  Tooltips, menus and dropdowns placed by a positioning library show up in the
+                  top-left corner. See <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>
+                  Record such tests in browser mode, or leave their files out with
+                  <code>exclude</code>.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-jsdom-layout">
+                <td>
+                  What the test measures, scrolls or observes behaves differently, because jsdom has
+                  no layout. See <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>Record such tests in browser mode.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-jsdom-fonts">
+                <td>
+                  Web fonts never load during the test, and a link that a font loader adds sets a
+                  timer in every capture. See
+                  <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>
+                  Load fonts in <code>previewHead</code>, and do not call font loaders in tests.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-canvas">
+                <td>
+                  Snapshots hold no canvas pixels, so a <code>&lt;canvas&gt;</code> is blank in the
+                  viewer. See <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>None.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-shadow-adopted-stylesheets">
+                <td>
+                  <code>adoptedStyleSheets</code> on a shadow root are not captured. See
+                  <a href="styles-and-fonts.html#techniques">Styling techniques</a>.
+                </td>
+                <td>
+                  <span class="badge env">browser mode</span> <span class="badge env">jsdom</span>
+                </td>
+                <td>None yet.</td>
+                <td><span class="badge status-planned">planned</span></td>
+              </tr>
+              <tr id="limit-jsdom-adopted-stylesheets">
+                <td>
+                  jsdom has no constructable stylesheets, so
+                  <code>document.adoptedStyleSheets</code> cannot be captured. See
+                  <a href="styles-and-fonts.html#techniques">Styling techniques</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>Record such components in browser mode.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-jsdom-css-parser">
+                <td>
+                  Rules go through jsdom's CSS parser, which drops what it does not understand.
+                  Nesting, <code>@layer</code> and <code>@container</code> are not verified. See
+                  <a href="styles-and-fonts.html#techniques">Styling techniques</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>Record such styles in browser mode.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-preview-head-css">
+                <td>
+                  CSS linked from <code>previewHead</code> is copied as it is on disk, without
+                  PostCSS, Tailwind or any other Vite transform. See
+                  <a href="styles-and-fonts.html#fonts">Fonts</a>.
+                </td>
+                <td><span class="badge env">viewer</span> <span class="badge env">build</span></td>
+                <td>Link plain CSS.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-font-hosts">
+                <td>
+                  The font check knows Google Fonts, Bunny Fonts and Fontsource on jsDelivr. A
+                  stylesheet from any other host turns it off, and a family installed only on your
+                  machine counts as missing. See
+                  <a href="styles-and-fonts.html#font-check">The font check</a>.
+                </td>
+                <td><span class="badge env">build</span></td>
+                <td>Load fonts from one of those hosts or with <code>@font-face</code>.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-vendoring-network">
+                <td>
+                  <code>describe-me build</code> needs the network to download web fonts into the
+                  site. See <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
+                </td>
+                <td><span class="badge env">build</span></td>
+                <td>
+                  After one online build the font cache lets later builds run offline.
+                  <code>--no-vendor-fonts</code> keeps the build off the network.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-static-snapshots">
+                <td>
+                  The viewer replays recorded snapshots. It cannot mount a component live or change
+                  its props. See <a href="#roadmap">What comes next</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>Write a test for each state you want to show.</td>
+                <td><span class="badge status-planned">planned</span></td>
+              </tr>
+              <tr id="limit-site-from-disk">
+                <td>
+                  A built site opened from disk does not load, because the viewer fetches its data.
+                  See <a href="viewer.html#hosting">Hosting</a>.
+                </td>
+                <td><span class="badge env">build</span></td>
+                <td>Serve the folder over HTTP.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-old-viewer">
+                <td>
+                  A 0.4 viewer cannot read 0.5 data. Its frames show without their stylesheets. See
+                  <a href="installation.html#upgrading">Upgrading</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>
+                  Upgrade <code>describe-me</code> together with <code>@describe-me/vitest</code>.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-test-id-rename">
+                <td>
+                  Renaming a test or moving it to another suite or file changes its id, so links to
+                  it stop opening it. See <a href="viewer.html#links">Links</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>Update the links after a rename.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-react-only">
+                <td>Only React has an adapter. See <a href="#scope">Frameworks and tools</a>.</td>
+                <td><span class="badge env">both</span></td>
+                <td>None yet.</td>
+                <td><span class="badge status-planned">planned</span></td>
+              </tr>
+              <tr id="limit-vitest-only">
+                <td>
+                  describe-me records Vitest tests only. See
+                  <a href="#scope">Frameworks and tools</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>None.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="recording">
           Recording <a class="anchor" href="#recording" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          A frame is the DOM at one moment, so what is not in the DOM is not in the frame:
+          <a href="#limit-pseudo-classes">pseudo-class states</a> and a
+          <a href="#limit-fire-event-in-act"
+            ><code>fireEvent</code> that React has not flushed yet</a
+          >. <a href="#limit-concurrent-tests">Concurrent tests</a> and tests a
+          <a href="#limit-filtered-run">filtered run</a> skips record nothing new. A
+          <a href="#limit-naming-wrappers">wrapper that ignores <code>children</code></a> needs you
+          to name the test, and
+          <a href="#limit-projects-include">projects with their own root</a> need
+          <code>**/</code> globs. Recording costs time, see
+          <a href="#limit-overhead">Performance</a>, and needs
+          <a href="#limit-lockstep">one version of every package</a>. 0.5.2 fixed
+          <a href="#limit-act-warnings">act warnings</a>,
+          <a href="#limit-default-reporters">the default reporters</a> and
+          <a href="#limit-empty-include">an empty <code>include</code></a
+          >. <a href="writing-stories.html#left-out">Writing stories</a> explains which tests are
+          left out.
+        </p>
 
         <h2 id="environments">
           Environments
           <a class="anchor" href="#environments" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          jsdom has no layout engine and loads nothing, so what differs is what happens inside the
+          test: <a href="#limit-jsdom-popovers">popovers</a>,
+          <a href="#limit-jsdom-layout">layout and observers</a> and
+          <a href="#limit-jsdom-fonts">fonts</a>. The frames are the same kind of thing in both
+          environments, laid out by a real browser in the viewer. No snapshot holds
+          <a href="#limit-canvas">canvas pixels</a>.
+          <a href="environments.html#jsdom-limits">Environments</a> has the details, and when to
+          pick browser mode.
+        </p>
 
         <h2 id="styles">
           Styles and fonts <a class="anchor" href="#styles" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          A snapshot is DOM plus stylesheets, so styles that live elsewhere are missing:
+          <a href="#limit-shadow-adopted-stylesheets">stylesheets adopted by a shadow root</a>, and
+          in jsdom <a href="#limit-jsdom-adopted-stylesheets">every adopted stylesheet</a> and
+          <a href="#limit-jsdom-css-parser">rules its parser drops</a>. The preview head
+          <a href="#limit-preview-head-css">skips Vite transforms</a>, the font check
+          <a href="#limit-font-hosts">knows three hosts</a>, and font vendoring
+          <a href="#limit-vendoring-network">needs the network</a>.
+          <a href="styles-and-fonts.html#techniques">Styles and fonts</a> has the details.
+        </p>
 
         <h2 id="viewer">
           Viewer and static site
           <a class="anchor" href="#viewer" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          The viewer replays <a href="#limit-static-snapshots">recorded snapshots</a>. It does not
+          run your components. A built site <a href="#limit-site-from-disk">needs HTTP</a>. A
+          <a href="#limit-old-viewer">0.4 viewer</a> cannot read 0.5 data, and links to a test
+          <a href="#limit-test-id-rename">break when it is renamed</a>.
+          <a href="viewer.html#hosting">Viewer and CLI</a> has the details.
+        </p>
 
         <h2 id="scope">
           Frameworks and tools
           <a class="anchor" href="#scope" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          describe-me is a prototype. It works with <a href="#limit-react-only">React only</a>: the
+          core has no React in it, but React is the only adapter. It records
+          <a href="#limit-vitest-only">Vitest tests only</a>, in browser mode or jsdom. Vue and
+          Svelte adapters are on the <a href="#roadmap">roadmap</a>. No other test runner is
+          announced.
+        </p>
 
         <h2 id="roadmap">
           What comes next <a class="anchor" href="#roadmap" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>These are announced, without dates:</p>
+        <ul>
+          <li>
+            <strong>Controls.</strong> Turn the props table into inputs and mount the component
+            live, in development only.
+          </li>
+          <li>
+            <strong>Live mount.</strong> Run a test again up to a given frame inside the viewer.
+          </li>
+          <li>
+            <strong><code>adoptedStyleSheets</code> in shadow roots.</strong> Capture them as the
+            document's are.
+          </li>
+          <li><strong>Vue and Svelte adapters.</strong> A <code>render</code> wrapper each.</li>
+          <li>
+            <strong>Names from wrappers that ignore <code>children</code>.</strong> Today you name
+            such a test with <code>recorder.setComponent()</code>.
+          </li>
+        </ul>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="performance.html"><span>Previous</span>Performance</a>

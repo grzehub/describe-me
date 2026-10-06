@@ -59,17 +59,19 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D8">
+      <main class="page">
         <header class="page-head">
           <h1>Troubleshooting</h1>
           <p class="page-meta">
-            packages/core/src/manifest-diagnostics.ts · packages/vitest/src/print-diagnostics.ts
+            packages/core/src/types.ts · manifest-diagnostics.ts · recorder.ts ·
+            packages/vitest/src/print-diagnostics.ts · plugin.ts · reporter.ts ·
+            packages/viewer/cli/run-build.ts · print-vendor-report.ts
           </p>
         </header>
 
         <p class="lead">
-          After every run describe-me lists what it could not document. This page explains each item
-          and the symptoms people run into most.
+          After every run describe-me lists what it could not document. This page explains each
+          item, the warnings it prints once, and the symptoms people run into most.
         </p>
 
         <h2 id="diagnostics">
@@ -77,27 +79,568 @@
           <a class="anchor" href="#diagnostics" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          When a run ends, the reporter writes the manifest and prints what it could not document,
+          one line per kind. Setup warnings come first, one line each, because they can explain
+          failing tests. A line names at most 5 items and sums up the rest as
+          <code>(+n more)</code>. When everything is fine, it prints nothing.
+        </p>
+        <p>
+          The viewer shows the same list behind an "issues" chip in its header, with links to the
+          tests. See <a href="viewer.html#issues">Viewer and CLI</a>.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Console line</th>
+                <th>What it means and how to fix it</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="diag-anonymous">
+                <td><code>anonymous</code></td>
+                <td>
+                  <code
+                    >describe-me: 2 tests render an anonymous component; export it from a project
+                    module or give it a displayName</code
+                  >
+                </td>
+                <td>
+                  The component a test renders has no usable name, so the test is documented under
+                  <code>Anonymous</code>. Export the component from a project module, which names it
+                  after its export, or give it a <code>displayName</code>. See
+                  <a href="writing-stories.html#naming">Naming</a>.
+                </td>
+              </tr>
+              <tr id="diag-undocumented">
+                <td><code>undocumented</code></td>
+                <td>
+                  <code>describe-me: 3 components have no props docs: Card, Menu, Tabs</code>
+                </td>
+                <td>
+                  The reporter could not read the props of these named components. Host elements
+                  such as <code>div</code> never count. Check that the component is exported from a
+                  TypeScript module and that <code>typescript</code> is installed. See
+                  <a href="writing-stories.html#props">Props</a>.
+                </td>
+              </tr>
+              <tr id="diag-assetsMissing">
+                <td><code>assetsMissing</code></td>
+                <td>
+                  <code
+                    >describe-me: 1 asset was not found in the project and will not load in the
+                    viewer: /logo.svg</code
+                  >
+                </td>
+                <td>
+                  A snapshot points at a file that is neither under the project root nor in
+                  <code>public/</code>, so the viewer cannot load it. Put the file where the path
+                  points. See <a href="styles-and-fonts.html#assets">Assets</a>.
+                </td>
+              </tr>
+              <tr id="diag-fontsMissing">
+                <td><code>fontsMissing</code></td>
+                <td>
+                  <code
+                    >describe-me: 1 font family is used but never loaded: Inter (12 tests) — add it
+                    to previewHead</code
+                  >
+                </td>
+                <td>
+                  The captured CSS uses the family, but no <code>@font-face</code> rule or font
+                  stylesheet loads it, in the frames or in the preview head. A family installed only
+                  on your machine counts as missing too. Load it in <code>previewHead</code>. See
+                  <a href="styles-and-fonts.html#fonts">Fonts</a> and
+                  <a href="styles-and-fonts.html#font-check">the font check</a>.
+                </td>
+              </tr>
+              <tr id="diag-remoteStylesheets">
+                <td><code>remoteStylesheets</code></td>
+                <td>
+                  <code
+                    >describe-me: frames load stylesheets from 1 remote host, which the viewer
+                    fetches from the network: use.typekit.net (8 frames)</code
+                  >
+                </td>
+                <td>
+                  Frames link stylesheets from these hosts, so the viewer loads them from the
+                  network. Links in the preview head do not count here. Put font links in
+                  <code>previewHead</code>, and let <code>describe-me build</code> download what it
+                  can. See <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
+                </td>
+              </tr>
+              <tr id="diag-setupWarnings">
+                <td><code>setupWarnings</code></td>
+                <td>
+                  <code
+                    >describe-me: styled-components 6.1.8 resolves tslib 2.4.1, which has no
+                    tslib.es6.mjs, so its browser build may fail to load …</code
+                  >
+                </td>
+                <td>
+                  The plugin found a problem in your setup that can make tests fail. The only one
+                  today: the browser build of styled-components with a tslib older than 2.5.3.
+                  Upgrade styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later.
+                  See
+                  <a href="styles-and-fonts.html#styled-components">styled-components</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="warnings">
           One-off warnings
           <a class="anchor" href="#warnings" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          These lines show up once, when their cause does. None of them stops the run. Errors that
+          do are under <a href="#symptoms">Symptoms and fixes</a>.
+        </p>
+
+        <h3>Plugin and setup file</h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>`test.css` is false, so imported stylesheets are stubbed …</code></td>
+                <td>
+                  When Vitest starts, in a DOM environment whose config sets
+                  <code>test.css: false</code>.
+                </td>
+                <td>
+                  Remove the setting. The plugin then turns CSS on. See
+                  <a href="configuration.html#plugin">What the plugin changes</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>using the browser build of styled-components, for createGlobalStyle</code>
+                </td>
+                <td>
+                  When Vitest starts, in a DOM environment with styled-components 5 or later. It is
+                  information, not a warning.
+                </td>
+                <td>
+                  Nothing. See
+                  <a href="styles-and-fonts.html#styled-components">styled-components</a> for why.
+                </td>
+              </tr>
+              <tr>
+                <td><code>concurrent tests are not recorded (src/Menu.test.tsx)</code></td>
+                <td>Once per test file that has concurrent tests.</td>
+                <td>
+                  Concurrent tests would share one recorder, so they run but record nothing. Make
+                  them sequential to record them. See
+                  <a href="environments.html#both">Environments</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Reporter</h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <code>previewHead contains a &lt;script&gt;, which the viewer never runs.</code>
+                </td>
+                <td>When Vitest starts.</td>
+                <td>
+                  Remove the script. Load fonts with <code>&lt;link&gt;</code> or
+                  <code>&lt;style&gt;</code>. See <a href="styles-and-fonts.html#fonts">Fonts</a>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>include is an empty list, so no test file is recorded. …</code></td>
+                <td>When Vitest starts, with <code>include: []</code>.</td>
+                <td>
+                  Leave <code>include</code> out to record every test file, or use
+                  <code>exclude: '**'</code> to record none without the warning. See
+                  <a href="configuration.html#include-exclude">Which tests record</a>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>the font audit failed: …</code></td>
+                <td>At the end of a run, when the font check throws.</td>
+                <td>
+                  The manifest gets empty <code>fontsMissing</code> and
+                  <code>remoteStylesheets</code> lists, so those diagnostics may miss something.
+                  Please <a href="#report">report it</a> with the message.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>typescript is not installed, component props will not be documented</code>
+                </td>
+                <td>
+                  At the end of a run where a recorded test rendered a component and
+                  <code>typescript</code> cannot be imported. Before 0.5.2 it also showed on runs
+                  that recorded no component.
+                </td>
+                <td>
+                  Install <code>typescript</code> as a dev dependency. See
+                  <a href="installation.html#version-typescript">Installation</a>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>[describe-me] could not read props of Card from src/Card.tsx</code></td>
+                <td>At the end of a run, once per component whose props type it cannot find.</td>
+                <td>
+                  Give the export a props type TypeScript can read. The component shows up under
+                  <a href="#diag-undocumented"><code>undocumented</code></a
+                  >. See <a href="writing-stories.html#props">Props</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >[describe-me] two components are named Card: src/a/Card.tsx and src/b/Card.tsx.
+                    Only the first is documented.</code
+                  >
+                </td>
+                <td>At the end of a run, once per name, when two files export the same name.</td>
+                <td>
+                  Props docs are keyed by name. Rename one of the exports. See
+                  <a href="writing-stories.html#naming">Naming</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Recorder</h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <code
+                    >renderFrame.pending is not a valid CSS selector: "…". Render frames fall back
+                    to 'lazy'.</code
+                  >
+                </td>
+                <td>Once per test file, when the setup file configures the recorder.</td>
+                <td>
+                  Fix the selector. Until then render frames are taken as with
+                  <code>'lazy'</code>. See
+                  <a href="configuration.html#render-frame">Render frame timing</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><code>describe-me build</code></h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <code>font vendoring stopped (…). Fonts keep loading from the network.</code>
+                </td>
+                <td>When downloading the fonts fails as a whole. The build still finishes.</td>
+                <td>
+                  Build again with network access, or pass <code>--no-vendor-fonts</code>. See
+                  <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >remote stylesheet hosts were not counted again (…). The issues menu keeps the
+                    list from the test run.</code
+                  >
+                </td>
+                <td>After the build downloaded fonts and could not count the hosts again.</td>
+                <td>
+                  The issues chip of the built site may still list hosts whose fonts were
+                  downloaded. See <a href="#diag-remoteStylesheets">remoteStylesheets</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>left remote: use.typekit.net (Adobe Fonts do not allow self-hosting)</code>
+                </td>
+                <td>
+                  For each host the build does not download from: Adobe Fonts, hosts not on its
+                  allowlist, or any host once the 100 MB font budget is used up.
+                </td>
+                <td>
+                  Nothing, if the site may load them from the network. Otherwise host the font files
+                  in your project. See <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>… did not download (…). It keeps loading from the network.</code>, then
+                  <code>and n more that did not download.</code>
+                </td>
+                <td>For each stylesheet or font file that failed, the first 5 of them.</td>
+                <td>
+                  Check the network and build again. Downloads are cached, so a later build fetches
+                  only what is missing. See
+                  <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Viewer</h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>style chunk styles/&lt;hash&gt;.css did not load</code></td>
+                <td>
+                  In the browser console, when a stylesheet chunk fails twice. The frame shows with
+                  a gap in its styles, and the chunk is fetched again next time.
+                </td>
+                <td>
+                  Deploy the whole data directory, <code>styles/</code> included. See
+                  <a href="viewer.html#hosting">Hosting</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="symptoms">
           Symptoms and fixes
           <a class="anchor" href="#symptoms" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Symptom</th>
+                <th>Cause</th>
+                <th>Fix</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Buttons look like browser defaults and text is in Times.</td>
+                <td>Global styles, such as a reset or a <code>body</code> font, are missing.</td>
+                <td>
+                  Render them in the wrapper of your custom <code>render</code>. See
+                  <a href="styles-and-fonts.html#global-styles">Global styles</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>Cannot destructure property '__extends'</code> when a test loads
+                  styled-components.
+                </td>
+                <td>The browser build of styled-components with a tslib older than 2.5.3.</td>
+                <td>
+                  Upgrade styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later.
+                  <code>styledComponentsBrowserBuild: false</code> also avoids it, but drops global
+                  styles from the snapshots. See
+                  <a href="styles-and-fonts.html#styled-components">styled-components</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Every test file fails with "all describe-me packages must be on the same version".
+                </td>
+                <td>
+                  Two copies of <code>@describe-me/core</code> at different versions, such as a
+                  0.5.1 core next to 0.5.2 packages.
+                </td>
+                <td>
+                  Install all four packages at one version. See
+                  <a href="installation.html#lockstep">One version for all packages</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  "cannot resolve @describe-me/react (the recording replacement for …). Install
+                  @describe-me/react."
+                </td>
+                <td>The adapter package is not installed.</td>
+                <td>Install it. See <a href="installation.html#packages">Packages</a>.</td>
+              </tr>
+              <tr>
+                <td>
+                  "include and exclude expect non-empty glob strings" or "renderFrame expects …"
+                  before any test runs.
+                </td>
+                <td>An option has a value the plugin does not accept.</td>
+                <td>
+                  Fix the option. See <a href="configuration.html#option-include">include</a> and
+                  <a href="configuration.html#render-frame">Render frame timing</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>The viewer shows "no manifest yet — run vitest first".</td>
+                <td>No test run has written data yet, or <code>--data</code> points elsewhere.</td>
+                <td>
+                  Run the tests, or pass the output directory with <code>--data</code>. See
+                  <a href="viewer.html#cli">Viewer and CLI</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>A built site opened from disk shows a blank page or "no manifest yet".</td>
+                <td>The viewer fetches its data, which needs HTTP.</td>
+                <td>
+                  Serve the folder over HTTP. See <a href="viewer.html#hosting">Hosting</a> and
+                  <a href="limitations.html#limit-site-from-disk">the limitation</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>A banner under the viewer header says the data comes from another version.</td>
+                <td>The tests ran with another describe-me release line than the viewer.</td>
+                <td>
+                  Install every package at the same version. See
+                  <a href="viewer.html#issues">Viewer and CLI</a> and
+                  <a href="installation.html#upgrading">Upgrading</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>A popover sits in the top-left corner (jsdom).</td>
+                <td>jsdom has no layout, so the library positions it at zero.</td>
+                <td>
+                  Record such tests in browser mode. See
+                  <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>A test is missing from the sidebar.</td>
+                <td>
+                  It recorded no frame before the closing one, it rendered outside the recording
+                  <code>render</code>, <code>include</code> or <code>exclude</code> leave it out, it
+                  is concurrent, or <code>test.projects</code> roots disagree on the path.
+                </td>
+                <td>
+                  Call <code>step()</code> to keep a test, or fix the globs. See
+                  <a href="writing-stories.html#left-out">Tests that are left out</a> and
+                  <a href="configuration.html#include-exclude">Which tests record</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>A component shows as <code>Anonymous</code>.</td>
+                <td>It has no export name and no <code>displayName</code>.</td>
+                <td>
+                  Export it from a project module. See
+                  <a href="writing-stories.html#naming">Naming</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>Fonts are missing in the viewer.</td>
+                <td>Nothing in the frames or the preview head loads them.</td>
+                <td>
+                  Load them in <code>previewHead</code>. See
+                  <a href="styles-and-fonts.html#fonts">Fonts</a> and
+                  <a href="#diag-fontsMissing">fontsMissing</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>Vite fails on the Node version.</td>
+                <td>Vite 8 needs Node <code>^20.19.0 || &gt;=22.12.0</code>.</td>
+                <td>Upgrade Node. See <a href="installation.html#version-node">Node</a>.</td>
+              </tr>
+              <tr>
+                <td>More act warnings with describe-me than without, in jsdom.</td>
+                <td>On 0.5.1 the recorder waited with React's act flag on. Fixed in 0.5.2.</td>
+                <td>
+                  On 0.5.1, upgrade all packages. To compare runs, use the same reporter in both,
+                  because <code>minimal</code> hides what passing tests print. See
+                  <a href="limitations.html#limit-act-warnings">the limitation</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Vitest's console output differs with the plugin: no <code>minimal</code> or
+                  <code>agent</code> reporter in an AI agent session, no
+                  <code>github-actions</code> annotations.
+                </td>
+                <td>On 0.5.1 the plugin replaced Vitest's default reporters. Fixed in 0.5.2.</td>
+                <td>
+                  On 0.5.1, name your reporters in the config. See
+                  <a href="limitations.html#limit-default-reporters">the limitation</a> and
+                  <a href="configuration.html#reporters">Reporters</a>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>include: []</code> records every test file.</td>
+                <td>
+                  On 0.5.1 an empty list meant every file. Fixed in 0.5.2, where it records none and
+                  warns.
+                </td>
+                <td>
+                  On 0.5.1, use <code>exclude: '**'</code>. See
+                  <a href="limitations.html#limit-empty-include">the limitation</a> and
+                  <a href="configuration.html#include-exclude">Which tests record</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="report">
           Reporting a bug <a class="anchor" href="#report" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          Open an issue on
+          <a href="https://github.com/grzehub/describe-me/issues">GitHub</a>. These make it quick to
+          reproduce:
+        </p>
+        <ul>
+          <li>
+            The versions of <code>@describe-me/core</code>, <code>@describe-me/react</code>,
+            <code>@describe-me/vitest</code> and <code>describe-me</code>, of Vitest, Vite, React
+            and the testing library, and of Node.
+          </li>
+          <li>The <code>generator</code> field of <code>.describe-me/manifest.json</code>.</li>
+          <li>Browser mode or jsdom.</li>
+          <li>The console output of the run.</li>
+          <li>A minimal reproduction: a component, a test and the Vitest config.</li>
+        </ul>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="viewer.html"><span>Previous</span>Viewer and CLI</a>

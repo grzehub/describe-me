@@ -59,54 +59,371 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D8">
+      <main class="page">
         <header class="page-head">
           <h1>Performance</h1>
-          <p class="page-meta">scripts/bench-macro.mjs · scripts/measure-output.mjs</p>
+          <p class="page-meta">
+            README.md · scripts/bench-macro.mjs · scripts/measure-output.mjs · examples/*/bench/ ·
+            packages/vitest/src/plugin.ts
+          </p>
         </header>
 
         <p class="lead">
           Recording costs time in every test, and the plugin costs a little in every run. The
-          numbers come from the example suites.
+          numbers come from the two example suites.
         </p>
 
         <h2 id="summary">
           In short <a class="anchor" href="#summary" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>The time goes to three places:</p>
+        <ul>
+          <li>
+            <strong>The plugin, in every run.</strong> Its config hook, the transform that registers
+            the exports of your modules, and the setup file. This is the cost of a run with
+            <code>exclude: '**'</code>, which records nothing.
+          </li>
+          <li>
+            <strong>The capture, once per frame.</strong> rrweb serializes the DOM and its
+            stylesheets. The cost grows with the size of the DOM.
+          </li>
+          <li>
+            <strong>The reporter, at the end.</strong> It reads props with TypeScript, writes the
+            snapshot files and stylesheets, and copies assets.
+          </li>
+        </ul>
+        <p>
+          In the jsdom example, recording adds 310 ms to the sum of test durations and 728 ms to the
+          wall clock of the run. In browser mode it adds 101 ms and 717 ms. The plugin alone adds
+          309 ms to the jsdom run and 91 ms to the browser-mode run.
+        </p>
 
         <h2 id="suites">
           Example suites <a class="anchor" href="#suites" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          In each example directory,
+          <code>node ../../scripts/bench-macro.mjs 9 &lt;variants&gt;</code> runs
+          <code>vitest run</code> 9 times per variant. The variants take turns, after one warm-up
+          run that does not count, and the tables show medians. Every variant reports through the
+          same JSON reporter, so the console reporter never differs between them. Measured on an
+          Apple M2 with Node 20.19.5.
+        </p>
+        <dl class="kv">
+          <dt><code>off</code></dt>
+          <dd>No plugin.</dd>
+          <dt><code>idle</code></dt>
+          <dd>The plugin with <code>exclude: '**'</code>, so it records nothing.</dd>
+          <dt><code>on</code></dt>
+          <dd>Recording.</dd>
+        </dl>
+        <p>
+          The plugin cost is <code>idle − off</code>, the recording cost <code>on − idle</code>. The
+          examples switch variants with an environment variable, see
+          <a href="configuration.html#env-DESCRIBE_ME"><code>DESCRIBE_ME</code></a
+          >.
+        </p>
+
+        <h3>jsdom</h3>
+        <p><code>examples/react-jsdom</code>: 28 tests, 23 of them in the manifest, 33 frames.</p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th></th>
+                <th><code>off</code></th>
+                <th><code>idle</code></th>
+                <th><code>on</code></th>
+                <th>plugin cost</th>
+                <th>recording cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>sum of test durations</td>
+                <td class="nowrap">543 ms</td>
+                <td class="nowrap">536 ms</td>
+                <td class="nowrap">846 ms</td>
+                <td class="nowrap">-8 ms (-1 %)</td>
+                <td class="nowrap">+310 ms (+58 %)</td>
+              </tr>
+              <tr>
+                <td>wall clock of <code>vitest run</code></td>
+                <td class="nowrap">1956 ms</td>
+                <td class="nowrap">2265 ms</td>
+                <td class="nowrap">2993 ms</td>
+                <td class="nowrap">+309 ms (+16 %)</td>
+                <td class="nowrap">+728 ms (+32 %)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          The wall clock of the jsdom run without recording, with one part of the plugin switched
+          off, against <code>idle</code>:
+        </p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th></th>
+                <th>wall clock</th>
+                <th>change</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>test.css: false</code></td>
+                <td class="nowrap">2272 ms</td>
+                <td class="nowrap">+7 ms (+0 %)</td>
+              </tr>
+              <tr>
+                <td><code>styledComponentsBrowserBuild: false</code></td>
+                <td class="nowrap">2235 ms</td>
+                <td class="nowrap">-30 ms (-1 %)</td>
+              </tr>
+              <tr>
+                <td><code>registerExports: false</code></td>
+                <td class="nowrap">2207 ms</td>
+                <td class="nowrap">-58 ms (-3 %)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout warn">
+          <strong>Not settings to recommend.</strong> The first two drop stylesheets from the
+          snapshots, and the third weakens the lookup of component names and props.
+        </div>
+
+        <h3>Browser mode</h3>
+        <p><code>examples/react-browser</code> in headless Chromium: 25 tests, 44 frames.</p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th></th>
+                <th><code>off</code></th>
+                <th><code>idle</code></th>
+                <th><code>on</code></th>
+                <th>plugin cost</th>
+                <th>recording cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>sum of test durations</td>
+                <td class="nowrap">1429 ms</td>
+                <td class="nowrap">1493 ms</td>
+                <td class="nowrap">1594 ms</td>
+                <td class="nowrap">+65 ms (+5 %)</td>
+                <td class="nowrap">+101 ms (+7 %)</td>
+              </tr>
+              <tr>
+                <td>wall clock of <code>vitest run</code></td>
+                <td class="nowrap">2525 ms</td>
+                <td class="nowrap">2617 ms</td>
+                <td class="nowrap">3334 ms</td>
+                <td class="nowrap">+91 ms (+4 %)</td>
+                <td class="nowrap">+717 ms (+27 %)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The wall clock also covers the reporter: component docs, snapshot files, stylesheets and
+          assets.
+        </p>
 
         <h2 id="capture">
           Capture cost <a class="anchor" href="#capture" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          One <code>step()</code> capture by DOM size, the median of <code>pnpm bench:micro</code>
+          in each example:
+        </p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>DOM size</th>
+                <th>Chromium</th>
+                <th>jsdom</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>about 40 nodes</td>
+                <td class="nowrap">0.4 ms (48 nodes)</td>
+                <td class="nowrap">1.8 ms (35 nodes)</td>
+              </tr>
+              <tr>
+                <td>about 300 nodes</td>
+                <td class="nowrap">1.3 ms (318 nodes)</td>
+                <td class="nowrap">3.7 ms (305 nodes)</td>
+              </tr>
+              <tr>
+                <td>about 3 000 nodes</td>
+                <td class="nowrap">10.7 ms (3 018 nodes)</td>
+                <td class="nowrap">26.6 ms (3 005 nodes)</td>
+              </tr>
+              <tr>
+                <td>about 15 000 nodes</td>
+                <td class="nowrap">57.4 ms (15 018 nodes)</td>
+                <td class="nowrap">136.8 ms (15 005 nodes)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          In jsdom, the 1 ms <code>setTimeout(0)</code> of the settle is part of every capture. Most
+          of the rest is rrweb's serialization. <code>JSON.stringify</code> of the result takes
+          13–14 % of a capture from 3 000 nodes up in Chromium, and 7–8 % in jsdom. Comparing that
+          text with the previous frame's takes at most 0.3 ms in Chromium and 0.52 ms in jsdom, at
+          15 000 nodes.
+        </p>
+        <p>
+          Naming a test after the first registered component inside a provider takes 0.14 ms at 3
+          008 nodes in jsdom (median, <code>pnpm bench:micro</code> in
+          <code>examples/react-jsdom</code>).
+        </p>
+        <p>
+          There is no <code>requestAnimationFrame</code> wait before a capture. The first version
+          had one, which cost a full vsync (about 16 ms) per frame and made tests 1.8× slower. A
+          snapshot is DOM and stylesheets, not layout, so one macrotask is enough for React to
+          commit.
+        </p>
 
         <h2 id="output">
           Output size <a class="anchor" href="#output" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>
+          Every snapshot file is named after a hash of its content, so identical DOM is stored once,
+          however many frames, tests and runs produce it. Long stylesheets move into
+          <code>styles/</code>, split into chunks that snapshots share. See
+          <a href="how-it-works.html#storage">How it works</a>.
+        </p>
+        <p><code>pnpm measure-output</code> finds:</p>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Example</th>
+                <th>Snapshot files</th>
+                <th>Distinct DOMs</th>
+                <th><code>styles/</code></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>examples/react-browser</code></td>
+                <td>37</td>
+                <td>37</td>
+                <td class="nowrap">4 files, 3.7 kB</td>
+              </tr>
+              <tr>
+                <td><code>examples/react-jsdom</code></td>
+                <td>26</td>
+                <td>26</td>
+                <td class="nowrap">9 files, 4.2 kB</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Web fonts add weight to a static build. <code>describe-me build</code> downloads every
+          <code>unicode-range</code> subset of a font, so Inter in three weights adds about 220 kB
+          to the site. See <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
+        </p>
 
         <h2 id="measure">
           Measure your project
           <a class="anchor" href="#measure" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <p>Compare three variants of the same run:</p>
+        <ol class="steps">
+          <li><strong>Off</strong> <code>enabled: false</code>, the baseline.</li>
+          <li>
+            <strong>Idle</strong> <code>exclude: '**'</code>, the plugin without recording. Point
+            <code>outDir</code> elsewhere, or its cleanup empties your <code>.describe-me/</code>.
+          </li>
+          <li><strong>On</strong> recording, as you run it for the docs.</li>
+        </ol>
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+const variant = process.env.VARIANT ?? 'on'
+const idle = variant === 'idle'
+
+export default defineConfig({
+  plugins: [
+    describeMe({
+      enabled: variant !== 'off',
+      exclude: idle ? '**' : undefined,
+      outDir: idle ? 'node_modules/.describe-me-idle' : undefined,
+    }),
+  ],
+  test: {
+    <span class="dim">// The same console reporter in every variant.</span>
+    reporters: ['default'],
+  },
+})</code></pre>
+        <p>
+          Name the reporters in the config, as above. The plugin then adds only its own, so all
+          three variants print through the same ones. Do not pass <code>--reporter</code>: it
+          replaces the whole list, describe-me's reporter included. A reporter difference distorts
+          the comparison. An AI agent session, for one, picks <code>minimal</code>, which prints
+          less than <code>default</code>.
+        </p>
+        <p>
+          Run the variants in turn (off, idle, on, off, idle, on…) rather than one after the other,
+          so warm caches and machine load hit them alike. Skip the first round, and take the median
+          of several. <code>scripts/bench-macro.mjs</code> in the repository does this for the
+          examples.
+        </p>
 
         <h2 id="cheaper">
           Making it cheaper
           <a class="anchor" href="#cheaper" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D8.</p>
+        <ul>
+          <li>
+            <strong>Record fewer files.</strong> Point <code>include</code> and
+            <code>exclude</code> at the tests that show components. See
+            <a href="configuration.html#include-exclude">Which tests record</a>.
+          </li>
+          <li>
+            <strong>Record in a docs run of its own.</strong> Keep your everyday run without the
+            plugin and record in a second config. See
+            <a href="configuration.html#separate-config">A config of its own</a>.
+          </li>
+          <li>
+            <strong>Keep the DOM small.</strong> Capture cost grows with the number of nodes. Render
+            the component, not the whole app.
+          </li>
+          <li>
+            <strong>Do not call font loaders in tests.</strong> The link they add lands in every
+            snapshot, and in jsdom, where it never loads, every capture sets a timer for it.
+          </li>
+          <li>
+            <strong>Keep <code>describe-me build</code> off the network.</strong>
+            <code>--no-vendor-fonts</code> skips the font downloads. See
+            <a href="viewer.html#flag-no-vendor-fonts"><code>--no-vendor-fonts</code></a
+            >.
+          </li>
+        </ul>
+        <p>
+          <code>test.css: false</code>, <code>styledComponentsBrowserBuild: false</code> and
+          <code>registerExports: false</code> save little, as the
+          <a href="#suites">jsdom table</a> shows, and cost output quality.
+        </p>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="how-it-works.html"><span>Previous</span>How it works</a>
