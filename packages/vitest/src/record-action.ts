@@ -1,4 +1,5 @@
 import { recorder } from '@describe-me/core'
+import type { CaptureOptions } from '@describe-me/core'
 
 /**
  * Nesting depth of the interactions in flight, and the test they started in.
@@ -9,8 +10,15 @@ import { recorder } from '@describe-me/core'
  */
 const nesting = { generation: -1, depth: 0 }
 
-/** Run one user interaction and record a frame for it, but only for the outermost call. */
-export async function recordAction<T>(label: string, run: () => Promise<T>): Promise<T> {
+/**
+ * Run one user interaction and record a frame for it, but only for the outermost call.
+ * `settle: false` takes the frame as soon as the interaction resolves, without a wait.
+ */
+export async function recordAction<T>(
+  label: string,
+  run: () => Promise<T>,
+  options: Pick<CaptureOptions, 'settle'> = {},
+): Promise<T> {
   const generation = recorder.generation
 
   if (generation !== nesting.generation) {
@@ -32,7 +40,7 @@ export async function recordAction<T>(label: string, run: () => Promise<T>): Pro
   }
 
   if (generation === nesting.generation && nesting.depth === 0) {
-    await recorder.capture('action', label, undefined, { generation })
+    await recorder.capture('action', label, undefined, { generation, settle: options.settle })
   }
 
   return result

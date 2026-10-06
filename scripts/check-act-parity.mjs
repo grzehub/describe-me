@@ -1,32 +1,57 @@
 /**
- * Checks that recording adds no React act warnings in jsdom. On the built
- * output, it checks that @describe-me/vitest's `actNeutralWait` turns
- * `IS_REACT_ACT_ENVIRONMENT` off for a wait and restores it, and that the
- * recorder of @describe-me/core runs its waits through `aroundWait`. Then it
- * runs `examples/react-jsdom/act-parity/` with recording off and on, and
- * compares the act warnings of both runs. Run after `pnpm build`. Exits 1 on
- * the first mismatch.
+ * Checks that recording neither adds nor hides React act warnings in jsdom. On
+ * the built output, it checks that @describe-me/vitest's `actNeutralWait` turns
+ * `IS_REACT_ACT_ENVIRONMENT` off for a wait and restores it, that the recorder
+ * of @describe-me/core runs its waits through `aroundWait`, and that the check
+ * @describe-me/react publishes for Testing Library's `asyncWrapper` reaches
+ * the reader of @describe-me/vitest. Then it runs
+ * `examples/react-jsdom/act-parity/` three times: recording off, recording on
+ * with lazy render frames, and recording on with eager ones after a setup file
+ * that loads Testing Library first. Each recording run must pass as many tests
+ * and log the same act warnings, component by component, as the run without.
+ * Run after `pnpm build`. Exits 1 on the first mismatch.
  *
  * Usage: `node scripts/check-act-parity.mjs`
  */
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { isDeepStrictEqual } from 'node:util'
+import { isDeepStrictEqual, stripVTControlCharacters } from 'node:util'
 import { recorder } from '../packages/core/dist/recorder.js'
+import { publishTestingLibraryAct } from '../packages/react/dist/publish-testing-library-act.js'
 import { actNeutralWait } from '../packages/vitest/dist/act-neutral-wait.js'
+import { testingLibraryWrapsInAct } from '../packages/vitest/dist/testing-library-wraps-in-act.js'
 
 const EXAMPLE = fileURLToPath(new URL('../examples/react-jsdom/', import.meta.url))
 const MANIFEST = new URL('../examples/react-jsdom/.describe-me/manifest.json', import.meta.url)
 
-// `act-parity/SlowSave.test.tsx` warns with recording on and off by design, so
-// a count of zero cannot pass for parity when the warnings never reach the output.
-const BASELINE = 1
+// `SlowSave.test.tsx` and the bare-sleep test of `UsernameField.test.tsx` in
+// `act-parity/` warn with recording on and off by design, so a count of zero
+// cannot pass for parity when the warnings never reach the output.
+const BASELINE = 2
 
 const NOT_WRAPPED = /not wrapped in act\(/g
 const NOT_CONFIGURED = /not configured to support act\(/g
 const UPDATE = /An update to (\S+) inside a test/g
+const PASSED = /^\s*Tests\s+.*?(\d+) passed/m
+
+// The key both packages agree on, see `publish-testing-library-act.ts`.
+const ACT_CHECK = Symbol.for('describe-me.testing-library-act')
+
+// Testing Library has no `exports` map, so this is the CommonJS instance the
+// publisher imports. Plain Node has no `beforeAll`, so loading it leaves the
+// act flag alone.
+const { configure } = createRequire(new URL('../packages/react/package.json', import.meta.url))(
+  '@testing-library/react',
+)
+
+const RUNS = {
+  off: { label: 'recording off', env: { ACT_PARITY: '1', DESCRIBE_ME: 'off' } },
+  lazy: { label: 'recording on, lazy', env: { ACT_PARITY: '1' } },
+  eager: { label: 'recording on, eager', env: { ACT_PARITY: 'eager' } },
+}
 
 const RENDER_LABEL = '<Card title="Hi" />'
 const ACTION_LABEL = 'click(button "Save")'
@@ -290,6 +315,31 @@ async function checkRejectedSelector() {
   pass(name)
 }
 
+function checkActCheck(name, expected) {
+  const seen = testingLibraryWrapsInAct()
+
+  if (seen !== expected) {
+    fail(name, `testingLibraryWrapsInAct() returned ${shown(seen)}`)
+  }
+
+  pass(name)
+}
+
+function checkTestingLibraryAct() {
+  checkActCheck('testingLibraryWrapsInAct: false before the check is published', false)
+
+  publishTestingLibraryAct()
+  checkActCheck('testingLibraryWrapsInAct: true after publishTestingLibraryAct()', true)
+
+  configure({ asyncUtilTimeout: 1000 })
+  checkActCheck('testingLibraryWrapsInAct: still true after configure() with other options', true)
+
+  configure({ asyncWrapper: (callback) => callback() })
+  checkActCheck('testingLibraryWrapsInAct: false after configure() swaps the asyncWrapper', false)
+
+  delete host[ACT_CHECK]
+}
+
 function manifestHash() {
   if (!existsSync(MANIFEST)) {
     return null
@@ -315,22 +365,26 @@ function tally(output) {
   return entries.map(([component, total]) => `${component} ${total}`).join(', ') || 'none'
 }
 
+function passedTests(output) {
+  const match = output.match(PASSED)
+
+  return match ? Number(match[1]) : null
+}
+
 /**
  * Runs the fixtures with the default reporter, which prints the console of
  * passing tests. A reporter on the command line replaces the config's, the
  * describe-me reporter included, so the run writes nothing to `.describe-me/`.
  */
-function runFixtures(recording) {
-  const env = { ...process.env, ACT_PARITY: '1' }
+function runFixtures(mode) {
+  const env = { ...process.env }
 
+  delete env.ACT_PARITY
   delete env.DESCRIBE_ME
   delete env.BENCH_MICRO
   delete env.BENCH_OUT
   delete env.BENCH_SKIP
-
-  if (!recording) {
-    env.DESCRIBE_ME = 'off'
-  }
+  Object.assign(env, mode.env)
 
   const result = spawnSync('pnpm', ['exec', 'vitest', 'run', '--reporter=default'], {
     cwd: EXAMPLE,
@@ -339,13 +393,15 @@ function runFixtures(recording) {
     maxBuffer: 64 * 1024 * 1024,
   })
 
-  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+  // Vitest colors its output when `CI` is set.
+  const output = stripVTControlCharacters(`${result.stdout ?? ''}${result.stderr ?? ''}`)
 
   return {
-    label: recording ? 'recording on' : 'recording off',
+    label: mode.label,
     status: result.status,
     error: result.error,
     output,
+    passed: passedTests(output),
     notWrapped: count(output, NOT_WRAPPED),
     notConfigured: count(output, NOT_CONFIGURED),
   }
@@ -362,36 +418,68 @@ function checkRun(run) {
     fail(name, `exit code ${run.status}`, run.output.trimEnd().split('\n').slice(-40))
   }
 
+  if (run.passed === null) {
+    fail(name, 'no "Tests  N passed" line', run.output.trimEnd().split('\n').slice(-40))
+  }
+
   pass(
-    `${name}, ${run.notWrapped} "not wrapped in act", ${run.notConfigured} "not configured to support act"`,
+    `${name}, ${run.passed} passed, ${run.notWrapped} "not wrapped in act", ${run.notConfigured} "not configured to support act"`,
   )
 }
 
-function checkWarnings(off, on) {
-  const tallies = [off, on].map((run) => `${run.label}: ${tally(run.output)}`)
-  const baselineName = `recording off logs the ${BASELINE} act warning of the baseline`
+function checkConfigured(run) {
+  const name = `${run.label}: logs no "not configured to support act"`
 
-  if (off.notWrapped !== BASELINE) {
-    fail(baselineName, `got ${off.notWrapped}`, tallies)
+  if (run.notConfigured !== 0) {
+    fail(name, `got ${run.notConfigured}`, [`${run.label}: ${tally(run.output)}`])
   }
 
-  pass(baselineName)
+  pass(name)
+}
 
-  const parityName = 'recording on logs as many act warnings as recording off'
+function checkParity(off, on) {
+  const tallies = [off, on].map((run) => `${run.label}: ${tally(run.output)}`)
+  const passedName = `${on.label}: passes as many tests as ${off.label}`
+
+  if (on.passed !== off.passed) {
+    fail(passedName, `${on.passed} on, ${off.passed} off`)
+  }
+
+  pass(passedName)
+
+  const countName = `${on.label}: logs as many act warnings as ${off.label}`
 
   if (on.notWrapped !== off.notWrapped) {
-    fail(parityName, `${on.notWrapped} on, ${off.notWrapped} off`, tallies)
+    fail(countName, `${on.notWrapped} on, ${off.notWrapped} off`, tallies)
   }
 
-  pass(parityName)
+  pass(countName)
 
-  const configuredName = 'neither run logs "not configured to support act"'
+  const tallyName = `${on.label}: logs the act warnings of the same components as ${off.label}`
 
-  if (off.notConfigured !== 0 || on.notConfigured !== 0) {
-    fail(configuredName, `${on.notConfigured} on, ${off.notConfigured} off`, tallies)
+  if (tally(on.output) !== tally(off.output)) {
+    fail(tallyName, 'the components differ', tallies)
   }
 
-  pass(configuredName)
+  pass(`${tallyName}: ${tally(on.output)}`)
+}
+
+function checkWarnings(off, ons) {
+  const baselineName = `${off.label} logs the ${BASELINE} act warnings of the baseline`
+
+  if (off.notWrapped !== BASELINE) {
+    fail(baselineName, `got ${off.notWrapped}`, [`${off.label}: ${tally(off.output)}`])
+  }
+
+  pass(`${baselineName}: ${tally(off.output)}`)
+
+  for (const run of [off, ...ons]) {
+    checkConfigured(run)
+  }
+
+  for (const on of ons) {
+    checkParity(off, on)
+  }
 }
 
 function checkManifestUntouched(before) {
@@ -417,12 +505,16 @@ await checkRestoresUndefined()
 await checkRejection()
 await checkRecorderWaits()
 await checkRejectedSelector()
+checkTestingLibraryAct()
 
 const manifestBefore = manifestHash()
-const off = runFixtures(false)
-const on = runFixtures(true)
+const off = runFixtures(RUNS.off)
+const ons = [runFixtures(RUNS.lazy), runFixtures(RUNS.eager)]
 
 checkManifestUntouched(manifestBefore)
-checkRun(off)
-checkRun(on)
-checkWarnings(off, on)
+
+for (const run of [off, ...ons]) {
+  checkRun(run)
+}
+
+checkWarnings(off, ons)

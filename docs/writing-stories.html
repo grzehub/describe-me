@@ -244,7 +244,8 @@ describe('Counter', () =&gt; {
 
         <p>
           In browser mode every capture waits one settle. In jsdom, <code>render</code>,
-          <code>rerender</code> and <code>fireEvent</code> frames do not, as
+          <code>rerender</code> and <code>fireEvent</code> frames do not, and neither do user-event
+          frames under <code>@testing-library/react</code>, as
           <a href="environments.html#jsdom">jsdom</a> explains.
         </p>
 

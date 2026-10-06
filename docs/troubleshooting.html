@@ -594,6 +594,17 @@
                 </td>
               </tr>
               <tr>
+                <td>Fewer act warnings with describe-me than without, in jsdom.</td>
+                <td>
+                  On 0.5.2 every user-event frame waited one macrotask with React's act flag off.
+                  Fixed in 0.5.3.
+                </td>
+                <td>
+                  On 0.5.2, upgrade all packages. Compare runs with the same reporter. See
+                  <a href="limitations.html#limit-act-warnings-hidden">the limitation</a>.
+                </td>
+              </tr>
+              <tr>
                 <td>
                   Vitest's console output differs with the plugin: no <code>minimal</code> or
                   <code>agent</code> reporter in an AI agent session, no

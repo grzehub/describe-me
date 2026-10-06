@@ -7,8 +7,18 @@ import type { DescribeMeOptions } from '@describe-me/vitest/plugin'
 const benchOut = process.env.BENCH_OUT
 
 // ACT_PARITY=1 runs the fixtures of `pnpm check-act-parity`, with lazy render
-// frames so that every wait of the recorder runs.
+// frames so that every wait of the recorder runs. ACT_PARITY=eager takes render
+// frames right away and loads Testing Library in a setup file before ours.
 const actParity = Boolean(process.env.ACT_PARITY)
+const actParityEager = process.env.ACT_PARITY === 'eager'
+
+function renderFrame(): DescribeMeOptions['renderFrame'] {
+  if (actParity && !actParityEager) {
+    return 'lazy'
+  }
+
+  return 'eager'
+}
 
 function testFiles(): string[] {
   if (actParity) {
@@ -79,13 +89,14 @@ export default defineConfig({
     describeMe({
       enabled: process.env.DESCRIBE_ME !== 'off',
       previewHead,
-      renderFrame: actParity ? 'lazy' : 'eager',
+      renderFrame: renderFrame(),
       ...benchOptions(),
     }),
   ],
   test: {
     environment: 'jsdom',
     ...(skipped.includes('css') ? { css: false } : {}),
+    ...(actParityEager ? { setupFiles: ['./act-parity/setup.ts'] } : {}),
     globals: true,
     include: testFiles(),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
