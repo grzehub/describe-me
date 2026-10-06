@@ -11,7 +11,7 @@ pnpm add -D @describe-me/vitest @describe-me/react describe-me
 ```
 
 All describe-me packages must be on the same version
-([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
 ## Usage
 
@@ -32,7 +32,7 @@ plugin detects where the tests run:
 
 jsdom has no layout, so positioned popovers show in the top-left corner and
 canvas stays blank
-([Limitations in jsdom](https://github.com/grzehub/describe-me#limitations-in-jsdom)).
+([Limitations in jsdom](https://grzehub.github.io/describe-me/environments.html#jsdom-limits)).
 
 ```ts
 import { describeMe } from '@describe-me/vitest/plugin'
@@ -68,12 +68,12 @@ plugin the setup file does not know them.
 every frame's `<head>`, like Storybook's `preview-head.html`: typically the
 font links that the app shell loads and tests never do. It never reaches the
 test page, and the local files it links are copied into the output directory
-([Fonts](https://github.com/grzehub/describe-me#fonts) in the root README).
+([Fonts](https://grzehub.github.io/describe-me/styles-and-fonts.html#fonts) in the docs).
 
 `describeMe({ renderFrame })` chooses when the render frame is taken:
 `'eager'` (default) right after mount, `'lazy'` right before the next
 interaction, or `{ pending: '<selector>' }` once a loader is gone. See
-[Render frame timing](https://github.com/grzehub/describe-me#render-frame-timing).
+[Render frame timing](https://grzehub.github.io/describe-me/configuration.html#render-frame).
 
 The plugin adds its reporter to the ones your config names. If it names
 none, the reporter joins the ones Vitest picks on its own, such as `minimal`
@@ -102,5 +102,4 @@ export default defineConfig({
 the props tables are left out. `@testing-library/user-event` is an optional
 peer too, needed only in DOM environments.
 
-See the [root README](https://github.com/grzehub/describe-me#readme) for the
-full picture.
+See the [docs](https://grzehub.github.io/describe-me/) for the full picture.

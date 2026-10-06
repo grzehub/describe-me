@@ -12,20 +12,23 @@
  *   links to the page's source on GitHub.
  * - Every `h2` has an id and an anchor link, the "On this page" list links
  *   them in order, and every id of scripts/docs/sections.mjs exists. Ids are
- *   unique per page. `data-stub` sits only on `<main class="page">`, and only
- *   such a page has `.stub` sections.
+ *   unique per page. No page has `data-stub` or a `.stub`.
  * - The tokens at the top of docs/docs.css equal those of the viewer's
  *   stylesheet, in both colour schemes.
  * - Every relative link points at a page, a file of docs/ or an example
- *   viewer, and every fragment at an id of its target, unless the target is
- *   still a stub. Deep links into the examples name a test, frame and suite of
- *   that example's manifest, so run both examples' tests first.
+ *   viewer, and every fragment at an id of its target. Deep links into the
+ *   examples name a test, frame and suite of that example's manifest, so run
+ *   both examples' tests first.
  * - Code samples import only entry points the packages export, in every form
  *   of import, and only names those entry points export. `describe-me` is the
  *   CLI and exports nothing, so any import of it fails. A quoted
  *   `@describe-me/…` specifier outside an import, such as a `setupFiles`
  *   entry, names an entry point too. Package globs, prefixes and versions are
  *   not specifiers and pass.
+ * - The root README and the package READMEs link only pages, ids and example
+ *   viewers of the site that exist. A package README links docs pages, not
+ *   anchors of the root README. The root README keeps the heading that the
+ *   READMEs on npm link, and its "Documentation" section links every page.
  *
  * Usage: `node scripts/check-docs.mjs`
  */

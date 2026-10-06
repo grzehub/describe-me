@@ -3,15 +3,14 @@ import { join } from 'node:path'
 
 const DOCS_URL = 'https://github.com/grzehub/describe-me/blob/main/docs/'
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i
-const STUB_VALUE = /^D\d+$/
 const ANCHOR_LABEL = 'Link to this section'
 const FORBIDDEN_ELEMENTS = ['script', 'style', 'iframe']
 
 /**
  * The skeleton every page shares: the file list, the head, the topbar, the
  * sidebar, the pager and the footer, the section headings and their "On this
- * page" list, unique ids and stub markers. No scripts, no inline styles, and
- * only relative URLs for the site's own files.
+ * page" list, unique ids and no stub markers. No scripts, no inline styles,
+ * and only relative URLs for the site's own files.
  */
 export default function structure(context) {
   const problems = [...pageFiles(context), ...packageVersions(context)]
@@ -26,7 +25,7 @@ export default function structure(context) {
       ...urls(page, html, context),
       ...headings(page, html, context),
       ...uniqueIds(page, html, context),
-      ...stubs(page, html, context),
+      ...stubMarkers(page, html, context),
     )
   }
 
@@ -271,31 +270,19 @@ function uniqueIds(page, html, context) {
     .map(([id, count]) => `${page.file}: the id "${id}" appears ${count} times`)
 }
 
-function stubs(page, html, context) {
+function stubMarkers(page, html, context) {
   const problems = []
-  const tags = context.helpers.startTags(html)
-  const stubPage = tags.some(
-    (tag) => tag.name === 'main' && classes(tag).includes('page') && 'data-stub' in tag.attributes,
-  )
 
-  for (const tag of tags) {
-    const value = tag.attributes['data-stub']
-
-    if (value === undefined) {
-      continue
-    }
-
-    if (tag.name !== 'main' || !classes(tag).includes('page')) {
-      problems.push(`${page.file}: data-stub belongs on <main class="page">, not on <${tag.name}>`)
-    } else if (!STUB_VALUE.test(value)) {
+  for (const tag of context.helpers.startTags(html)) {
+    if ('data-stub' in tag.attributes) {
       problems.push(
-        `${page.file}: data-stub="${value}" must name a PR of the docs rollout, like D2`,
+        `${page.file}: <${tag.name}> has data-stub. The site is complete, so no page is a stub`,
       )
     }
-  }
 
-  if (!stubPage && tags.some((tag) => classes(tag).includes('stub'))) {
-    problems.push(`${page.file}: has a .stub but no data-stub on <main class="page">`)
+    if (classes(tag).includes('stub')) {
+      problems.push(`${page.file}: <${tag.name}> has the class stub`)
+    }
   }
 
   return problems

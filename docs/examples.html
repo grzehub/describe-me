@@ -91,12 +91,10 @@
         </div>
 
         <div class="callout">
-          <strong>Note.</strong> The viewers are part of this site. On your machine,
-          <code>pnpm site</code> builds them with the pages and serves everything at
-          <code>http://localhost:6060/</code>. They do not open from disk. The viewer is a
-          JavaScript module that fetches its data, and browsers allow neither over
-          <code>file://</code>. <a href="viewer.html#hosting">Hosting the viewer</a> has the
-          details.
+          <strong>Note.</strong> The viewers are part of this site. They fetch their data, so they
+          do not open from disk, as
+          <a href="viewer.html#hosting">Hosting the static site</a> explains.
+          <a href="#locally">Run them locally</a> builds them on your machine.
         </div>
 
         <h2 id="react-browser">
@@ -573,6 +571,8 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
           To work on one example, run <code>pnpm dev</code> inside it. It runs
           <code>vitest</code> and <code>describe-me dev</code> side by side, so the viewer follows
           the tests as they rerun. See <a href="viewer.html#cli">the CLI</a>.
+          <code>pnpm docs:build</code> inside an example writes its static site to
+          <code>docs-dist/</code>.
         </p>
 
         <nav class="pager" aria-label="Pages">

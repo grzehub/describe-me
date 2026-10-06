@@ -273,7 +273,7 @@ describe('Counter', () =&gt; {
           <li>
             <strong>Files not selected.</strong> Files outside <code>include</code> or inside
             <code>exclude</code> run as usual, record nothing and leave the manifest. See
-            <a href="configuration.html#include-exclude">Which test files are recorded</a>.
+            <a href="configuration.html#include-exclude">Which tests record</a>.
           </li>
           <li>
             <strong>Filtered runs.</strong> A run of some files, or with <code>-t</code>,
@@ -383,8 +383,10 @@ it('selects an item and reports it', async () =&gt; {
           When the element you pass to <code>render</code> is not a registered export, such as a
           provider, a fragment, <code>Suspense</code>, a host element or a component defined in the
           test file, the test is documented under the first registered component inside it.
-          <code>Suspense</code> fallbacks are skipped. The props in the inspector and in the
-          coverage are the ones that component received. A registered root keeps its own name.
+          describe-me looks through the element's children and other props first, then through the
+          tree React mounted. <code>Suspense</code> fallbacks are skipped. The props in the
+          inspector and in the coverage are the ones that component received. A registered root
+          keeps its own name.
         </p>
         <p>
           In the browser example,
@@ -483,7 +485,9 @@ recorder.setComponent({
           destructuring pattern, <code>{ size = 'md' }</code>, also through
           <code>forwardRef(…)</code> and <code>memo(…)</code>. Props declared only in
           <code>node_modules</code>, such as those of <code>ButtonHTMLAttributes</code>, are left
-          out. Without TypeScript installed, the reporter warns and documents no props.
+          out. When the export is not registered, the reporter finds the file through the test's
+          import of the component. Without TypeScript installed, the reporter warns and documents no
+          props.
         </p>
 
         <p>

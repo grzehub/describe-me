@@ -12,6 +12,8 @@ plan and the code.
   projects under `examples/react-browser/` and `examples/react-jsdom/`) and
   serves it at `http://localhost:6060/`. It needs `pnpm build` and both
   examples' tests. The viewers fetch their data, so they only work over HTTP.
+- `.github/workflows/docs.yml` publishes `site/` at
+  `https://grzehub.github.io/describe-me/` on every push to `main`.
 
 ## A page
 
@@ -253,16 +255,17 @@ moved. Link to a viewer with the trailing slash: `examples/react-jsdom/`.
 
 ## Stubs
 
-A page that a later PR writes has `data-stub="D4"` (the PR) on
-`<main class="page">`, and each of its sections holds
-`<p class="stub">Written in D4.</p>`. Links into a stub page are checked
-leniently: a fragment that is not an id there yet passes. Remove `data-stub`
-when the page is written, and every link into it is checked in full.
+No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
+`.stub` class on any element.
 
 ## Checks
 
 `pnpm check-docs` runs every file of `scripts/check-docs/` in name order:
 
+- `api.mjs`: `api.html` documents every entry point of the published packages
+  and every name each one exports, under an `entry-*` id.
+- `cli.mjs`: `viewer.html` has a `cmd-*` row for every command and a `flag-*`
+  row for every flag of the `describe-me` CLI, and nothing else.
 - `code-samples.mjs`: in a `<pre><code>` block, every import of
   `describe-me` or `@describe-me/…` (with names, for side effects or dynamic)
   names an entry point of its package, and so does every other quoted
@@ -272,15 +275,34 @@ when the page is written, and every link into it is checked in full.
   Every imported name is exported by that entry point's source. Only
   `<pre><code>` blocks are read, so put program output, such as an error that
   quotes a wrong import, in a `<pre>` without `<code>`.
+- `diagnostics.mjs`: `troubleshooting.html` has a `diag-*` element for every
+  key of `ManifestDiagnostics`, and every row of `limitations.html#summary`
+  carries an environment badge, one status badge and a link.
+- `examples.mjs`: `examples.html` opens both example viewers from cards, and
+  names every component of each example's manifest.
+- `interactions.mjs`: `writing-stories.html#frames` names every call that
+  records a frame.
 - `links.mjs`: relative links point at a page, `docs.css`, `favicon.svg` or an
   example viewer, fragments at ids of their target, SVG references at ids of
   their page, and deep links at tests, frames and suites of the manifests.
+- `manifest-fields.mjs`: `how-it-works.html#manifest` has a `manifest-*` row
+  for every field of `manifest.json`.
+- `options.mjs`: `configuration.html` has an `option-*` row for every option
+  of `describeMe()` and an `env-*` row for every environment variable, and
+  nothing else.
+- `readme-links.mjs`: the docs links of the root `README.md` and the package
+  READMEs point at pages, ids and example viewers that exist. A package README
+  links docs pages, not anchors of the root README. The root README keeps the
+  heading `## Add it to your project`, which the READMEs on npm link, and its
+  "Documentation" section links every page.
 - `structure.mjs`: the page files, the head, no scripts or inline styles,
   relative URLs, identical topbar and sidebar, pager order, footer link, `h2`
-  ids and anchors, the "On this page" list, the ids of `sections.mjs`, unique
-  ids and stub markers.
+  ids and anchors, the "On this page" list, the ids of `sections.mjs` and
+  unique ids.
 - `tokens.mjs`: the tokens at the top of `docs.css` equal those of
   `packages/viewer/src/style.css`, light and dark.
+- `versions.mjs`: `installation.html` has a `version-*` row with every version
+  range the published packages ask for.
 
 To add a check, add a file with one default export. It receives the shared
 context (`root`, `pages`, `sections`, `html` as a map from file to text,
@@ -304,7 +326,9 @@ Chromium.
 2. Copy a page, change the title, description, `main` and "On this page".
 3. Add its link to the sidebar of every page, and fix the pager of the pages
    before and after it.
-4. `pnpm check-docs` tells you what is still out of step.
+4. Link it from the "Documentation" list of the root `README.md`, with its
+   site URL. `readme-links` checks it.
+5. `pnpm check-docs` tells you what is still out of step.
 
 ## Writing
 

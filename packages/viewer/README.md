@@ -18,7 +18,7 @@ pnpm add -D describe-me @describe-me/vitest @describe-me/react
 it automatically; with yarn, add `vite` to your `devDependencies`.
 
 All describe-me packages must be on the same version
-([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
 ## Usage
 
@@ -36,7 +36,7 @@ describe-me build --out docs     # self-contained static site: viewer + __data/
 
 The viewer has search, collapsible suites, keyboard navigation, custom
 viewport sizes and shareable links
-([Viewer](https://github.com/grzehub/describe-me#viewer)).
+([Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html)).
 
 `build` downloads the web fonts that the preview head and the snapshots load
 from Google Fonts, Bunny Fonts and Fontsource on jsDelivr into the site, so
@@ -56,5 +56,4 @@ access or with privacy rules.
 The static site uses relative URLs, so it works from a sub-path such as
 GitHub Pages.
 
-See the [root README](https://github.com/grzehub/describe-me#readme) for the
-full picture.
+See the [docs](https://grzehub.github.io/describe-me/) for the full picture.

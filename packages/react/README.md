@@ -19,7 +19,7 @@ pnpm add -D @describe-me/react
 ```
 
 All describe-me packages must be on the same version
-([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
 ## Usage
 
@@ -29,7 +29,7 @@ recording functions swapped in, so switching an existing test is one import.
 `fireEvent` and `cleanup`: every `fireEvent` call records a frame, and
 `cleanup` takes the closing frame before it unmounts. When the render frame is
 taken follows the plugin's
-[`renderFrame`](https://github.com/grzehub/describe-me#render-frame-timing)
+[`renderFrame`](https://grzehub.github.io/describe-me/configuration.html#render-frame)
 option.
 
 ```tsx
@@ -51,5 +51,4 @@ the plugin redirects `vitest-browser-react` or `@testing-library/react` imports
 to the matching entry point, including imports made from your own
 `test-utils` wrapper, so tests record frames unchanged.
 
-See the [root README](https://github.com/grzehub/describe-me#readme) for the
-full picture.
+See the [docs](https://grzehub.github.io/describe-me/) for the full picture.

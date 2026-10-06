@@ -410,15 +410,6 @@ code {
   font-weight: 600;
 }
 
-/* A section that a later PR of the docs rollout writes. pnpm check-docs refuses it once the site is complete. */
-.stub {
-  padding: 8px 12px;
-  border: 1px dashed var(--line);
-  border-radius: var(--r-md);
-  color: var(--ink-3);
-  font-size: 13px;
-}
-
 /* Code */
 
 pre {

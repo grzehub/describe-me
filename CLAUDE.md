@@ -2,8 +2,9 @@
 
 Living component documentation generated from Vitest tests, in browser mode
 or jsdom.
-Read `README.md` for the architecture and `STYLE.md` for how code is written
-here. Follow STYLE.md even when it makes the code longer; the humans on this
+Read `docs/how-it-works.html` for the architecture, `STYLE.md` for how code is
+written here and `docs/README.md` for how to write docs pages.
+Follow STYLE.md even when it makes the code longer; the humans on this
 project asked for light and visible structure.
 
 The published packages are `@describe-me/core`, `@describe-me/react`,
@@ -36,7 +37,7 @@ cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the na
 cd examples/react-browser && pnpm bench:macro   # plugin and recording cost, interleaved variants
 cd examples/react-jsdom && pnpm bench:macro     # the same in jsdom, plus the switched-off plugin parts
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
-pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links and code samples, after both examples' tests
+pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code samples and README links, after both examples' tests
 pnpm site:build       # docs/ plus both example viewers → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
 pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
 pnpm site             # site:build, then site:serve
@@ -57,5 +58,6 @@ pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z
   (`setup` / `setup-dom`, `@describe-me/react` / `./testing-library`).
 - Snapshots are DOM + stylesheets via rrweb-snapshot; do not add layout or
   screenshot capture to the hot path without measuring (`bench:micro`).
-- Verify with build + tests + lint + format before reporting done.
+- A change in behaviour updates its docs page in the same PR.
+- Verify with build + tests + lint + format + `pnpm check-docs` before reporting done.
 - Do not commit or push unless asked.

@@ -15,7 +15,7 @@ pnpm add -D @describe-me/core
 ```
 
 All describe-me packages must be on the same version
-([Add it to your project](https://github.com/grzehub/describe-me#add-it-to-your-project)).
+([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
 ## Usage
 
@@ -40,9 +40,8 @@ flight and takes a deferred render frame.
 The manifest types live in `@describe-me/core/types`, for tools that want to
 read `.describe-me/manifest.json` themselves. Stored snapshots point into
 `assets/` and `styles/` through `ASSET_URL_PREFIX` and `STYLE_URL_PREFIX`
-([Output directory](https://github.com/grzehub/describe-me#output-directory) in
-the root README). `@describe-me/core/css-references` lists the `url()` and
+([The output directory](https://grzehub.github.io/describe-me/how-it-works.html#storage) in
+the docs). `@describe-me/core/css-references` lists the `url()` and
 `@import` references in CSS text.
 
-See the [root README](https://github.com/grzehub/describe-me#readme) for the
-full picture.
+See the [docs](https://grzehub.github.io/describe-me/) for the full picture.
