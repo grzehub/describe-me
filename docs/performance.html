@@ -63,7 +63,7 @@
         <header class="page-head">
           <h1>Performance</h1>
           <p class="page-meta">
-            README.md · scripts/bench-macro.mjs · scripts/measure-output.mjs · examples/*/bench/ ·
+            scripts/bench-macro.mjs · scripts/measure-output.mjs · examples/*/bench/ ·
             packages/vitest/src/plugin.ts
           </p>
         </header>
@@ -90,7 +90,8 @@
           </li>
           <li>
             <strong>The reporter, at the end.</strong> It reads props with TypeScript, writes the
-            snapshot files and stylesheets, and copies assets.
+            snapshot files and stylesheets, and copies assets. Reading props costs about 0.1 to 0.2
+            s per run on the examples.
           </li>
         </ul>
         <p>
@@ -163,7 +164,8 @@
 
         <p>
           The wall clock of the jsdom run without recording, with one part of the plugin switched
-          off, against <code>idle</code>:
+          off, against <code>idle</code>. These are the variants <code>idle-no-css</code>,
+          <code>idle-no-styled</code> and <code>idle-no-exports</code>:
         </p>
         <div class="scroll">
           <table class="wide">
@@ -335,7 +337,7 @@
           </table>
         </div>
         <p>
-          Web fonts add weight to a static build. <code>describe-me build</code> downloads every
+          Web fonts add weight to a static site. <code>describe-me build</code> downloads every
           <code>unicode-range</code> subset of a font, so Inter in three weights adds about 220 kB
           to the site. See <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
         </p>
@@ -385,7 +387,9 @@ export default defineConfig({
           Run the variants in turn (off, idle, on, off, idle, on…) rather than one after the other,
           so warm caches and machine load hit them alike. Skip the first round, and take the median
           of several. <code>scripts/bench-macro.mjs</code> in the repository does this for the
-          examples.
+          examples. <code>pnpm bench:macro</code> does 5 runs of <code>off</code>,
+          <code>idle</code> and <code>on</code> in <code>examples/react-browser</code>, and of all
+          six variants in <code>examples/react-jsdom</code>.
         </p>
 
         <h2 id="cheaper">

@@ -1,4 +1,5 @@
-# Runs the example suite and publishes the resulting component docs to GitHub Pages.
+# Runs both example suites and publishes the docs pages at the root of GitHub
+# Pages, with each example viewer under examples/<name>/.
 # Enable Pages with source "GitHub Actions" in the repository settings once.
 name: docs
 
@@ -30,12 +31,15 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter react-browser exec playwright install --with-deps chromium
       - run: pnpm --filter react-browser test
-      # Only the example this workflow publishes; `pnpm check-manifest` expects both.
-      - run: node scripts/check-manifest.mjs examples/react-browser/.describe-me/manifest.json
-      - run: pnpm --filter react-browser docs:build
+      - run: pnpm --filter react-jsdom test
+      - run: pnpm check-manifest
+      - run: pnpm check-docs
+      # Unlike ci.yml, vendor the web fonts, so the published viewers carry them.
+      - run: pnpm site:build
+      - run: pnpm check-site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: examples/react-browser/docs-dist
+          path: site
 
   deploy:
     needs: build

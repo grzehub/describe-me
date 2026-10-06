@@ -63,7 +63,7 @@
         <header class="page-head">
           <h1>Getting started</h1>
           <p class="page-meta">
-            README.md · packages/vitest/src/plugin.ts · packages/viewer/cli/parse-args.ts ·
+            packages/vitest/src/plugin.ts · packages/viewer/cli/parse-args.ts ·
             examples/react-browser/vitest.config.ts · examples/react-jsdom/vitest.config.ts ·
             packages/*/package.json
           </p>
@@ -295,16 +295,14 @@ describe('Counter', () =&gt; {
 
         <p>
           It writes a static site, the viewer with your data copied in, to
-          <code>describe-me-dist/</code>. <code>--out</code> picks another directory. The site uses
-          relative URLs, so it works under a sub-path. Serve it over HTTP, because it does not open
-          from disk. The build downloads web fonts into the site unless you pass
-          <code>--no-vendor-fonts</code>.
+          <code>describe-me-dist/</code>. <code>--out</code> picks another directory. Serve it over
+          HTTP, because it does not open from disk.
         </p>
 
         <p>
           <a href="installation.html#ci">Build the docs in CI</a> shows the CI steps.
           <a href="viewer.html#hosting">Hosting the static site</a> covers where to put it, and
-          <a href="styles-and-fonts.html#vendoring">Fonts in the static build</a> what the build
+          <a href="styles-and-fonts.html#vendoring">Fonts in the static site</a> what the build
           downloads.
         </p>
 

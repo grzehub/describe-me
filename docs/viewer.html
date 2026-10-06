@@ -106,8 +106,8 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                 <td>
                   Writes the viewer as a static site to <code>--out</code> and copies the data
                   directory into it as <code>__data/</code>. Then it downloads web fonts into that
-                  copy (<a href="styles-and-fonts.html#vendoring">fonts in the static build</a>).
-                  The data directory itself never changes.
+                  copy (<a href="styles-and-fonts.html#vendoring">fonts in the static site</a>). The
+                  data directory itself never changes.
                 </td>
               </tr>
               <tr id="cmd-help">
@@ -393,8 +393,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <p>
           The issues chip in the header counts what this run could not document: setup problems,
           anonymous components, components without props docs, missing assets, fonts that nothing
-          loads and remote stylesheet hosts. It opens a list with links to the tests. When there is
-          nothing to report, the chip is not there.
+          loads and remote stylesheet hosts. It opens a list with links to the tests, with setup
+          warnings first, in a section of their own. When there is nothing to report, the chip is
+          not there.
           <a href="troubleshooting.html#diagnostics">Troubleshooting</a> explains each entry.
         </p>
 

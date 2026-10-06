@@ -455,8 +455,8 @@ describe-me-dist/</code></pre>
         </h2>
 
         <p>
-          This workflow runs your tests, builds the static site and publishes it to GitHub Pages. It
-          has the same shape as the one that publishes this project's example.
+          This workflow runs your tests, builds the static site and publishes it to GitHub Pages.
+          This project's own workflow does the same for both examples and the docs pages.
         </p>
 
         <p class="file">.github/workflows/docs.yml</p>
@@ -567,15 +567,8 @@ jobs:
         <pre><code>pnpm up --latest describe-me '@describe-me/*'</code></pre>
 
         <p>
-          The viewer reads output written by 0.4. It loads the stylesheet references that 0.5 writes
-          and leaves inline stylesheets as they are. A 0.4 viewer cannot read 0.5 output: its frames
-          show without their stylesheets.
-        </p>
-        <p>
-          <code>manifest.json</code> names the package and version that wrote it in
-          <code>generator</code>. When that major.minor differs from the viewer's own, the viewer
-          shows a banner under its header. A manifest without <code>generator</code>, written by
-          0.5.0 or older, shows no banner.
+          A newer viewer reads older output, but not the other way round, and it shows a banner when
+          the version that wrote the data differs from its own.
           <a href="how-it-works.html#versions">How it works</a> explains the version checks, and
           <a href="viewer.html#issues">Viewer and CLI</a> the banner.
         </p>

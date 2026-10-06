@@ -450,7 +450,7 @@ describe-me: include is an empty list, so no test file is recorded. Leave includ
           <code>timeout</code> ms (default 2000) it stops watching, and the frame waits as in
           <code>'lazy'</code>. An interaction that comes first takes the frame too. A
           <code>pending</code> selector the DOM rejects also falls back to <code>'lazy'</code>, with
-          a warning:
+          one warning per test file:
         </p>
         <pre>
 describe-me: renderFrame.pending is not a valid CSS selector: "…". Render frames fall back to 'lazy'.</pre>
@@ -673,7 +673,8 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           switches of this repository's examples. The describe-me packages read none of them. The
           examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks, and
           <code>BENCH_SKIP</code> and <code>ACT_PARITY</code> work only in
-          <code>examples/react-jsdom</code>.
+          <code>examples/react-jsdom</code>. Set them inline for one run. There is no
+          <code>.env</code>.
         </p>
 
         <div class="scroll">
@@ -731,7 +732,7 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                 <td class="nowrap"><code>examples/react-jsdom</code></td>
                 <td>
                   Runs <code>act-parity/</code> instead of <code>src/</code>, with lazy render
-                  frames.
+                  frames. <code>pnpm check-act-parity</code> sets it.
                 </td>
               </tr>
             </tbody>

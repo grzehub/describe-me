@@ -63,7 +63,7 @@
         <header class="page-head">
           <h1>Limitations</h1>
           <p class="page-meta">
-            README.md · packages/core/src/serialize-document.ts · materialize-adopted-styles.ts ·
+            packages/core/src/serialize-document.ts · materialize-adopted-styles.ts ·
             packages/react/src/record-sync-action.ts ·
             packages/vitest/src/register-recording-hooks.ts · packages/viewer/src/data.ts
           </p>
@@ -101,13 +101,13 @@
                 <td>
                   <code>fireEvent</code> inside your own <code>act()</code> records before React
                   flushes, so its frame shows the DOM from before the update. See
-                  <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                  <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
                 </td>
                 <td><span class="badge env">jsdom</span></td>
                 <td>
                   Drop your own <code>act()</code>, because Testing Library already wraps
-                  <code>fireEvent</code> in one. Or call <code>step()</code> after it, which adds a
-                  frame with the update.
+                  <code>fireEvent</code> in one. Where the <code>act()</code> has to stay, put the
+                  block in a <code>step()</code>.
                 </td>
                 <td><span class="badge status-open">open</span></td>
               </tr>
@@ -220,7 +220,8 @@
               <tr id="limit-jsdom-popovers">
                 <td>
                   Tooltips, menus and dropdowns placed by a positioning library show up in the
-                  top-left corner. See <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                  top-left corner. See
+                  <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
                 </td>
                 <td><span class="badge env">jsdom</span></td>
                 <td>
@@ -232,7 +233,7 @@
               <tr id="limit-jsdom-layout">
                 <td>
                   What the test measures, scrolls or observes behaves differently, because jsdom has
-                  no layout. See <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                  no layout. See <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
                 </td>
                 <td><span class="badge env">jsdom</span></td>
                 <td>Record such tests in browser mode.</td>
@@ -242,7 +243,7 @@
                 <td>
                   Web fonts never load during the test, and a link that a font loader adds sets a
                   timer in every capture. See
-                  <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                  <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
                 </td>
                 <td><span class="badge env">jsdom</span></td>
                 <td>
@@ -253,7 +254,7 @@
               <tr id="limit-canvas">
                 <td>
                   Snapshots hold no canvas pixels, so a <code>&lt;canvas&gt;</code> is blank in the
-                  viewer. See <a href="environments.html#jsdom-limits">Limits of jsdom</a>.
+                  viewer. See <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
                 </td>
                 <td><span class="badge env">both</span></td>
                 <td>None.</td>
@@ -469,10 +470,11 @@
         <ul>
           <li>
             <strong>Controls.</strong> Turn the props table into inputs and mount the component
-            live, in development only.
+            live, in development only, through a playground endpoint on the Vitest server.
           </li>
           <li>
-            <strong>Live mount.</strong> Run a test again up to a given frame inside the viewer.
+            <strong>Live mount.</strong> Run a test again up to a given frame inside the viewer,
+            with hot module reload.
           </li>
           <li>
             <strong><code>adoptedStyleSheets</code> in shadow roots.</strong> Capture them as the

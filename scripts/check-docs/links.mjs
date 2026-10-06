@@ -11,10 +11,9 @@ const MIN_HEIGHT = 120
 
 /**
  * Every relative link and image points at a page, docs.css, favicon.svg or one
- * of the example viewers, and every fragment at an id of its target. A page
- * that still has data-stub is a lenient target: its ids may not exist yet.
- * SVG references (`url(#…)`, `aria-labelledby`, `aria-describedby`) stay on
- * their page. A deep link into an example names a test, frame and suite of its
+ * of the example viewers, and every fragment at an id of its target. SVG
+ * references (`url(#…)`, `aria-labelledby`, `aria-describedby`) stay on their
+ * page. A deep link into an example names a test, frame and suite of its
  * manifest and a viewport size the viewer accepts.
  */
 export default function links(context) {
@@ -40,14 +39,12 @@ export default function links(context) {
   return problems
 }
 
-/** The ids of every page and whether it is still a stub. */
+/** The ids of every page. */
 function targetsOf(context) {
   const targets = new Map()
 
   for (const [file, html] of context.html) {
-    const tags = context.helpers.startTags(html)
-    const stub = tags.some((tag) => tag.name === 'main' && 'data-stub' in tag.attributes)
-    targets.set(file, { ids: new Set(context.helpers.idsIn(html)), stub })
+    targets.set(file, { ids: new Set(context.helpers.idsIn(html)) })
   }
 
   return targets
@@ -96,10 +93,8 @@ function checkLink(page, value, targets, context) {
   }
 
   const id = safeDecode(fragment)
-  const { ids, stub } = targets.get(target)
 
-  // A page a later PR writes may not have its ids yet. Links on the page itself stay strict.
-  if (ids.has(id) || (stub && target !== page.file)) {
+  if (targets.get(target).ids.has(id)) {
     return []
   }
 

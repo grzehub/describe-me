@@ -61,7 +61,7 @@
 
       <main class="page">
         <header class="page-head">
-          <h1>Styles, fonts and assets</h1>
+          <h1>Styles and fonts</h1>
           <p class="page-meta">
             packages/vitest/src/asset-store.ts · font-audit.ts · styled-components-browser-build.ts
             · packages/viewer/cli/vendor-fonts.ts
@@ -373,7 +373,7 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           </li>
           <li>
             Fonts never load inside jsdom, so the test itself never sees them. Only the viewer shows
-            them (<a href="environments.html#jsdom-limits">jsdom limits</a>).
+            them (<a href="environments.html#jsdom-limits">Limitations in jsdom</a>).
           </li>
           <li>
             CSS linked from the head is copied as it is on disk. It skips PostCSS, Tailwind and
@@ -388,7 +388,7 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
         </ul>
 
         <h2 id="vendoring">
-          Fonts in the static build
+          Fonts in the static site
           <a class="anchor" href="#vendoring" aria-label="Link to this section">#</a>
         </h2>
 
@@ -396,8 +396,8 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           <code>describe-me build</code> copies the data into the site, then downloads the web fonts
           that the copy loads from known font hosts. It scans the preview head, the snapshots, the
           style chunks and the CSS assets of the copy, so a link that a font loader added during a
-          test is covered too. The data directory itself never changes.
-          <code>describe-me dev</code> never downloads fonts.
+          test is covered too, and so is data written by 0.4. The data directory itself never
+          changes. <code>describe-me dev</code> never downloads fonts.
         </p>
 
         <div class="scroll">
@@ -552,7 +552,7 @@ describe-me: https://fonts.bunny.net/css?family=… did not download (…). It k
           server in browser mode. Those stop working once the tests end. So when the snapshots are
           written, every one of them that points at a project file is copied into
           <code>.describe-me/assets/</code>, and the snapshot points at the copy. They load in
-          <code>describe-me dev</code> and in the static build alike.
+          <code>describe-me dev</code> and in the static site alike.
         </p>
         <ul>
           <li>
@@ -609,7 +609,7 @@ describe-me: https://fonts.bunny.net/css?family=… did not download (…). It k
           <li><a href="#global-styles">Global styles</a></li>
           <li><a href="#styled-components">styled-components in jsdom</a></li>
           <li><a href="#fonts">Fonts</a></li>
-          <li><a href="#vendoring">Fonts in the static build</a></li>
+          <li><a href="#vendoring">Fonts in the static site</a></li>
           <li><a href="#font-check">The font check</a></li>
           <li><a href="#assets">Assets</a></li>
         </ul>
