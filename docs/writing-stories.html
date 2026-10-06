@@ -59,15 +59,18 @@
         </ul>
       </nav>
 
-      <main class="page" data-stub="D5">
+      <main class="page">
         <header class="page-head">
           <h1>Writing stories</h1>
-          <p class="page-meta">packages/core/src/recorder.ts · packages/react/src</p>
+          <p class="page-meta">
+            packages/core/src/recorder.ts · compact-frames.ts · step.ts · packages/react/src ·
+            packages/vitest/src/patch-*.ts · packages/viewer/src/coverage.ts
+          </p>
         </header>
 
         <p class="lead">
-          A test is a story and each step is a frame. Most tests need no changes. This page explains
-          what records a frame and how to make a test read well in the viewer.
+          A test is a story and each recorded call is a frame. Most tests need no changes. This page
+          explains what records a frame and how to make a test read well in the viewer.
         </p>
 
         <h2 id="stories">
@@ -75,54 +78,532 @@
           <a class="anchor" href="#stories" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          The viewer builds its sidebar from your tests. A test file and its
+          <code>describe</code> blocks become the tree, each <code>it</code> or
+          <code>test</code> becomes a story, and each recorded call in it becomes a frame.
+        </p>
+
+        <p class="file">src/Counter.test.tsx</p>
+        <pre><code>import { describe, expect, it } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { Counter } from './Counter'
+
+describe('Counter', () =&gt; {
+  it('increments', async () =&gt; {
+    const screen = await render(&lt;Counter /&gt;)
+    await screen.getByRole('button', { name: 'increment' }).click()
+    await screen.getByRole('button', { name: 'increment' }).click()
+    await expect.element(screen.getByLabelText('value')).toHaveTextContent('2')
+  })
+})</code></pre>
+
+        <p>
+          This story has three frames: <code>&lt;Counter /&gt;</code> from the render, then
+          <code>click(button "increment")</code> twice.
+          <a href="examples/react-browser/#test=66477549da04&amp;frame=2"
+            >Open the second click in the browser example</a
+          >. The assertion records nothing, and no closing frame follows, because the DOM did not
+          change after the last click.
+        </p>
+
+        <p>
+          A test without an assertion is still a story. A failing test keeps the frames it recorded,
+          so the viewer shows how far it got.
+        </p>
 
         <h2 id="frames">
           What records a frame
           <a class="anchor" href="#frames" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <h3>Render</h3>
+        <p>
+          The recording <code>render</code> takes a frame after mount, labelled like
+          <code>&lt;Counter initial=1 /&gt;</code>. Each <code>rerender</code> takes one more,
+          labelled like <code>rerender &lt;Button size="sm" /&gt;</code>. Both carry the props the
+          component received. When the render frame is taken depends on
+          <a href="#async"><code>renderFrame</code></a
+          >.
+        </p>
+
+        <h3>Interactions</h3>
+        <p>
+          Each call of one of these methods records one frame, labelled after the call, such as
+          <code>fill(searchbox, "rrweb")</code>, <code>keyboard("{Escape}")</code> or
+          <code>click(button "show details")</code>.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Methods</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Locator, browser mode</td>
+                <td>
+                  <code>click</code> <code>dblClick</code> <code>tripleClick</code>
+                  <code>wheel</code> <code>clear</code> <code>hover</code> <code>unhover</code>
+                  <code>fill</code> <code>dropTo</code> <code>selectOptions</code>
+                  <code>upload</code>
+                </td>
+              </tr>
+              <tr>
+                <td>userEvent from vitest/browser</td>
+                <td>
+                  <code>type</code> <code>tab</code> <code>keyboard</code> <code>copy</code>
+                  <code>cut</code> <code>paste</code>
+                </td>
+              </tr>
+              <tr>
+                <td>@testing-library/user-event</td>
+                <td>
+                  <code>click</code> <code>dblClick</code> <code>tripleClick</code>
+                  <code>hover</code> <code>unhover</code> <code>type</code> <code>clear</code>
+                  <code>keyboard</code> <code>tab</code> <code>paste</code> <code>copy</code>
+                  <code>cut</code> <code>pointer</code> <code>selectOptions</code>
+                  <code>deselectOptions</code> <code>upload</code>
+                </td>
+              </tr>
+              <tr>
+                <td>fireEvent</td>
+                <td>
+                  <code>fireEvent(element, event)</code> and each of its methods, such as
+                  <code>fireEvent.click</code> or <code>fireEvent.change</code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ul>
+          <li>
+            The other <code>userEvent</code> methods of <code>vitest/browser</code>, such as
+            <code>userEvent.click(element)</code>, hand the work to the Locator and record through
+            it.
+          </li>
+          <li>
+            For <code>@testing-library/user-event</code>, both the direct API
+            (<code>userEvent.click(element)</code>) and instances from
+            <code>userEvent.setup()</code> record.
+          </li>
+          <li>
+            A <code>fireEvent</code> label, such as <code>click(button "Save")</code>, names the
+            event and the element the test targeted, read before the event fires. It adds the typed
+            value or key when there is one, as in <code>change(text "Name", "hello")</code>.
+          </li>
+        </ul>
+
+        <h3>Steps and the closing frame</h3>
+        <ul>
+          <li>
+            <a href="#step"><code>step()</code></a> takes a frame after its body has finished,
+            labelled with the name you give it.
+          </li>
+          <li>
+            After the test, the closing frame <code>end of test</code> shows how it ended. It is
+            taken only when the test recorded something else and the page still shows something.
+          </li>
+          <li>
+            With <code>afterEach(cleanup)</code>, <code>cleanup()</code> takes the closing frame
+            before it unmounts. When the test goes on recording after a <code>cleanup()</code>, that
+            frame is labelled <code>before cleanup()</code>.
+          </li>
+        </ul>
+
+        <h3>The rules</h3>
+        <ul>
+          <li>
+            <strong>Call order.</strong> Frames keep the order the test asked for them in, even when
+            an earlier capture is still waiting for the page to settle.
+            <a href="examples/react-jsdom/#test=930a91451500&amp;frame=1"
+              >The rerender frame of Disclosure</a
+            >
+            sits between its render and its click.
+          </li>
+          <li>
+            <strong>One frame per gesture.</strong> A method that hands its work to another, such as
+            <code>userEvent.click</code> to <code>locator.click</code>, records one frame. So does
+            an event handler that fires another event inside <code>fireEvent</code>.
+          </li>
+          <li>
+            <strong>Identical DOM.</strong> An interaction always keeps its frame, even when the DOM
+            did not change. Identical DOM serializes to identical text, so the store writes it once.
+            A closing frame equal to the frame before it is dropped. A step equal to the frame
+            before it names that frame instead, as <code>&lt;step&gt; · &lt;label&gt;</code>.
+          </li>
+          <li>
+            <strong>Ended tests.</strong> A capture still running when its test ends, such as an
+            interaction the test did not await, is dropped.
+          </li>
+        </ul>
+
+        <p>
+          In browser mode every capture waits one settle. In jsdom, <code>render</code>,
+          <code>rerender</code> and <code>fireEvent</code> frames do not, as
+          <a href="environments.html#jsdom">jsdom</a> explains.
+        </p>
 
         <h2 id="left-out">
           Tests that are left out
           <a class="anchor" href="#left-out" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <ul>
+          <li>
+            <strong>Nothing recorded.</strong> A test needs a frame other than the closing one. A
+            test with no recording <code>render</code>, no interaction and no <code>step()</code> is
+            left out, even if it failed. It costs no snapshot, so pure logic tests and
+            <code>renderHook</code> tests next to your components are free.
+          </li>
+          <li>
+            <strong>Mounting another way.</strong> The plugin redirects only the exact module names
+            <code>vitest-browser-react</code> and <code>@testing-library/react</code>. So
+            <code>page.render()</code>, which <code>vitest-browser-react</code> registers,
+            <code>vitest-browser-react/pure</code>, <code>@testing-library/react/pure</code> and
+            <code>createRoot</code> by hand mount through the original <code>render</code>. That
+            mount takes no render frame and names no component. Import <code>render</code> from the
+            module itself. Where you cannot, a <code>step()</code> keeps the test, and
+            <a href="#naming"><code>recorder.setComponent()</code></a> names it.
+          </li>
+          <li>
+            <strong>Files not selected.</strong> Files outside <code>include</code> or inside
+            <code>exclude</code> run as usual, record nothing and leave the manifest. See
+            <a href="configuration.html#include-exclude">Which test files are recorded</a>.
+          </li>
+          <li>
+            <strong>Filtered runs.</strong> A run of some files, or with <code>-t</code>,
+            <code>.only</code> or <code>.skip</code>, does not erase the rest. Files that did not
+            run and tests that were skipped keep what the last run recorded for them.
+          </li>
+          <li>
+            <strong>Concurrent tests.</strong> They are never recorded, as
+            <a href="environments.html#both">Limits in both environments</a> explains.
+          </li>
+        </ul>
 
         <h2 id="step">
           Naming steps with step()
           <a class="anchor" href="#step" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          <code>step(name, fn)</code> runs <code>fn</code>, waits for it to resolve, then captures
+          the DOM as a frame called <code>name</code>. It returns what <code>fn</code> returns.
+        </p>
+
+        <p class="file">src/Menu.test.tsx</p>
+        <pre><code>import { expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { userEvent } from 'vitest/browser'
+import { step } from '@describe-me/vitest'
+import { Menu } from './Menu'
+
+const items = ['Duplicate', 'Rename', 'Delete']
+
+it('selects an item and reports it', async () =&gt; {
+  const onSelect = vi.fn()
+  const screen = await render(&lt;Menu label="Actions" items={items} onSelect={onSelect} /&gt;)
+  await step('open the menu', () =&gt; userEvent.click(screen.getByRole('button')))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+  expect(onSelect).toHaveBeenCalledWith('Rename')
+})</code></pre>
+
+        <p>
+          <code>@describe-me/vitest</code>, <code>@describe-me/react</code>,
+          <code>@describe-me/react/testing-library</code> and <code>@describe-me/core</code> all
+          export the same <code>step</code>. The examples import it from
+          <code>@describe-me/vitest</code>.
+        </p>
+
+        <p>
+          The click inside the step already records a frame, and the step sees the same DOM. So the
+          step names that frame instead of adding one:
+          <a href="examples/react-browser/#test=d5b51b54fed9&amp;frame=1"
+            ><code>open the menu · click(button)</code></a
+          >. A step whose body changes the DOM without recording, such as a wait, gets a frame of
+          its own.
+        </p>
 
         <h2 id="async">
           Async content <a class="anchor" href="#async" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          By default the render frame is taken right after mount, so a component that loads shows
+          its loader there. The <code>renderFrame</code> option takes it later:
+          <code>'lazy'</code> waits for the next interaction or the end of the test, and
+          <code>{ pending, timeout }</code> waits until nothing matches the
+          <code>pending</code> selector. <code>await recorder.flush()</code> takes a held-back frame
+          early. <a href="configuration.html#render-frame">Render frame timing</a> has the details.
+        </p>
+
+        <p>
+          With the default, AsyncGreeting in the jsdom example shows
+          <a href="examples/react-jsdom/#test=c4531c7f5c42&amp;frame=0"
+            >the loader in its render frame</a
+          >
+          and
+          <a href="examples/react-jsdom/#test=c4531c7f5c42&amp;frame=1"
+            >the greeting in its closing frame</a
+          >.
+        </p>
 
         <h2 id="naming">
           Which component a test documents
           <a class="anchor" href="#naming" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <h3>Named after the export</h3>
+        <p>
+          The plugin appends a line to every project module, not to tests or
+          <code>node_modules</code>, that registers its top-level exports. A component is then named
+          after its export, so <code>export const Button = forwardRef(…)</code> is
+          <code>Button</code> and <code>export const Text = styled.p</code> is <code>Text</code>,
+          although neither has a usable name of its own. The
+          <a href="configuration.html#option-registerExports"><code>registerExports</code></a>
+          option turns this off.
+        </p>
+        <p>Without a registered export, the name is the first of these that exists:</p>
+        <ol>
+          <li>the <code>displayName</code></li>
+          <li>the function name</li>
+          <li>
+            the same two for the component a <code>memo</code> or <code>forwardRef</code> wraps
+          </li>
+          <li><code>Anonymous</code></li>
+        </ol>
+
+        <h3>The first registered component</h3>
+        <p>
+          When the element you pass to <code>render</code> is not a registered export, such as a
+          provider, a fragment, <code>Suspense</code>, a host element or a component defined in the
+          test file, the test is documented under the first registered component inside it.
+          <code>Suspense</code> fallbacks are skipped. The props in the inspector and in the
+          coverage are the ones that component received. A registered root keeps its own name.
+        </p>
+        <p>
+          In the browser example,
+          <a href="examples/react-browser/#test=7d56bd2e9338&amp;frame=0"
+            >a Button inside a context provider</a
+          >,
+          <a href="examples/react-browser/#test=8f44b22adcb0&amp;frame=0"
+            >a Chip inside a test-local memo</a
+          >
+          and
+          <a href="examples/react-browser/#test=372e3c412d12&amp;frame=0"
+            >a Counter inside Suspense</a
+          >
+          are named after the component, not the element around it. In the jsdom example,
+          <a href="examples/react-jsdom/#test=18624e05159a&amp;frame=0">a Panel inside Suspense</a>
+          wins over the Badge in its fallback.
+        </p>
+        <p>
+          With a <code>wrapper</code>, only the tree under your element is searched, so the
+          wrapper's own components are never picked.
+          <a href="examples/react-jsdom/#test=b65498d13018&amp;frame=0"
+            >Naming &gt; names Badge tone=danger under the test-utils wrapper</a
+          >
+          renders a test-local <code>Alert</code> through a wrapper that also renders
+          <code>GlobalStyles</code>, and is named <code>Badge</code>.
+        </p>
+
+        <h3>Naming a test yourself</h3>
+        <p>
+          A wrapper that ignores <code>children</code>, for example one that renders a router, never
+          mounts the element you pass. Name the test yourself after <code>render</code>:
+        </p>
+
+        <pre><code>import { render } from '@testing-library/react'
+import { recorder } from '@describe-me/vitest'
+import { AppProviders } from './test-utils'
+
+render(&lt;&gt;&lt;/&gt;, { wrapper: AppProviders })
+recorder.setComponent({
+  name: 'OrdersPage',
+  file: 'src/pages/OrdersPage.tsx',
+  props: { status: 'open' },
+})</code></pre>
+
+        <ul>
+          <li>
+            <code>name</code> is the name of the export in <code>file</code>, and
+            <code>file</code> is relative to the Vitest root. With <code>file</code>, the props
+            table works even when the test does not import the component.
+          </li>
+          <li>
+            The first name a test gets stays. A later one replaces it only when the first is
+            <code>Anonymous</code> and the new one is not, or when the first has no
+            <code>file</code> and the new one has.
+            <a href="examples/react-jsdom/#test=61f0073d8fd3&amp;frame=1"
+              >A rerender from an empty fragment</a
+            >
+            replaces <code>Anonymous</code> this way.
+          </li>
+          <li>
+            The render frame does not change. It keeps its <code>&lt;Anonymous /&gt;</code> label
+            and its props, <code>{}</code> here, so the props you pass do not count toward coverage.
+            The inspector shows them on the later frames.
+          </li>
+        </ul>
+
+        <h3>Naming limits</h3>
+        <ul>
+          <li>
+            A wrapper that ignores <code>children</code>: call <code>setComponent</code> with
+            <code>file</code>, as above.
+          </li>
+          <li>
+            A project component used as the root element, such as your app's exported provider,
+            keeps its own name. Pass it as <code>wrapper</code> instead.
+          </li>
+          <li>
+            An unexported provider written inline,
+            <code>render(&lt;Providers&gt;{ui}&lt;/Providers&gt;)</code>, around a
+            <code>ui</code> defined in the test can name the test after a component the provider
+            renders itself, such as a <code>GlobalStyles</code>. Pass it as
+            <code>wrapper</code> instead.
+          </li>
+          <li>
+            <code>setComponent</code> never replaces a name that already has a <code>file</code>.
+          </li>
+        </ul>
 
         <h2 id="props">
           Props and coverage <a class="anchor" href="#props" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <p>
+          The reporter reads the props of each documented component from its TypeScript type: name,
+          type, whether it is required, and the JSDoc description. Defaults come from the
+          destructuring pattern, <code>{ size = 'md' }</code>, also through
+          <code>forwardRef(…)</code> and <code>memo(…)</code>. Props declared only in
+          <code>node_modules</code>, such as those of <code>ButtonHTMLAttributes</code>, are left
+          out. Without TypeScript installed, the reporter warns and documents no props.
+        </p>
+
+        <p>
+          The component overview shows which values the tests cover. It counts the props of every
+          <code>render</code> and <code>rerender</code> frame of the tests in the selected file or
+          <code>describe</code> block:
+        </p>
+
+        <ul>
+          <li>
+            A value of a literal union or a boolean is covered when some render frame passed it.
+          </li>
+          <li>The default is covered when some render frame left the prop out.</li>
+          <li>
+            Any other prop shows <code>passed in N of M tests</code>, or
+            <code>never passed</code> when no test passed it.
+          </li>
+        </ul>
+
+        <div class="mock">
+          <div class="mock-body">
+            <div class="scroll">
+              <table class="fields wide">
+                <thead>
+                  <tr>
+                    <th>Prop</th>
+                    <th>Type</th>
+                    <th>Covered</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>variant</td>
+                    <td><code>'primary' | 'secondary' | 'ghost' | 'danger'</code></td>
+                    <td>
+                      <p class="chips">
+                        <span class="chip covered">primary (default)</span
+                        ><span class="chip covered">secondary</span
+                        ><span class="chip covered">ghost</span
+                        ><span class="chip uncovered">danger</span>
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>size</td>
+                    <td><code>'sm' | 'md' | 'lg'</code></td>
+                    <td>
+                      <p class="chips">
+                        <span class="chip covered">sm</span
+                        ><span class="chip covered">md (default)</span
+                        ><span class="chip covered">lg</span>
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>loading</td>
+                    <td><code>boolean</code></td>
+                    <td>
+                      <p class="chips">
+                        <span class="chip covered">true</span
+                        ><span class="chip covered">false (default)</span>
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>children*</td>
+                    <td><code>ReactNode</code></td>
+                    <td>passed in 8 of 8 tests</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <p class="mock-caption">The props of Button in the browser example.</p>
+
+        <p>
+          No Button test passes <code>variant="danger"</code>, so that value is not covered.
+          <code>disabled</code>, <code>onClick</code> and <code>title</code> come from
+          <code>ButtonHTMLAttributes</code> and are not listed.
+          <a href="examples/react-browser/#suite=src%2FButton.test.tsx%3A%3AButton"
+            >Open the Button overview</a
+          >. <a href="viewer.html#overview">The component overview</a> describes the rest of it.
+        </p>
 
         <h2 id="tips">
           Tests that read well as stories
           <a class="anchor" href="#tips" aria-label="Link to this section">#</a>
         </h2>
 
-        <p class="stub">Written in D5.</p>
+        <ul>
+          <li>
+            <strong>Name tests as sidebar entries.</strong> <code>describe('Button')</code> with
+            <code>it('renders ghost')</code> reads as a page and its entry.
+          </li>
+          <li>
+            <strong>One behaviour per test.</strong> Each test gets its own timeline, and its last
+            frame is its thumbnail in the overview.
+          </li>
+          <li>
+            <strong>Name phases with <code>step()</code>.</strong> A long test reads better as a few
+            named frames than as a row of clicks.
+          </li>
+          <li>
+            <strong>Pass providers as <code>wrapper</code>.</strong> The search for the component
+            then skips them.
+          </li>
+          <li>
+            <strong>One test per prop value you want covered.</strong> Only values passed to
+            <code>render</code> or <code>rerender</code> count.
+          </li>
+          <li>
+            <strong>Use <code>renderFrame</code> for loaders.</strong> The render frame then shows
+            the component, not its spinner.
+          </li>
+          <li>
+            <strong>Await every interaction.</strong> One that finishes after the test ended records
+            nothing.
+          </li>
+        </ul>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="environments.html"><span>Previous</span>Environments</a>
