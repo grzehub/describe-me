@@ -1102,3 +1102,12 @@ ol.steps > li > strong:first-child {
     min-width: 14rem;
   }
 }
+
+/*
+ * The API tables: a signature wraps between its words, never inside a name.
+ * The column then keeps the width of its longest name, and on a phone the card
+ * scrolls instead.
+ */
+table.fields.signatures td code {
+  overflow-wrap: break-word;
+}
