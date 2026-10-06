@@ -366,7 +366,8 @@
             Settling waits one macrotask on real timers, which is enough for React to commit, also
             under fake timers. It does not wait for <code>requestAnimationFrame</code>, because a
             frame holds the DOM and its styles, not layout. In jsdom the wait runs with React's act
-            flag off, as Testing Library's own waits do.
+            flag off, as Testing Library's own waits do. User-event in jsdom under
+            <code>@testing-library/react</code> skips the settle.
           </li>
           <li>
             <strong><code>step()</code></strong> It takes a held-back render frame, runs its body
@@ -400,7 +401,11 @@
           In jsdom, Testing Library runs <code>render</code>, <code>rerender</code> and
           <code>fireEvent</code> inside <code>act()</code>, so the DOM is committed when they
           return. Their frames are taken right away, without settling, before the test's next line
-          can change the DOM.
+          can change the DOM. So are user-event frames, because user-event runs each call through
+          the <code>asyncWrapper</code> that Testing Library configures, which drains a macrotask
+          before the call resolves. The setup file knows Testing Library is loaded through a check
+          that <code>@describe-me/react/testing-library</code> publishes on
+          <code>globalThis</code> when it loads. Without that check, user-event frames settle.
         </p>
 
         <p>

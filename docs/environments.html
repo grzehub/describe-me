@@ -221,10 +221,14 @@ describeMe({ environment: 'browser' })</code></pre>
             is one of them.
           </li>
           <li>
-            <code>@testing-library/user-event</code> frames wait one settle, as in browser mode. See
+            <code>@testing-library/user-event</code> frames are taken as soon as the call resolves,
+            with <code>@testing-library/react</code> loaded. Testing Library runs each event in
+            <code>act()</code> and drains a macrotask before the call returns, so the frame shows
+            the page as the test's next line sees it. See
             <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=1"
               >the click through a setup instance</a
-            >.
+            >. Without <code>@testing-library/react</code>, user-event frames wait one settle, as in
+            browser mode.
           </li>
           <li>
             The plugin turns on <code>test.css</code> unless you set it, so imported stylesheets
@@ -265,9 +269,24 @@ describeMe({ environment: 'browser' })</code></pre>
             would, which is only with Vitest globals (<code>globals: true</code>).
           </li>
           <li>
-            The flag is off while the recorder waits for the page to settle, as it is inside Testing
-            Library's <code>waitFor</code> and user-event. When the wait ends, the flag from before
-            it comes back. So React's act warnings match a run without describe-me.
+            With <code>@testing-library/react</code>, <code>render</code>, <code>fireEvent</code>
+            and user-event frames add no wait, so React's act warnings match a run without
+            describe-me.
+          </li>
+          <li>
+            The recorder still waits one macrotask, with the flag off as in Testing Library's
+            <code>waitFor</code>, in four places:
+            <ul>
+              <li>
+                at the end of a test that still holds back a <code>lazy</code> or
+                <code>{ pending }</code> render frame
+              </li>
+              <li>before the closing frame that the recorder takes after the test</li>
+              <li>after a <code>step()</code></li>
+              <li>after a user-event call without <code>@testing-library/react</code></li>
+            </ul>
+            An update that lands in one of these waits can warn differently than without
+            describe-me, in either direction.
           </li>
         </ul>
 

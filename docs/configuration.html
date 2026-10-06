@@ -732,7 +732,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                 <td class="nowrap"><code>examples/react-jsdom</code></td>
                 <td>
                   Runs <code>act-parity/</code> instead of <code>src/</code>, with lazy render
-                  frames. <code>pnpm check-act-parity</code> sets it.
+                  frames. <code>eager</code> takes render frames right away and adds
+                  <code>act-parity/setup.ts</code>, which loads Testing Library before describe-me's
+                  setup file. <code>pnpm check-act-parity</code> sets it.
                 </td>
               </tr>
             </tbody>

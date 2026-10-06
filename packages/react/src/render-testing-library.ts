@@ -3,13 +3,15 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { recorder } from '@describe-me/core'
 import { describeRendered } from './describe-rendered.js'
 import { labelFor } from './label-for.js'
+import { publishTestingLibraryAct } from './publish-testing-library-act.js'
 
 type RenderOptions = Parameters<typeof baseRender>[1]
 type RenderResult = ReturnType<typeof baseRender>
 
 // On import rather than in `render()`, so a file that only calls `renderHook`
-// is unmounted after each test too.
+// is unmounted after each test too, and its user-event frames skip the settle.
 recorder.onTeardown(unmountAll)
+publishTestingLibraryAct()
 
 /**
  * Drop-in for `render` from @testing-library/react (jsdom and other DOM

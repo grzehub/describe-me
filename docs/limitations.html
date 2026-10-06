@@ -198,6 +198,30 @@
                 <td>On 0.5.1, upgrade all packages.</td>
                 <td><span class="badge status-fixed">fixed in 0.5.2</span></td>
               </tr>
+              <tr id="limit-act-warnings-hidden">
+                <td>
+                  Recording hid React act warnings from updates that landed right after a user-event
+                  call. See <a href="troubleshooting.html#symptoms">Troubleshooting</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>On 0.5.2, upgrade all packages.</td>
+                <td><span class="badge status-fixed">fixed in 0.5.3</span></td>
+              </tr>
+              <tr id="limit-act-warnings-waits">
+                <td>
+                  A wait of the recorder can move a React act warning in either direction. It waits
+                  for a held-back render frame at the end of a test, before the closing frame, after
+                  a <code>step()</code> and after a user-event call without
+                  <code>@testing-library/react</code>. See
+                  <a href="environments.html#jsdom">jsdom</a>.
+                </td>
+                <td><span class="badge env">jsdom</span></td>
+                <td>
+                  Await <code>findBy…</code> or <code>waitFor</code> for async updates instead of a
+                  bare sleep.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
               <tr id="limit-default-reporters">
                 <td>
                   The plugin replaced Vitest's default reporters, such as <code>minimal</code> for

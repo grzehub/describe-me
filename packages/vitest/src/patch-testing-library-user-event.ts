@@ -1,6 +1,7 @@
 import { elementLabel } from '@describe-me/core'
 import { describeArg } from './describe-arg.js'
 import { recordAction } from './record-action.js'
+import { testingLibraryWrapsInAct } from './testing-library-wraps-in-act.js'
 
 /** Every interaction of user-event 14 that can change what the page shows. */
 const METHODS = [
@@ -41,8 +42,12 @@ function patchMethods(target: Patchable): void {
       continue
     }
 
+    // Testing Library's wrappers commit the DOM before the call resolves. A settle
+    // would only move React updates into a wait with the act flag off.
     const wrapped: Method = (...args) =>
-      recordAction(labelFor(method, args), async () => original.apply(target, args))
+      recordAction(labelFor(method, args), async () => original.apply(target, args), {
+        settle: !testingLibraryWrapsInAct(),
+      })
 
     wrapped[PATCHED] = true
     target[method] = wrapped
@@ -54,8 +59,9 @@ function patchMethods(target: Patchable): void {
  * It comes in two shapes, the direct API (`userEvent.click(el)`) and an
  * instance from `userEvent.setup()`, and the first delegates to the second,
  * so both are patched and `recordAction`'s depth guard keeps one gesture to
- * one frame. When the optional peer is not installed, there is nothing to
- * patch. Safe to call more than once.
+ * one frame. Under @testing-library/react a frame is taken as soon as the
+ * call resolves, otherwise after one settle. When the optional peer is not
+ * installed, there is nothing to patch. Safe to call more than once.
  */
 export async function patchTestingLibraryUserEvent(): Promise<void> {
   let userEvent: unknown

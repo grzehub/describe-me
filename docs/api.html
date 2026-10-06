@@ -169,7 +169,8 @@
         <ul>
           <li>
             patches <code>@testing-library/user-event</code>, when it is installed, so that every
-            interaction records a frame
+            interaction records a frame. With <code>@testing-library/react</code> loaded, these
+            frames are taken without a wait.
           </li>
           <li>
             sets React's <code>IS_REACT_ACT_ENVIRONMENT</code> flag for each test file, as Testing
@@ -423,7 +424,8 @@
           Everything else of <code>@testing-library/react</code> is re-exported as it is. Importing
           this entry point hands unmounting to the recorder, which runs it after the closing frame.
           The plugin switches Testing Library's own cleanup off with
-          <code>RTL_SKIP_AUTO_CLEANUP</code>.
+          <code>RTL_SKIP_AUTO_CLEANUP</code>. Importing it also lets the setup file take user-event
+          frames without a wait, while Testing Library's <code>asyncWrapper</code> stays configured.
         </p>
 
         <h2 id="core">

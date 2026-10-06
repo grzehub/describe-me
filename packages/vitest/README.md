@@ -26,9 +26,12 @@ plugin detects where the tests run:
   `@testing-library/user-event` call, turns on `test.css` so imported
   stylesheets reach the snapshots, and sets `RTL_SKIP_AUTO_CLEANUP` so the
   component is unmounted only after the closing frame. The setup file sets
-  React's `IS_REACT_ACT_ENVIRONMENT` where Testing Library would and turns it
-  off while the recorder waits, so act warnings match a run without
-  describe-me. It also works without user-event installed.
+  React's `IS_REACT_ACT_ENVIRONMENT` where Testing Library would. With
+  `@testing-library/react`, it takes user-event frames without a wait. The
+  flag is off for the few waits that remain, which can still move an act
+  warning
+  ([jsdom](https://grzehub.github.io/describe-me/environments.html#jsdom)). It
+  also works without user-event installed.
 
 jsdom has no layout, so positioned popovers show in the top-left corner and
 canvas stays blank
