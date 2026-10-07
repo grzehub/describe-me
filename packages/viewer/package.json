@@ -1,12 +1,15 @@
 {
   "name": "describe-me",
   "version": "0.5.3",
-  "description": "Living component documentation generated from your Vitest tests: viewer and CLI",
+  "description": "Living component documentation from your Vitest tests: the viewer and CLI of describe-me",
   "keywords": [
     "vitest",
+    "react",
     "storybook",
+    "storybook alternative",
     "component documentation",
-    "visual testing",
+    "living documentation",
+    "jsdom",
     "testing",
     "cli"
   ],

@@ -1,12 +1,15 @@
 {
   "name": "@describe-me/core",
   "version": "0.5.3",
-  "description": "Recorder and manifest types for describe-me: living component docs from your tests",
+  "description": "Living component documentation from your Vitest tests: the recorder and manifest types of describe-me",
   "keywords": [
     "vitest",
+    "react",
     "storybook",
+    "storybook alternative",
     "component documentation",
-    "visual testing",
+    "living documentation",
+    "jsdom",
     "testing"
   ],
   "license": "MIT",
