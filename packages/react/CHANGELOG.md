@@ -1,5 +1,14 @@
 # @describe-me/react
 
+## 0.5.4
+
+### Patch Changes
+
+- [#66](https://github.com/grzehub/describe-me/pull/66) [`1b27eca`](https://github.com/grzehub/describe-me/commit/1b27ecac9d21d5a3940bd7027139282f56665e4b) Thanks [@grzehub](https://github.com/grzehub)! - The package pages on npm point at the docs site. Every README opens with a link to the docs and the two live example viewers, explains which package you need, and shares one quick start. The details moved to the docs pages they link. The package descriptions and keywords are aligned, and `visual testing` is gone from the keywords because describe-me does no visual regression testing.
+- Updated dependencies [[`1b27eca`](https://github.com/grzehub/describe-me/commit/1b27ecac9d21d5a3940bd7027139282f56665e4b)]:
+  - @describe-me/vitest@0.5.4
+  - @describe-me/core@0.5.4
+
 ## 0.5.3
 
 ### Patch Changes
