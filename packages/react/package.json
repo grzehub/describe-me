@@ -1,13 +1,15 @@
 {
   "name": "@describe-me/react",
   "version": "0.5.3",
-  "description": "React adapter for describe-me: drop-in render functions that record frames",
+  "description": "Living component documentation from your Vitest tests: the React adapter of describe-me",
   "keywords": [
     "vitest",
-    "storybook",
-    "component documentation",
-    "visual testing",
     "react",
+    "storybook",
+    "storybook alternative",
+    "component documentation",
+    "living documentation",
+    "jsdom",
     "testing"
   ],
   "license": "MIT",

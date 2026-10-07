@@ -290,6 +290,10 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
 - `options.mjs`: `configuration.html` has an `option-*` row for every option
   of `describeMe()` and an `env-*` row for every environment variable, and
   nothing else.
+- `package-readmes.mjs`: every package README has the docs link in its first
+  lines, links both example viewers, lists all four packages under
+  `## Which package do I need`, shares one `## Quick start` and stays at 80
+  lines or fewer.
 - `readme-links.mjs`: the docs links of the root `README.md` and the package
   READMEs point at pages, ids and example viewers that exist. A package README
   links docs pages, not anchors of the root README. The root README keeps the

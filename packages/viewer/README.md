@@ -1,59 +1,69 @@
 # describe-me
 
-The viewer and CLI of [describe-me](https://github.com/grzehub/describe-me):
-living component documentation generated from the Vitest tests you already have.
-`describe` blocks become the sidebar, each `it` is a story, each step is a frame
-you can scrub through.
+**Your tests are your stories.** The viewer and the `describe-me` CLI of
+describe-me: living component documentation generated from the Vitest tests
+you already have.
 
-It reads the `.describe-me/` directory that `@describe-me/vitest`'s reporter
-writes, and replays the snapshots in a sandboxed iframe.
+**[Read the docs](https://grzehub.github.io/describe-me/)** · open the viewer
+of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/)
+or the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/)
+· [Limitations](https://grzehub.github.io/describe-me/limitations.html)
 
-## Install
+describe-me captures the DOM after each step of a test and shows the result as
+a browsable catalog. `describe` blocks become the sidebar, each `it` is a
+story, and each step is a frame you can scrub through. Stories cannot rot,
+because they are tests. If one drifts from the component, CI goes red.
+
+Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
+static snapshots.
+
+## Which package do I need
+
+| Package               | What it is                                  | Install it              |
+| --------------------- | ------------------------------------------- | ----------------------- |
+| `describe-me`         | the viewer and the `describe-me` CLI (this) | yes                     |
+| `@describe-me/vitest` | the Vitest plugin, setup files and reporter | yes                     |
+| `@describe-me/react`  | `render` functions that record frames       | yes                     |
+| `@describe-me/core`   | the recorder and the manifest types         | no, the others bring it |
+
+## Quick start
 
 ```sh
 pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
-`vite` is a peer dependency (Vitest requires it anyway): pnpm and npm install
-it automatically; with yarn, add `vite` to your `devDependencies`.
+```ts
+// vitest.config.ts
+import { describeMe } from '@describe-me/vitest/plugin'
 
-All describe-me packages must be on the same version
-([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
-
-## Usage
-
-```sh
-describe-me dev                  # viewer on http://localhost:6006, live while vitest --watch runs
-describe-me build --out docs     # self-contained static site: viewer + __data/
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: { environment: 'jsdom' }, // or your browser-mode settings
+})
 ```
 
-| Flag                | Default              | Meaning                               |
-| ------------------- | -------------------- | ------------------------------------- |
-| `--data`            | `.describe-me`       | The directory the reporter wrote.     |
-| `--out`             | `describe-me-dist`   | Output directory for `build`.         |
-| `--port`            | `6006`               | Port for `dev`.                       |
-| `--no-vendor-fonts` | fonts are downloaded | `build`: keep web fonts on their CDN. |
+Run your tests, then `describe-me dev` opens the viewer.
+[Getting started](https://grzehub.github.io/describe-me/getting-started.html)
+walks through both environments. Keep all describe-me packages on one version
+([why](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
-The viewer has search, collapsible suites, keyboard navigation, custom
-viewport sizes and shareable links
-([Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html)).
+## This package
 
-`build` downloads the web fonts that the preview head and the snapshots load
-from Google Fonts, Bunny Fonts and Fontsource on jsDelivr into the site, so
-the docs show them offline. Adobe Fonts stay remote, because their license
-does not allow self-hosting, and so do fonts on any other host. The build
-lists both.
+```sh
+describe-me dev                  # the viewer, live while vitest --watch runs
+describe-me build --out docs     # a static site: the viewer and its data
+```
 
-This needs the network. By default `build` connects to Google Fonts, Bunny
-Fonts and jsDelivr when the data loads fonts from them and the cache has no
-fresh copy. Downloads are cached in `node_modules/.cache/describe-me/fonts`,
-so after one online build later builds run offline. An unreachable host costs
-up to about 10 s once, then it is skipped. A font that does not download keeps
-loading from the network, and the build never fails because of it.
-`--no-vendor-fonts` keeps the build off the network, for CI without network
-access or with privacy rules.
+`build` writes a site with relative URLs, so it works under a sub-path such as
+GitHub Pages. It needs a web server and does not open from disk. It also
+downloads web fonts from Google Fonts, Bunny Fonts and Fontsource into the
+site, so it shows them offline.
+[Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html) lists every
+flag and what the viewer can do.
 
-The static site uses relative URLs, so it works from a sub-path such as
-GitHub Pages.
+`vite` is a peer dependency, which pnpm and npm install on their own. With
+yarn, add it to your `devDependencies`.
 
-See the [docs](https://grzehub.github.io/describe-me/) for the full picture.
+## License
+
+MIT

@@ -1,54 +1,67 @@
 # @describe-me/react
 
-The React adapter for [describe-me](https://github.com/grzehub/describe-me):
-drop-in `render` functions that record a frame after mount and after every
-`rerender`, and read the component's name and props for the docs. This is the
-only React-specific code in the project.
+**Your tests are your stories.** The React adapter of describe-me: living
+component documentation generated from the Vitest tests you already have.
 
-| entry point                          | wraps                    | for                      |
-| ------------------------------------ | ------------------------ | ------------------------ |
-| `@describe-me/react`                 | `vitest-browser-react`   | Vitest browser mode      |
-| `@describe-me/react/testing-library` | `@testing-library/react` | jsdom and other DOM envs |
+**[Read the docs](https://grzehub.github.io/describe-me/)** · open the viewer
+of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/)
+or the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/)
+· [Limitations](https://grzehub.github.io/describe-me/limitations.html)
 
-Both test libraries are optional peers: install the one your tests use.
+describe-me captures the DOM after each step of a test and shows the result as
+a browsable catalog. `describe` blocks become the sidebar, each `it` is a
+story, and each step is a frame you can scrub through. Stories cannot rot,
+because they are tests. If one drifts from the component, CI goes red.
 
-## Install
+Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
+static snapshots.
+
+## Which package do I need
+
+| Package               | What it is                                   | Install it              |
+| --------------------- | -------------------------------------------- | ----------------------- |
+| `describe-me`         | the viewer and the `describe-me` CLI         | yes                     |
+| `@describe-me/vitest` | the Vitest plugin, setup files and reporter  | yes                     |
+| `@describe-me/react`  | `render` functions that record frames (this) | yes                     |
+| `@describe-me/core`   | the recorder and the manifest types          | no, the others bring it |
+
+## Quick start
 
 ```sh
-pnpm add -D @describe-me/react
+pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
-All describe-me packages must be on the same version
-([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
+```ts
+// vitest.config.ts
+import { describeMe } from '@describe-me/vitest/plugin'
 
-## Usage
-
-Each entry point re-exports everything its test library offers, with the
-recording functions swapped in, so switching an existing test is one import.
-`@describe-me/react` swaps `render`. The Testing Library entry swaps `render`,
-`fireEvent` and `cleanup`: every `fireEvent` call records a frame, and
-`cleanup` takes the closing frame before it unmounts. When the render frame is
-taken follows the plugin's
-[`renderFrame`](https://grzehub.github.io/describe-me/configuration.html#render-frame)
-option.
-
-```tsx
-import { render, step } from '@describe-me/react'
-
-const screen = await render(<Counter initial={1} />)
-await step('increment', () => screen.getByRole('button', { name: 'add' }).click())
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: { environment: 'jsdom' }, // or your browser-mode settings
+})
 ```
 
-```tsx
-import { render } from '@describe-me/react/testing-library'
+Run your tests, then `describe-me dev` opens the viewer.
+[Getting started](https://grzehub.github.io/describe-me/getting-started.html)
+walks through both environments. Keep all describe-me packages on one version
+([why](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
-// Synchronous, exactly like the original.
-const { getByRole } = render(<Counter initial={1} />)
-```
+## This package
 
-With `@describe-me/vitest`'s `describeMe()` plugin you do not even need that:
-the plugin redirects `vitest-browser-react` or `@testing-library/react` imports
-to the matching entry point, including imports made from your own
-`test-utils` wrapper, so tests record frames unchanged.
+Drop-in `render` functions that record a frame after mount and after every
+`rerender`, and read the component's name and props for the docs. It is the
+only React-specific code in describe-me.
 
-See the [docs](https://grzehub.github.io/describe-me/) for the full picture.
+| Entry point                                                                                                        | Wraps                    | For                 |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------ | ------------------- |
+| [`@describe-me/react`](https://grzehub.github.io/describe-me/api.html#entry-react)                                 | `vitest-browser-react`   | Vitest browser mode |
+| [`@describe-me/react/testing-library`](https://grzehub.github.io/describe-me/api.html#entry-react-testing-library) | `@testing-library/react` | jsdom               |
+
+Each entry point re-exports its test library with the recording functions
+swapped in. With the `describeMe()` plugin you never import them yourself: it
+redirects your `render` imports, those in your own `test-utils` included.
+Install the test library your tests use. Both are optional peers.
+
+## License
+
+MIT

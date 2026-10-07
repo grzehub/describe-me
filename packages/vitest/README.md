@@ -1,108 +1,75 @@
 # @describe-me/vitest
 
-The Vitest integration for [describe-me](https://github.com/grzehub/describe-me):
-a plugin, a setup file that makes every interaction record a frame, and the Node
-reporter that writes `.describe-me/`.
+**Your tests are your stories.** The Vitest plugin, setup files and reporter of
+describe-me: living component documentation generated from the Vitest tests
+you already have.
 
-## Install
+**[Read the docs](https://grzehub.github.io/describe-me/)** · open the viewer
+of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/)
+or the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/)
+· [Limitations](https://grzehub.github.io/describe-me/limitations.html)
+
+describe-me captures the DOM after each step of a test and shows the result as
+a browsable catalog. `describe` blocks become the sidebar, each `it` is a
+story, and each step is a frame you can scrub through. Stories cannot rot,
+because they are tests. If one drifts from the component, CI goes red.
+
+Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
+static snapshots.
+
+## Which package do I need
+
+| Package               | What it is                                         | Install it              |
+| --------------------- | -------------------------------------------------- | ----------------------- |
+| `describe-me`         | the viewer and the `describe-me` CLI               | yes                     |
+| `@describe-me/vitest` | the Vitest plugin, setup files and reporter (this) | yes                     |
+| `@describe-me/react`  | `render` functions that record frames              | yes                     |
+| `@describe-me/core`   | the recorder and the manifest types                | no, the others bring it |
+
+## Quick start
 
 ```sh
-pnpm add -D @describe-me/vitest @describe-me/react describe-me
+pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
 
-All describe-me packages must be on the same version
-([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
-
-## Usage
-
-One line in the Vitest config registers the setup file and the reporter, and
-redirects the test library's `render` import to the recording adapter. The
-plugin detects where the tests run:
-
-- **Browser mode** (`test.browser.enabled`): redirects `vitest-browser-react`,
-  records a frame after every `Locator` action and keyboard-level `userEvent`.
-- **DOM environments** such as jsdom (anything else): redirects
-  `@testing-library/react`, records a frame after every `fireEvent` and every
-  `@testing-library/user-event` call, turns on `test.css` so imported
-  stylesheets reach the snapshots, and sets `RTL_SKIP_AUTO_CLEANUP` so the
-  component is unmounted only after the closing frame. The setup file sets
-  React's `IS_REACT_ACT_ENVIRONMENT` where Testing Library would. With
-  `@testing-library/react`, it takes user-event frames without a wait. The
-  flag is off for the few waits that remain, which can still move an act
-  warning
-  ([jsdom](https://grzehub.github.io/describe-me/environments.html#jsdom)). It
-  also works without user-event installed.
-
-jsdom has no layout, so positioned popovers show in the top-left corner and
-canvas stays blank
-([Limitations in jsdom](https://grzehub.github.io/describe-me/environments.html#jsdom-limits)).
-
 ```ts
+// vitest.config.ts
 import { describeMe } from '@describe-me/vitest/plugin'
 
-// browser mode
 export default defineConfig({
   plugins: [react(), describeMe()],
-  test: {
-    browser: { enabled: true, provider: playwright(), instances: [{ browser: 'chromium' }] },
-  },
-})
-
-// jsdom
-export default defineConfig({
-  plugins: [react(), describeMe()],
-  test: { environment: 'jsdom' },
+  test: { environment: 'jsdom' }, // or your browser-mode settings
 })
 ```
 
-Pass `describeMe({ environment: 'browser' | 'dom' })` to override the detection.
+Run your tests, then `describe-me dev` opens the viewer.
+[Getting started](https://grzehub.github.io/describe-me/getting-started.html)
+walks through both environments. Keep all describe-me packages on one version
+([why](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
-A test that records no frame before the closing one (no recording `render`,
-no interaction, no `step()`) costs no snapshot and is left out of the
-manifest. `describeMe({ include, exclude })` chooses which test files are
-recorded, with picomatch globs relative to the Vitest root. `exclude` wins.
-Tests in other files still run, but record nothing. Leaving `include` out
-records every test file. `include: []` records none and warns, while
-`exclude: '**'` records none without a warning. The reporter takes the
-same two options, but on its own it only filters the manifest: without the
-plugin the setup file does not know them.
+## This package
 
-`describeMe({ previewHead })` takes HTML that the viewer adds to the start of
-every frame's `<head>`, like Storybook's `preview-head.html`: typically the
-font links that the app shell loads and tests never do. It never reaches the
-test page, and the local files it links are copied into the output directory
-([Fonts](https://grzehub.github.io/describe-me/styles-and-fonts.html#fonts) in the docs).
+The plugin is the whole integration. It detects browser mode or a DOM
+environment, registers the setup file and the reporter, and redirects your
+test library's `render` to the recording one, so existing tests record frames
+unchanged.
+[What the plugin changes](https://grzehub.github.io/describe-me/configuration.html#plugin)
+lists every change it makes to your config, and
+[Options](https://grzehub.github.io/describe-me/configuration.html#options)
+every option it takes.
 
-`describeMe({ renderFrame })` chooses when the render frame is taken:
-`'eager'` (default) right after mount, `'lazy'` right before the next
-interaction, or `{ pending: '<selector>' }` once a loader is gone. See
-[Render frame timing](https://grzehub.github.io/describe-me/configuration.html#render-frame).
+| Entry point                     | What it holds                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `@describe-me/vitest/plugin`    | [`describeMe()`](https://grzehub.github.io/describe-me/api.html#entry-vitest-plugin)                  |
+| `@describe-me/vitest`           | [`step()` and `recorder`](https://grzehub.github.io/describe-me/api.html#entry-vitest)                |
+| `@describe-me/vitest/setup`     | [the browser-mode setup file](https://grzehub.github.io/describe-me/api.html#entry-vitest-setup)      |
+| `@describe-me/vitest/setup-dom` | [the jsdom setup file](https://grzehub.github.io/describe-me/api.html#entry-vitest-setup-dom)         |
+| `@describe-me/vitest/reporter`  | [the reporter, to wire by hand](https://grzehub.github.io/describe-me/api.html#entry-vitest-reporter) |
 
-The plugin adds its reporter to the ones your config names. If it names
-none, the reporter joins the ones Vitest picks on its own, such as `minimal`
-for AI agents and `github-actions` in GitHub Actions.
+`typescript` and `@testing-library/user-event` are optional peers. Without
+TypeScript the docs have no props tables. user-event is needed only when your
+jsdom tests use it.
 
-The pieces can also be wired by hand. Tests then import from the adapter
-themselves: `render` from `@describe-me/react` in browser mode, and `render`,
-`fireEvent` and `cleanup` from `@describe-me/react/testing-library` in jsdom:
+## License
 
-```ts
-import DescribeMeReporter from '@describe-me/vitest/reporter'
-
-export default defineConfig({
-  test: {
-    // browser mode: '@describe-me/vitest/setup'
-    setupFiles: ['@describe-me/vitest/setup-dom'],
-    reporters: ['default', new DescribeMeReporter()],
-    // jsdom only: keep imported CSS and leave unmounting to describe-me
-    css: true,
-    env: { RTL_SKIP_AUTO_CLEANUP: 'true' },
-  },
-})
-```
-
-`typescript` is an optional peer: without it the docs are still generated, only
-the props tables are left out. `@testing-library/user-event` is an optional
-peer too, needed only in DOM environments.
-
-See the [docs](https://grzehub.github.io/describe-me/) for the full picture.
+MIT

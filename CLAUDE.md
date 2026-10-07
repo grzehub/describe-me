@@ -37,7 +37,7 @@ cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the na
 cd examples/react-browser && pnpm bench:macro   # plugin and recording cost, interleaved variants
 cd examples/react-jsdom && pnpm bench:macro     # the same in jsdom, plus the switched-off plugin parts
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
-pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code samples and README links, after both examples' tests
+pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code samples, README links and the shape of the package READMEs, after both examples' tests
 pnpm site:build       # docs/ plus both example viewers → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
 pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
 pnpm site             # site:build, then site:serve

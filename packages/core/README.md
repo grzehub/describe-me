@@ -1,47 +1,68 @@
 # @describe-me/core
 
-The framework-agnostic heart of [describe-me](https://github.com/grzehub/describe-me):
-the recorder that captures the DOM, the `step()` helper, and the JSON manifest
-types the viewer reads. Snapshots are serialized DOM via `rrweb-snapshot`, so
-nothing here knows about React.
+**Your tests are your stories.** The recorder and the manifest types of
+describe-me: living component documentation generated from the Vitest tests
+you already have.
 
-Most people never install this package directly — `@describe-me/react` and
-`@describe-me/vitest` depend on it, and both re-export `step()`.
+**[Read the docs](https://grzehub.github.io/describe-me/)** · open the viewer
+of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/)
+or the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/)
+· [Limitations](https://grzehub.github.io/describe-me/limitations.html)
 
-## Install
+describe-me captures the DOM after each step of a test and shows the result as
+a browsable catalog. `describe` blocks become the sidebar, each `it` is a
+story, and each step is a frame you can scrub through. Stories cannot rot,
+because they are tests. If one drifts from the component, CI goes red.
+
+Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
+static snapshots.
+
+## Which package do I need
+
+| Package               | What it is                                  | Install it              |
+| --------------------- | ------------------------------------------- | ----------------------- |
+| `describe-me`         | the viewer and the `describe-me` CLI        | yes                     |
+| `@describe-me/vitest` | the Vitest plugin, setup files and reporter | yes                     |
+| `@describe-me/react`  | `render` functions that record frames       | yes                     |
+| `@describe-me/core`   | the recorder and the manifest types (this)  | no, the others bring it |
+
+## Quick start
 
 ```sh
-pnpm add -D @describe-me/core
+pnpm add -D describe-me @describe-me/vitest @describe-me/react
 ```
-
-All describe-me packages must be on the same version
-([One version for all packages](https://grzehub.github.io/describe-me/installation.html#lockstep)).
-
-## Usage
-
-`step()` names a phase of a test. The DOM is captured after the body resolves,
-and the label becomes the frame's caption in the viewer.
 
 ```ts
-import { step } from '@describe-me/core'
+// vitest.config.ts
+import { describeMe } from '@describe-me/vitest/plugin'
 
-await step('open the menu', () => screen.getByRole('button', { name: 'Menu' }).click())
+export default defineConfig({
+  plugins: [react(), describeMe()],
+  test: { environment: 'jsdom' }, // or your browser-mode settings
+})
 ```
 
-`elementLabel()` names a DOM element the way frame labels do, e.g.
-`button "Save"`, for adapters that record their own interactions.
+Run your tests, then `describe-me dev` opens the viewer.
+[Getting started](https://grzehub.github.io/describe-me/getting-started.html)
+walks through both environments. Keep all describe-me packages on one version
+([why](https://grzehub.github.io/describe-me/installation.html#lockstep)).
 
-Such adapters call `recorder.beforeInteraction()` before they change the page,
-so a deferred render frame is taken first. As the capture's `generation`, they
-pass `recorder.generation`, read when the interaction began, so a capture that
-outlives its test is dropped. `recorder.flush()` waits for the captures in
-flight and takes a deferred render frame.
+## This package
 
-The manifest types live in `@describe-me/core/types`, for tools that want to
-read `.describe-me/manifest.json` themselves. Stored snapshots point into
-`assets/` and `styles/` through `ASSET_URL_PREFIX` and `STYLE_URL_PREFIX`
-([The output directory](https://grzehub.github.io/describe-me/how-it-works.html#storage) in
-the docs). `@describe-me/core/css-references` lists the `url()` and
-`@import` references in CSS text.
+The framework-agnostic heart of describe-me. Snapshots are serialized DOM via
+`rrweb-snapshot`, so nothing here knows about React. You need it directly only
+to write an adapter for another framework or to read the output yourself.
 
-See the [docs](https://grzehub.github.io/describe-me/) for the full picture.
+| Entry point                                                                                                    | What it holds                                           |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| [`@describe-me/core`](https://grzehub.github.io/describe-me/api.html#entry-core)                               | `step()`, `recorder` and `elementLabel()`, for adapters |
+| [`@describe-me/core/types`](https://grzehub.github.io/describe-me/api.html#entry-core-types)                   | the types of `.describe-me/manifest.json`               |
+| [`@describe-me/core/diagnostics`](https://grzehub.github.io/describe-me/api.html#entry-core-diagnostics)       | what a manifest could not document                      |
+| [`@describe-me/core/css-references`](https://grzehub.github.io/describe-me/api.html#entry-core-css-references) | the `url()` and `@import` references in CSS text        |
+
+[How it works](https://grzehub.github.io/describe-me/how-it-works.html) explains
+the recorder and the output directory.
+
+## License
+
+MIT
