@@ -4,14 +4,11 @@ import { adapterPackageRoot } from './adapter-package-root.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
 import { defaultReporters } from './default-reporters.js'
+import type { EnvironmentProfile, RenderModule } from './environment-profile.js'
 import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
 import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
-import {
-  styledComponentsBrowserBuild,
-  type StyledComponentsBrowserBuild,
-} from './styled-components-browser-build.js'
 import { validateRenderFrame } from './validate-render-frame.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
@@ -68,23 +65,7 @@ export interface DescribeMeOptions {
   renderFrame?: RenderFrameMode
 }
 
-interface RenderModule {
-  /** The module tests import `render` from. */
-  original: string
-  /** Our recording adapter for it. */
-  adapter: string
-}
-
-/** For each framework and environment: the render module tests import, and our adapter that wraps it. */
-const RENDER_MODULES: Record<'react', Record<DescribeMeEnvironment, RenderModule>> = {
-  react: {
-    browser: { original: 'vitest-browser-react', adapter: '@describe-me/react' },
-    dom: { original: '@testing-library/react', adapter: '@describe-me/react/testing-library' },
-  },
-}
-
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
-type TestConfig = NonNullable<ViteUserConfig['test']>
 
 /**
  * The package an adapter entry point belongs to, e.g.
@@ -111,65 +92,17 @@ function detectEnvironment(userConfig: ViteUserConfig): DescribeMeEnvironment {
   return userConfig.test?.browser?.enabled ? 'browser' : 'dom'
 }
 
-function browserConfig(renderModule: RenderModule): ViteUserConfig {
-  return {
-    // Vite's dependency scanner runs before our `resolveId` redirect, so it
-    // never sees the adapter. Discovering it mid-run makes Vite re-optimize
-    // and reload, and the test ends up with two copies of the bundled deps
-    // ("Vitest failed to find the runner"). Declaring the adapter up front
-    // keeps a single optimization pass.
-    optimizeDeps: {
-      include: [renderModule.adapter, renderModule.original],
-    },
-    test: {
-      setupFiles: ['@describe-me/vitest/setup'],
-    },
-  }
-}
+/** Imported on demand, so browser mode never loads the code for DOM environments. */
+async function loadProfile(environment: DescribeMeEnvironment): Promise<EnvironmentProfile> {
+  if (environment === 'browser') {
+    const { browserProfile } = await import('./browser-profile.js')
 
-function domConfig(
-  userConfig: ViteUserConfig,
-  styledComponents: StyledComponentsBrowserBuild | undefined,
-): ViteUserConfig {
-  const userTest = userConfig.test
-  const test: TestConfig = {
-    setupFiles: ['@describe-me/vitest/setup-dom'],
-    // Testing Library would otherwise unmount in its own afterEach, before the
-    // closing frame is taken. The adapter unmounts through the recorder instead.
-    env: { RTL_SKIP_AUTO_CLEANUP: 'true' },
+    return browserProfile
   }
 
-  // Vitest stubs CSS imports by default, which would leave every imported
-  // stylesheet out of the snapshots. An explicit choice by the user wins.
-  if (userTest?.css === undefined) {
-    test.css = true
-  } else if (userTest.css === false) {
-    console.warn(
-      'describe-me: `test.css` is false, so imported stylesheets are stubbed and will be missing from the snapshots.',
-    )
-  }
+  const { domProfile } = await import('./dom-profile.js')
 
-  if (!styledComponents) {
-    return { test }
-  }
-
-  console.info('describe-me: using the browser build of styled-components, for createGlobalStyle')
-  const { config } = styledComponents
-
-  return { resolve: config.resolve, test: { ...test, ...config.test } }
-}
-
-/** Looked up before the reporter is created, which needs its warning. */
-function styledComponentsFor(
-  environment: DescribeMeEnvironment,
-  userConfig: ViteUserConfig,
-  options: DescribeMeOptions,
-): StyledComponentsBrowserBuild | undefined {
-  if (environment !== 'dom' || options.styledComponentsBrowserBuild === false) {
-    return undefined
-  }
-
-  return styledComponentsBrowserBuild(userConfig.root ?? process.cwd())
+  return domProfile
 }
 
 /**
@@ -183,7 +116,9 @@ function styledComponentsFor(
  */
 export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   const { enabled = true, framework = 'react', outDir } = options
-  let renderModule: RenderModule = RENDER_MODULES[framework].browser
+  // Set by `config()`, which Vite runs before `configResolved` and `resolveId`.
+  // Stays null while the plugin is disabled.
+  let renderModule: RenderModule | null = null
   // Known once Vite has resolved its config. Vitest always serves; a production
   // build that shares the config must not carry the export registration.
   let root = ''
@@ -196,13 +131,12 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
     name: 'describe-me',
     enforce: 'pre',
 
-    config(userConfig: ViteUserConfig): ViteUserConfig {
+    async config(userConfig: ViteUserConfig): Promise<ViteUserConfig> {
       if (!enabled) {
         return {}
       }
 
       const environment = options.environment ?? detectEnvironment(userConfig)
-      renderModule = RENDER_MODULES[framework][environment]
 
       // Checked here, so invalid options fail before any test runs. Vite
       // deep-merges `provide`, so the user's own keys survive.
@@ -213,8 +147,9 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       }
 
       const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
-      const styledComponents = styledComponentsFor(environment, userConfig, options)
-      const setupWarnings = styledComponents?.warning ? [styledComponents.warning] : []
+      const profile = await loadProfile(environment)
+      renderModule = profile.renderModules[framework]
+      const { config, setupWarnings } = profile.configFor({ userConfig, options, renderModule })
 
       const reporter = new DescribeMeReporter({
         outDir,
@@ -229,16 +164,14 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       // joins Vitest's defaults.
       const reporters = userConfig.test?.reporters ? [reporter] : [...defaultReporters(), reporter]
 
-      const config =
-        environment === 'browser'
-          ? browserConfig(renderModule)
-          : domConfig(userConfig, styledComponents)
-
-      return { ...config, test: { ...config.test, reporters, provide } }
+      return {
+        ...config,
+        test: { setupFiles: [profile.setupFile], ...config.test, reporters, provide },
+      }
     },
 
     async resolveId(source: string, importer: string | undefined) {
-      if (!enabled || source !== renderModule.original) {
+      if (!enabled || renderModule === null || source !== renderModule.original) {
         return null
       }
 
@@ -267,7 +200,10 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
     configResolved(config) {
       root = config.root
       serving = config.command === 'serve'
-      adapterRoot = adapterPackageRoot(config.root, packageNameOf(renderModule.adapter))
+
+      if (renderModule !== null) {
+        adapterRoot = adapterPackageRoot(config.root, packageNameOf(renderModule.adapter))
+      }
     },
 
     // Names components after their export (see registerExports). `order: 'post'`

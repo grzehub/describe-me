@@ -56,6 +56,10 @@ pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z
 - The browser path never imports Testing Library and the DOM path never
   imports `vitest/browser`: they live behind separate entry points
   (`setup` / `setup-dom`, `@describe-me/react` / `./testing-library`).
+- The plugin's per-environment logic (render redirect, setup file, config)
+  lives in `packages/vitest/src/browser-profile.ts` and `dom-profile.ts`.
+  `plugin.ts` imports only the chosen one, so browser mode never loads the
+  DOM code.
 - Snapshots are DOM + stylesheets via rrweb-snapshot; do not add layout or
   screenshot capture to the hot path without measuring (`bench:micro`).
 - A change in behaviour updates its docs page in the same PR.

@@ -635,7 +635,7 @@ describe('pure', () => {
 
 const names = process.argv.slice(2)
 const test = names.length > 0 ? { reporters: names } : {}
-const { reporters } = describeMe({ environment: 'browser' }).config({ test }).test
+const { reporters } = (await describeMe({ environment: 'browser' }).config({ test })).test
 
 console.log(
   JSON.stringify(

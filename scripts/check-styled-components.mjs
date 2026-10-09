@@ -139,7 +139,7 @@ async function pluginRun(root, options) {
   let config
 
   try {
-    config = describeMe(options).config({ root, test: {} })
+    config = await describeMe(options).config({ root, test: {} })
     const reporter = config.test.reporters.find((candidate) => typeof candidate === 'object')
     reporter.onInit({ config: { root } })
     reporter.onTestRunStart()
