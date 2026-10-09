@@ -2,10 +2,13 @@
  * Verifies the published artifact, not the sources: packs every package,
  * installs the tarballs into a fresh project outside the monorepo, runs the
  * same component through the plugin in browser mode and in jsdom, and builds
- * the static site. Right after the install it checks the plugin's reporters
- * in child processes that see only each case's variables: without a list of
- * the config's own, describe-me's reporter joins the ones the installed Vitest
- * picks for an AI agent and for GitHub Actions. Then it checks that exactly
+ * the static site. Right after the install it downloads the browser of the
+ * project's own Playwright, because a fresh install can resolve a newer
+ * Playwright than the lockfile's, and CI installs only the lockfile's browser.
+ * Then it checks the plugin's reporters in child processes that see only
+ * each case's variables: without a list of the config's own, describe-me's
+ * reporter joins the ones the installed Vitest picks for an AI agent and for
+ * GitHub Actions. Then it checks that exactly
  * one Vite version landed in the project: `describe-me` peers on the host's
  * Vite instead of nesting its own. In both environments one test file is excluded
  * and one renders nothing: each asserts `recorder.isActive` inside the test,
@@ -142,9 +145,23 @@ const app = join(work, 'app')
 const withoutUserEvent = join(work, 'app-without-user-event')
 
 /** Run a command in the given directory; `quiet` swallows its output unless it fails. */
-function run(command, cwd, quiet = false) {
+function run(command, cwd, quiet = false, env = {}) {
   console.log(`\n$ ${command}  (${cwd.replace(work, '<tmp>')})`)
-  execSync(command, { cwd, stdio: quiet ? 'pipe' : 'inherit', env: { ...process.env, CI: '1' } })
+  execSync(command, {
+    cwd,
+    stdio: quiet ? 'pipe' : 'inherit',
+    env: { ...process.env, CI: '1', ...env },
+  })
+}
+
+/**
+ * The browser build of the project's own Playwright. A fresh install can
+ * resolve a newer Playwright than the lockfile's, and CI installs only the
+ * lockfile's browser. Without Playwright's clean-up the install never removes
+ * a browser that another checkout on this machine still uses.
+ */
+function installBrowser(project) {
+  run('pnpm exec playwright install chromium', project, false, { PLAYWRIGHT_SKIP_BROWSER_GC: '1' })
 }
 
 /** Run a command that must fail, and return what it printed on stdout and stderr. */
@@ -1850,6 +1867,7 @@ try {
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
+  installBrowser(app)
   verifyDefaultReporters()
   verifySingleVite(vite)
   verifySingleReact(reactVersion)
