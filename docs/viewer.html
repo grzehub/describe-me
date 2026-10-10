@@ -6,7 +6,7 @@
     <title>Viewer and CLI · describe-me docs</title>
     <meta
       name="description"
-      content="The describe-me CLI and everything the viewer can do: search, keyboard, viewport sizes, links, the component overview and static hosting."
+      content="The describe-me CLI and everything the viewer can do: search, keyboard, viewport sizes, Live, links, the component overview and static hosting."
     />
     <link rel="icon" href="favicon.svg" />
     <link rel="stylesheet" href="docs.css" />
@@ -66,9 +66,10 @@
         </header>
 
         <p class="lead">
-          <code>describe-me dev</code> shows the frames live while Vitest watches.
-          <code>describe-me build</code> writes the same viewer as a static site. This page covers
-          both commands and everything the viewer does.
+          <code>describe-me dev</code> serves the viewer, repaints it after every test run and can
+          mount a test in <a href="#live">Live</a>. <code>describe-me build</code> writes the
+          recorded frames as a static site. This page covers both commands and everything the viewer
+          does.
         </p>
 
         <h2 id="cli">
@@ -77,7 +78,7 @@
 
         <p>The <code>describe-me</code> package installs one binary. It always needs a command:</p>
 
-        <pre><code>describe-me dev   [--data .describe-me] [--port 6006]
+        <pre><code>describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root &lt;dir&gt;]
 describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]</code></pre>
 
         <div class="scroll">
@@ -97,7 +98,8 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                   Starts a Vite dev server for the viewer and serves the data directory under
                   <code>/__data</code>. When the reporter rewrites <code>manifest.json</code>, the
                   server tells the page, and the viewer loads the manifest again. Vite prints the
-                  URL. It never downloads fonts.
+                  URL. Then it starts the <a href="#live">live preview</a> and prints its address
+                  after <code>Live preview:</code>. It never downloads fonts.
                 </td>
               </tr>
               <tr id="cmd-build">
@@ -149,6 +151,28 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                 <td class="nowrap">—</td>
                 <td>Any command. Prints the usage instead of running it.</td>
               </tr>
+              <tr id="flag-no-live">
+                <td><code>--no-live</code></td>
+                <td class="nowrap">the live preview starts</td>
+                <td>
+                  <code>dev</code> only. Starts the viewer alone, without the live preview. The
+                  <a href="#live">Live</a> toggle is then hidden.
+                </td>
+              </tr>
+              <tr id="flag-root">
+                <td><code>--root</code></td>
+                <td class="nowrap">from the manifest</td>
+                <td>
+                  <code>dev</code> only. The project of the live preview, relative to the current
+                  directory. Without it, the preview uses the
+                  <a href="how-it-works.html#manifest-root"><code>root</code></a> and
+                  <a href="how-it-works.html#manifest-configFile"><code>configFile</code></a> of the
+                  manifest. With it, the preview uses that directory and the config file Vitest
+                  picks there, the first <code>vitest.config.*</code>, then
+                  <code>vite.config.*</code>. Use it before the first test run, or when the manifest
+                  comes from another machine.
+                </td>
+              </tr>
               <tr id="flag-no-vendor-fonts">
                 <td><code>--no-vendor-fonts</code></td>
                 <td class="nowrap">fonts are downloaded</td>
@@ -167,8 +191,8 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
             Use <code>--help</code> for the usage.
           </li>
           <li>
-            A flag of the other command is ignored, so <code>--port</code> does nothing on
-            <code>build</code>.
+            A flag of the other command is ignored, so <code>--port</code>,
+            <code>--no-live</code> and <code>--root</code> do nothing on <code>build</code>.
           </li>
           <li>
             Without data, <code>build</code> warns <code>no data at …; run vitest first</code> and
@@ -197,9 +221,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <a href="#overview">overview</a>. The arrow in front of it collapses it.
           </li>
           <li>
-            <strong>Stage.</strong> The test's path and the <a href="#viewport">viewport toolbar</a>
-            above the replayed frame. A note under the frame names the fonts and stylesheets that
-            did not load in your browser.
+            <strong>Stage.</strong> The test's path and the
+            <a href="#viewport">viewport toolbar</a> with the <a href="#live">Live</a> toggle, above
+            the replayed frame or the test in Live. A note under a replayed frame names the fonts
+            and stylesheets that did not load in your browser.
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
@@ -208,7 +233,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <strong>Inspector.</strong> The test's status and duration, the component with its
             props, the current frame as "frame 2 / 3" with its label, and the errors of a failed
-            test.
+            test. In <a href="#live">Live</a>, a Live section takes the place of the frame.
           </li>
         </ul>
 
@@ -256,7 +281,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
               <tr>
                 <td class="nowrap"><kbd>←</kbd> <kbd>→</kbd></td>
                 <td>a test</td>
-                <td>The previous or next frame.</td>
+                <td>
+                  The previous or next frame. In Live, they leave Live and show the frame that was
+                  selected before.
+                </td>
               </tr>
               <tr>
                 <td class="nowrap"><kbd>↑</kbd> <kbd>↓</kbd></td>
@@ -272,6 +300,14 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td class="nowrap"><kbd>↑</kbd> <kbd>↓</kbd></td>
                 <td>an overview</td>
                 <td><kbd>↓</kbd> opens its first test, <kbd>↑</kbd> its last.</td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>L</kbd></td>
+                <td>a test</td>
+                <td>
+                  Turns <a href="#live">Live</a> on or off, once the live preview is ready. Either
+                  case, and not with <kbd>Ctrl</kbd>, <kbd>Meta</kbd> or <kbd>Alt</kbd> held.
+                </td>
               </tr>
               <tr>
                 <td class="nowrap"><kbd>/</kbd></td>
@@ -297,7 +333,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
 
         <p>
           Shortcuts are off while you type in an input, a textarea, a select or an editable element,
-          and until the manifest has loaded.
+          and until the manifest has loaded. While the frame of a test in Live has focus, keys go to
+          the component, as <a href="#live">Live</a> explains.
         </p>
 
         <h2 id="viewport">
@@ -327,6 +364,133 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
         </ul>
 
+        <h2 id="live">
+          Live <a class="anchor" href="#live" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          Live mounts the selected test for real, in a frame of the
+          <a href="how-it-works.html#live-preview">live preview</a>, in place of its recorded frame.
+          The component starts as the test's arrange phase set it up: everything before the test's
+          first render runs, and nothing after it. So Live is a fresh start: it does not replay the
+          test's interactions to reach a later frame.
+          <a href="writing-stories.html#live">Writing stories</a> explains which part of a test
+          runs.
+        </p>
+
+        <h3>Opening it</h3>
+        <ul>
+          <li>The <strong>Live</strong> toggle, the first button of the viewport toolbar.</li>
+          <li><kbd>L</kbd> in a test, as the <a href="#keyboard">keyboard table</a> says.</li>
+          <li>
+            <code>live=1</code> in the <a href="#links">link</a>. Until the live preview is ready
+            the recorded frame shows, then Live takes over.
+          </li>
+        </ul>
+
+        <h3>What is real</h3>
+        <ul>
+          <li>Clicks, typing, timers and time are real.</li>
+          <li>
+            Each call of a <code>vi.fn()</code> prop shows as an action under the prop's name, such
+            as <code>onSelect("Rename")</code>.
+          </li>
+          <li>Errors the component throws show in the inspector.</li>
+        </ul>
+
+        <h3>The inspector</h3>
+        <p>While Live shows, a Live section takes the place of the frame section:</p>
+        <ul>
+          <li>
+            A status dot and words, such as "mounted as the test arranged it".
+            <a href="troubleshooting.html#live">Troubleshooting</a> explains each status.
+          </li>
+          <li>
+            <strong>Restart</strong> mounts the test again from a fresh start and clears the lists.
+          </li>
+          <li>The detail of a status that went wrong, in red.</li>
+          <li>
+            <strong>Actions</strong>, the calls of <code>vi.fn()</code> props, oldest first. It
+            keeps the last 50.
+          </li>
+          <li><strong>Errors</strong>, the last 20 errors of the component.</li>
+          <li>
+            <strong>Notices</strong>, the last 20 notices of the live page. Nothing sends them yet.
+          </li>
+        </ul>
+        <p>
+          The component section shows the props the test rendered with. Once the live preview is
+          ready, the keyboard hint at the bottom adds <kbd>L</kbd> live.
+        </p>
+
+        <h3>Size and focus</h3>
+        <ul>
+          <li>An accent ring sets the frame apart from a recorded one.</li>
+          <li>
+            The toolbar's presets, W and H apply without reloading the frame, so the component keeps
+            its state.
+          </li>
+          <li>
+            The auto height follows the height of the content, but stops at the visible height of
+            the stage. Taller content scrolls inside the frame. An explicit H wins.
+          </li>
+          <li>
+            Keys you press while the frame has focus go to the component, not to the viewer. Click
+            outside the frame to use the viewer's keys again.
+          </li>
+        </ul>
+
+        <h3>Moving around</h3>
+        <ul>
+          <li>
+            <kbd>←</kbd> and <kbd>→</kbd> leave Live and show the frame that was selected before. A
+            click on a frame of the timeline leaves Live and shows that frame.
+          </li>
+          <li>
+            <kbd>↑</kbd> and <kbd>↓</kbd> keep Live and mount the previous or next test. So do a
+            click in the sidebar, <kbd>Enter</kbd> in the search and a test in the issues list.
+          </li>
+          <li>
+            An <a href="#overview">overview</a> and its gallery never show Live. Back in the test,
+            the same frame shows, with its state. A thumbnail of the gallery opens its recorded
+            frame, not Live.
+          </li>
+        </ul>
+
+        <h3>When the toggle is hidden or greyed out</h3>
+        <ul>
+          <li>
+            Hidden when the live preview is off: under <code>--no-live</code>, and on the static
+            site.
+          </li>
+          <li>
+            Greyed out while the live preview starts, with the tooltip "The live preview is
+            starting".
+          </li>
+          <li>
+            Greyed out when the live preview did not start. The tooltip then gives the reason, which
+            the CLI also prints as <code>describe-me: &lt;reason&gt;</code>.
+            <a href="troubleshooting.html#live">Troubleshooting</a> lists the reasons and their
+            fixes.
+          </li>
+        </ul>
+        <p>
+          The viewer never waits for the live preview, so the recorded frames show while it starts.
+        </p>
+
+        <h3>Where it runs</h3>
+        <p>
+          The live preview is a second Vite dev server, on your project's own Vite and config. It
+          loads the project and config of the manifest, or of
+          <a href="#flag-root"><code>--root</code></a
+          >. <code>describe-me dev</code> starts it on a free port on localhost and prints its
+          address, such as <code>http://localhost:5173/__describe-me/</code>. The viewer learns its
+          state from <code>/__live.json</code> on its own dev server: <code>starting</code>,
+          <code>ready</code> with the preview's <code>base</code>, <code>off</code>, or
+          <code>error</code> with the reason. The static site of <code>describe-me build</code> has
+          no Live yet.
+        </p>
+
         <h2 id="links">
           Links <a class="anchor" href="#links" aria-label="Link to this section">#</a>
         </h2>
@@ -346,9 +510,13 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <a href="#overview">overview</a>.
           </li>
           <li>
+            <code>live=1</code> opens the test in <a href="#live">Live</a>, so it needs
+            <code>test</code>. Until the live preview is ready, the recorded frame shows.
+          </li>
+          <li>
             Opening a test or an overview adds a history entry, so Back and Forward move between
-            them. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd> and changing the
-            size replace the current entry.
+            them. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd>, turning Live on or
+            off and changing the size replace the current entry.
           </li>
           <li>
             A test id stays the same on other machines and when other tests are added, removed or
@@ -474,6 +642,7 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
           <li><a href="#search">Search and collapsing</a></li>
           <li><a href="#keyboard">Keyboard</a></li>
           <li><a href="#viewport">Viewport size</a></li>
+          <li><a href="#live">Live</a></li>
           <li><a href="#links">Links</a></li>
           <li><a href="#overview">Component overview</a></li>
           <li><a href="#issues">Issues and the version banner</a></li>

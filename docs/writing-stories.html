@@ -6,7 +6,7 @@
     <title>Writing stories · describe-me docs</title>
     <meta
       name="description"
-      content="How tests become stories: what records a frame, step(), naming components, props and coverage."
+      content="How tests become stories: what records a frame, step(), naming components, props and coverage, and what Live runs."
     />
     <link rel="icon" href="favicon.svg" />
     <link rel="stylesheet" href="docs.css" />
@@ -64,7 +64,7 @@
           <h1>Writing stories</h1>
           <p class="page-meta">
             packages/core/src/recorder.ts · compact-frames.ts · step.ts · packages/react/src ·
-            packages/vitest/src/patch-*.ts · packages/viewer/src/coverage.ts
+            packages/vitest/src/patch-*.ts · run-live-test.ts · packages/viewer/src/coverage.ts
           </p>
         </header>
 
@@ -574,6 +574,66 @@ recorder.setComponent({
           >. <a href="viewer.html#overview">The component overview</a> describes the rest of it.
         </p>
 
+        <h2 id="live">
+          What Live runs <a class="anchor" href="#live" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <a href="viewer.html#live">Live</a> in the viewer mounts a test for real instead of
+          replaying its frames. It runs the test's arrange phase, everything before its first
+          render: the <code>beforeAll</code> and then the <code>beforeEach</code> hooks, each from
+          the root suite down, then the body up to <code>render</code>. The component mounts there
+          and the test stops. Interactions, assertions and <code>afterEach</code> never run, so
+          every mount is a fresh start.
+        </p>
+
+        <p class="file">src/Menu.test.tsx</p>
+        <pre><code>import { describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { userEvent } from 'vitest/browser'
+import { Menu } from './Menu'
+
+const items = ['Duplicate', 'Rename', 'Delete']
+
+describe('Menu', () =&gt; {
+  it('selects an item and reports it', async () =&gt; {
+    const onSelect = vi.fn()
+    <span class="dim">// Live mounts this render, then stops the test</span>
+    const screen = await render(&lt;Menu label="Actions" items={items} onSelect={onSelect} /&gt;)
+    await userEvent.click(screen.getByRole('button'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    expect(onSelect).toHaveBeenCalledWith('Rename')
+  })
+})</code></pre>
+
+        <p>
+          In Live the menu starts closed. Open it and pick Rename yourself, and the inspector lists
+          <code>onSelect("Rename")</code> under Actions.
+        </p>
+
+        <ul>
+          <li>
+            <strong>Keep the arrange phase free of Node-only code.</strong> The live page imports
+            the test file in the browser, so an import such as <code>node:fs</code> or
+            <code>msw/node</code> at its top, or a hook that needs one, keeps the test out of Live.
+          </li>
+          <li>
+            <strong>Give providers to <code>render</code>.</strong> Through <code>wrapper</code>,
+            not through a render in <code>beforeEach</code>, as
+            <a href="#tips">Pass providers as <code>wrapper</code></a> explains.
+          </li>
+          <li>
+            <strong>Pass <code>vi.fn()</code> as callback props.</strong> Live names each mock after
+            its prop, so its calls show as actions under that name. A mock you named with
+            <code>mockName()</code> keeps its name.
+          </li>
+        </ul>
+
+        <p>
+          Some of what Vitest does has no effect on the live page.
+          <a href="how-it-works.html#live-preview">The live preview</a> lists what it leaves out.
+        </p>
+
         <h2 id="tips">
           Tests that read well as stories
           <a class="anchor" href="#tips" aria-label="Link to this section">#</a>
@@ -594,7 +654,8 @@ recorder.setComponent({
           </li>
           <li>
             <strong>Pass providers as <code>wrapper</code>.</strong> The search for the component
-            then skips them.
+            then skips them. A render of the providers in <code>beforeEach</code> would also be the
+            first render, the one <a href="#live">Live</a> mounts.
           </li>
           <li>
             <strong>One test per prop value you want covered.</strong> Only values passed to
@@ -632,6 +693,7 @@ recorder.setComponent({
           <li><a href="#async">Async content</a></li>
           <li><a href="#naming">Which component a test documents</a></li>
           <li><a href="#props">Props and coverage</a></li>
+          <li><a href="#live">What Live runs</a></li>
           <li><a href="#tips">Tests that read well as stories</a></li>
         </ul>
       </aside>
