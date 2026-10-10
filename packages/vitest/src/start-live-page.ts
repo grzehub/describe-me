@@ -10,8 +10,9 @@ import { runLiveTest } from './run-live-test.js'
 /** What the plugin's generated entry hands the live page. */
 export interface LivePageOptions {
   /**
-   * Imports a test file by its path from the root. The dev server passes
-   * `import('/' + file)`, and a static build can pass a map of lazy imports.
+   * Imports a test file by its path from the root. The dev server's entry
+   * imports it from the page's own origin, and a static build can pass a map
+   * of lazy imports.
    */
   importTest(file: string): Promise<unknown>
   /** `test.globals` of the project's config. */
@@ -32,7 +33,7 @@ export async function startLivePage(options: LivePageOptions): Promise<void> {
 
   reportLiveErrors()
 
-  const params = readLiveParams(window.location.search)
+  const params = readLiveParams(window.location)
 
   if ('problem' in params) {
     reportLiveStatus('not-found', params.problem)

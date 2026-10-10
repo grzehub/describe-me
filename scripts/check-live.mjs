@@ -6,10 +6,13 @@
  * report `mounted`, then a positive height, load the frame exactly once and
  * log no error. Six behaviours of live components follow: an action from a
  * `vi.fn()`, two rerenders from an empty fragment, a toast that hides itself
- * in real time, an async load, and a theme with global styles. Four pages
- * must report their status: `no-render`, two kinds of `not-found` and
- * `import-failed`. Remote requests are answered locally, so remote fonts
- * never decide the result. Run after `pnpm build` and both examples' tests.
+ * in real time, an async load, and a theme with global styles. Eight pages
+ * must report their status: `no-render` for a hook, `import-failed` for a
+ * missing file, and `not-found` for a missing test, a path out of the root,
+ * three `file` values that would lead to another origin and an occurrence
+ * past a test's last one. Remote requests are answered locally, so remote
+ * fonts never decide the result. Run after `pnpm build` and both examples'
+ * tests.
  *
  * Usage: `node scripts/check-live.mjs`
  */
@@ -341,12 +344,20 @@ const BEHAVIOURS = {
 
 const USED = ['Menu', 'selects an item and reports it']
 
+// The URL parser drops tabs and newlines, so each of these would become `//other.test/x.js`.
+const OTHER_ORIGIN = ['\t', '\n', '\r'].map((control) => ({
+  file: `${control}/other.test/x.js`,
+  path: USED,
+  status: 'not-found',
+}))
+
 /** Pages that must report a status other than `mounted`, and show it in `body`. */
 const STATUSES = {
   'react-browser': [
     { file: 'src/Menu.test.tsx', path: ['Menu', 'no such test'], status: 'not-found' },
     { file: '../src/Menu.test.tsx', path: USED, status: 'not-found' },
     { file: 'src/missing.test.tsx', path: USED, status: 'import-failed' },
+    ...OTHER_ORIGIN,
   ],
   'react-jsdom': [
     {
@@ -354,11 +365,19 @@ const STATUSES = {
       path: ['useToggle', 'flips its value'],
       status: 'no-render',
     },
+    // plugin-react adds a self-import to a file with a component. A second copy of the
+    // file would register this test twice, and its second occurrence would mount.
+    {
+      file: 'src/Naming.test.tsx',
+      path: ['Naming', 'names Badge tone=danger inside a ThemeProvider'],
+      occurrence: 2,
+      status: 'not-found',
+    },
   ],
 }
 
 async function checkStatus(context, expected) {
-  const label = `${context.name} file=${expected.file}`
+  const label = `${context.name} file=${JSON.stringify(expected.file)}`
   const status = await show(context, expected, STATUS_TIMEOUT)
 
   if (status?.status !== expected.status) {

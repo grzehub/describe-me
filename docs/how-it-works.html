@@ -1109,9 +1109,19 @@ await server.close()</code></pre>
 &lt;base&gt;live.html?file=&lt;module id&gt;&amp;path=&lt;JSON array&gt;&amp;occurrence=&lt;n&gt;&amp;origin=&lt;viewer origin&gt;</pre>
 
         <p>
-          <code>file</code> is the module id of the manifest, a path relative to the root, so it
-          cannot name another origin. <code>path</code> holds the suite names, outermost first, then
-          the test name. <code>occurrence</code> counts a repeated name from 1, its default.
+          <code>file</code> is the module id of the manifest, a path relative to the root. The page
+          builds the URL of the test file on its own origin and imports it only when that URL names
+          exactly this file, so a <code>file</code> cannot load code from another origin, not even
+          with a tab or a newline that the URL parser drops. <code>path</code> holds the suite
+          names, outermost first, then the test name. <code>occurrence</code> counts a repeated name
+          from 1, its default.
+        </p>
+
+        <p>
+          The page imports the test file by its absolute URL, so it loads once. Vite adds
+          <code>?import</code> to a path from the root, and the self-import that
+          <code>@vitejs/plugin-react</code> adds to a file with a component would load the file a
+          second time, with every hook and test twice.
         </p>
 
         <p>
