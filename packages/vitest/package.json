@@ -1,6 +1,6 @@
 {
   "name": "@describe-me/vitest",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "Living component documentation from your Vitest tests: the Vitest plugin, setup files and reporter of describe-me",
   "keywords": [
     "vitest",

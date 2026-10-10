@@ -1,6 +1,6 @@
 {
   "name": "@describe-me/react",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "Living component documentation from your Vitest tests: the React adapter of describe-me",
   "keywords": [
     "vitest",
