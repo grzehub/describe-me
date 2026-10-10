@@ -2,8 +2,6 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 
-const GLOB_SPECIAL = /[[\]{}()*?!]/g
-
 /** What the live page imports that no test file does, so Vite's scanner cannot find it. */
 function pageDependencies(live: string): string[] {
   return [
@@ -26,7 +24,7 @@ function resolvable(projectRequire: NodeJS.Require, specifier: string): boolean 
   }
 }
 
-/** The test files of the plugin's own manifest, as globs that match only themselves. */
+/** The test files of the plugin's own manifest, with the `/` separators that Vite's globs expect. */
 function testFiles(root: string, outDir: string): string[] {
   try {
     const manifest = JSON.parse(readFileSync(join(root, outDir, 'manifest.json'), 'utf8')) as {
@@ -36,7 +34,7 @@ function testFiles(root: string, outDir: string): string[] {
     return (manifest.modules ?? [])
       .map((module) => module.id)
       .filter((id): id is string => typeof id === 'string')
-      .map((id) => id.replaceAll('\\', '/').replace(GLOB_SPECIAL, '\\$&'))
+      .map((id) => id.replaceAll('\\', '/'))
   } catch {
     return []
   }
