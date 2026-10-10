@@ -45,6 +45,10 @@
     "./css-references": {
       "types": "./dist/css-references.d.ts",
       "default": "./dist/css-references.js"
+    },
+    "./live": {
+      "types": "./dist/live.d.ts",
+      "default": "./dist/live.js"
     }
   },
   "files": [

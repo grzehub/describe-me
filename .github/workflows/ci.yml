@@ -43,6 +43,7 @@ jobs:
       - run: pnpm check-styled-components
       - run: pnpm check-version-guard
       - run: pnpm check-act-parity
+      - run: pnpm check-live
 
   smoke:
     name: smoke (${{ matrix.name }})

@@ -45,6 +45,10 @@
  * copied manifest must stay byte for byte. The DOM data is built with
  * `--no-vendor-fonts`, and its head must still link Google Fonts. Neither
  * build touches the network.
+ * Both manifests must name the config file of their run, and `live.mjs`
+ * starts `createLiveServer()` on each of the two configs. The live page of the
+ * test `Hello > greets and counts waves` must mount in both, and a click on its
+ * button must count the wave.
  * The version guard is checked three ways: the packed packages peer on each
  * other at this release, both manifests name `@describe-me/vitest` and its
  * version as their `generator`, and a jsdom run whose setup file plants a
@@ -1278,6 +1282,59 @@ export default defineConfig({
   writeFileSync(join(withoutUserEvent, 'dom', 'FireEvent.test.tsx'), FIRE_EVENT_TEST)
 }
 
+/**
+ * `live.mjs` mounts the Hello test of each environment through
+ * `createLiveServer()` from the installed packages, opens its live page
+ * directly and counts a real click.
+ */
+function scaffoldLive() {
+  writeFileSync(
+    join(app, 'live.mjs'),
+    `import { chromium } from 'playwright'
+import { createLiveServer } from '@describe-me/vitest/live'
+
+const cases = [
+  { configFile: 'vitest.config.ts', file: 'src/Hello.test.tsx' },
+  { configFile: 'vitest.dom.config.ts', file: 'dom/Hello.test.tsx' },
+]
+
+const path = JSON.stringify(['Hello', 'greets and counts waves'])
+const browser = await chromium.launch()
+
+async function mountAndClick(page, base, file) {
+  const query = new URLSearchParams({ file, path, occurrence: '1' })
+
+  await page.goto(\`\${base}live.html?\${query}\`)
+  await page.waitForSelector('html[data-describe-me-live]', { timeout: 30_000 })
+
+  const status = await page.evaluate(() => document.documentElement.dataset.describeMeLive)
+
+  if (status !== 'mounted') {
+    throw new Error(\`live: \${file} reported \${status}: \${await page.innerText('body')}\`)
+  }
+
+  await page.getByRole('button', { name: 'waved 0 times' }).click()
+  await page.getByRole('button', { name: 'waved 1 times' }).waitFor({ timeout: 5_000 })
+}
+
+try {
+  for (const { configFile, file } of cases) {
+    const server = await createLiveServer({ root: process.cwd(), configFile })
+
+    try {
+      await mountAndClick(await browser.newPage(), server.base, file)
+      console.log(\`live: \${file} mounted with \${configFile} and counted a click\`)
+    } finally {
+      await server.close()
+    }
+  }
+} finally {
+  await browser.close()
+}
+`,
+  )
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(`smoke: ${message}`)
@@ -1424,10 +1481,13 @@ function verifyMixed(output) {
   console.log('\nmixed: fails with "must be on the same version"')
 }
 
-/** Per environment: how many tests the manifest holds, and which modules must stay out of it. */
+/**
+ * Per environment: how many tests the manifest holds, which modules must stay
+ * out of it, and the config file its run used.
+ */
 const EXPECTED = {
-  browser: { tests: 2, absent: ['Excluded', 'pure'] },
-  dom: { tests: 6, absent: ['Excluded', 'pure', 'hook'] },
+  browser: { tests: 2, absent: ['Excluded', 'pure'], configFile: 'vitest.config.ts' },
+  dom: { tests: 6, absent: ['Excluded', 'pure', 'hook'], configFile: 'vitest.dom.config.ts' },
 }
 
 function labelsOf(test) {
@@ -1511,6 +1571,11 @@ function verify(outDir, environment) {
   assert(
     tests.length === expected.tests,
     `expected ${expected.tests} tests in the manifest (${environment}), got ${tests.length}`,
+  )
+
+  assert(
+    manifest.configFile === expected.configFile,
+    `expected configFile ${expected.configFile} (${environment}), got ${manifest.configFile}`,
   )
 
   const ids = manifest.modules.map((module) => module.id)
@@ -1864,6 +1929,7 @@ try {
   scaffoldStyled()
   scaffoldNaming()
   scaffoldWithoutUserEvent()
+  scaffoldLive()
   // A fresh store, like a new machine: the local store can carry stale optional
   // dependency metadata (pnpm 10.5 skips rolldown's native binding that way).
   run(`pnpm install --store-dir ${join(work, 'store')}`, app)
@@ -1893,6 +1959,7 @@ try {
   run('pnpm exec describe-me build --data .describe-me-dom --out site-dom --no-vendor-fonts', app)
   verify('.describe-me', 'browser')
   verify('.describe-me-dom', 'dom')
+  run('node live.mjs', app)
   verifyStyled(STYLED)
 
   for (const timing of TIMING_RUNS) {

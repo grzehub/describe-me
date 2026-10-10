@@ -49,6 +49,14 @@
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "default": "./dist/plugin.js"
+    },
+    "./live": {
+      "types": "./dist/live.d.ts",
+      "default": "./dist/live.js"
+    },
+    "./live-runtime": {
+      "types": "./dist/live-runtime.d.ts",
+      "default": "./dist/live-runtime.js"
     }
   },
   "files": [

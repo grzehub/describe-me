@@ -70,6 +70,7 @@ export default class DescribeMeReporter implements Reporter {
   private readonly generator: ManifestGenerator | undefined
   private readonly setupWarnings: string[]
   private root = process.cwd()
+  private configFile: string | undefined
   private outDir = ''
   private snapshots!: SnapshotStore
   private assets!: AssetStore
@@ -91,6 +92,8 @@ export default class DescribeMeReporter implements Reporter {
 
   onInit(vitest: Vitest): void {
     this.root = vitest.config.root
+    // A script that calls the reporter directly passes no Vite server, so there is no file to name.
+    this.configFile = this.relativeConfigFile(vitest.vite?.config.configFile)
     this.outDir = resolve(this.root, this.outDirOption)
     this.snapshots = new SnapshotStore(this.outDir)
     this.assets = new AssetStore(this.outDir, this.root)
@@ -224,6 +227,8 @@ export default class DescribeMeReporter implements Reporter {
       generator: this.generator,
       generatedAt: new Date().toISOString(),
       root: this.root,
+      // Always this run's, never the previous manifest's. `undefined` leaves it out of the JSON.
+      configFile: this.configFile,
       modules,
       components,
       assetsMissing,
@@ -263,6 +268,11 @@ export default class DescribeMeReporter implements Reporter {
       manifest.fontsMissing = []
       manifest.remoteStylesheets = []
     }
+  }
+
+  /** The config file of the run, relative to the root, so the live preview loads the same one. */
+  private relativeConfigFile(configFile: string | undefined): string | undefined {
+    return configFile === undefined ? undefined : toPosix(relative(this.root, configFile))
   }
 
   /** Module ids use the platform's separators. Globs expect posix ones. */

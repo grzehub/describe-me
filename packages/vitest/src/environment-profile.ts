@@ -1,12 +1,14 @@
 import type { ViteUserConfig } from 'vitest/config'
 import type { DescribeMeOptions } from './plugin.js'
 
-/** The render module tests import, and the recording adapter that replaces it. */
+/** The render module tests import, and the modules that replace it. */
 export interface RenderModule {
   /** The module tests import `render` from. */
   original: string
   /** Our recording adapter for it. */
   adapter: string
+  /** The live preview's stand-in for it, which mounts at the first render and stops the test. */
+  live: string
 }
 
 /** What the plugin hands a profile when it asks for its config. */

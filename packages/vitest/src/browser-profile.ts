@@ -3,7 +3,11 @@ import type { EnvironmentProfile } from './environment-profile.js'
 /** Vitest browser mode, where tests render in a real browser. */
 export const browserProfile: EnvironmentProfile = {
   renderModules: {
-    react: { original: 'vitest-browser-react', adapter: '@describe-me/react' },
+    react: {
+      original: 'vitest-browser-react',
+      adapter: '@describe-me/react',
+      live: '@describe-me/react/live',
+    },
   },
   setupFile: '@describe-me/vitest/setup',
   configFor({ renderModule }) {

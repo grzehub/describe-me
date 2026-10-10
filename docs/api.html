@@ -73,9 +73,11 @@
         </h2>
 
         <p>
-          The Vitest integration: the plugin, the two setup files, the reporter and
-          <code>step()</code>. Your <code>vitest.config.ts</code> imports the plugin, and your tests
-          import <code>step()</code>.
+          The Vitest integration: the plugin, the two setup files, the reporter,
+          <code>step()</code>, and the server and page runtime of the
+          <a href="how-it-works.html#live-preview">live preview</a>. Your
+          <code>vitest.config.ts</code> imports the plugin, and your tests import
+          <code>step()</code>.
         </p>
 
         <h3 id="entry-vitest">
@@ -269,7 +271,9 @@
                   The whole integration in one line. It adds the setup file and the reporter, and
                   redirects the <code>render</code> import to the recording adapter.
                   <a href="configuration.html#plugin">What the plugin changes</a> lists every
-                  change.
+                  change. It exposes <code>api.live.protocol</code> for the
+                  <a href="how-it-works.html#live-preview">live preview</a>, whose server loads the
+                  config with the plugin in live mode.
                 </td>
               </tr>
               <tr>
@@ -292,15 +296,136 @@
           </table>
         </div>
 
+        <h3 id="entry-vitest-live">
+          <code>@describe-me/vitest/live</code>
+          <a class="anchor" href="#entry-vitest-live" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          The server of the <a href="how-it-works.html#live-preview">live preview</a>, for Node. It
+          is used by the live preview, not for import in tests, and it never loads the runtime of
+          the live page.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>createLiveServer</code></td>
+                <td>
+                  <code
+                    >createLiveServer(options: LiveServerOptions): Promise&lt;LiveServer&gt;</code
+                  >
+                </td>
+                <td>
+                  Starts a second Vite dev server on the project's own Vite and Vitest config, in
+                  mode <code>test</code>, on localhost. It throws when the config has no
+                  <code>describeMe()</code> plugin, or one of another version.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LiveServerOptions</code></td>
+                <td>
+                  <code>{ root: string; configFile?: string; port?: number }</code>
+                </td>
+                <td>
+                  The project root, the config file, relative to <code>root</code> or absolute, and
+                  the port. Without a config file it takes the one Vitest picks, and without a port
+                  a free one.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LiveServer</code></td>
+                <td>
+                  <code>{ base: string; protocol: number; close(): Promise&lt;void&gt; }</code>
+                </td>
+                <td>
+                  <code>base</code> is the URL the live page is under, such as
+                  <code>http://localhost:5173/__describe-me/</code>. <code>protocol</code> is the
+                  plugin's <code>api.live.protocol</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-vitest-live-runtime">
+          <code>@describe-me/vitest/live-runtime</code>
+          <a class="anchor" href="#entry-vitest-live-runtime" aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          The runtime of the live page. The modules that the plugin generates in live mode import
+          it. It is used by the live preview, not for import in tests.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>liveExport</code></td>
+                <td>
+                  <code
+                    >liveExport(module: 'vitest' | 'vitest/browser' | '@describe-me/vitest', name:
+                    string): unknown</code
+                  >
+                </td>
+                <td>
+                  One export of a module the page swaps for a shim: <code>describe</code>,
+                  <code>it</code>, the hooks, <code>vi</code> or <code>step</code>, and an inert
+                  value for every other name.
+                </td>
+              </tr>
+              <tr>
+                <td><code>startLivePage</code></td>
+                <td><code>startLivePage(options: LivePageOptions): Promise&lt;void&gt;</code></td>
+                <td>
+                  Runs the page: reads its URL, imports the test file, runs the arrange phase until
+                  the first render and reports how it ended.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LivePageOptions</code></td>
+                <td>
+                  <code
+                    >{ importTest(file: string): Promise&lt;unknown&gt;; globals: boolean;
+                    testTimeout: number }</code
+                  >
+                </td>
+                <td>
+                  How to import a test file, and the project's <code>test.globals</code> and
+                  <code>test.testTimeout</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <h2 id="react">
           @describe-me/react <a class="anchor" href="#react" aria-label="Link to this section">#</a>
         </h2>
 
         <p>
-          The recording <code>render</code> for React, the only code of describe-me that knows
-          React. Your tests keep importing <code>vitest-browser-react</code> or
-          <code>@testing-library/react</code>, and the plugin sends those imports here. You import
-          this package yourself only without the plugin.
+          The recording <code>render</code> for React and the live preview's stand-ins for it, the
+          only code of describe-me that knows React. Your tests keep importing
+          <code>vitest-browser-react</code> or <code>@testing-library/react</code>, and the plugin
+          sends those imports here. You import this package yourself only without the plugin.
         </p>
 
         <h3 id="entry-react">
@@ -428,14 +553,123 @@
           frames without a wait, while Testing Library's <code>asyncWrapper</code> stays configured.
         </p>
 
+        <h3 id="entry-react-live">
+          <code>@describe-me/react/live</code>
+          <a class="anchor" href="#entry-react-live" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          The <a href="how-it-works.html#live-preview">live preview's</a> stand-in for
+          <code>vitest-browser-react</code> in browser mode. The plugin's live mode redirects
+          imports of <code>vitest-browser-react</code> here. It is used by the live preview, not for
+          import in tests, and it imports neither <code>vitest-browser-react</code> nor Testing
+          Library.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>render</code></td>
+                <td>
+                  <code
+                    >render(ui: ReactNode, options?: LiveMountOptions): Promise&lt;unknown&gt;</code
+                  >
+                </td>
+                <td>
+                  Mounts <code>ui</code> with <code>createRoot</code>, in
+                  <code>options.wrapper</code>, then rejects with the stop signal, which ends the
+                  test at its first render. For an empty UI it resolves to a stand-in screen whose
+                  <code>rerender</code> mounts.
+                </td>
+              </tr>
+              <tr>
+                <td><code>renderHook</code></td>
+                <td><code>renderHook(): Promise&lt;never&gt;</code></td>
+                <td>Stops the test without a mount, so the page reports <code>no-render</code>.</td>
+              </tr>
+              <tr>
+                <td><code>cleanup</code></td>
+                <td><code>cleanup(): void</code></td>
+                <td>Does nothing. The component stays mounted.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-react-live-testing-library">
+          <code>@describe-me/react/live-testing-library</code>
+          <a
+            class="anchor"
+            href="#entry-react-live-testing-library"
+            aria-label="Link to this entry point"
+            >#</a
+          >
+        </h3>
+
+        <p>
+          The <a href="how-it-works.html#live-preview">live preview's</a> stand-in for
+          <code>@testing-library/react</code> in jsdom projects. The plugin's live mode redirects
+          imports of <code>@testing-library/react</code> here. It is used by the live preview, not
+          for import in tests, and it never imports <code>vitest/browser</code>.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>render</code></td>
+                <td>
+                  <code>render(ui: ReactNode, options?: LiveMountOptions): unknown</code>
+                </td>
+                <td>
+                  Synchronous like Testing Library's <code>render</code>: it mounts, then throws the
+                  stop signal. For an empty UI it returns a stand-in result with Testing Library's
+                  queries, whose <code>rerender</code> mounts.
+                </td>
+              </tr>
+              <tr>
+                <td><code>renderHook</code></td>
+                <td><code>renderHook(): never</code></td>
+                <td>
+                  Throws the stop signal without a mount, so the page reports
+                  <code>no-render</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>cleanup</code></td>
+                <td><code>cleanup(): void</code></td>
+                <td>Does nothing. The component stays mounted.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Everything else of <code>@testing-library/react</code> is re-exported as it is.</p>
+
         <h2 id="core">
           @describe-me/core <a class="anchor" href="#core" aria-label="Link to this section">#</a>
         </h2>
 
         <p>
-          The part that knows no framework: the recorder, <code>step()</code> and the types of the
-          manifest. The other packages depend on it, so tests rarely import it. Adapters for other
-          frameworks and tools that read <code>manifest.json</code> do.
+          The part that knows no framework: the recorder, <code>step()</code>, the types of the
+          manifest and the state of the live preview page. The other packages depend on it, so tests
+          rarely import it. Adapters for other frameworks and tools that read
+          <code>manifest.json</code> do.
         </p>
 
         <h3 id="entry-core">
@@ -595,7 +829,7 @@
         </p>
 
         <p>
-          The root entry point also exports the 26 names of
+          The root entry point also exports the 31 names of
           <a href="#entry-core-types"><code>@describe-me/core/types</code></a
           >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
           <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
@@ -606,7 +840,9 @@
           <code>ManifestTest</code>, <code>ManifestModule</code>, <code>PropKind</code>,
           <code>PropDoc</code>, <code>ComponentDoc</code>, <code>ManifestGenerator</code>,
           <code>Manifest</code>, <code>FontMissing</code>, <code>RemoteStylesheet</code>,
-          <code>ANONYMOUS_COMPONENT</code> and <code>ManifestDiagnostics</code>.
+          <code>ANONYMOUS_COMPONENT</code>, <code>ManifestDiagnostics</code>,
+          <code>LiveStatus</code>, <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>,
+          <code>LiveReport</code> and <code>LiveMessage</code>.
         </p>
 
         <h3 id="entry-core-types">
@@ -818,8 +1054,8 @@
                 <td><code>Manifest</code></td>
                 <td>
                   <code
-                    >{ version, generator?, generatedAt, root, modules, components, assetsMissing?,
-                    head?, fontsMissing?, remoteStylesheets?, setupWarnings? }</code
+                    >{ version, generator?, generatedAt, root, configFile?, modules, components,
+                    assetsMissing?, head?, fontsMissing?, remoteStylesheets?, setupWarnings? }</code
                   >
                 </td>
                 <td>
@@ -858,6 +1094,46 @@
                   <code>manifestDiagnostics()</code> computes it, and
                   <a href="troubleshooting.html#diagnostics">Troubleshooting</a> explains each key.
                 </td>
+              </tr>
+              <tr>
+                <td><code>LiveStatus</code></td>
+                <td>
+                  <code>'mounted' | 'no-render' | 'not-found' | 'import-failed' | 'failed'</code>
+                </td>
+                <td>
+                  How the live preview page ended up.
+                  <a href="how-it-works.html#live-preview">The live preview</a> explains each one.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LIVE_MESSAGE_SOURCE</code></td>
+                <td><code>'describe-me-live'</code></td>
+                <td>The <code>source</code> of every message the live page posts.</td>
+              </tr>
+              <tr>
+                <td><code>LIVE_PROTOCOL</code></td>
+                <td><code>1</code></td>
+                <td>
+                  The version of the contract between the viewer, the plugin's live mode and the
+                  live page. <code>createLiveServer()</code> refuses a plugin whose
+                  <code>api.live.protocol</code> differs.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LiveReport</code></td>
+                <td>
+                  <code
+                    >{ type: 'status'; status; detail? } | { type: 'size'; height } | { type:
+                    'action'; name; args } | { type: 'error'; message } | { type: 'notice'; message
+                    }</code
+                  >
+                </td>
+                <td>What the live page reports, without the <code>source</code> field.</td>
+              </tr>
+              <tr>
+                <td><code>LiveMessage</code></td>
+                <td><code>LiveReport &amp; { source: typeof LIVE_MESSAGE_SOURCE }</code></td>
+                <td>A message the live page posts to the viewer around it.</td>
               </tr>
             </tbody>
           </table>
@@ -941,6 +1217,81 @@
                   One target. <code>url</code> is the URL as written, without quotes.
                   <code>start</code> and <code>end</code> are its offsets in the scanned text.
                   <code>kind</code> is <code>import</code> for an <code>@import</code> target.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="entry-core-live">
+          <code>@describe-me/core/live</code>
+          <a class="anchor" href="#entry-core-live" aria-label="Link to this entry point">#</a>
+        </h3>
+
+        <p>
+          The state of the <a href="how-it-works.html#live-preview">live preview</a> page and its
+          messages to the viewer. It is used by the live preview, not for import in tests. The state
+          lives on <code>globalThis</code>, so two copies of this package share it, as they share
+          the recorder.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide signatures">
+            <thead>
+              <tr>
+                <th>Export</th>
+                <th>Signature</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>postLiveMessage</code></td>
+                <td><code>postLiveMessage(report: LiveReport): void</code></td>
+                <td>
+                  Posts a report to <code>window.parent</code>, only to the origin that the page URL
+                  names, and only when that is exactly the origin of an <code>http:</code> or
+                  <code>https:</code> URL.
+                </td>
+              </tr>
+              <tr>
+                <td><code>reportLiveStatus</code></td>
+                <td><code>reportLiveStatus(status: LiveStatus, detail?: string): void</code></td>
+                <td>
+                  Reports how the page ended up. The first status is final. It sets
+                  <code>&lt;html data-describe-me-live&gt;</code>, posts the status, writes any
+                  status but <code>mounted</code> on the page and starts the height observer.
+                </td>
+              </tr>
+              <tr>
+                <td><code>liveStatus</code></td>
+                <td><code>liveStatus(): LiveStatus | null</code></td>
+                <td>The status reported so far.</td>
+              </tr>
+              <tr>
+                <td><code>liveStop</code></td>
+                <td><code>liveStop(): Error</code></td>
+                <td>The page's one stop signal, which the live render throws.</td>
+              </tr>
+              <tr>
+                <td><code>isLiveStop</code></td>
+                <td><code>isLiveStop(value: unknown): boolean</code></td>
+                <td>Tells the stop signal apart from a failure.</td>
+              </tr>
+              <tr>
+                <td><code>liveInert</code></td>
+                <td><code>liveInert(): unknown</code></td>
+                <td>
+                  A value that takes any call, <code>new</code> and property, and ends an
+                  <code>await</code>. The shims give it for every name they do not implement.
+                </td>
+              </tr>
+              <tr>
+                <td><code>observeLiveHeight</code></td>
+                <td><code>observeLiveHeight(): void</code></td>
+                <td>
+                  Posts the height of the content now and whenever it changes: the bottom of the
+                  lowest painted element, plus a margin. It runs once per page.
                 </td>
               </tr>
             </tbody>

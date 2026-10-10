@@ -23,6 +23,7 @@
     "check-styled-components": "node scripts/check-styled-components.mjs",
     "check-version-guard": "node scripts/check-version-guard.mjs",
     "check-act-parity": "node scripts/check-act-parity.mjs",
+    "check-live": "node scripts/check-live.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me",
     "check-docs": "node scripts/check-docs.mjs",
     "site:build": "node scripts/build-site.mjs",

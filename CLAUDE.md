@@ -31,6 +31,7 @@ pnpm check-frame-timing   # frame compaction and renderFrame validation, after p
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
+pnpm check-live   # every test of both examples mounted in the live preview, in Chromium, after pnpm build and both examples' tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
@@ -55,11 +56,15 @@ pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z
   only in `packages/react`.
 - The browser path never imports Testing Library and the DOM path never
   imports `vitest/browser`: they live behind separate entry points
-  (`setup` / `setup-dom`, `@describe-me/react` / `./testing-library`).
+  (`setup` / `setup-dom`, `@describe-me/react` / `./testing-library`,
+  `@describe-me/react/live` / `./live-testing-library`).
 - The plugin's per-environment logic (render redirect, setup file, config)
   lives in `packages/vitest/src/browser-profile.ts` and `dom-profile.ts`.
   `plugin.ts` imports only the chosen one, so browser mode never loads the
   DOM code.
+- Live mode (`DESCRIBE_ME_LIVE=1`, set only by `createLiveServer()` while it
+  loads the config) lives in `packages/vitest/src/*live*.ts`, and a test run
+  never takes that path.
 - Snapshots are DOM + stylesheets via rrweb-snapshot; do not add layout or
   screenshot capture to the hot path without measuring (`bench:micro`).
 - A change in behaviour updates its docs page in the same PR.
