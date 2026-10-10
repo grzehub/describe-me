@@ -1,9 +1,11 @@
 import type { ManifestTest } from '@describe-me/core/types'
+import { liveShown } from './live-shown.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
 import { testsInScope } from './scope.js'
 import { sidebarOrder } from './sidebar-order.js'
 import { currentTest, select, state, writeHash } from './state.js'
+import { toggleLive } from './toggle-live.js'
 import { visibleTests } from './visible-tests.js'
 
 /** In the overview, ↑ ↓ jump into the scope: the first or the last test it holds. */
@@ -64,7 +66,40 @@ function isSearchKey(event: KeyboardEvent): boolean {
   return event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey
 }
 
-/** ← → step through frames, ↑ ↓ through the tests the sidebar shows, `/` focuses the search. */
+/** `L` in either case, without Ctrl, Meta or Alt, and not held down. */
+function isLiveKey(event: KeyboardEvent): boolean {
+  const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.repeat
+
+  return plain && event.key.toLowerCase() === 'l'
+}
+
+/**
+ * While Live shows, ← → leave it and show the frame as it was. Otherwise they
+ * step, and a link still waiting for the preview stays out of Live.
+ */
+function onFrameKey(test: ManifestTest, step: 1 | -1): void {
+  const leaving = liveShown()
+  const next = state.frame + step
+  const steps = !leaving && next >= 0 && next < test.frames.length
+
+  if (!leaving && !steps && !state.live) {
+    return
+  }
+
+  state.live = false
+
+  if (steps) {
+    state.frame = next
+  }
+
+  writeHash('replace')
+  rerender('frame')
+}
+
+/**
+ * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
+ * toggles Live, `/` focuses the search.
+ */
 export function onKey(event: KeyboardEvent): void {
   if (!state.manifest || isTyping(event.target)) {
     return
@@ -88,16 +123,14 @@ export function onKey(event: KeyboardEvent): void {
     return
   }
 
-  if (event.key === 'ArrowRight' && state.frame < test.frames.length - 1) {
-    state.frame++
-    writeHash('replace')
-    rerender('frame')
+  if (isLiveKey(event)) {
+    toggleLive()
+    event.preventDefault()
+    return
   }
 
-  if (event.key === 'ArrowLeft' && state.frame > 0) {
-    state.frame--
-    writeHash('replace')
-    rerender('frame')
+  if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+    onFrameKey(test, event.key === 'ArrowRight' ? 1 : -1)
   }
 
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

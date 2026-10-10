@@ -12,6 +12,10 @@ export interface CliOptions {
   port: number
   /** `build`: download web fonts from known font hosts into the site. */
   vendorFonts: boolean
+  /** `dev`: start the live preview next to the viewer. */
+  live: boolean
+  /** `dev`: the project root of the live preview, instead of the manifest's root and config file. */
+  root: string | undefined
 }
 
 function commandFrom(positional: string | undefined, help: boolean): Command {
@@ -27,8 +31,9 @@ function commandFrom(positional: string | undefined, help: boolean): Command {
 }
 
 /**
- * Turn `describe-me <command> [--data dir] [--out dir] [--port n] [--no-vendor-fonts]`
- * into options with defaults.
+ * Turn `describe-me <command> [--data dir] [--out dir] [--port n] [--no-vendor-fonts]
+ * [--no-live] [--root dir]` into options with defaults. `build` ignores `--port`,
+ * `--no-live` and `--root`.
  */
 export function parseArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseNodeArgs({
@@ -41,6 +46,8 @@ export function parseArgs(argv: string[]): CliOptions {
       port: { type: 'string', default: '6006' },
       help: { type: 'boolean', short: 'h', default: false },
       'vendor-fonts': { type: 'boolean', default: true },
+      live: { type: 'boolean', default: true },
+      root: { type: 'string' },
     },
   })
 
@@ -50,5 +57,7 @@ export function parseArgs(argv: string[]): CliOptions {
     out: values.out,
     port: Number(values.port),
     vendorFonts: values['vendor-fonts'],
+    live: values.live,
+    root: values.root,
   }
 }

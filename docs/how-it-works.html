@@ -162,7 +162,7 @@
             <text class="dg-mono" x="602" y="281">assets/</text>
 
             <path class="dg-edge" d="M600,300 V332 H453 V386" marker-end="url(#arch-arrow)" />
-            <text class="dg-label" x="470" y="326">served live</text>
+            <text class="dg-label" x="470" y="326">served, watched</text>
             <path class="dg-edge" d="M680,300 V386" marker-end="url(#arch-arrow)" />
             <text class="dg-label" x="690" y="342">copied as __data/</text>
 
@@ -171,7 +171,7 @@
 
             <rect class="dg-node" x="346" y="388" width="214" height="64" rx="8" />
             <text class="dg-title mono" x="360" y="411">describe-me dev</text>
-            <text class="dg-text" x="360" y="434">live, watches manifest.json</text>
+            <text class="dg-text" x="360" y="434">watches manifest.json</text>
 
             <rect class="dg-node" x="576" y="388" width="208" height="64" rx="8" />
             <text class="dg-title mono" x="590" y="411">describe-me build</text>
@@ -220,7 +220,7 @@
           </li>
           <li>
             <code>describe-me</code> reads that directory. <code>describe-me dev</code> serves it
-            live, <code>describe-me build</code> copies it into a static site.
+            and follows each run, <code>describe-me build</code> copies it into a static site.
           </li>
         </ul>
 
@@ -817,9 +817,9 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         <p>
           Under <code>describe-me dev</code>, the viewer's Vite config serves the data directory as
           <code>__data/</code> and watches it. When <code>manifest.json</code> changes, it sends a
-          <code>describe-me:update</code> event through Vite's live-reload socket, and the viewer
-          fetches the manifest again. A static site has no such socket, so the viewer polls every 60
-          seconds instead. Either way it repaints only when <code>generatedAt</code> changed.
+          <code>describe-me:update</code> event through Vite's HMR socket, and the viewer fetches
+          the manifest again. A static site has no such socket, so the viewer polls every 60 seconds
+          instead. Either way it repaints only when <code>generatedAt</code> changed.
         </p>
 
         <p>To show a frame, the viewer:</p>
@@ -860,8 +860,9 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           A frame is DOM without scripts. The live preview mounts the component of one test for real
           instead, the way the test's arrange phase set it up: its props, its
           <code>vi.fn()</code> mocks, its wrapper and whatever its hooks prepared. Nothing after the
-          first render runs, so every mount is a fresh start, and the component stays live. The
-          viewer and the CLI do not use it yet.
+          first render runs, so every mount is a fresh start, and the component stays mounted.
+          <code>describe-me dev</code> starts the preview, and
+          <a href="viewer.html#live">Live</a> in the viewer frames its page.
         </p>
 
         <figure class="diagram">
@@ -1173,7 +1174,7 @@ await server.close()</code></pre>
               <tr>
                 <td><code>notice</code></td>
                 <td class="nowrap"><code>message</code></td>
-                <td>Reserved for the viewer. Nothing sends one yet.</td>
+                <td>The viewer shows it in the inspector. Nothing sends one yet.</td>
               </tr>
             </tbody>
           </table>

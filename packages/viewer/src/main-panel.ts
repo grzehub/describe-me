@@ -1,9 +1,10 @@
 import { el } from './el.js'
+import { liveShown } from './live-shown.js'
 import { rerender } from './rerender.js'
 import { currentTest, state, writeHash } from './state.js'
 import { testView } from './test-view.js'
 
-/** Fill the test view's breadcrumbs and frame timeline for the current test. */
+/** Fill the test view's breadcrumbs and frame timeline for the current test. A frame click leaves Live. */
 export function renderMain(): void {
   const test = currentTest()
   const { path, timeline } = testView()
@@ -18,13 +19,15 @@ export function renderMain(): void {
   }
 
   timeline.replaceChildren()
+  const live = liveShown()
   test?.frames.forEach((timelineFrame, i) => {
     timeline.append(
       el(
         'button',
         {
-          class: `frame ${timelineFrame.kind}${i === state.frame ? ' active' : ''}`,
+          class: `frame ${timelineFrame.kind}${i === state.frame && !live ? ' active' : ''}`,
           click: () => {
+            state.live = false
             state.frame = i
             writeHash('replace')
             rerender('frame')

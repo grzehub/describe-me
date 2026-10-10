@@ -6,7 +6,7 @@
     <title>Troubleshooting · describe-me docs</title>
     <meta
       name="description"
-      content="What the diagnostics mean, the warnings describe-me prints and fixes for common symptoms."
+      content="What the diagnostics mean, the warnings describe-me prints, fixes for common symptoms and what to do when Live does not mount a test."
     />
     <link rel="icon" href="favicon.svg" />
     <link rel="stylesheet" href="docs.css" />
@@ -65,13 +65,17 @@
           <p class="page-meta">
             packages/core/src/types.ts · manifest-diagnostics.ts · recorder.ts ·
             packages/vitest/src/print-diagnostics.ts · plugin.ts · reporter.ts ·
-            packages/viewer/cli/run-build.ts · print-vendor-report.ts
+            create-live-server.ts · find-live-config-file.ts · import-live-vite.ts ·
+            packages/viewer/cli/run-build.ts · print-vendor-report.ts · live-project.ts ·
+            import-create-live-server.ts · start-live-preview.ts ·
+            packages/viewer/src/live-status-words.ts
           </p>
         </header>
 
         <p class="lead">
           After every run describe-me lists what it could not document. This page explains each
-          item, the warnings it prints once, and the symptoms people run into most.
+          item, the warnings it prints once, the symptoms people run into most and what to do when
+          Live does not mount a test.
         </p>
 
         <h2 id="diagnostics">
@@ -633,6 +637,227 @@
           </table>
         </div>
 
+        <h2 id="live">
+          Live <a class="anchor" href="#live" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          The Live section of the inspector names how the live page ended up, as the
+          <a href="viewer.html#live">viewer</a> explains. The status table of
+          <a href="how-it-works.html#live-preview">the live preview</a> says what happened for each
+          status. This one says what to do. After a fix, press Restart.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>The inspector says</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="live-mounted">
+                <td><code>mounted</code></td>
+                <td>mounted as the test arranged it</td>
+                <td>
+                  Nothing. When the component still looks different from its frames, the live page
+                  is missing something the test run had. It does not run setup files yet, so render
+                  global styles and providers in the test's <code>wrapper</code> (<a
+                    href="styles-and-fonts.html#global-styles"
+                    >Global styles</a
+                  >). <code>vi.mock</code> has no effect, so the real module loads. Timers are real,
+                  so a toast that the test holds with fake timers hides after its delay. Errors the
+                  component throws after the mount show under Errors.
+                </td>
+              </tr>
+              <tr id="live-no-render">
+                <td><code>no-render</code></td>
+                <td>the test renders no component</td>
+                <td>
+                  Open a test that renders a component. A <code>renderHook</code> test, a test that
+                  calls <code>skip()</code> or one that renders nothing has nothing to mount.
+                </td>
+              </tr>
+              <tr id="live-not-found">
+                <td><code>not-found</code></td>
+                <td>the test is not in its file</td>
+                <td>
+                  The test was renamed, moved or removed since the last run. Run the tests again, so
+                  the manifest matches the file.
+                </td>
+              </tr>
+              <tr id="live-import-failed">
+                <td><code>import-failed</code></td>
+                <td>the test file does not load in the browser</td>
+                <td>
+                  Read the detail in red. Most often the test file, or a module it imports, needs
+                  Node, such as <code>node:fs</code> or <code>msw/node</code>. Keep such code out of
+                  the test file (<a href="writing-stories.html#live">What Live runs</a>).
+                </td>
+              </tr>
+              <tr id="live-failed">
+                <td><code>failed</code></td>
+                <td>the arrange phase failed</td>
+                <td>
+                  Read the detail in red. A <code>beforeAll</code> or <code>beforeEach</code> hook,
+                  or the body before <code>render</code>, threw or took longer than the test's
+                  timeout. Code that needs Node, something a setup file prepares or a fixture from
+                  <code>test.extend</code> fails here. Make the arrange phase work in the browser on
+                  its own.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>When the toggle is greyed out</h3>
+
+        <p>
+          When the live preview does not start, <code>describe-me dev</code> prints the reason on
+          stderr as <code>describe-me: &lt;reason&gt;</code>, and the Live toggle shows it as its
+          tooltip. The viewer runs on without Live. Start <code>describe-me dev</code> again after
+          the fix.
+        </p>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Reason</th>
+                <th>What it means and how to fix it</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <code
+                    >no manifest in … to find the project by, so the viewer runs without Live. Run
+                    the tests and start again, or pass --root.</code
+                  >
+                </td>
+                <td>
+                  The preview finds the project through the manifest, and there is none yet. Run the
+                  tests once, or pass
+                  <a href="viewer.html#flag-root"><code>--root</code></a> with the project
+                  directory. Check that <code>--data</code> names the directory the reporter writes.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>cannot read …/manifest.json (…), so the viewer runs without Live.</code>
+                </td>
+                <td>The manifest is not valid JSON. Run the tests again.</td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >the manifest names the config file …, which is not in …, so the viewer runs
+                    without Live. Run the tests again, or pass --root.</code
+                  >
+                </td>
+                <td>
+                  The config file of the last run is gone, or the manifest comes from another
+                  machine. Run the tests again, or pass <code>--root</code>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >cannot find @describe-me/vitest from …, so the viewer runs without Live. Pass
+                    --root with the project directory.</code
+                  >
+                </td>
+                <td>
+                  The CLI loads the preview from the project's own
+                  <code>@describe-me/vitest</code>, and only a <code>node_modules</code> in the root
+                  or above it counts. Pass <code>--root</code> with the directory of the project
+                  that installs it.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >the @describe-me/vitest in … predates the live preview, so the viewer runs
+                    without Live.</code
+                  >
+                </td>
+                <td>
+                  The project has an <code>@describe-me/vitest</code> older than the viewer. Install
+                  all four packages at one version (<a href="installation.html#lockstep"
+                    >one version for all packages</a
+                  >).
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>no Vitest or Vite config file in …</code>
+                </td>
+                <td>
+                  With <code>--root</code>, the directory has no <code>vitest.config.*</code> or
+                  <code>vite.config.*</code>, so pass the directory that holds the config. Without
+                  it, the manifest names no config file and its root has none of them either. Run
+                  the tests with a config file.
+                </td>
+              </tr>
+              <tr>
+                <td><code>cannot find vite from …</code></td>
+                <td>
+                  The root has neither Vite nor a Vitest that brings one. Install the project's
+                  dependencies, or pass <code>--root</code> with the project directory.
+                </td>
+              </tr>
+              <tr>
+                <td><code>… has no describeMe() plugin</code></td>
+                <td>
+                  The config the preview loads does not call <code>describeMe()</code>. With
+                  <code>--root</code>, it may have picked another config than your tests run with.
+                  Run the tests with the config that has the plugin and start without
+                  <code>--root</code>, so the manifest names that config.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >all describe-me packages must be on the same version. The describeMe() plugin
+                    in … has live protocol …, expected …. Install @describe-me/core,
+                    @describe-me/react, @describe-me/vitest and describe-me at one version.</code
+                  >
+                </td>
+                <td>
+                  The <code>describeMe()</code> of the config comes from another copy of
+                  <code>@describe-me/vitest</code> than the preview, on another release. Install all
+                  four packages at one version, with one copy of each.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >all describe-me packages must be on the same version. The live preview in …
+                    speaks protocol …, this viewer ….</code
+                  >
+                </td>
+                <td>
+                  The project's <code>@describe-me/vitest</code> and the <code>describe-me</code>
+                  that runs the viewer are on different releases. Install all four packages at one
+                  version.
+                </td>
+              </tr>
+              <tr>
+                <td>Any other message</td>
+                <td>
+                  The config threw while the preview loaded it, and the message is its own. The
+                  preview loads it in mode <code>test</code> with
+                  <code>DESCRIBE_ME_LIVE=1</code> set (<a href="how-it-works.html#live-preview"
+                    >the live preview</a
+                  >). Fix the config, or what it imports.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <h2 id="report">
           Reporting a bug <a class="anchor" href="#report" aria-label="Link to this section">#</a>
         </h2>
@@ -672,6 +897,7 @@
           <li><a href="#diagnostics">Diagnostics after a run</a></li>
           <li><a href="#warnings">One-off warnings</a></li>
           <li><a href="#symptoms">Symptoms and fixes</a></li>
+          <li><a href="#live">Live</a></li>
           <li><a href="#report">Reporting a bug</a></li>
         </ul>
       </aside>

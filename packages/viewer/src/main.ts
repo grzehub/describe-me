@@ -3,6 +3,8 @@ import { loadManifest } from './data.js'
 import { el } from './el.js'
 import { renderHeader } from './header.js'
 import { onKey } from './keyboard.js'
+import { listenToLive } from './listen-to-live.js'
+import { loadLivePreview } from './load-live-preview.js'
 import { regions } from './regions.js'
 import { renderAll } from './render-all.js'
 import { renderFrame } from './render-frame.js'
@@ -41,6 +43,7 @@ readHash()
 document.addEventListener('keydown', onKey)
 window.addEventListener('popstate', onLocationChange)
 window.addEventListener('hashchange', onLocationChange)
+listenToLive()
 wireSearchField(regions().search)
 
 loadManifest().catch((err) => {
@@ -57,6 +60,8 @@ const refresh = () => loadManifest().catch(() => undefined)
 if (import.meta.hot) {
   // Dev: the Vite plugin pushes an event whenever the reporter rewrites the manifest.
   import.meta.hot.on('describe-me:update', () => void refresh())
+  // Only `describe-me dev` serves `__live.json`, so the static site never asks for it.
+  void loadLivePreview()
 } else {
   // Static site: data only changes on redeploy, so a slow poll is plenty.
   setInterval(() => void refresh(), 60_000)

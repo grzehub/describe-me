@@ -4,7 +4,7 @@ import { runDev } from './run-dev.js'
 
 const USAGE = `describe-me — living component docs from your tests
 
-  describe-me dev   [--data .describe-me] [--port 6006]   viewer with live updates
+  describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root <dir>]   viewer that follows the test runs, and the live preview
   describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]   static site
 `
 
@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     return
   }
 
-  await runDev(options.data, options.port)
+  await runDev(options.data, options.port, { live: options.live, root: options.root })
 }
 
 main().catch((error: unknown) => {
