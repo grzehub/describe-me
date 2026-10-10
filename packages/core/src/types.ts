@@ -196,6 +196,11 @@ export interface Manifest {
   generator?: ManifestGenerator
   generatedAt: string
   root: string
+  /**
+   * The Vitest config file of the run, relative to `root`, with `/` separators.
+   * Absent when the run had no config file, and in manifests written before 0.6.
+   */
+  configFile?: string
   modules: ManifestModule[]
   /** Keyed by component name, as reported by the framework adapter. */
   components: Record<string, ComponentDoc>
@@ -265,3 +270,25 @@ export interface ManifestDiagnostics {
   /** Problems in the project's setup that can make tests fail. */
   setupWarnings: string[]
 }
+
+// ---------- live preview (posted by the live page, read by the viewer) ----------
+
+/** How the live preview page ended up. */
+export type LiveStatus = 'mounted' | 'no-render' | 'not-found' | 'import-failed' | 'failed'
+
+/** The `source` of every message the live preview page posts. */
+export const LIVE_MESSAGE_SOURCE = 'describe-me-live' as const
+
+/** The version of the contract between the viewer, the plugin's live mode and the live page. */
+export const LIVE_PROTOCOL = 1 as const
+
+/** What the live page reports, without the `source` field. */
+export type LiveReport =
+  | { type: 'status'; status: LiveStatus; detail?: string }
+  | { type: 'size'; height: number }
+  | { type: 'action'; name: string; args: string[] }
+  | { type: 'error'; message: string }
+  | { type: 'notice'; message: string }
+
+/** A message the live page posts to the viewer around it. */
+export type LiveMessage = LiveReport & { source: typeof LIVE_MESSAGE_SOURCE }

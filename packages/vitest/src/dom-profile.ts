@@ -7,7 +7,11 @@ type TestConfig = NonNullable<ViteUserConfig['test']>
 /** DOM environments such as jsdom, where tests render through Testing Library. */
 export const domProfile: EnvironmentProfile = {
   renderModules: {
-    react: { original: '@testing-library/react', adapter: '@describe-me/react/testing-library' },
+    react: {
+      original: '@testing-library/react',
+      adapter: '@describe-me/react/testing-library',
+      live: '@describe-me/react/live-testing-library',
+    },
   },
   setupFile: '@describe-me/vitest/setup-dom',
   configFor({ userConfig, options }) {

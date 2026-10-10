@@ -1,10 +1,16 @@
 import type { ViteUserConfig } from 'vitest/config'
-import type { RenderFrameMode } from '@describe-me/core/types'
+import { LIVE_PROTOCOL, type RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
 import { defaultReporters } from './default-reporters.js'
-import type { EnvironmentProfile, RenderModule } from './environment-profile.js'
+import { detectEnvironment } from './detect-environment.js'
+import type { RenderModule } from './environment-profile.js'
+import { isAdapterModule } from './is-adapter-module.js'
+import { LIVE_ENV } from './live-env.js'
+import { livePlugin } from './live-plugin.js'
+import { loadProfile } from './load-profile.js'
+import { packageNameOf } from './package-name-of.js'
 import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
@@ -68,53 +74,20 @@ export interface DescribeMeOptions {
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
 
 /**
- * The package an adapter entry point belongs to, e.g.
- * `@describe-me/react/testing-library` → `@describe-me/react`.
- */
-function packageNameOf(specifier: string): string {
-  return specifier.split('/').slice(0, 2).join('/')
-}
-
-/**
- * Whether a module is one of the adapter's own files, whose imports of the
- * original module must stay unredirected. `/node_modules/<package>/` is the
- * fallback for when the project root could not resolve the package.
- */
-function isAdapterModule(id: string, adapterRoot: string | null, adapterPackage: string): boolean {
-  if (adapterRoot !== null && id.startsWith(adapterRoot)) {
-    return true
-  }
-
-  return id.includes(`/node_modules/${adapterPackage}/`)
-}
-
-function detectEnvironment(userConfig: ViteUserConfig): DescribeMeEnvironment {
-  return userConfig.test?.browser?.enabled ? 'browser' : 'dom'
-}
-
-/** Imported on demand, so browser mode never loads the code for DOM environments. */
-async function loadProfile(environment: DescribeMeEnvironment): Promise<EnvironmentProfile> {
-  if (environment === 'browser') {
-    const { browserProfile } = await import('./browser-profile.js')
-
-    return browserProfile
-  }
-
-  const { domProfile } = await import('./dom-profile.js')
-
-  return domProfile
-}
-
-/**
  * One-line integration: `plugins: [describeMe()]`.
  *
  * Registers the setup file and the reporter, and redirects the framework's
  * `render` import to our adapter so existing tests record frames unchanged.
  * Works in browser mode and in DOM environments such as jsdom; the adapter
  * itself still needs the real module, so imports coming from inside it are
- * left alone.
+ * left alone. While `createLiveServer()` loads the config, it returns the
+ * live preview's plugin instead.
  */
 export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
+  if (process.env[LIVE_ENV] === '1') {
+    return livePlugin(options)
+  }
+
   const { enabled = true, framework = 'react', outDir } = options
   // Set by `config()`, which Vite runs before `configResolved` and `resolveId`.
   // Stays null while the plugin is disabled.
@@ -130,6 +103,8 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   return {
     name: 'describe-me',
     enforce: 'pre',
+    // In both modes, so a tool can check the live protocol on any config it loads.
+    api: { live: { protocol: LIVE_PROTOCOL } },
 
     async config(userConfig: ViteUserConfig): Promise<ViteUserConfig> {
       if (!enabled) {

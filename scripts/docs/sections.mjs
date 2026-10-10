@@ -81,6 +81,7 @@ export const sections = {
     'storage',
     'manifest',
     'replay',
+    'live-preview',
     'versions',
   ],
   'performance.html': ['summary', 'suites', 'capture', 'output', 'measure', 'cheaper'],

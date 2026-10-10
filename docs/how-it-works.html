@@ -662,6 +662,16 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                   are relative to it.
                 </td>
               </tr>
+              <tr id="manifest-configFile">
+                <td><code>configFile</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td>before 0.6, and when the run had no config file</td>
+                <td>
+                  The Vitest config file of the run, relative to <code>root</code>, with
+                  <code>/</code> separators, such as <code>vitest.config.ts</code>. It always comes
+                  from this run. The <a href="#live-preview">live preview</a> loads the same file.
+                </td>
+              </tr>
               <tr id="manifest-modules">
                 <td><code>modules</code></td>
                 <td class="nowrap"><code>ManifestModule[]</code></td>
@@ -841,6 +851,372 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           <a href="viewer.html#hosting">Viewer and CLI</a> explains how to host the static site.
         </p>
 
+        <h2 id="live-preview">
+          The live preview
+          <a class="anchor" href="#live-preview" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          A frame is DOM without scripts. The live preview mounts the component of one test for real
+          instead, the way the test's arrange phase set it up: its props, its
+          <code>vi.fn()</code> mocks, its wrapper and whatever its hooks prepared. Nothing after the
+          first render runs, so every mount is a fresh start, and the component stays live. The
+          viewer and the CLI do not use it yet.
+        </p>
+
+        <figure class="diagram">
+          <svg viewBox="0 0 800 400" role="img" aria-labelledby="live-title">
+            <title id="live-title">
+              createLiveServer() loads your config with DESCRIBE_ME_LIVE set and starts a Vite dev
+              server, which serves the live page and the shims. The viewer frames the page. The page
+              imports the test file, runs its arrange phase, mounts the component at the first
+              render and stops the test. It posts its status, size, actions and errors to the
+              viewer's origin.
+            </title>
+            <defs>
+              <marker
+                id="live-arrow"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+              <marker
+                id="live-arrow-accent"
+                viewBox="0 0 8 8"
+                refX="7"
+                refY="4"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto"
+              >
+                <path class="dg-head accent" d="M0,0 L8,4 L0,8 z" />
+              </marker>
+            </defs>
+
+            <rect class="dg-group" x="1" y="1" width="230" height="398" rx="10" />
+            <text class="dg-group-title" x="16" y="22">In Node</text>
+
+            <rect class="dg-node" x="16" y="38" width="200" height="56" rx="8" />
+            <text class="dg-title mono" x="30" y="61">createLiveServer()</text>
+            <text class="dg-mono" x="30" y="80">@describe-me/vitest/live</text>
+
+            <path class="dg-edge dashed" d="M40,94 V150" marker-end="url(#live-arrow)" />
+            <text class="dg-label" x="52" y="117">loads your config with</text>
+            <text class="dg-label mono" x="52" y="134">DESCRIBE_ME_LIVE=1</text>
+
+            <rect class="dg-node" x="16" y="152" width="200" height="124" rx="8" />
+            <text class="dg-title" x="30" y="175">Vite dev server</text>
+            <text class="dg-text" x="30" y="195">your Vite, your config</text>
+            <text class="dg-text" x="30" y="213">mode test, localhost only</text>
+            <text class="dg-mono" x="30" y="239">describeMe() in live mode</text>
+            <text class="dg-text" x="30" y="261">serves the page and shims</text>
+
+            <rect class="dg-group" x="262" y="1" width="298" height="398" rx="10" />
+            <text class="dg-group-title" x="278" y="22">Live page · live.html</text>
+
+            <path class="dg-edge" d="M216,214 H246 V68 H274" marker-end="url(#live-arrow)" />
+
+            <rect class="dg-node" x="278" y="38" width="266" height="60" rx="8" />
+            <text class="dg-title" x="292" y="61">Test file, imported for real</text>
+            <text class="dg-mono" x="292" y="81">vitest and render are shims</text>
+
+            <path class="dg-edge" d="M411,98 V122" marker-end="url(#live-arrow)" />
+
+            <rect class="dg-node" x="278" y="124" width="266" height="60" rx="8" />
+            <text class="dg-title" x="292" y="147">Arrange phase</text>
+            <text class="dg-mono" x="292" y="167">beforeAll → beforeEach → body</text>
+
+            <path class="dg-edge" d="M411,184 V208" marker-end="url(#live-arrow)" />
+
+            <rect class="dg-node strong" x="278" y="210" width="266" height="76" rx="8" />
+            <text class="dg-title" x="292" y="233">First render</text>
+            <text class="dg-text" x="292" y="253">mounts in the test's wrapper,</text>
+            <text class="dg-text" x="292" y="271">then stops the test</text>
+
+            <path class="dg-edge" d="M411,286 V310" marker-end="url(#live-arrow)" />
+
+            <rect class="dg-node" x="278" y="312" width="266" height="72" rx="8" />
+            <text class="dg-title" x="292" y="335">Live component</text>
+            <text class="dg-text" x="292" y="355">a fresh start: nothing after</text>
+            <text class="dg-text" x="292" y="373">the render runs</text>
+
+            <rect class="dg-group" x="592" y="1" width="207" height="398" rx="10" />
+            <text class="dg-group-title" x="608" y="22">Viewer · another origin</text>
+
+            <rect class="dg-node" x="608" y="38" width="176" height="76" rx="8" />
+            <text class="dg-title" x="622" y="61">iframe</text>
+            <text class="dg-mono" x="622" y="81">live.html?file&amp;path</text>
+            <text class="dg-mono" x="622" y="99">&amp;occurrence&amp;origin</text>
+
+            <path class="dg-edge" d="M608,76 H564" marker-end="url(#live-arrow)" />
+
+            <path class="dg-edge accent" d="M544,248 H604" marker-end="url(#live-arrow-accent)" />
+            <path
+              class="dg-edge accent"
+              d="M544,348 H576 V300 H604"
+              marker-end="url(#live-arrow-accent)"
+            />
+
+            <rect class="dg-node" x="608" y="210" width="176" height="110" rx="8" />
+            <text class="dg-title" x="622" y="233">Messages</text>
+            <text class="dg-mono" x="622" y="255">status · size</text>
+            <text class="dg-mono" x="622" y="273">action · error</text>
+            <text class="dg-text" x="622" y="297">to its origin only</text>
+
+            <path class="dg-edge dashed" d="M696,210 V118" marker-end="url(#live-arrow)" />
+            <text class="dg-label mono" x="706" y="168">postMessage</text>
+          </svg>
+          <figcaption>
+            The page runs the test until its first render and no further. The component stays
+            mounted and live, as the arrange phase set it up.
+          </figcaption>
+        </figure>
+
+        <h3>The server</h3>
+
+        <p>
+          <code>createLiveServer()</code> starts a second Vite dev server next to Vitest, on your
+          own Vite and your own Vitest config, in mode <code>test</code>. It listens on localhost
+          only. Without a <code>configFile</code> it picks the file Vitest would pick, the first
+          <code>vitest.config.*</code>, then <code>vite.config.*</code>. The page is
+          <code>live.html</code> under <code>base</code>.
+        </p>
+
+        <pre><code>import { createLiveServer } from '@describe-me/vitest/live'
+
+const server = await createLiveServer({ root: process.cwd(), configFile: 'vitest.config.ts' })
+
+console.log(`${server.base}live.html`)
+await server.close()</code></pre>
+
+        <p>
+          It sets <code>DESCRIBE_ME_LIVE=1</code> while it loads the config, and only then.
+          <code>describeMe()</code> reads the variable when the config calls it, and returns its
+          live mode: no setup file, reporter, <code>provide</code> or recording redirect, but the
+          live page, the shims below and the dependencies to bundle before the first page loads.
+          Vitest never sets the variable, so a test run records as before.
+        </p>
+
+        <p>
+          Both modes expose <code>api.live.protocol</code>. When the config has no
+          <code>describeMe()</code>, or one whose protocol is not the server's, the server closes
+          and throws. The message says that all describe-me packages must be on the same version, as
+          the <a href="#versions">recorder's guard</a> does.
+        </p>
+
+        <p>
+          The server does not watch the config file: a restart would run it again without the
+          variable, in recording mode. After an edit to the config, start a new server. Edits to
+          components and tests reach the page through Vite as usual.
+        </p>
+
+        <h3>What the page imports</h3>
+
+        <p>The page imports the test file for real. Live mode swaps these imports:</p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Import</th>
+                <th>What the page gets</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>vitest</code></td>
+                <td>
+                  <code>describe</code>, <code>it</code> and the hooks register as in Vitest, with
+                  every modifier. <code>vi.fn()</code> and <code>vi.spyOn()</code> post each call as
+                  an action. The rest of <code>vi</code> does nothing and returns <code>vi</code>.
+                  <code>expect</code> and every other name is inert: it takes any call and any
+                  property.
+                </td>
+              </tr>
+              <tr>
+                <td><code>vitest-browser-react</code></td>
+                <td>
+                  <a href="api.html#entry-react-live"><code>@describe-me/react/live</code></a
+                  >, in browser mode.
+                </td>
+              </tr>
+              <tr>
+                <td><code>@testing-library/react</code></td>
+                <td>
+                  <a href="api.html#entry-react-live-testing-library"
+                    ><code>@describe-me/react/live-testing-library</code></a
+                  >, in jsdom projects. The rest of Testing Library stays real.
+                </td>
+              </tr>
+              <tr>
+                <td><code>vitest/browser</code></td>
+                <td>Inert names, and the same for <code>@vitest/browser/context</code>.</td>
+              </tr>
+              <tr>
+                <td><code>@describe-me/vitest</code></td>
+                <td>
+                  A <code>step()</code> that runs its body and records nothing, and an inert
+                  <code>recorder</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>The arrange phase</h3>
+
+        <ol class="steps">
+          <li>
+            <strong>Globals</strong> With <code>test.globals</code>, the shims go on
+            <code>globalThis</code> before the test file imports.
+          </li>
+          <li>
+            <strong>Import</strong> The page imports the test file, then calls the
+            <code>describe</code> factories the way Vitest collects them: depth first, in order.
+          </li>
+          <li>
+            <strong>Find</strong> It finds the test by its suite path and name, and by its
+            occurrence when the name repeats, counted like the stable test id.
+          </li>
+          <li>
+            <strong>Run</strong> It runs the <code>beforeAll</code> hooks from the root down, then
+            the <code>beforeEach</code> hooks, then the body.
+          </li>
+          <li>
+            <strong>First render</strong> The render names each unnamed <code>vi.fn()</code> after
+            its prop, mounts with <code>createRoot</code> in the test's wrapper, reports
+            <code>mounted</code> and throws a stop signal that ends the test. Assertions,
+            interactions and <code>afterEach</code> never run.
+          </li>
+        </ol>
+
+        <p>
+          A render of an empty fragment, such as <code>render(&lt;&gt;&lt;/&gt;)</code>, mounts
+          nothing and waits: the component mounts at the test's <code>rerender</code>.
+          <code>renderHook</code> stops without a mount, so the page reports <code>no-render</code>.
+          A test that does not reach its first render within its own timeout, or
+          <code>test.testTimeout</code>, reports <code>failed</code>.
+        </p>
+
+        <h3>The page and its messages</h3>
+
+        <pre>
+&lt;base&gt;live.html?file=&lt;module id&gt;&amp;path=&lt;JSON array&gt;&amp;occurrence=&lt;n&gt;&amp;origin=&lt;viewer origin&gt;</pre>
+
+        <p>
+          <code>file</code> is the module id of the manifest, a path relative to the root, so it
+          cannot name another origin. <code>path</code> holds the suite names, outermost first, then
+          the test name. <code>occurrence</code> counts a repeated name from 1, its default.
+        </p>
+
+        <p>
+          The page posts its messages to <code>window.parent</code>, each with
+          <code>source: 'describe-me-live'</code>. It posts only in a frame, only when
+          <code>origin</code> is exactly the origin of an <code>http:</code> or
+          <code>https:</code> URL, and only to that origin. Another site that frames the page learns
+          nothing. In any case the page sets its status on
+          <code>&lt;html data-describe-me-live&gt;</code>, and writes any status but
+          <code>mounted</code> on the page.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Message</th>
+                <th>Fields</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>status</code></td>
+                <td class="nowrap"><code>status</code>, <code>detail?</code></td>
+                <td>Once, when the page knows how it ended up. The first status is final.</td>
+              </tr>
+              <tr>
+                <td><code>size</code></td>
+                <td class="nowrap"><code>height</code></td>
+                <td>
+                  After the status, and whenever the content changes: the bottom of the lowest
+                  painted element, plus a margin.
+                </td>
+              </tr>
+              <tr>
+                <td><code>action</code></td>
+                <td class="nowrap"><code>name</code>, <code>args</code></td>
+                <td>
+                  On every call of a mock, under its name, such as <code>onSelect</code> with
+                  <code>"Rename"</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>error</code></td>
+                <td class="nowrap"><code>message</code></td>
+                <td>When the live component throws, or a promise rejects unhandled.</td>
+              </tr>
+              <tr>
+                <td><code>notice</code></td>
+                <td class="nowrap"><code>message</code></td>
+                <td>Reserved for the viewer. Nothing sends one yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>What happened</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>mounted</code></td>
+                <td>The first render mounted the component.</td>
+              </tr>
+              <tr>
+                <td><code>no-render</code></td>
+                <td>
+                  The test ended without a render: it called <code>renderHook</code> or
+                  <code>skip()</code>, or rendered nothing.
+                </td>
+              </tr>
+              <tr>
+                <td><code>not-found</code></td>
+                <td>The URL is not valid, or the file has no such test.</td>
+              </tr>
+              <tr>
+                <td><code>import-failed</code></td>
+                <td>The test file did not import, or one of its suites threw.</td>
+              </tr>
+              <tr>
+                <td><code>failed</code></td>
+                <td>The arrange phase threw, or did not reach the first render in time.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>What the page does not do:</p>
+
+        <ul>
+          <li>It does not import the project's setup files.</li>
+          <li><code>vi.mock</code> has no effect, so the page loads the real module.</li>
+          <li>
+            Fake timers are skipped, so time is real. A toast that hides after 3 seconds hides after
+            3 seconds.
+          </li>
+          <li>Fixtures from <code>test.extend</code> are not computed.</li>
+        </ul>
+
         <h2 id="versions">
           Versions and compatibility
           <a class="anchor" href="#versions" aria-label="Link to this section">#</a>
@@ -918,6 +1294,7 @@ describe-me: all describe-me packages must be on the same version. Another copy 
           <li><a href="#storage">The output directory</a></li>
           <li><a href="#manifest">The manifest</a></li>
           <li><a href="#replay">How the viewer replays a frame</a></li>
+          <li><a href="#live-preview">The live preview</a></li>
           <li><a href="#versions">Versions and compatibility</a></li>
         </ul>
       </aside>
