@@ -10,10 +10,12 @@ import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import { liveOptimizeDeps } from './live-optimize-deps.js'
 import { livePageMiddleware } from './live-page-middleware.js'
 import { livePageSettings, type LivePageSettings } from './live-page-settings.js'
+import type { LiveSetupFile } from './live-setup-files.js'
 import { liveShimSource } from './live-shim-source.js'
 import { loadProfile } from './load-profile.js'
 import { packageNameOf } from './package-name-of.js'
 import type { DescribeMeOptions } from './plugin.js'
+import { validateLiveOption } from './validate-live-option.js'
 
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
 
@@ -30,7 +32,7 @@ const GENERATED = new Set<string>(Object.values(LIVE_MODULE_IDS))
 /** The source of a generated module. */
 function generatedSource(id: string, settings: LivePageSettings): string | null {
   if (id === LIVE_MODULE_IDS.entry) {
-    return liveEntrySource(settings.globals, settings.testTimeout)
+    return liveEntrySource(settings)
   }
 
   if (id === LIVE_MODULE_IDS.vitest) {
@@ -57,8 +59,12 @@ function liveConfig(
   root: string,
   outDir: string | undefined,
   live: string,
+  setupFiles: LiveSetupFile[],
 ): ViteUserConfig {
-  const config: ViteUserConfig = { optimizeDeps: liveOptimizeDeps(root, outDir, live) }
+  const config: ViteUserConfig = {
+    optimizeDeps: liveOptimizeDeps(root, outDir, live, setupFiles),
+  }
+
   const alias = userConfig.test?.alias
 
   if (alias !== undefined) {
@@ -73,9 +79,11 @@ function liveConfig(
  * serves the live page and swaps `vitest`, `vitest/browser`,
  * `@describe-me/vitest` and the render module for the live page's shims. It
  * adds no setup file, reporter or recording redirect, and ignores `enabled`.
+ * With `live: false` it does nothing, and `createLiveServer()` stops.
  */
 export function livePlugin(options: DescribeMeOptions): VitePlugin {
   const { framework = 'react' } = options
+  const enabled = options.live !== false
   // Set by `config()`, which Vite runs before `configResolved`, `resolveId` and `load`.
   let renderModule: RenderModule | null = null
   let settings: LivePageSettings | null = null
@@ -85,17 +93,23 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
   return {
     name: 'describe-me',
     enforce: 'pre',
-    api: { live: { protocol: LIVE_PROTOCOL } },
+    api: { live: { protocol: LIVE_PROTOCOL, enabled } },
 
     async config(userConfig: ViteUserConfig): Promise<ViteUserConfig> {
+      const live = validateLiveOption(options.live)
+
+      if (!live.enabled) {
+        return {}
+      }
+
       const root = resolve(userConfig.root ?? process.cwd())
       const environment = options.environment ?? detectEnvironment(userConfig)
       const profile = await loadProfile(environment)
 
       renderModule = profile.renderModules[framework]
-      settings = await livePageSettings(userConfig, root)
+      settings = await livePageSettings(userConfig, root, live)
 
-      return liveConfig(userConfig, root, options.outDir, renderModule.live)
+      return liveConfig(userConfig, root, options.outDir, renderModule.live, settings.setupFiles)
     },
 
     configResolved(config) {
@@ -105,6 +119,10 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
     },
 
     async resolveId(source: string, importer: string | undefined) {
+      if (!enabled) {
+        return null
+      }
+
       if (GENERATED.has(source)) {
         return source
       }
@@ -143,6 +161,10 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
     },
 
     configureServer(server) {
+      if (!enabled) {
+        return
+      }
+
       server.middlewares.use(livePageMiddleware(server, options.previewHead))
     },
   }

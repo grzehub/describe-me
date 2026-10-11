@@ -30,6 +30,8 @@ function createShims(): Shims {
       beforeEach: liveHook('beforeEach'),
       afterEach: liveHook('afterEach'),
       afterAll: liveHook('afterAll'),
+      aroundEach: liveHook('aroundEach'),
+      aroundAll: liveHook('aroundAll'),
       onTestFinished: ignore,
       onTestFailed: ignore,
       vi,

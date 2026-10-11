@@ -41,6 +41,10 @@ export async function runDev(data: string, port: number, options: RunDevOptions)
 
   if (info.status === 'ready') {
     process.stdout.write(`  ➜  Live preview: ${info.base}\n`)
+  } else if (info.status === 'off') {
+    process.stdout.write(
+      "describe-me: the project's config sets live: false, so the viewer runs without Live.\n",
+    )
   } else {
     process.stderr.write(`describe-me: ${info.error}\n`)
   }

@@ -3,6 +3,7 @@ import { collectLiveSuites } from './collect-live-suites.js'
 import { findLiveTest } from './find-live-test.js'
 import { installLiveGlobals } from './install-live-globals.js'
 import { liveErrorDetail } from './live-error-detail.js'
+import { liveRegistry } from './live-registry.js'
 import { readLiveParams } from './read-live-params.js'
 import { reportLiveErrors } from './report-live-errors.js'
 import { runLiveTest } from './run-live-test.js'
@@ -19,12 +20,38 @@ export interface LivePageOptions {
   globals: boolean
   /** How long the arrange phase may take, in ms, when the test sets no timeout of its own. */
   testTimeout: number
+  /**
+   * The setup files to import before the test file, in order: each one's
+   * name for messages and its import. Default: none.
+   */
+  setupFiles?: { file: string; load(): Promise<unknown> }[]
+  /** The major version of the project's Vitest, whose rules name `each` and `for` rows. Default: 5. */
+  vitestMajor?: number
 }
 
 /**
- * Runs the live page: imports the test file that the URL names, with the
- * shims in place, runs the test's arrange phase and stops at its first
- * render. The component stays mounted and live.
+ * Imports the setup files one at a time, as one of the orders Vitest's
+ * parallel default can produce. Reports `setup-failed` and returns false at
+ * the first one that does not load, link or run.
+ */
+async function importSetupFiles(setupFiles: LivePageOptions['setupFiles']): Promise<boolean> {
+  for (const setupFile of setupFiles ?? []) {
+    try {
+      await setupFile.load()
+    } catch (error) {
+      reportLiveStatus('setup-failed', `${setupFile.file}: ${liveErrorDetail(error)}`)
+
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
+ * Runs the live page: imports the setup files and then the test file that
+ * the URL names, with the shims in place, runs the test's arrange phase and
+ * stops at its first render. The component stays mounted and live.
  */
 export async function startLivePage(options: LivePageOptions): Promise<void> {
   if (options.globals) {
@@ -33,11 +60,18 @@ export async function startLivePage(options: LivePageOptions): Promise<void> {
 
   reportLiveErrors()
 
+  // Names form while tests register, so the rules must be known before any import.
+  liveRegistry().vitestMajor = options.vitestMajor ?? 5
+
   const params = readLiveParams(window.location)
 
   if ('problem' in params) {
     reportLiveStatus('not-found', params.problem)
 
+    return
+  }
+
+  if (!(await importSetupFiles(options.setupFiles))) {
     return
   }
 

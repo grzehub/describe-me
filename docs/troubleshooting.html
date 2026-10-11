@@ -663,13 +663,14 @@
                 <td>mounted as the test arranged it</td>
                 <td>
                   Nothing. When the component still looks different from its frames, the live page
-                  is missing something the test run had. It does not run setup files yet, so render
-                  global styles and providers in the test's <code>wrapper</code> (<a
+                  is missing something the test run had. Pass global styles and providers as the
+                  test's <code>wrapper</code>, so they mount with the component (<a
                     href="styles-and-fonts.html#global-styles"
                     >Global styles</a
-                  >). <code>vi.mock</code> has no effect, so the real module loads. Timers are real,
-                  so a toast that the test holds with fake timers hides after its delay. Errors the
-                  component throws after the mount show under Errors.
+                  >). <code>vi.mock</code> has no effect, so the real module loads, and the notices
+                  list each <code>vi.mock</code> and <code>vi.doMock</code> call the page skipped.
+                  Timers are real, so a toast that the test holds with fake timers hides after its
+                  delay. Errors the component throws after the mount show under Errors.
                 </td>
               </tr>
               <tr id="live-no-render">
@@ -697,15 +698,28 @@
                   the test file (<a href="writing-stories.html#live">What Live runs</a>).
                 </td>
               </tr>
+              <tr id="live-setup-failed">
+                <td><code>setup-failed</code></td>
+                <td>a setup file does not load in the browser</td>
+                <td>
+                  Read which file the detail names. Most often it needs Node, as MSW's
+                  <code>setupServer</code> does. List a browser version of it, such as one with
+                  <code>setupWorker</code>, in
+                  <a href="configuration.html#option-live"><code>live.setupFiles</code></a
+                  >, then start <code>describe-me dev</code> again, because the live preview reads
+                  the config once (<a href="writing-stories.html#live">What Live runs</a>).
+                </td>
+              </tr>
               <tr id="live-failed">
                 <td><code>failed</code></td>
                 <td>the arrange phase failed</td>
                 <td>
-                  Read the detail in red. A <code>beforeAll</code> or <code>beforeEach</code> hook,
-                  or the body before <code>render</code>, threw or took longer than the test's
-                  timeout. Code that needs Node, something a setup file prepares or a fixture from
-                  <code>test.extend</code> fails here. Make the arrange phase work in the browser on
-                  its own.
+                  Read the detail in red. A hook, a fixture from <code>test.extend</code> or the
+                  body before <code>render</code> threw or took longer than the test's timeout. The
+                  detail names a fixture that fails, and an <code>aroundEach</code> or
+                  <code>aroundAll</code> hook that settles without calling its run function. Code
+                  that needs Node fails here too. Make the arrange phase work in the browser on its
+                  own.
                 </td>
               </tr>
             </tbody>

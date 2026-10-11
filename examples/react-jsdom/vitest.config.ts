@@ -12,6 +12,60 @@ const benchOut = process.env.BENCH_OUT
 const actParity = Boolean(process.env.ACT_PARITY)
 const actParityEager = process.env.ACT_PARITY === 'eager'
 
+// LIVE_FIXTURES=1 runs the fixtures of `pnpm check-live` in live-fixtures/,
+// with their own setup files and output directory. `pnpm check-live` loads the
+// config for the live preview with two more values, which reuse that output:
+// LIVE_FIXTURES=no-live-setup leaves out `live`, LIVE_FIXTURES=off sets `live: false`.
+const liveFixtures = process.env.LIVE_FIXTURES || null
+const liveFixtureModes = ['1', 'no-live-setup', 'off']
+
+if (liveFixtures !== null && !liveFixtureModes.includes(liveFixtures)) {
+  throw new Error(
+    `LIVE_FIXTURES: unknown value "${liveFixtures}", expected ${liveFixtureModes.join(', ')}`,
+  )
+}
+
+if (liveFixtures !== null && (actParity || process.env.BENCH_MICRO)) {
+  throw new Error('LIVE_FIXTURES does not work with ACT_PARITY or BENCH_MICRO')
+}
+
+// A package entry covers the setup files that are bare specifiers.
+const fixtureSetupFiles = [
+  './live-fixtures/setup.ts',
+  '@testing-library/dom',
+  './live-fixtures/server.node.ts',
+]
+
+function liveFixtureOptions(): DescribeMeOptions {
+  if (liveFixtures === null) {
+    return {}
+  }
+
+  const outDir = 'node_modules/.describe-me-live-fixtures'
+
+  if (liveFixtures === 'off') {
+    return { outDir, live: false }
+  }
+
+  if (liveFixtures === 'no-live-setup') {
+    return { outDir }
+  }
+
+  const setupFiles = fixtureSetupFiles.map((file) =>
+    file.endsWith('server.node.ts') ? './live-fixtures/server.browser.ts' : file,
+  )
+
+  return { outDir, live: { setupFiles } }
+}
+
+function setupFiles(): { setupFiles?: string[] } {
+  if (liveFixtures !== null) {
+    return { setupFiles: fixtureSetupFiles }
+  }
+
+  return actParityEager ? { setupFiles: ['./act-parity/setup.ts'] } : {}
+}
+
 function renderFrame(): DescribeMeOptions['renderFrame'] {
   if (actParity && !actParityEager) {
     return 'lazy'
@@ -21,6 +75,10 @@ function renderFrame(): DescribeMeOptions['renderFrame'] {
 }
 
 function testFiles(): string[] {
+  if (liveFixtures !== null) {
+    return ['live-fixtures/**/*.test.tsx']
+  }
+
   if (actParity) {
     return ['act-parity/**/*.test.tsx']
   }
@@ -91,12 +149,13 @@ export default defineConfig({
       previewHead,
       renderFrame: renderFrame(),
       ...benchOptions(),
+      ...liveFixtureOptions(),
     }),
   ],
   test: {
     environment: 'jsdom',
     ...(skipped.includes('css') ? { css: false } : {}),
-    ...(actParityEager ? { setupFiles: ['./act-parity/setup.ts'] } : {}),
+    ...setupFiles(),
     globals: true,
     include: testFiles(),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),

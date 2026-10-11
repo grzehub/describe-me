@@ -5,6 +5,8 @@ export interface LiveRegistry {
   root: LiveSuite
   /** Where suites, tests and hooks register: the suite whose factory runs, or the root during import. */
   current: LiveSuite
+  /** The major version of the project's Vitest, whose rules name `each` and `for` rows. */
+  vitestMajor: number
 }
 
 const REGISTRY_KEY = Symbol.for('describe-me.live-registry')
@@ -21,7 +23,7 @@ export function liveRegistry(): LiveRegistry {
   if (scope[REGISTRY_KEY] === undefined) {
     const root = liveSuite('')
 
-    scope[REGISTRY_KEY] = { root, current: root }
+    scope[REGISTRY_KEY] = { root, current: root, vitestMajor: 5 }
   }
 
   return scope[REGISTRY_KEY]

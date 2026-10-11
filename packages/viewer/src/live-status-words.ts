@@ -10,5 +10,6 @@ export const liveStatusWords: Record<LiveStatus | 'loading', string> = {
   'no-render': 'the test renders no component',
   'not-found': 'the test is not in its file',
   'import-failed': 'the test file does not load in the browser',
+  'setup-failed': 'a setup file does not load in the browser',
   failed: 'the arrange phase failed',
 }

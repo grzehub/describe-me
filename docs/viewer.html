@@ -415,7 +415,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
           <li><strong>Errors</strong>, the last 20 errors of the component.</li>
           <li>
-            <strong>Notices</strong>, the last 20 notices of the live page. Nothing sends them yet.
+            <strong>Notices</strong>, the last 20 notices of the live page. Each
+            <code>vi.mock</code> or <code>vi.doMock</code> call sends one, because the page loads
+            the real module.
           </li>
         </ul>
         <p>
@@ -460,8 +462,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <h3>When the toggle is hidden or greyed out</h3>
         <ul>
           <li>
-            Hidden when the live preview is off: under <code>--no-live</code>, and on the static
-            site.
+            Hidden when the live preview is off: under <code>--no-live</code>, with
+            <a href="configuration.html#option-live"><code>live: false</code></a> in the project's
+            config, and on the static site.
           </li>
           <li>
             Greyed out while the live preview starts, with the tooltip "The live preview is

@@ -271,9 +271,11 @@
                   The whole integration in one line. It adds the setup file and the reporter, and
                   redirects the <code>render</code> import to the recording adapter.
                   <a href="configuration.html#plugin">What the plugin changes</a> lists every
-                  change. It exposes <code>api.live.protocol</code> for the
-                  <a href="how-it-works.html#live-preview">live preview</a>, whose server loads the
-                  config with the plugin in live mode.
+                  change. It exposes <code>api.live.protocol</code> and
+                  <code>api.live.enabled</code>, <code>false</code> with
+                  <a href="configuration.html#option-live"><code>live: false</code></a
+                  >, for the <a href="how-it-works.html#live-preview">live preview</a>, whose server
+                  loads the config with the plugin in live mode.
                 </td>
               </tr>
               <tr>
@@ -327,7 +329,9 @@
                 <td>
                   Starts a second Vite dev server on the project's own Vite and Vitest config, in
                   mode <code>test</code>, on localhost. It throws when the config has no
-                  <code>describeMe()</code> plugin, or one of another version.
+                  <code>describeMe()</code> plugin, or one of another version. With
+                  <code>live: false</code> in the config it throws an error whose
+                  <code>code</code> is <code>DESCRIBE_ME_LIVE_OFF</code>, and starts nothing.
                 </td>
               </tr>
               <tr>
@@ -405,12 +409,15 @@
                 <td>
                   <code
                     >{ importTest(file: string): Promise&lt;unknown&gt;; globals: boolean;
-                    testTimeout: number }</code
+                    testTimeout: number; setupFiles?: { file: string; load(): Promise&lt;unknown&gt;
+                    }[]; vitestMajor?: number }</code
                   >
                 </td>
                 <td>
-                  How to import a test file, and the project's <code>test.globals</code> and
-                  <code>test.testTimeout</code>.
+                  How to import a test file, the project's <code>test.globals</code> and
+                  <code>test.testTimeout</code>, the setup files to import first, each with its name
+                  for messages (default: none), and the major version of Vitest whose rules name
+                  <code>each</code> and <code>for</code> rows (default: 5).
                 </td>
               </tr>
             </tbody>
@@ -1098,7 +1105,10 @@
               <tr>
                 <td><code>LiveStatus</code></td>
                 <td>
-                  <code>'mounted' | 'no-render' | 'not-found' | 'import-failed' | 'failed'</code>
+                  <code
+                    >'mounted' | 'no-render' | 'not-found' | 'import-failed' | 'setup-failed' |
+                    'failed'</code
+                  >
                 </td>
                 <td>
                   How the live preview page ended up.
