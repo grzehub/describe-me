@@ -311,7 +311,8 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                 <td>
                   The live preview. <code>setupFiles</code>, a path or a list, replaces
                   <code>test.setupFiles</code> on the live page, for a setup file that needs Node.
-                  <code>false</code> switches the preview off. Test runs ignore it (<a
+                  <code>false</code> switches the preview off, and makes
+                  <code>describe-me build --live</code> fail. Test runs ignore it (<a
                     href="writing-stories.html#live"
                     >Live</a
                   >).

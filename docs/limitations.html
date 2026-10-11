@@ -372,7 +372,9 @@
                 <td>
                   Arrange code that needs Node, such as <code>node:fs</code> or
                   <code>msw/node</code>, does not load in the browser, so Live cannot mount the
-                  test. See <a href="writing-stories.html#live">What Live runs</a>.
+                  test. On a static site a file that imports a Node module fails as a whole, even
+                  when its arrange phase never calls it. See
+                  <a href="writing-stories.html#live">What Live runs</a>.
                 </td>
                 <td><span class="badge env">viewer</span></td>
                 <td>
@@ -517,8 +519,9 @@
         <p>
           The viewer replays recorded snapshots, and up to 0.5 it could not
           <a href="#limit-static-snapshots">run your components</a>.
-          <a href="viewer.html#live">Live</a> in <code>describe-me dev</code> mounts one test for
-          real, but it runs <a href="#limit-live-arrange-only">only the arrange phase</a>,
+          <a href="viewer.html#live">Live</a> in <code>describe-me dev</code>, and in a site built
+          with <code>describe-me build --live</code>, mounts one test for real, but it runs
+          <a href="#limit-live-arrange-only">only the arrange phase</a>,
           <a href="#limit-live-node-only">no code that needs Node</a>,
           <a href="#limit-live-module-mocks">no module mocks</a> and
           <a href="#limit-live-projects">only the root config</a>. A built site

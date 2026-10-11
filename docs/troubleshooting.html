@@ -422,6 +422,37 @@
                   <a href="styles-and-fonts.html#vendoring">Vendoring</a>.
                 </td>
               </tr>
+              <tr>
+                <td>
+                  <code
+                    >… imports node:fs, which does not load in the browser: it is a Node
+                    module</code
+                  >
+                </td>
+                <td>
+                  With <code>--live</code>, once for each file of the project that imports a module
+                  the browser cannot load: a Node module, or one that cannot be resolved. The build
+                  still finishes.
+                </td>
+                <td>
+                  Tests of a file that imports it report
+                  <a href="#live-import-failed"><code>import-failed</code></a> in Live, and a setup
+                  file <a href="#live-setup-failed"><code>setup-failed</code></a
+                  >. Keep such imports out of test files, and list a browser version of a setup file
+                  in <a href="configuration.html#option-live"><code>live.setupFiles</code></a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>the live build leaves out test files that are not in …: …</code>
+                </td>
+                <td>
+                  With <code>--live</code>, when the manifest names test files that are gone. Their
+                  tests report <code>import-failed</code> in Live.
+                </td>
+                <td>Run the tests again, then build again.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -695,7 +726,10 @@
                 <td>
                   Read the detail in red. Most often the test file, or a module it imports, needs
                   Node, such as <code>node:fs</code> or <code>msw/node</code>. Keep such code out of
-                  the test file (<a href="writing-stories.html#live">What Live runs</a>).
+                  the test file (<a href="writing-stories.html#live">What Live runs</a>). On a
+                  static site, <code>describe-me build --live</code> warned about that import.
+                  <code>… is not in this build</code> means the manifest is newer than the build, so
+                  run <code>describe-me build --live</code> again.
                 </td>
               </tr>
               <tr id="live-setup-failed">
@@ -733,6 +767,16 @@
           stderr as <code>describe-me: &lt;reason&gt;</code>, and the Live toggle shows it as its
           tooltip. The viewer runs on without Live. Start <code>describe-me dev</code> again after
           the fix.
+        </p>
+
+        <p>
+          <code>describe-me build --live</code> stops with exit code 1 for the same reasons, and
+          leaves no <code>__live/</code>. In its messages,
+          <code>so describe-me build --live stopped</code> takes the place of
+          <code>so the viewer runs without Live</code>, and an error of the build itself starts with
+          <code>the live build failed:</code>. It also stops without a manifest, which lists the
+          tests to build, and with <code>live: false</code> in the config, which
+          <code>--live</code> contradicts.
         </p>
 
         <div class="scroll">

@@ -86,8 +86,8 @@ type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
  * `render` import to our adapter so existing tests record frames unchanged.
  * Works in browser mode and in DOM environments such as jsdom; the adapter
  * itself still needs the real module, so imports coming from inside it are
- * left alone. While `createLiveServer()` loads the config, it returns the
- * live preview's plugin instead.
+ * left alone. While `createLiveServer()` or `buildLive()` loads the config,
+ * it returns the live preview's plugin instead.
  */
 export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   if (process.env[LIVE_ENV] === '1') {

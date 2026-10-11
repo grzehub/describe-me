@@ -2,8 +2,14 @@
  * Checks the built site/ in headless Chromium, served over HTTP as a host
  * would serve it: docs.css applies to the pages (the light `--bg` token is the
  * body background), and each example viewer loads its data and shows as many
- * tests as its manifest has tests with a frame besides the closing one. Run
- * after `pnpm site:build`.
+ * tests as its manifest has tests with a frame besides the closing one. Then
+ * Live, which `pnpm site:build` builds into both viewers: `__live.json` says
+ * `ready` with the base `__live/`, and `L` mounts a test in a live frame
+ * without a sandbox, on the site's own origin. In react-browser a click on
+ * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
+ * inspector. No request to the site may fail and the page may throw no error.
+ * Remote requests are answered locally, so remote fonts never decide the
+ * result. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -19,6 +25,28 @@ const SITE = join(repoRoot, 'site')
 // --bg of the light :root block in docs/docs.css.
 const LIGHT_BACKGROUND = 'rgb(245, 246, 248)'
 const VIEWER_TIMEOUT = 20_000
+const LIVE_TIMEOUT = 30_000
+const LIVE_READY = JSON.stringify({ status: 'ready', base: '__live/' })
+// `mounted` in packages/viewer/src/live-status-words.ts.
+const MOUNTED_WORDS = 'mounted as the test arranged it'
+
+async function selectsRename(page) {
+  const frame = page.frameLocator('.stage-slot.live-slot iframe')
+
+  await frame.getByRole('button', { name: 'Actions' }).click()
+  await frame.getByRole('menuitem', { name: 'Rename' }).click()
+  await page
+    .locator('.live-actions li', { hasText: 'onSelect("Rename")' })
+    .waitFor({ state: 'visible', timeout: 5_000 })
+
+  return ', and Rename shows onSelect("Rename") in the inspector'
+}
+
+/** The test each viewer mounts in Live, and what to do in it once mounted. */
+const LIVE_TESTS = {
+  'react-browser': { fullName: 'Menu > selects an item and reports it', act: selectsRename },
+  'react-jsdom': { fullName: 'Heading > takes its colour from the theme' },
+}
 
 function errorMessage(error) {
   return error instanceof Error ? error.message.split('\n')[0] : String(error)
@@ -117,6 +145,137 @@ async function checkViewer(context, url, name) {
   }
 }
 
+function readSiteManifest(name) {
+  return JSON.parse(readFileSync(join(SITE, 'examples', name, '__data', 'manifest.json'), 'utf8'))
+}
+
+function testIdOf(name, fullName) {
+  const test = readSiteManifest(name)
+    .modules.flatMap((module) => module.tests)
+    .find((candidate) => candidate.fullName === fullName)
+
+  if (!test) {
+    throw new Error(`the manifest has no test "${fullName}"`)
+  }
+
+  return test.id
+}
+
+/** A page that answers remote requests locally and keeps failed site requests and page errors. */
+async function openLivePage(browser, url) {
+  const context = await browser.newContext({
+    colorScheme: 'light',
+    viewport: { width: 1280, height: 800 },
+  })
+
+  await context.route(
+    (target) => target.protocol === 'https:',
+    (route) => {
+      const type = route.request().resourceType() === 'stylesheet' ? 'text/css' : 'text/plain'
+
+      return route.fulfill({ status: 200, contentType: type, body: '' })
+    },
+  )
+
+  const page = await context.newPage()
+  const failures = []
+  const siteOrigin = new URL(url).origin
+
+  page.on('pageerror', (error) => failures.push(`page error: ${errorMessage(error)}`))
+  page.on('response', (response) => {
+    const target = new URL(response.url())
+
+    if (target.origin === siteOrigin && response.status() >= 400) {
+      failures.push(`${response.status()} for ${target.pathname}`)
+    }
+  })
+
+  return { context, page, failures }
+}
+
+/** The live slot's iframe: no sandbox, and `live.html` of the viewer's `__live/` as its source. */
+async function checkLiveIframe(page, expected) {
+  const iframe = page.locator('.stage-slot.live-slot iframe')
+
+  await iframe.waitFor({ state: 'attached', timeout: 5_000 })
+
+  const sandbox = await iframe.getAttribute('sandbox')
+  const src = new URL(await iframe.getAttribute('src'))
+  const problems = []
+
+  src.search = ''
+
+  if (sandbox !== null) {
+    problems.push(`the live iframe has sandbox="${sandbox}"`)
+  }
+
+  if (src.href !== expected) {
+    problems.push(`the live iframe loads ${src.href}, expected ${expected}`)
+  }
+
+  return problems
+}
+
+async function mountLive(page, url, name) {
+  const { fullName, act } = LIVE_TESTS[name]
+
+  await page.goto(`${url}examples/${name}/#test=${testIdOf(name, fullName)}`)
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page.keyboard.press('l')
+
+  const problems = await checkLiveIframe(page, `${url}examples/${name}/__live/live.html`)
+
+  if (problems.length > 0) {
+    return { problems }
+  }
+
+  await page
+    .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
+    .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
+
+  return { problems: [], shown: act === undefined ? '' : await act(page) }
+}
+
+/** Live in the viewer of the site: `__live.json`, then one test mounted through `L`. */
+async function checkLive(browser, url, name) {
+  const label = `examples/${name}/ Live`
+  const liveJson = join(SITE, 'examples', name, '__live.json')
+  const said = existsSync(liveJson) ? readFileSync(liveJson, 'utf8') : 'nothing'
+
+  if (said !== LIVE_READY) {
+    return [`${label}: __live.json says ${said}, expected ${LIVE_READY}. Run pnpm site:build`]
+  }
+
+  const { context, page, failures } = await openLivePage(browser, url)
+
+  try {
+    const mounted = await mountLive(page, url, name)
+    const problems = [...mounted.problems, ...failures]
+
+    if (problems.length > 0) {
+      return problems.map((problem) => `${label}: ${problem}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ mounts ${LIVE_TESTS[name].fullName} in Live, on the site's origin without a sandbox${mounted.shown}`,
+    )
+
+    return []
+  } catch (error) {
+    const shown = await page
+      .locator('.live-section')
+      .innerText({ timeout: 1_000 })
+      .catch(() => 'no live section')
+
+    return [`${label}: ${errorMessage(error)} (${[shown, ...failures].join(', ')})`]
+  } finally {
+    await context.close()
+  }
+}
+
 const missing = [
   'index.html',
   ...exampleNames.map((name) => join('examples', name, 'index.html')),
@@ -141,6 +300,10 @@ try {
   for (const name of exampleNames) {
     problems.push(...(await checkViewer(context, url, name)))
   }
+
+  for (const name of exampleNames) {
+    problems.push(...(await checkLive(browser, url, name)))
+  }
 } catch (error) {
   problems = [...problems, errorMessage(error)]
 } finally {
@@ -157,4 +320,6 @@ if (problems.length > 0) {
   process.exit(1)
 }
 
-console.log(`check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests`)
+console.log(
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests and mount one in Live`,
+)

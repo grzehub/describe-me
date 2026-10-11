@@ -1,13 +1,8 @@
-import { LIVE_MODULE_IDS } from './live-module-ids.js'
-
-/** How Vite serves a module id that starts with `\0`. */
-const ENTRY_URL = `/@id/__x00__${LIVE_MODULE_IDS.entry.slice(1)}`
-
 /**
  * The live page before Vite's HTML transforms: the preview head, when it is
- * not blank, and the generated entry, which runs the test.
+ * not blank, and the generated entry at `entrySrc`, which runs the test.
  */
-export function livePageHtml(previewHead: string | undefined): string {
+export function livePageHtml(previewHead: string | undefined, entrySrc: string): string {
   const head = previewHead?.trim() ? [`    ${previewHead.trim()}`] : []
 
   return [
@@ -19,7 +14,7 @@ export function livePageHtml(previewHead: string | undefined): string {
     '    <title>describe-me live preview</title>',
     '  </head>',
     '  <body>',
-    `    <script type="module" src="${ENTRY_URL}"></script>`,
+    `    <script type="module" src="${entrySrc}"></script>`,
     '  </body>',
     '</html>',
     '',

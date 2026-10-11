@@ -18,10 +18,11 @@ const CODE = /<code\b[^>]*>([\s\S]*?)<\/code>/gi
  * has a row `cmd-<command>` with a `<code>` that contains the command. Each
  * option passed to `parseNodeArgs` has a row `flag-<name>` with
  * `<code>--<name></code>`, or `flag-no-<name>` with `<code>--no-<name></code>`
- * for a boolean that defaults to true. The row also shows the short form and
- * the default of a string option in `<code>`. Every `cmd-*` and `flag-*` id
- * names one of them. An empty source is a problem, so a refactor cannot make
- * the check vacuous.
+ * for a boolean that defaults to true. A boolean without a default has both
+ * rows, because each command picks its own. The row also shows the short
+ * form and the default of a string option in `<code>`. Every `cmd-*` and
+ * `flag-*` id names one of them. An empty source is a problem, so a refactor
+ * cannot make the check vacuous.
  */
 export default function cli(context) {
   const html = context.html.get(PAGE)
@@ -80,7 +81,7 @@ function commandRow(command) {
   }
 }
 
-/** One row per key of the `options` object passed to `parseNodeArgs`. */
+/** The rows of each key of the `options` object passed to `parseNodeArgs`. */
 function flagRows(source) {
   const head = OPTIONS.exec(source)
 
@@ -88,26 +89,42 @@ function flagRows(source) {
     return []
   }
 
-  return topLevelEntries(source, head.index + head[0].length).map(flagRow)
+  return topLevelEntries(source, head.index + head[0].length).flatMap(flagRowsOf)
 }
 
-function flagRow({ name, body }) {
+/** `--name`, `--no-name`, or both for a boolean without a default. */
+function flagsOf(name, type, fallback) {
+  if (type !== 'boolean') {
+    return [name]
+  }
+
+  if (fallback === null) {
+    return [name, `no-${name}`]
+  }
+
+  return fallback[3] === 'true' ? [`no-${name}`] : [name]
+}
+
+function flagRowsOf({ name, body }) {
   const type = /\btype\s*:\s*['"](\w+)['"]/.exec(body)?.[1]
   const short = /\bshort\s*:\s*['"]([^'"]+)['"]/.exec(body)?.[1]
   const fallback = /\bdefault\s*:\s*(?:'([^']*)'|"([^"]*)"|(true|false))/.exec(body)
-  const negated = type === 'boolean' && fallback?.[3] === 'true'
-  const flag = negated ? `no-${name}` : name
-  const equals = [`--${flag}`]
+  const shown = []
 
   if (short !== undefined) {
-    equals.push(`-${short}`)
+    shown.push(`-${short}`)
   }
 
   if (type === 'string' && fallback !== null) {
-    equals.push(fallback[1] ?? fallback[2])
+    shown.push(fallback[1] ?? fallback[2])
   }
 
-  return { id: `flag-${flag}`, what: `the option ${name}`, contains: [], equals }
+  return flagsOf(name, type, fallback).map((flag) => ({
+    id: `flag-${flag}`,
+    what: `the option ${name}`,
+    contains: [],
+    equals: [`--${flag}`, ...shown],
+  }))
 }
 
 /**

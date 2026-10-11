@@ -304,9 +304,9 @@
         </h3>
 
         <p>
-          The server of the <a href="how-it-works.html#live-preview">live preview</a>, for Node. It
-          is used by the live preview, not for import in tests, and it never loads the runtime of
-          the live page.
+          The server of the <a href="how-it-works.html#live-preview">live preview</a> and its static
+          build, for Node. They are used by the CLI, not for import in tests, and they never load
+          the runtime of the live page.
         </p>
 
         <div class="scroll">
@@ -355,6 +355,41 @@
                   <code>http://localhost:5173/__describe-me/</code>. <code>protocol</code> is the
                   plugin's <code>api.live.protocol</code>.
                 </td>
+              </tr>
+              <tr>
+                <td><code>buildLive</code></td>
+                <td>
+                  <code>buildLive(options: LiveBuildOptions): Promise&lt;LiveBuild&gt;</code>
+                </td>
+                <td>
+                  Builds the live page into static files with the project's own Vite and config, in
+                  mode <code>test</code>, as a development build with a relative base (<a
+                    href="how-it-works.html#live-static"
+                    >the static live preview</a
+                  >). It throws as <code>createLiveServer</code> does, before anything is bundled.
+                  With <code>live: false</code> it writes nothing.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LiveBuildOptions</code></td>
+                <td>
+                  <code
+                    >{ root: string; configFile?: string; outDir: string; testFiles: string[]
+                    }</code
+                  >
+                </td>
+                <td>
+                  The project root, the config file as for the server, where the page goes (emptied
+                  first) and the test files the page can import: the module ids of the manifest,
+                  relative to <code>root</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>LiveBuild</code></td>
+                <td>
+                  <code>{ protocol: number }</code>
+                </td>
+                <td>The plugin's <code>api.live.protocol</code>.</td>
               </tr>
             </tbody>
           </table>
@@ -1339,7 +1374,8 @@
           <dt><code>build</code></dt>
           <dd>
             Builds a static site: the viewer, with the output directory copied in as
-            <code>__data/</code>.
+            <code>__data/</code>. With <code>--live</code> it builds the live preview into the site
+            too, so the site shows <a href="viewer.html#live">Live</a>.
           </dd>
           <dt><code>--help</code></dt>
           <dd>Prints the usage, as does <code>describe-me</code> without a command.</dd>

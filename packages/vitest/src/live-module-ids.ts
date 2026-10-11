@@ -4,4 +4,5 @@ export const LIVE_MODULE_IDS = {
   vitest: '\0describe-me-live:vitest',
   vitestBrowser: '\0describe-me-live:vitest-browser',
   describeMeVitest: '\0describe-me-live:describe-me-vitest',
+  testFiles: '\0describe-me-live:test-files',
 } as const

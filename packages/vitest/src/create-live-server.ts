@@ -1,9 +1,10 @@
 import { relative, resolve } from 'node:path'
 import type { Vite } from 'vitest/node'
-import { LIVE_PROTOCOL } from '@describe-me/core/types'
+import { checkLiveEnabled } from './check-live-enabled.js'
 import { findLiveConfigFile } from './find-live-config-file.js'
 import { freeLivePort } from './free-live-port.js'
 import { importLiveVite } from './import-live-vite.js'
+import { livePluginProtocol } from './live-plugin-protocol.js'
 import { loadLiveConfig } from './load-live-config.js'
 
 /** Where the live preview finds the project. */
@@ -27,46 +28,6 @@ export interface LiveServer {
   protocol: number
   /** Stops the server. */
   close(): Promise<void>
-}
-
-/** The code of the error for a project whose describeMe() has `live: false`. */
-const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
-
-type ServerPlugin = Vite.ViteDevServer['config']['plugins'][number]
-
-function describeMePlugin(server: Vite.ViteDevServer): ServerPlugin | undefined {
-  return server.config.plugins.find((candidate) => candidate.name === 'describe-me')
-}
-
-/** The live protocol of the project's describeMe() plugin, which must be this package's. */
-function livePluginProtocol(server: Vite.ViteDevServer, configName: string): number {
-  const plugin = describeMePlugin(server)
-
-  if (plugin === undefined) {
-    throw new Error(`describe-me: ${configName} has no describeMe() plugin`)
-  }
-
-  const protocol: unknown = plugin.api?.live?.protocol
-
-  if (protocol !== LIVE_PROTOCOL) {
-    throw new Error(
-      `describe-me: all describe-me packages must be on the same version. The describeMe() plugin in ${configName} has live protocol ${String(protocol ?? 'none')}, expected ${LIVE_PROTOCOL}. Install @describe-me/core, @describe-me/react, @describe-me/vitest and describe-me at one version.`,
-    )
-  }
-
-  return protocol
-}
-
-/** Throws with the code `DESCRIBE_ME_LIVE_OFF` when the project's describeMe() has `live: false`. */
-function checkLiveEnabled(server: Vite.ViteDevServer, configName: string): void {
-  if (describeMePlugin(server)?.api?.live?.enabled !== false) {
-    return
-  }
-
-  throw Object.assign(
-    new Error(`describe-me: live: false in ${configName} switches the live preview off`),
-    { code: LIVE_OFF },
-  )
 }
 
 /** Closes the server when `run` throws, so a failed start leaves no server behind. */
@@ -114,9 +75,10 @@ export async function createLiveServer(options: LiveServerOptions): Promise<Live
   })
 
   const configName = relative(root, configFile) || configFile
-  const protocol = await closingOnError(server, () => livePluginProtocol(server, configName))
+  const { plugins } = server.config
+  const protocol = await closingOnError(server, () => livePluginProtocol(plugins, configName))
 
-  await closingOnError(server, () => checkLiveEnabled(server, configName))
+  await closingOnError(server, () => checkLiveEnabled(plugins, configName))
 
   await closingOnError(server, () => server.listen())
 

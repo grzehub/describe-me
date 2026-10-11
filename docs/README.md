@@ -224,7 +224,7 @@ flag:
 | `option-<name>`                | configuration.html   | every option of `describeMe()`                                                                                                                                     |
 | `env-<NAME>`                   | configuration.html   | environment variables                                                                                                                                              |
 | `version-<slug>`               | installation.html    | supported versions: the package name without `@`, `/` turned into `-` (`testing-library-react`), and `version-node`                                                |
-| `cmd-<command>`, `flag-<flag>` | viewer.html          | CLI commands and flags (`flag-no-vendor-fonts` for the negated one)                                                                                                |
+| `cmd-<command>`, `flag-<flag>` | viewer.html          | CLI commands and flags (`flag-no-vendor-fonts` for the negated one, `flag-live` and `flag-no-live` for a flag without a default)                                   |
 | `diag-<key>`                   | troubleshooting.html | every key of `ManifestDiagnostics`                                                                                                                                 |
 | `live-<status>`                | troubleshooting.html | every member of `LiveStatus`                                                                                                                                       |
 | `entry-<pkg>[-<subpath>]`      | api.html             | entry points: `pkg` is `vitest`, `react`, `core`, or `cli` for the `describe-me` package. The subpath without `./`, `/` turned into `-` (`entry-vitest-setup-dom`) |
@@ -238,7 +238,7 @@ size. The view sits after `#` as URL parameters: `test` (the 12-character id
 of a test), `frame` (from 0), `suite` (`<module>::<suite path joined with
 ' > '>`, which opens the component overview instead), `w` and `h` in pixels,
 and `live=1`, which opens the test in Live and needs `test`. The example
-viewers are static sites without Live, so no page links them with `live=1`.
+viewers are built with `--live`, so a page can link them with `live=1`.
 In HTML, write `&` as `&amp;`:
 
 ```html
@@ -268,7 +268,9 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
 - `api.mjs`: `api.html` documents every entry point of the published packages
   and every name each one exports, under an `entry-*` id.
 - `cli.mjs`: `viewer.html` has a `cmd-*` row for every command and a `flag-*`
-  row for every flag of the `describe-me` CLI, and nothing else.
+  row for every flag of the `describe-me` CLI, and nothing else. A boolean
+  flag without a default has both rows, such as `flag-live` and
+  `flag-no-live`.
 - `code-samples.mjs`: in a `<pre><code>` block, every import of
   `describe-me` or `@describe-me/…` (with names, for side effects or dynamic)
   names an entry point of its package, and so does every other quoted

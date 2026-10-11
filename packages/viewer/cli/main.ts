@@ -5,7 +5,7 @@ import { runDev } from './run-dev.js'
 const USAGE = `describe-me — living component docs from your tests
 
   describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root <dir>]   viewer that follows the test runs, and the live preview
-  describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]   static site
+  describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts] [--live] [--root <dir>]   static site
 `
 
 /** Entry point of the `describe-me` binary. */
@@ -18,7 +18,12 @@ async function main(): Promise<void> {
   }
 
   if (options.command === 'build') {
-    await runBuild(options.data, options.out, { vendorFonts: options.vendorFonts })
+    await runBuild(options.data, options.out, {
+      vendorFonts: options.vendorFonts,
+      live: options.live,
+      root: options.root,
+    })
+
     return
   }
 

@@ -31,7 +31,7 @@ pnpm check-frame-timing   # frame compaction and renderFrame validation, after p
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
-pnpm check-live   # every test of both examples mounted in the live preview, Live in both examples' viewers through describe-me dev, and the live fixtures of both examples under Vitest and in the live preview, in Chromium, after pnpm build and both examples' tests
+pnpm check-live   # every test of both examples mounted in the live preview, Live in both examples' viewers through describe-me dev, the live fixtures of both examples under Vitest and in the live preview, and the same tests and fixtures in a static build served under a sub-path, in Chromium, after pnpm build and both examples' tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
@@ -39,10 +39,10 @@ cd examples/react-browser && pnpm bench:macro   # plugin and recording cost, int
 cd examples/react-jsdom && pnpm bench:macro     # the same in jsdom, plus the switched-off plugin parts
 cd examples/react-browser && pnpm docs:build    # static site → docs-dist/
 pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code samples, README links and the shape of the package READMEs, after both examples' tests
-pnpm site:build       # docs/ plus both example viewers → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
+pnpm site:build       # docs/ plus both example viewers with Live → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
 pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
 pnpm site             # site:build, then site:serve
-pnpm check-site       # docs.css applies and both viewers load in Chromium, after pnpm site:build
+pnpm check-site       # docs.css applies, both viewers load and Live mounts a test in both, in Chromium, after pnpm site:build
 pnpm docs:screenshots [page.html …]   # light and dark, 1280 and 390 px wide [--out dir]
 pnpm docs:link react-browser "<full test name>" [frame]   # a deep link into an example viewer for a docs page
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] [--react x.y.z] (Node ^20.19 || >=22.12)
@@ -62,9 +62,9 @@ pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z
   lives in `packages/vitest/src/browser-profile.ts` and `dom-profile.ts`.
   `plugin.ts` imports only the chosen one, so browser mode never loads the
   DOM code.
-- Live mode (`DESCRIBE_ME_LIVE=1`, set only by `createLiveServer()` while it
-  loads the config) lives in `packages/vitest/src/*live*.ts`, and a test run
-  never takes that path.
+- Live mode (`DESCRIBE_ME_LIVE=1`, set only by `createLiveServer()` and
+  `buildLive()` while they load the config) lives in
+  `packages/vitest/src/*live*.ts`, and a test run never takes that path.
 - The CLI reaches `@describe-me/vitest/live` only through the project's root,
   and `describe-me` never depends on `@describe-me/vitest`.
 - Snapshots are DOM + stylesheets via rrweb-snapshot; do not add layout or
