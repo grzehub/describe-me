@@ -539,6 +539,12 @@ jobs:
             >, <a href="styles-and-fonts.html#vendoring">font vendoring</a>).
           </li>
           <li>
+            <code>describe-me build --live</code> adds <a href="viewer.html#live">Live</a> to the
+            published site. The site then holds the compiled code of your components, the test files
+            and the setup files with their test data, so publish it only where that code may be seen
+            (<a href="viewer.html#flag-live">the flag</a>).
+          </li>
+          <li>
             A failing test fails the <code>vitest run</code> step, so nothing deploys. The reporter
             still writes failed tests, and the viewer counts them in its header. To publish anyway,
             let that step fail without failing the job (<a

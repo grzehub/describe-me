@@ -34,11 +34,11 @@ import {
 import { checkNameCases } from './name-cases.mjs'
 
 export const FIXTURE_ENV = 'LIVE_FIXTURES'
+export const FIXTURES_DIR = join('node_modules', '.describe-me-live-fixtures')
+export const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
+export const SETUP_EXAMPLE = 'react-jsdom'
 
-const FIXTURES_DIR = join('node_modules', '.describe-me-live-fixtures')
 const CONFIG_FILE = 'vitest.config.ts'
-const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
-const SETUP_EXAMPLE = 'react-jsdom'
 const NODE_SETUP_FILE = 'live-fixtures/server.node.ts'
 // The variables the example configs read, as `runFixtures` in check-act-parity.mjs clears them.
 const CLEARED_ENV = ['ACT_PARITY', 'DESCRIBE_ME', 'BENCH_MICRO', 'BENCH_OUT', 'BENCH_SKIP']
@@ -134,7 +134,7 @@ async function checkFixtureTest(context, test, expected, timeout) {
 }
 
 /** Every test of the fixtures manifest against the table, and every row of the table against the manifest. */
-async function checkFixtureTests(context, manifest, expectations) {
+export async function checkFixtureTests(context, manifest, expectations) {
   const tests = manifestTests(manifest)
   const result = { problems: [], passed: 0, behaviours: 0, total: tests.length }
 
@@ -183,12 +183,14 @@ async function checkExampleFixtures(browser, host, name) {
   }
 }
 
-/** Without `live.setupFiles`, the Node-only setup file stops the page with `setup-failed`. */
-async function checkSetupFailed(browser, host) {
+/**
+ * Without `live.setupFiles`, the Node-only setup file stops the live page at
+ * `base` with `setup-failed`, which names the file and `node:fs`.
+ */
+export async function checkSetupFailedAt(browser, host, base) {
   const root = join(repoRoot, 'examples', SETUP_EXAMPLE)
   const [test] = manifestTests(readManifest(root, SETUP_EXAMPLE, FIXTURES_DIR))
-  const server = await createFixtureServer(root, 'no-live-setup')
-  const context = await openHost(browser, host, `${SETUP_EXAMPLE} no-live-setup`, server.base)
+  const context = await openHost(browser, host, `${SETUP_EXAMPLE} no-live-setup`, base)
   const label = `${context.name} ${test.fullName}`
 
   try {
@@ -212,6 +214,17 @@ async function checkSetupFailed(browser, host) {
     return problems
   } finally {
     await context.close()
+  }
+}
+
+/** The setup-failed check on the live server. */
+async function checkSetupFailed(browser, host) {
+  const root = join(repoRoot, 'examples', SETUP_EXAMPLE)
+  const server = await createFixtureServer(root, 'no-live-setup')
+
+  try {
+    return await checkSetupFailedAt(browser, host, server.base)
+  } finally {
     await server.close()
   }
 }

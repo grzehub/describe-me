@@ -1,25 +1,13 @@
 import { LIVE_PROTOCOL } from '@describe-me/core/types'
+import { codeOf } from './code-of.js'
 import { importCreateLiveServer } from './import-create-live-server.js'
+import { LIVE_CONSEQUENCES } from './live-consequences.js'
 import type { LivePreviewInfo } from './live-preview-info.js'
 import { liveProject } from './live-project.js'
+import { reasonOf } from './reason-of.js'
 
-const PREFIX = 'describe-me: '
 // The code `createLiveServer()` rejects with when the project's config sets `live: false`.
 const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
-// Vite and its bundler colour their errors for the terminal.
-const COLOURS = new RegExp(String.raw`\u001b\[[\d;]*m`, 'g')
-
-function codeOf(error: unknown): unknown {
-  return typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-}
-
-function reasonOf(error: unknown): string {
-  const message = (error instanceof Error ? error.message : String(error))
-    .replace(COLOURS, '')
-    .trim()
-
-  return message.startsWith(PREFIX) ? message.slice(PREFIX.length) : message
-}
 
 /**
  * Starts the live preview of the project the manifest names, or of `--root`,
@@ -31,7 +19,7 @@ export async function startLivePreview(
   root: string | undefined,
 ): Promise<LivePreviewInfo> {
   try {
-    const project = liveProject(data, root)
+    const project = liveProject(data, root, LIVE_CONSEQUENCES.dev)
     const createLiveServer = await importCreateLiveServer(project.root)
     const server = await createLiveServer(project)
 

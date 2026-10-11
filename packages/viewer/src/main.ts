@@ -57,11 +57,12 @@ loadManifest().catch((err) => {
 /** A failed refresh is not worth breaking the page over; the next one may succeed. */
 const refresh = () => loadManifest().catch(() => undefined)
 
+// `describe-me dev` answers `__live.json`, and a static site has it only from `build --live`.
+void loadLivePreview()
+
 if (import.meta.hot) {
   // Dev: the Vite plugin pushes an event whenever the reporter rewrites the manifest.
   import.meta.hot.on('describe-me:update', () => void refresh())
-  // Only `describe-me dev` serves `__live.json`, so the static site never asks for it.
-  void loadLivePreview()
 } else {
   // Static site: data only changes on redeploy, so a slow poll is plenty.
   setInterval(() => void refresh(), 60_000)

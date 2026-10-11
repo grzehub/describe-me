@@ -68,8 +68,8 @@
         <p class="lead">
           <code>describe-me dev</code> serves the viewer, repaints it after every test run and can
           mount a test in <a href="#live">Live</a>. <code>describe-me build</code> writes the
-          recorded frames as a static site. This page covers both commands and everything the viewer
-          does.
+          recorded frames as a static site, with Live under <code>--live</code>. This page covers
+          both commands and everything the viewer does.
         </p>
 
         <h2 id="cli">
@@ -79,7 +79,8 @@
         <p>The <code>describe-me</code> package installs one binary. It always needs a command:</p>
 
         <pre><code>describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root &lt;dir&gt;]
-describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]</code></pre>
+describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]
+                  [--live] [--root &lt;dir&gt;]</code></pre>
 
         <div class="scroll">
           <table class="fields wide">
@@ -107,9 +108,12 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                 <td class="nowrap">—</td>
                 <td>
                   Writes the viewer as a static site to <code>--out</code> and copies the data
-                  directory into it as <code>__data/</code>. Then it downloads web fonts into that
-                  copy (<a href="styles-and-fonts.html#vendoring">fonts in the static site</a>). The
-                  data directory itself never changes.
+                  directory into it as <code>__data/</code>. With <code>--live</code> it builds the
+                  live preview into <code>__live/</code> and writes <code>__live.json</code> next to
+                  the viewer. Then it downloads web fonts into the copy of the data (<a
+                    href="styles-and-fonts.html#vendoring"
+                    >fonts in the static site</a
+                  >). The data directory itself never changes.
                 </td>
               </tr>
               <tr id="cmd-help">
@@ -151,20 +155,34 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                 <td class="nowrap">—</td>
                 <td>Any command. Prints the usage instead of running it.</td>
               </tr>
+              <tr id="flag-live">
+                <td><code>--live</code></td>
+                <td class="nowrap">on in <code>dev</code>,<br />off in <code>build</code></td>
+                <td>
+                  <code>build</code> builds the <a href="#live">live preview</a> into the site, so
+                  the static site shows Live (<a href="#hosting-live">Live in the static site</a>).
+                  <code>dev</code> has it on anyway. The site then holds the compiled code of your
+                  components, the test files and the setup files with their test data, readable
+                  because it is not minified, and your project's <code>public/</code>. Publish it
+                  only where that code may be seen. A failed live build stops the command with exit
+                  code 1 (<a href="troubleshooting.html#live">why it stops</a>).
+                </td>
+              </tr>
               <tr id="flag-no-live">
                 <td><code>--no-live</code></td>
-                <td class="nowrap">the live preview starts</td>
+                <td class="nowrap">on in <code>dev</code>,<br />off in <code>build</code></td>
                 <td>
-                  <code>dev</code> only. Starts the viewer alone, without the live preview. The
-                  <a href="#live">Live</a> toggle is then hidden.
+                  <code>dev</code> starts the viewer alone, without the live preview. The
+                  <a href="#live">Live</a> toggle is then hidden. On <code>build</code> it is the
+                  default: the site has no Live.
                 </td>
               </tr>
               <tr id="flag-root">
                 <td><code>--root</code></td>
                 <td class="nowrap">from the manifest</td>
                 <td>
-                  <code>dev</code> only. The project of the live preview, relative to the current
-                  directory. Without it, the preview uses the
+                  <code>dev</code> and <code>build --live</code>. The project of the live preview,
+                  relative to the current directory. Without it, the preview uses the
                   <a href="how-it-works.html#manifest-root"><code>root</code></a> and
                   <a href="how-it-works.html#manifest-configFile"><code>configFile</code></a> of the
                   manifest. With it, the preview uses that directory and the config file Vitest
@@ -191,8 +209,8 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
             Use <code>--help</code> for the usage.
           </li>
           <li>
-            A flag of the other command is ignored, so <code>--port</code>,
-            <code>--no-live</code> and <code>--root</code> do nothing on <code>build</code>.
+            A flag of the other command is ignored, so <code>--port</code> does nothing on
+            <code>build</code>. Neither does <code>--root</code> without <code>--live</code>.
           </li>
           <li>
             Without data, <code>build</code> warns <code>no data at …; run vitest first</code> and
@@ -384,7 +402,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li><kbd>L</kbd> in a test, as the <a href="#keyboard">keyboard table</a> says.</li>
           <li>
             <code>live=1</code> in the <a href="#links">link</a>. Until the live preview is ready
-            the recorded frame shows, then Live takes over.
+            the recorded frame shows, then Live takes over. Try it on the
+            <a href="examples/react-browser/#test=d5b51b54fed9&amp;live=1">Menu test</a> of the
+            browser-mode example: open Actions and pick Rename.
           </li>
         </ul>
 
@@ -464,7 +484,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             Hidden when the live preview is off: under <code>--no-live</code>, with
             <a href="configuration.html#option-live"><code>live: false</code></a> in the project's
-            config, and on the static site.
+            config, and on a static site built without <code>--live</code>.
           </li>
           <li>
             Greyed out while the live preview starts, with the tooltip "The live preview is
@@ -490,8 +510,11 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           address, such as <code>http://localhost:5173/__describe-me/</code>. The viewer learns its
           state from <code>/__live.json</code> on its own dev server: <code>starting</code>,
           <code>ready</code> with the preview's <code>base</code>, <code>off</code>, or
-          <code>error</code> with the reason. The static site of <code>describe-me build</code> has
-          no Live yet.
+          <code>error</code> with the reason. On a static site built with <code>--live</code>, the
+          page is a static build under <code>__live/</code>, and <code>__live.json</code> next to
+          the viewer says <code>ready</code> with that base (<a href="#hosting-live"
+            >Live in the static site</a
+          >).
         </p>
 
         <h2 id="links">
@@ -624,6 +647,38 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
           <a href="installation.html#ci">Build the docs in CI</a> has a GitHub Actions workflow that
           runs the tests, builds the site and publishes it to GitHub Pages.
         </p>
+
+        <h3 id="hosting-live">Live in the static site</h3>
+
+        <p>
+          <code>describe-me build --live</code> puts the live preview next to the viewer, as
+          <code>__live/</code> and <code>__live.json</code>. Live then works as it does under
+          <code>describe-me dev</code>:
+        </p>
+        <ul>
+          <li>
+            <strong>Same origin.</strong> The viewer frames <code>__live/live.html</code> from its
+            own origin, and the page posts its messages to that origin only.
+          </li>
+          <li>
+            <strong>Any sub-path.</strong> <code>__live.json</code> names the base
+            <code>__live/</code>, relative to itself, and the live page uses relative URLs too.
+          </li>
+          <li>
+            <strong>Only with <code>__live.json</code>.</strong> A site built without
+            <code>--live</code> has neither file, and the toggle stays hidden.
+          </li>
+          <li>
+            <strong>Your code is in it.</strong> The site holds the compiled code of your
+            components, the test files and the setup files with their test data, unminified. Publish
+            it only where that code may be seen.
+          </li>
+          <li>
+            <strong>Fonts load from their hosts.</strong> The live page links the remote stylesheets
+            of the <code>previewHead</code> as they are, because font vendoring covers the recorded
+            frames only.
+          </li>
+        </ul>
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="styles-and-fonts.html"><span>Previous</span>Styles and fonts</a>

@@ -861,7 +861,8 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           instead, the way the test's arrange phase set it up: its props, its
           <code>vi.fn()</code> mocks, its wrapper and whatever its hooks prepared. Nothing after the
           first render runs, so every mount is a fresh start, and the component stays mounted.
-          <code>describe-me dev</code> starts the preview, and
+          <code>describe-me dev</code> starts the preview,
+          <code>describe-me build --live</code> builds it into the static site, and
           <a href="viewer.html#live">Live</a> in the viewer frames its page.
         </p>
 
@@ -1020,6 +1021,75 @@ await server.close()</code></pre>
           components and tests reach the page through Vite as usual.
         </p>
 
+        <h3 id="live-static">The static live preview</h3>
+
+        <p>
+          <code>buildLive()</code> builds the same page into static files.
+          <code>describe-me build --live</code> calls it with the test files of the manifest and
+          <code>__live/</code> in the site as the output directory, then writes
+          <code>__live.json</code> next to the viewer.
+        </p>
+
+        <pre><code>import { buildLive } from '@describe-me/vitest/live'
+
+const { protocol } = await buildLive({
+  root: process.cwd(),
+  configFile: 'vitest.config.ts',
+  outDir: 'describe-me-dist/__live',
+  testFiles: ['src/Button.test.tsx', 'src/Menu.test.tsx'],
+})</code></pre>
+
+        <ul>
+          <li>
+            It loads the config like the server: your Vite, mode <code>test</code>, and
+            <code>DESCRIBE_ME_LIVE=1</code> only while the config loads. The checks of the protocol
+            and of <code>live: false</code> run before anything is bundled, so with
+            <code>live: false</code> it writes nothing and throws an error whose
+            <code>code</code> is <code>DESCRIBE_ME_LIVE_OFF</code>.
+          </li>
+          <li>
+            It bundles <code>live.html</code> with the preview head, the setup files and a lazy
+            import of each test file, so each test file gets a chunk of its own. The base is
+            relative, so the output works under any path, and your <code>public/</code> is copied
+            in.
+          </li>
+          <li>
+            The output is not minified. Suite and test names come from <code>fn.name</code>, as in
+            Vitest, and a minifier would rename <code>describe(Button, …)</code> and the functions
+            of <code>%s</code> rows, so the page would not find tests that dev mounts.
+          </li>
+          <li>
+            Your config's <code>build</code> section is not used, and plugins whose
+            <code>apply</code> is <code>'build'</code> or <code>'serve'</code> do not run. Dev never
+            reads the section, and an app or library build there would break the page.
+          </li>
+          <li>
+            It builds with <code>NODE_ENV=development</code>, so React and
+            <code>import.meta.env</code> behave as under <code>describe-me dev</code>.
+          </li>
+        </ul>
+
+        <p>
+          An import in a project file that does not load in the browser, such as
+          <code>node:fs</code> or a package that is not installed, gets a stand-in that throws when
+          it runs. The build warns and goes on:
+        </p>
+
+        <pre>
+describe-me: live-fixtures/node-only.test.tsx imports node:fs, which does not load in the browser: it is a Node module</pre>
+
+        <p>
+          A test file that imports it reports <code>import-failed</code>, and a setup file
+          <code>setup-failed</code>. This is stricter than dev: a file that imports a Node module
+          fails as a whole, even when its arrange phase never calls it.
+        </p>
+
+        <p>
+          A URL built as a string from the host root, such as <code>'/logo.svg'</code>, points at
+          the root of the host, not at the site. Import the file instead, so the bundler gives it a
+          relative URL.
+        </p>
+
         <h3>What the page imports</h3>
 
         <p>The page imports the test file for real. Live mode swaps these imports:</p>
@@ -1131,19 +1201,22 @@ await server.close()</code></pre>
 &lt;base&gt;live.html?file=&lt;module id&gt;&amp;path=&lt;JSON array&gt;&amp;occurrence=&lt;n&gt;&amp;origin=&lt;viewer origin&gt;</pre>
 
         <p>
-          <code>file</code> is the module id of the manifest, a path relative to the root. The page
-          builds the URL of the test file on its own origin and imports it only when that URL names
-          exactly this file, so a <code>file</code> cannot load code from another origin, not even
-          with a tab or a newline that the URL parser drops. <code>path</code> holds the suite
-          names, outermost first, then the test name. <code>occurrence</code> counts a repeated name
-          from 1, its default.
+          Under <code>describe-me dev</code>, <code>base</code> is the server's, such as
+          <code>http://localhost:5173/__describe-me/</code>. On a static site it is
+          <code>__live/</code> next to the viewer. <code>file</code> is the module id of the
+          manifest, a path relative to the root. The page builds the URL of the test file on its own
+          origin and imports it only when that URL names exactly this file, so a
+          <code>file</code> cannot load code from another origin, not even with a tab or a newline
+          that the URL parser drops. <code>path</code> holds the suite names, outermost first, then
+          the test name. <code>occurrence</code> counts a repeated name from 1, its default.
         </p>
 
         <p>
           The page imports the test file by its absolute URL, so it loads once. Vite adds
           <code>?import</code> to a path from the root, and the self-import that
           <code>@vitejs/plugin-react</code> adds to a file with a component would load the file a
-          second time, with every hook and test twice.
+          second time, with every hook and test twice. A static build imports it from the map of
+          lazy imports instead, and a file the map does not hold reports <code>import-failed</code>.
         </p>
 
         <p>

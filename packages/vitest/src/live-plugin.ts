@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { ViteUserConfig } from 'vitest/config'
 import { LIVE_PROTOCOL } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
@@ -8,6 +8,7 @@ import { isAdapterModule } from './is-adapter-module.js'
 import { liveEntrySource } from './live-entry-source.js'
 import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import { liveOptimizeDeps } from './live-optimize-deps.js'
+import { livePageHtml } from './live-page-html.js'
 import { livePageMiddleware } from './live-page-middleware.js'
 import { livePageSettings, type LivePageSettings } from './live-page-settings.js'
 import type { LiveSetupFile } from './live-setup-files.js'
@@ -29,10 +30,17 @@ const SHIMS = new Map<string, string>([
 
 const GENERATED = new Set<string>(Object.values(LIVE_MODULE_IDS))
 
+/** Where the live page of a build imports its entry from. Only a build resolves it. */
+const BUILD_ENTRY_SRC = '/@describe-me-live/entry'
+
 /** The source of a generated module. */
-function generatedSource(id: string, settings: LivePageSettings): string | null {
+function generatedSource(
+  id: string,
+  settings: LivePageSettings,
+  command: 'serve' | 'build',
+): string | null {
   if (id === LIVE_MODULE_IDS.entry) {
-    return liveEntrySource(settings)
+    return liveEntrySource(settings, command)
   }
 
   if (id === LIVE_MODULE_IDS.vitest) {
@@ -75,11 +83,12 @@ function liveConfig(
 }
 
 /**
- * `describeMe()` while `createLiveServer()` loads the project's config. It
- * serves the live page and swaps `vitest`, `vitest/browser`,
- * `@describe-me/vitest` and the render module for the live page's shims. It
- * adds no setup file, reporter or recording redirect, and ignores `enabled`.
- * With `live: false` it does nothing, and `createLiveServer()` stops.
+ * `describeMe()` while `createLiveServer()` or `buildLive()` loads the
+ * project's config. It serves the live page, or gives a build `live.html` as
+ * its input, and swaps `vitest`, `vitest/browser`, `@describe-me/vitest` and
+ * the render module for the live page's shims. It adds no setup file,
+ * reporter or recording redirect, and ignores `enabled`. With `live: false`
+ * it does nothing, and `createLiveServer()` and `buildLive()` stop.
  */
 export function livePlugin(options: DescribeMeOptions): VitePlugin {
   const { framework = 'react' } = options
@@ -89,6 +98,9 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
   let settings: LivePageSettings | null = null
   // Where the installed live module lives. Its own import of the original stays unredirected.
   let adapterRoot: string | null = null
+  let command: 'serve' | 'build' = 'serve'
+  // The id of `live.html` in a build, which the bundler takes as its input.
+  let pageId: string | null = null
 
   return {
     name: 'describe-me',
@@ -113,6 +125,12 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
     },
 
     configResolved(config) {
+      command = config.command
+
+      if (command === 'build') {
+        pageId = join(config.root, 'live.html')
+      }
+
       if (renderModule !== null) {
         adapterRoot = adapterPackageRoot(config.root, packageNameOf(renderModule.live))
       }
@@ -125,6 +143,14 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
 
       if (GENERATED.has(source)) {
         return source
+      }
+
+      if (source === pageId) {
+        return source
+      }
+
+      if (command === 'build' && source === BUILD_ENTRY_SRC) {
+        return LIVE_MODULE_IDS.entry
       }
 
       const shim = SHIMS.get(source)
@@ -157,7 +183,16 @@ export function livePlugin(options: DescribeMeOptions): VitePlugin {
     },
 
     load(id: string) {
-      return settings === null ? null : generatedSource(id, settings)
+      if (settings === null) {
+        return null
+      }
+
+      // Only this plugin knows the preview head, so it owns the page.
+      if (id === pageId) {
+        return livePageHtml(options.previewHead, BUILD_ENTRY_SRC)
+      }
+
+      return generatedSource(id, settings, command)
     },
 
     configureServer(server) {

@@ -51,7 +51,12 @@
  * button must count the wave. Then `describe-me dev` runs from the tarballs
  * on each data directory: its `__live.json` must say `ready`, and the same
  * test must mount through it and count a click. This proves that the CLI
- * finds the project and its config file from the manifest.
+ * finds the project and its config file from the manifest. Then
+ * `describe-me build --live` builds each data directory into a site that a
+ * static server serves under a sub-path, and the same test must mount from
+ * its `__live/` and count a click. `buildLive()` must also finish with a test
+ * file that imports `node:fs`, whose page reports `import-failed`. The two
+ * sites built without `--live` must hold neither `__live.json` nor `__live/`.
  * The version guard is checked three ways: the packed packages peer on each
  * other at this release, both manifests name `@describe-me/vitest` and its
  * version as their `generator`, and a jsdom run whose setup file plants a
@@ -1285,21 +1290,46 @@ export default defineConfig({
   writeFileSync(join(withoutUserEvent, 'dom', 'FireEvent.test.tsx'), FIRE_EVENT_TEST)
 }
 
+const NODE_ONLY_LIVE = `import { readFileSync } from 'node:fs'
+import { describe, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { Hello } from '../src/Hello'
+
+describe('NodeOnly', () => {
+  it('reads a file in the arrange phase', () => {
+    const name = readFileSync('package.json', 'utf8').includes('smoke') ? 'Ada' : 'Grace'
+
+    render(<Hello name={name} />)
+  })
+})
+`
+
 /**
  * `live.mjs` mounts the Hello test of each environment through
  * `createLiveServer()` from the installed packages, opens its live page
  * directly and counts a real click. Then it does the same through
  * `describe-me dev` on each data directory, whose `__live.json` must say
  * `ready`. Vite closes its dev server when stdin ends, and `CI=1` does not
- * stop that, so stdin stays piped and open.
+ * stop that, so stdin stays piped and open. Then `describe-me build --live`
+ * builds each data directory into a site of its own, which a small static
+ * server serves under a sub-path only: `__live.json` must say `ready` with
+ * the base `__live/`, and the Hello test must mount from `__live/live.html`
+ * and count a click. Last, `buildLive()` builds `dom/NodeOnly.live.tsx`,
+ * which Vitest does not collect and which imports `node:fs`: the build must
+ * finish, and the page of its test must report `import-failed` naming
+ * `node:fs`. Under `--vite 6.4.3` this is the Rollup build.
  */
 function scaffoldLive() {
+  writeFileSync(join(app, 'dom', 'NodeOnly.live.tsx'), NODE_ONLY_LIVE)
   writeFileSync(
     join(app, 'live.mjs'),
-    `import { spawn } from 'node:child_process'
+    `import { execFileSync, spawn } from 'node:child_process'
+import { readFileSync, statSync } from 'node:fs'
+import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'node:net'
+import { extname, resolve as resolvePath, sep } from 'node:path'
 import { chromium } from 'playwright'
-import { createLiveServer } from '@describe-me/vitest/live'
+import { buildLive, createLiveServer } from '@describe-me/vitest/live'
 
 const cases = [
   { configFile: 'vitest.config.ts', file: 'src/Hello.test.tsx' },
@@ -1311,19 +1341,43 @@ const devCases = [
   { data: '.describe-me-dom', file: 'dom/Hello.test.tsx' },
 ]
 
-const path = JSON.stringify(['Hello', 'greets and counts waves'])
+const buildCases = [
+  { data: '.describe-me', out: 'site-live', file: 'src/Hello.test.tsx' },
+  { data: '.describe-me-dom', out: 'site-dom-live', file: 'dom/Hello.test.tsx' },
+]
+
+// Where the static server puts a site, as a host serves a project's pages.
+const SUB_PATH = '/docs/components/'
+const LIVE_READY = JSON.stringify({ status: 'ready', base: '__live/' })
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+}
+
+const HELLO_PATH = ['Hello', 'greets and counts waves']
 const browser = await chromium.launch()
 
-async function mountAndClick(page, base, file) {
-  const query = new URLSearchParams({ file, path, occurrence: '1' })
+async function liveStatus(page, base, file, testPath) {
+  const query = new URLSearchParams({ file, path: JSON.stringify(testPath), occurrence: '1' })
 
   await page.goto(\`\${base}live.html?\${query}\`)
   await page.waitForSelector('html[data-describe-me-live]', { timeout: 30_000 })
 
-  const status = await page.evaluate(() => document.documentElement.dataset.describeMeLive)
+  return {
+    status: await page.evaluate(() => document.documentElement.dataset.describeMeLive),
+    text: await page.innerText('body'),
+  }
+}
 
-  if (status !== 'mounted') {
-    throw new Error(\`live: \${file} reported \${status}: \${await page.innerText('body')}\`)
+async function mountAndClick(page, base, file) {
+  const shown = await liveStatus(page, base, file, HELLO_PATH)
+
+  if (shown.status !== 'mounted') {
+    throw new Error(\`live: \${file} reported \${shown.status}: \${shown.text}\`)
   }
 
   await page.getByRole('button', { name: 'waved 0 times' }).click()
@@ -1397,6 +1451,94 @@ async function stopDev(dev) {
   await exited
 }
 
+function fileUnder(root, pathname) {
+  if (!pathname.startsWith(SUB_PATH)) {
+    return null
+  }
+
+  const file = resolvePath(root, '.' + decodeURIComponent(pathname.slice(SUB_PATH.length - 1)))
+
+  if (!file.startsWith(root + sep)) {
+    return null
+  }
+
+  try {
+    return statSync(file).isFile() ? file : null
+  } catch {
+    return null
+  }
+}
+
+/** Serves a directory under SUB_PATH only, so a URL from the host root would fail. */
+function serveUnderSubPath(dir) {
+  const root = resolvePath(dir)
+  const server = createHttpServer((request, response) => {
+    const file = fileUnder(root, new URL(request.url, 'http://localhost').pathname)
+
+    if (file === null) {
+      response.writeHead(404)
+      response.end()
+      return
+    }
+
+    response.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream' })
+    response.end(readFileSync(file))
+  })
+
+  return new Promise((resolve) => {
+    server.listen(0, 'localhost', () => {
+      resolve({ server, url: \`http://localhost:\${server.address().port}\${SUB_PATH}\` })
+    })
+  })
+}
+
+/** describe-me build --live from the tarball, served under a sub-path, mounts the Hello test. */
+async function checkBuildLive({ data, out, file }) {
+  const cli = 'node_modules/describe-me/bin/describe-me.js'
+  const args = ['build', '--data', data, '--out', out, '--live', '--no-vendor-fonts']
+
+  execFileSync(process.execPath, [cli, ...args], { stdio: 'inherit' })
+
+  const { server, url } = await serveUnderSubPath(out)
+
+  try {
+    const said = await (await fetch(new URL('__live.json', url))).text()
+
+    if (said !== LIVE_READY) {
+      throw new Error(\`live: \${out}/__live.json says \${said}, expected \${LIVE_READY}\`)
+    }
+
+    await mountAndClick(await browser.newPage(), new URL('__live/', url).href, file)
+  } finally {
+    server.close()
+  }
+}
+
+/** A Node-only import does not stop buildLive(), and the page of its test reports import-failed. */
+async function checkNodeOnly() {
+  const outDir = 'live-node-only'
+
+  await buildLive({
+    root: process.cwd(),
+    configFile: 'vitest.dom.config.ts',
+    outDir,
+    testFiles: ['dom/Hello.test.tsx', 'dom/NodeOnly.live.tsx'],
+  })
+
+  const { server, url } = await serveUnderSubPath(outDir)
+
+  try {
+    const testPath = ['NodeOnly', 'reads a file in the arrange phase']
+    const shown = await liveStatus(await browser.newPage(), url, 'dom/NodeOnly.live.tsx', testPath)
+
+    if (shown.status !== 'import-failed' || !shown.text.includes('node:fs')) {
+      throw new Error(\`live: dom/NodeOnly.live.tsx reported \${shown.status}, expected import-failed naming node:fs: \${shown.text}\`)
+    }
+  } finally {
+    server.close()
+  }
+}
+
 try {
   for (const { configFile, file } of cases) {
     const server = await createLiveServer({ root: process.cwd(), configFile })
@@ -1419,6 +1561,16 @@ try {
       await stopDev(dev)
     }
   }
+
+  for (const buildCase of buildCases) {
+    await checkBuildLive(buildCase)
+    console.log(
+      \`live: describe-me build --live on \${buildCase.data}, served under \${SUB_PATH}, mounted \${buildCase.file} and counted a click\`,
+    )
+  }
+
+  await checkNodeOnly()
+  console.log('live: buildLive() finished with dom/NodeOnly.live.tsx, whose page reports import-failed naming node:fs')
 } finally {
   await browser.close()
 }
@@ -1988,12 +2140,24 @@ function verifyWithoutUserEvent() {
   console.log('\nwithout user-event frames:', labelsOf(tests[0]).join(' | '))
 }
 
-/** Both static sites: the default build with font vendoring, and the DOM build without. */
+/**
+ * Both static sites: the default build with font vendoring, and the DOM build
+ * without. Neither was built with `--live`, so neither has Live.
+ */
 function verifyBuilds() {
   const built = ['site/index.html', 'site/__data/manifest.json', 'site-dom/__data/manifest.json']
 
   for (const path of built) {
     assert(existsSync(join(app, path)), `static build is missing ${path}`)
+  }
+
+  for (const path of [
+    'site/__live.json',
+    'site/__live',
+    'site-dom/__live.json',
+    'site-dom/__live',
+  ]) {
+    assert(!existsSync(join(app, path)), `a build without --live wrote ${path}`)
   }
 
   const copied = readFileSync(join(app, 'site', '__data', 'manifest.json'))

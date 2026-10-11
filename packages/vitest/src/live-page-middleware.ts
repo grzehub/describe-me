@@ -1,7 +1,10 @@
 import type { Vite } from 'vitest/node'
+import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import { livePageHtml } from './live-page-html.js'
 
 const PAGE_PATH = '/__describe-me/live.html'
+/** How Vite serves a module id that starts with `\0`. */
+const ENTRY_URL = `/@id/__x00__${LIVE_MODULE_IDS.entry.slice(1)}`
 
 /**
  * Serves the live page. It goes through Vite's HTML transforms, so that
@@ -11,7 +14,7 @@ export function livePageMiddleware(
   server: Vite.ViteDevServer,
   previewHead: string | undefined,
 ): Vite.Connect.NextHandleFunction {
-  const html = livePageHtml(previewHead)
+  const html = livePageHtml(previewHead, ENTRY_URL)
 
   return (request, response, next) => {
     const url = new URL(request.url ?? '/', 'http://localhost')

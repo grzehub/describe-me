@@ -5,22 +5,27 @@ import { state } from './state.js'
 const POLL_MS = 500
 const OFF: LivePreviewInfo = { status: 'off' }
 
-function isWebUrl(value: unknown): value is string {
+/**
+ * The base of the live page as an absolute http(s) URL, resolved against the
+ * URL of `__live.json`: an absolute base from `describe-me dev`, or `__live/`
+ * next to the viewer on a static site.
+ */
+function webBase(value: unknown, from: string): string | null {
   if (typeof value !== 'string') {
-    return false
+    return null
   }
 
   try {
-    const url = new URL(value)
+    const url = new URL(value, from)
 
-    return url.protocol === 'http:' || url.protocol === 'https:'
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null
   } catch {
-    return false
+    return null
   }
 }
 
 /** Anything but a well-formed answer counts as off. */
-function previewOf(body: unknown): LivePreviewInfo {
+function previewOf(body: unknown, from: string): LivePreviewInfo {
   if (typeof body !== 'object' || body === null) {
     return OFF
   }
@@ -38,11 +43,9 @@ function previewOf(body: unknown): LivePreviewInfo {
     return { status, error: reason }
   }
 
-  if (status === 'ready' && isWebUrl(base)) {
-    return { status, base }
-  }
+  const href = status === 'ready' ? webBase(base, from) : null
 
-  return OFF
+  return href === null ? OFF : { status: 'ready', base: href }
 }
 
 /** Vite answers the viewer's HTML when no CLI serves `__live.json`, so a body that is not JSON is off too. */
@@ -50,7 +53,7 @@ async function fetchPreview(): Promise<LivePreviewInfo> {
   try {
     const response = await fetch('__live.json', { cache: 'no-store' })
 
-    return response.ok ? previewOf(await response.json()) : OFF
+    return response.ok ? previewOf(await response.json(), response.url) : OFF
   } catch {
     return OFF
   }

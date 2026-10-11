@@ -1,5 +1,5 @@
 /**
- * What both parts of `check-live` need to show live pages: a host page on
+ * What every part of `check-live` needs to show live pages: a host page on
  * another origin that frames them and keeps their messages, the URL of a
  * test's page, and the checks every mounted test must pass.
  */
@@ -77,12 +77,21 @@ export function readManifest(root, name, dir = '.describe-me') {
   return JSON.parse(readFileSync(file, 'utf8'))
 }
 
-/** `createLiveServer` as the example resolves it, so the check runs what a project installs. */
-export async function importCreateLiveServer(root) {
+/** `@describe-me/vitest/live` as the example resolves it, so the check runs what a project installs. */
+async function importLive(root) {
   const entry = createRequire(join(root, 'package.json')).resolve('@describe-me/vitest/live')
-  const { createLiveServer } = await import(pathToFileURL(entry).href)
 
-  return createLiveServer
+  return import(pathToFileURL(entry).href)
+}
+
+/** `createLiveServer` as the example resolves it. */
+export async function importCreateLiveServer(root) {
+  return (await importLive(root)).createLiveServer
+}
+
+/** `buildLive` as the example resolves it. */
+export async function importBuildLive(root) {
+  return (await importLive(root)).buildLive
 }
 
 /** Every test of the manifest, in module and test order, with its occurrence in the module. */

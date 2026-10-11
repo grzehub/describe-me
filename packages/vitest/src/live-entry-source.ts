@@ -1,38 +1,52 @@
+import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import type { LivePageSettings } from './live-page-settings.js'
-
-// JSON.stringify leaves these as they are. Escaped, a file name cannot close a
-// script tag that inlines the entry, nor end a line for an older parser.
-const UNSAFE_IN_CODE = /[<>\u2028\u2029]/g
-
-/** A string literal for generated code. */
-function stringLiteral(value: string): string {
-  return JSON.stringify(value).replace(
-    UNSAFE_IN_CODE,
-    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
-  )
-}
+import { liveStringLiteral } from './live-string-literal.js'
 
 /**
- * The source of the live page's entry. The `import()` of the test file stays
- * here, in a module of the project's dev server, so it loads from the server.
- * It imports an absolute URL: Vite adds `?import` to a path from the root,
- * and the static self-import that `@vitejs/plugin-react` adds to a file with
- * a component would then load the test file a second time. Setup files are
- * literal imports, so Vite resolves them and a static build can bundle them.
+ * The `importTest` of the dev server's entry. It imports an absolute URL:
+ * Vite adds `?import` to a path from the root, and the static self-import
+ * that `@vitejs/plugin-react` adds to a file with a component would then load
+ * the test file a second time.
+ */
+const SERVE_IMPORT_TEST = [
+  `  importTest: (file) => import(/* @vite-ignore */ new URL('/' + file, location.origin).href),`,
+]
+
+/** The `importTest` of a build, which holds only the test files of its map. */
+const BUILD_IMPORT_TEST = [
+  '  importTest: (file) =>',
+  '    Object.hasOwn(testFiles, file)',
+  '      ? testFiles[file]()',
+  '      : Promise.reject(new Error(`${file} is not in this build`)),',
+]
+
+/**
+ * The source of the live page's entry. On the dev server the `import()` of
+ * the test file stays here, in a module of the project's server, so it loads
+ * from the server. A build imports it from the map of lazy imports, so the
+ * bundler sees every test file. Setup files are literal imports, so Vite
+ * resolves them and a build bundles them.
  */
 export function liveEntrySource(
   settings: Pick<LivePageSettings, 'globals' | 'testTimeout' | 'setupFiles' | 'vitestMajor'>,
+  command: 'serve' | 'build',
 ): string {
   const setupFiles = settings.setupFiles.map(
     (setupFile) =>
-      `    { file: ${stringLiteral(setupFile.name)}, load: () => import(${stringLiteral(setupFile.specifier)}) },`,
+      `    { file: ${liveStringLiteral(setupFile.name)}, load: () => import(${liveStringLiteral(setupFile.specifier)}) },`,
   )
+
+  const testFilesImport =
+    command === 'build'
+      ? [`import testFiles from ${liveStringLiteral(LIVE_MODULE_IDS.testFiles)}`]
+      : []
 
   return [
     `import { startLivePage } from '@describe-me/vitest/live-runtime'`,
+    ...testFilesImport,
     '',
     'startLivePage({',
-    `  importTest: (file) => import(/* @vite-ignore */ new URL('/' + file, location.origin).href),`,
+    ...(command === 'build' ? BUILD_IMPORT_TEST : SERVE_IMPORT_TEST),
     `  globals: ${String(settings.globals)},`,
     `  testTimeout: ${String(settings.testTimeout)},`,
     `  vitestMajor: ${String(settings.vitestMajor)},`,

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { build } from 'vite'
+import { buildLivePreview } from './build-live-preview.js'
 import { fontCacheDir } from './font-cache-dir.js'
 import { printVendorReport } from './print-vendor-report.js'
 import { vendorFonts } from './vendor-fonts.js'
@@ -10,11 +11,17 @@ import { viewerRoot } from './viewer-root.js'
 export interface RunBuildOptions {
   /** Download web fonts from known font hosts into the site. */
   vendorFonts: boolean
+  /** Build the live preview into the site as `__live/`. */
+  live: boolean
+  /** The project root of the live preview. Default: the manifest's `root` and `configFile`. */
+  root?: string
 }
 
 /**
  * Produce a self-contained static site: the viewer plus the data directory
- * under `__data/`. Font vendoring works on that copy and never fails the build.
+ * under `__data/`, and with `live` the live preview under `__live/`. A live
+ * build that fails stops the command. Font vendoring works on the copy of the
+ * data and never fails the build.
  */
 export async function runBuild(data: string, out: string, options: RunBuildOptions): Promise<void> {
   process.env.DESCRIBE_ME_DIR = resolve(data)
@@ -26,6 +33,11 @@ export async function runBuild(data: string, out: string, options: RunBuildOptio
     configFile: resolve(root, 'vite.config.ts'),
     build: { outDir: resolve(out), emptyOutDir: true },
   })
+
+  // After the viewer, whose build empties `out` and so removes an old `__live/` and `__live.json`.
+  if (options.live) {
+    await buildLivePreview(data, out, options.root)
+  }
 
   if (!options.vendorFonts) {
     return
