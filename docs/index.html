@@ -133,14 +133,14 @@
 
             <rect class="dg-node strong" x="664" y="40" width="134" height="150" rx="8" />
             <text class="dg-title" x="676" y="62">Viewer</text>
-            <text class="dg-text" x="676" y="86">live</text>
+            <text class="dg-text" x="676" y="86">local</text>
             <text class="dg-mono" x="676" y="102">describe-me dev</text>
             <text class="dg-text" x="676" y="130">static site</text>
             <text class="dg-mono" x="676" y="146">describe-me build</text>
           </svg>
           <figcaption>
             Your tests run as before. The recorder hands each frame to the reporter, which writes
-            plain files that the viewer reads, live or as a static site.
+            plain files that the viewer reads, locally or as a static site.
           </figcaption>
         </figure>
 
@@ -201,6 +201,13 @@
             ><h3>A static site</h3>
             <p><code>describe-me build</code> writes a site you can host anywhere.</p></a
           >
+          <a class="card" href="viewer.html#live"
+            ><h3>Live</h3>
+            <p>
+              A test mounts for real in the viewer, as its arrange phase set it up. You click and
+              type, and <code>vi.fn()</code> calls show as actions.
+            </p></a
+          >
         </div>
 
         <h2 id="see-it">
@@ -237,7 +244,11 @@
 
         <ul>
           <li>React only. The core is framework-agnostic, but React is the only adapter.</li>
-          <li>Static snapshots. There is no live mount and there are no controls.</li>
+          <li>
+            No controls. In Live a test mounts for real, but you cannot change its props in the
+            viewer yet. See
+            <a href="limitations.html#roadmap">Roadmap</a>.
+          </li>
           <li>
             jsdom has no layout and loads no fonts inside the test. See
             <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.

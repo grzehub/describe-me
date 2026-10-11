@@ -15,7 +15,7 @@ story, and each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
 Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
-static snapshots.
+recorded frames and Live in the viewer.
 
 ## Which package do I need
 
@@ -58,13 +58,15 @@ lists every change it makes to your config, and
 [Options](https://grzehub.github.io/describe-me/configuration.html#options)
 every option it takes.
 
-| Entry point                     | What it holds                                                                                         |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `@describe-me/vitest/plugin`    | [`describeMe()`](https://grzehub.github.io/describe-me/api.html#entry-vitest-plugin)                  |
-| `@describe-me/vitest`           | [`step()` and `recorder`](https://grzehub.github.io/describe-me/api.html#entry-vitest)                |
-| `@describe-me/vitest/setup`     | [the browser-mode setup file](https://grzehub.github.io/describe-me/api.html#entry-vitest-setup)      |
-| `@describe-me/vitest/setup-dom` | [the jsdom setup file](https://grzehub.github.io/describe-me/api.html#entry-vitest-setup-dom)         |
-| `@describe-me/vitest/reporter`  | [the reporter, to wire by hand](https://grzehub.github.io/describe-me/api.html#entry-vitest-reporter) |
+| Entry point                        | What it holds                                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `@describe-me/vitest/plugin`       | [`describeMe()`](https://grzehub.github.io/describe-me/api.html#entry-vitest-plugin)                                    |
+| `@describe-me/vitest`              | [`step()` and `recorder`](https://grzehub.github.io/describe-me/api.html#entry-vitest)                                  |
+| `@describe-me/vitest/setup`        | [the browser-mode setup file](https://grzehub.github.io/describe-me/api.html#entry-vitest-setup)                        |
+| `@describe-me/vitest/setup-dom`    | [the jsdom setup file](https://grzehub.github.io/describe-me/api.html#entry-vitest-setup-dom)                           |
+| `@describe-me/vitest/reporter`     | [the reporter, to wire by hand](https://grzehub.github.io/describe-me/api.html#entry-vitest-reporter)                   |
+| `@describe-me/vitest/live`         | [`createLiveServer()` and `buildLive()`, for the CLI](https://grzehub.github.io/describe-me/api.html#entry-vitest-live) |
+| `@describe-me/vitest/live-runtime` | [the runtime of the live page](https://grzehub.github.io/describe-me/api.html#entry-vitest-live-runtime)                |
 
 `typescript` and `@testing-library/user-event` are optional peers. Without
 TypeScript the docs have no props tables. user-event is needed only when your

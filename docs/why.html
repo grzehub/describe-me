@@ -91,6 +91,10 @@
             ><h3>A frame per interaction</h3>
             <p>Every render and every interaction leaves a frame you can step through.</p></a
           >
+          <a class="card" href="viewer.html#live"
+            ><h3>Live</h3>
+            <p>A test mounts for real in the viewer, as it arranged it, and you can use it.</p></a
+          >
           <a class="card" href="writing-stories.html#props"
             ><h3>Props and their coverage</h3>
             <p>
@@ -156,6 +160,14 @@
                 <td>A test that renders a component is a story, named after the test.</td>
               </tr>
               <tr>
+                <td>Canvas</td>
+                <td>A test in Live</td>
+                <td>
+                  In Live the test mounts as its arrange phase set it up. The recorded frames show
+                  the steps after it.
+                </td>
+              </tr>
+              <tr>
                 <td>Args</td>
                 <td>Props passed to <code>render</code></td>
                 <td>The viewer shows the props each test passed.</td>
@@ -179,6 +191,11 @@
                 <td>Each interaction leaves a frame. The assertions are the test's own.</td>
               </tr>
               <tr>
+                <td>Actions</td>
+                <td><code>vi.fn()</code> props in Live</td>
+                <td>Each call shows in the inspector under the prop's name.</td>
+              </tr>
+              <tr>
                 <td>Autodocs</td>
                 <td>The component overview</td>
                 <td>The props table, with the values your tests cover.</td>
@@ -186,7 +203,10 @@
               <tr>
                 <td>Controls</td>
                 <td>A props table without inputs</td>
-                <td>Not yet. You cannot change props in the viewer.</td>
+                <td>
+                  Live exists, controls do not. You cannot change props in the viewer yet. See
+                  <a href="limitations.html#roadmap">the roadmap</a>.
+                </td>
               </tr>
               <tr>
                 <td>Addons</td>
@@ -201,7 +221,10 @@
               <tr>
                 <td>Static build</td>
                 <td><code>describe-me build</code></td>
-                <td>Both produce a static site any static host can serve.</td>
+                <td>
+                  Both produce a static site any static host can serve.
+                  <code>describe-me build --live</code> makes the site mount tests too.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -250,8 +273,8 @@
 
         <ul>
           <li>
-            You need a live playground with controls. The viewer shows static snapshots, see
-            <a href="limitations.html#roadmap">the roadmap</a>.
+            You need to change props in the viewer. In Live the test mounts as written, and there
+            are no controls yet, see <a href="limitations.html#roadmap">the roadmap</a>.
           </li>
           <li>
             You use a framework other than React. See <a href="limitations.html#scope">scope</a>.

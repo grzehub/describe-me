@@ -15,7 +15,7 @@ story, and each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
 Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
-static snapshots.
+recorded frames and Live in the viewer.
 
 ## Which package do I need
 
@@ -50,9 +50,13 @@ walks through both environments. Keep all describe-me packages on one version
 ## This package
 
 ```sh
-describe-me dev                  # the viewer, live while vitest --watch runs
+describe-me dev                  # the viewer, repainted while vitest --watch runs
 describe-me build --out docs     # a static site: the viewer and its data
 ```
+
+`describe-me build --live` adds Live to the site. Read
+[what such a site contains](https://grzehub.github.io/describe-me/viewer.html#flag-live)
+before you publish it.
 
 `build` writes a site with relative URLs, so it works under a sub-path such as
 GitHub Pages. It needs a web server and does not open from disk. It also
