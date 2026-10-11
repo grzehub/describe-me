@@ -1,5 +1,36 @@
 # describe-me
 
+## 0.6.0
+
+### Minor Changes
+
+- [#72](https://github.com/grzehub/describe-me/pull/72) [`24bd710`](https://github.com/grzehub/describe-me/commit/24bd710bae3f606314afb3f0128be0944b5da3fd) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Live in the viewer. `describe-me dev` starts the live preview next to the viewer, on the root and config file the manifest names, and prints its address. The **Live** toggle at the start of the toolbar, the `L` key or `live=1` in the link mounts the selected test the way its arrange phase set it up. Clicks and timers are real. The inspector shows the live status and its reason, each call of a `vi.fn()` prop as an action, the errors the component throws, notices and a Restart button for a fresh start.
+
+  - `describe-me dev --no-live` starts the viewer alone. `--root <dir>` points the live preview at another project root, with the config file Vitest picks there.
+  - A live preview that cannot start leaves the viewer running without Live, and the toggle's tooltip says why.
+
+- [#73](https://github.com/grzehub/describe-me/pull/73) [`39ede6d`](https://github.com/grzehub/describe-me/commit/39ede6dcf0569c7245acc231cfa27330aa968e38) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Live preview of setup files and fixtures. The live page imports the project's `test.setupFiles` before the test file, under the same shims, and their hooks run as in Vitest. It computes the `test.extend` fixtures a test uses, without their teardown. It runs `aroundEach` and `aroundAll` around the rest of the arrange phase, and names `each` and `for` rows the way the installed Vitest does.
+
+  - `describeMe({ live })`: `live: { setupFiles }` replaces `test.setupFiles` for the live preview, for a setup file that needs Node such as MSW's `setupServer`. `live: false` switches the preview off for the project. Test runs ignore the option.
+  - `LiveStatus` adds `setup-failed`: a setup file did not load in the browser. The detail names the file.
+  - `vi.mock` and `vi.doMock` still do nothing live. The page posts a `notice` that names the module, and the inspector lists it.
+  - A package that imports `vitest`, such as `@testing-library/jest-dom/vitest`, gets the shim too.
+  - The plugin exposes `api.live.enabled`. With `live: false`, `createLiveServer()` rejects with the code `DESCRIBE_ME_LIVE_OFF`, and `describe-me dev` reports the preview as off and hides the Live toggle.
+  - `LivePageOptions` of `@describe-me/vitest/live-runtime` takes `setupFiles` and `vitestMajor`.
+  - The recording hooks destructure the test context, so a test from `test.extend` no longer fails in Vitest with "The 1st argument inside a fixture must use object destructuring pattern".
+
+- [#74](https://github.com/grzehub/describe-me/pull/74) [`dcafdb6`](https://github.com/grzehub/describe-me/commit/dcafdb63b6e720e016a29ee532bac7d5e584c9dc) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Live on the static site. `describe-me build --live` builds the live preview into the site as `__live/` and writes `__live.json`, so the viewer of a static site shows the Live toggle and mounts a test the way `describe-me dev` does. Without `--live` the site has no Live, as before. With it, the site holds the compiled code of the components, the test files and the setup files, with their test data.
+
+  - `buildLive({ root, configFile?, outDir, testFiles })` in `@describe-me/vitest/live` builds the live page with the project's own Vite and config, in mode `test`, as a development build. It bundles `live.html`, the setup files and a lazy import of each test file, with a relative base, unminified so that names taken from functions stay as Vitest sees them. It resolves to `{ protocol }`, and rejects with the code `DESCRIBE_ME_LIVE_OFF` when the config sets `live: false`.
+  - An import that does not load in the browser, such as `node:fs`, does not stop the build. The build warns, and the page reports `import-failed` for a test file that imports it, or `setup-failed` for a setup file.
+  - `describe-me build` takes `--live` and `--root`. A live build that fails stops the command with exit code 1 and leaves no `__live/`.
+  - The viewer reads a relative `base` from `__live.json` and frames the live page on its own origin.
+
+### Patch Changes
+
+- Updated dependencies [[`fdb8a2b`](https://github.com/grzehub/describe-me/commit/fdb8a2bb79651478b98b602a71564fd9001109e4), [`39ede6d`](https://github.com/grzehub/describe-me/commit/39ede6dcf0569c7245acc231cfa27330aa968e38)]:
+  - @describe-me/core@0.6.0
+
 ## 0.5.4
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "describe-me",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "Living component documentation from your Vitest tests: the viewer and CLI of describe-me",
   "keywords": [
     "vitest",
