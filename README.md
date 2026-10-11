@@ -14,9 +14,12 @@ and the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsd
 
 ## Status
 
-Prototype. React, Vitest in browser mode or jsdom, static snapshots (no live
-mount). [Limitations](https://grzehub.github.io/describe-me/limitations.html)
-lists every known limit and whether a fix is planned.
+Prototype. React, Vitest in browser mode or jsdom. The viewer replays the
+recorded frames and can mount a test in
+[Live](https://grzehub.github.io/describe-me/viewer.html#live), from its
+arrange phase. There are no controls yet.
+[Limitations](https://grzehub.github.io/describe-me/limitations.html) lists
+every known limit and whether a fix is planned.
 
 ## Add it to your project
 
@@ -66,9 +69,13 @@ export default defineConfig({
 Run your tests, then open the viewer or build it as a static site:
 
 ```sh
-describe-me dev                  # the viewer, live while vitest --watch runs
+describe-me dev                  # the viewer, repainted while vitest --watch runs
 describe-me build --out docs     # a static site: the viewer and its data
 ```
+
+`describe-me build --live` adds
+[Live](https://grzehub.github.io/describe-me/viewer.html#flag-live) to the
+site.
 
 [Getting started](https://grzehub.github.io/describe-me/getting-started.html)
 walks through both environments.
@@ -102,11 +109,11 @@ Setup
 Use
 
 - [Writing stories](https://grzehub.github.io/describe-me/writing-stories.html):
-  frames, `step()`, component names and props.
+  frames, `step()`, component names, props and what Live runs.
 - [Styles and fonts](https://grzehub.github.io/describe-me/styles-and-fonts.html):
   global styles, web fonts and assets.
 - [Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html):
-  `describe-me dev` and `build`, and what the viewer does.
+  `describe-me dev` and `build`, Live, and what the viewer does.
 - [Troubleshooting](https://grzehub.github.io/describe-me/troubleshooting.html):
   diagnostics, warnings and common symptoms.
 

@@ -6,7 +6,7 @@
     <title>Examples · describe-me docs</title>
     <meta
       name="description"
-      content="The two example projects of describe-me as live viewers, React in Vitest browser mode and React in jsdom."
+      content="The two example projects of describe-me and their viewers, React in Vitest browser mode and React in jsdom."
     />
     <link rel="icon" href="favicon.svg" />
     <link rel="stylesheet" href="docs.css" />
@@ -96,6 +96,29 @@
           <a href="viewer.html#hosting">Hosting the static site</a> explains.
           <a href="#locally">Run them locally</a> builds them on your machine.
         </div>
+
+        <p>
+          Both viewers are built with <code>--live</code>, so <a href="viewer.html#live">Live</a>
+          works in them. Try it on these tests:
+        </p>
+
+        <ul>
+          <li>
+            <a href="examples/react-browser/#test=d5b51b54fed9&amp;live=1"
+              >Menu, selects an item and reports it</a
+            >. Open Actions and pick Rename. The inspector lists <code>onSelect("Rename")</code>.
+          </li>
+          <li>
+            <a href="examples/react-jsdom/#test=1ae901275128&amp;live=1"
+              >Toast, hides itself after its duration</a
+            >. Time is real in Live, so "Saved" hides after about 3 seconds. Restart shows it again.
+          </li>
+          <li>
+            <a href="examples/react-jsdom/#test=c4531c7f5c42&amp;live=1"
+              >AsyncGreeting, greets once loaded</a
+            >. "Hello, Ada" shows once the greeting loads.
+          </li>
+        </ul>
 
         <h2 id="react-browser">
           React in browser mode
@@ -571,8 +594,9 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
           To work on one example, run <code>pnpm dev</code> inside it. It runs
           <code>vitest</code> and <code>describe-me dev</code> side by side, so the viewer follows
           the tests as they rerun. See <a href="viewer.html#cli">the CLI</a>.
-          <code>pnpm docs:build</code> inside an example writes its static site to
-          <code>docs-dist/</code>.
+          <code>pnpm dev</code> starts the live preview too. <code>pnpm site</code> builds both
+          viewers with Live, and <code>pnpm docs:build</code> inside an example writes its static
+          site to <code>docs-dist/</code>, without Live.
         </p>
 
         <nav class="pager" aria-label="Pages">

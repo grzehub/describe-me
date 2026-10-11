@@ -548,24 +548,26 @@
           What comes next <a class="anchor" href="#roadmap" aria-label="Link to this section">#</a>
         </h2>
 
-        <p>These are announced, without dates:</p>
+        <p>
+          <a href="viewer.html#live">Live</a> shipped in 0.6.0. These are announced, without dates:
+        </p>
         <ul>
           <li>
-            <strong>Controls.</strong> Turn the props table into inputs and mount the component
-            live, in development only, through a playground endpoint on the Vitest server.
-          </li>
-          <li>
-            <strong>Live mount.</strong> Run a test again up to a given frame inside the viewer,
-            with hot module reload.
+            <strong>Controls.</strong> Turn the props table into inputs that re-render the live
+            component at once with the changed props.
           </li>
           <li>
             <strong><code>adoptedStyleSheets</code> in shadow roots.</strong> Capture them as the
-            document's are.
+            document's are. See <a href="#limit-shadow-adopted-stylesheets">the limit</a>.
           </li>
-          <li><strong>Vue and Svelte adapters.</strong> A <code>render</code> wrapper each.</li>
+          <li>
+            <strong>Vue and Svelte adapters.</strong> A <code>render</code> wrapper each. See
+            <a href="#limit-react-only">the limit</a>.
+          </li>
           <li>
             <strong>Names from wrappers that ignore <code>children</code>.</strong> Today you name
-            such a test with <code>recorder.setComponent()</code>.
+            such a test with <code>recorder.setComponent()</code>. See
+            <a href="#limit-naming-wrappers">the limit</a>.
           </li>
         </ul>
 

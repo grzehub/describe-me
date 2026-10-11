@@ -14,7 +14,7 @@ story, and each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
 Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
-static snapshots.
+recorded frames and Live in the viewer.
 
 ## Which package do I need
 
@@ -52,15 +52,19 @@ Drop-in `render` functions that record a frame after mount and after every
 `rerender`, and read the component's name and props for the docs. It is the
 only React-specific code in describe-me.
 
-| Entry point                                                                                                        | Wraps                    | For                 |
-| ------------------------------------------------------------------------------------------------------------------ | ------------------------ | ------------------- |
-| [`@describe-me/react`](https://grzehub.github.io/describe-me/api.html#entry-react)                                 | `vitest-browser-react`   | Vitest browser mode |
-| [`@describe-me/react/testing-library`](https://grzehub.github.io/describe-me/api.html#entry-react-testing-library) | `@testing-library/react` | jsdom               |
+| Entry point                                                                                                                  | Wraps                                | For                 |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------- |
+| [`@describe-me/react`](https://grzehub.github.io/describe-me/api.html#entry-react)                                           | `vitest-browser-react`               | Vitest browser mode |
+| [`@describe-me/react/testing-library`](https://grzehub.github.io/describe-me/api.html#entry-react-testing-library)           | `@testing-library/react`             | jsdom               |
+| [`@describe-me/react/live`](https://grzehub.github.io/describe-me/api.html#entry-react-live)                                 | stands in for `vitest-browser-react` | the live preview    |
+| [`@describe-me/react/live-testing-library`](https://grzehub.github.io/describe-me/api.html#entry-react-live-testing-library) | `@testing-library/react`             | the live preview    |
 
-Each entry point re-exports its test library with the recording functions
-swapped in. With the `describeMe()` plugin you never import them yourself: it
-redirects your `render` imports, those in your own `test-utils` included.
-Install the test library your tests use. Both are optional peers.
+The first two entry points re-export their test library with the recording
+functions swapped in. With the `describeMe()` plugin you never import them
+yourself: it redirects your `render` imports, those in your own `test-utils`
+included. It redirects them to the live entry points only in the live preview,
+so tests never import those. Install the test library your tests use. Both are
+optional peers.
 
 ## License
 

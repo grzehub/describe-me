@@ -287,6 +287,13 @@ describe('Counter', () =&gt; {
           through it, and <a href="viewer.html#cli">The CLI</a> lists the commands.
         </p>
 
+        <p>
+          <code>describe-me dev</code> also starts the live preview from your Vitest config. In a
+          test, the <a href="viewer.html#live">Live</a> toggle or <kbd>L</kbd> mounts it from a
+          fresh start. <a href="viewer.html#flag-no-live"><code>--no-live</code></a> starts the
+          viewer without it.
+        </p>
+
         <h2 id="publish">
           Publish the docs <a class="anchor" href="#publish" aria-label="Link to this section">#</a>
         </h2>
@@ -297,6 +304,8 @@ describe('Counter', () =&gt; {
           It writes a static site, the viewer with your data copied in, to
           <code>describe-me-dist/</code>. <code>--out</code> picks another directory. Serve it over
           HTTP, because it does not open from disk.
+          <a href="viewer.html#flag-live"><code>describe-me build --live</code></a> adds Live to the
+          site, which then holds the compiled code of your components and tests.
         </p>
 
         <p>
