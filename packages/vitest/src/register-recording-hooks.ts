@@ -10,7 +10,8 @@ import type { RuntimeOptions } from './runtime-options.js'
  * reporter via task.meta, and only then let adapters unmount. Teardown runs
  * for unrecorded tests too, because Testing Library's auto-cleanup is off in
  * jsdom. Concurrent tests would share the one recorder, so they are not
- * recorded.
+ * recorded. The hooks destructure the context, because Vitest rejects any
+ * other first parameter in a test that has `test.extend` fixtures.
  */
 export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: AroundWait): void {
   const isRecordedFile = fileFilter(options)
@@ -18,22 +19,22 @@ export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: Aro
 
   recorder.configure({ renderFrame: options.renderFrame, aroundWait })
 
-  beforeEach((context) => {
-    if (context.task.concurrent) {
+  beforeEach(({ task }) => {
+    if (task.concurrent) {
       if (!warnedConcurrent) {
         warnedConcurrent = true
-        console.warn(`describe-me: concurrent tests are not recorded (${context.task.file.name})`)
+        console.warn(`describe-me: concurrent tests are not recorded (${task.file.name})`)
       }
 
       return
     }
 
-    if (isRecordedFile(context.task.file.name)) {
+    if (isRecordedFile(task.file.name)) {
       recorder.begin()
     }
   })
 
-  afterEach(async (context) => {
+  afterEach(async ({ task }) => {
     try {
       if (recorder.isActive) {
         const tookRender = await recorder.flush()
@@ -46,7 +47,7 @@ export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: Aro
         const record = recorder.end()
 
         if (record.frames.length > 0) {
-          ;(context.task.meta as Record<string, unknown>)[META_KEY] = record
+          ;(task.meta as Record<string, unknown>)[META_KEY] = record
         }
       }
     } finally {

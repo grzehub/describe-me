@@ -274,7 +274,8 @@ export interface ManifestDiagnostics {
 // ---------- live preview (posted by the live page, read by the viewer) ----------
 
 /** How the live preview page ended up. */
-export type LiveStatus = 'mounted' | 'no-render' | 'not-found' | 'import-failed' | 'failed'
+export type LiveStatus =
+  'mounted' | 'no-render' | 'not-found' | 'import-failed' | 'setup-failed' | 'failed'
 
 /** The `source` of every message the live preview page posts. */
 export const LIVE_MESSAGE_SOURCE = 'describe-me-live' as const

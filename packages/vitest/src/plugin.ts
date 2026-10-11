@@ -69,6 +69,12 @@ export interface DescribeMeOptions {
    * selector. Default: `'eager'`.
    */
   renderFrame?: RenderFrameMode
+  /**
+   * The live preview of this project. `setupFiles` replaces `test.setupFiles`
+   * on the live page, for a setup file that needs Node. `false` switches the
+   * preview off. Test runs ignore it. Default: on, with `test.setupFiles`.
+   */
+  live?: false | { setupFiles?: string | string[] }
 }
 
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
@@ -104,7 +110,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
     name: 'describe-me',
     enforce: 'pre',
     // In both modes, so a tool can check the live protocol on any config it loads.
-    api: { live: { protocol: LIVE_PROTOCOL } },
+    api: { live: { protocol: LIVE_PROTOCOL, enabled: options.live !== false } },
 
     async config(userConfig: ViteUserConfig): Promise<ViteUserConfig> {
       if (!enabled) {

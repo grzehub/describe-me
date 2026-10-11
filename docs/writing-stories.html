@@ -581,10 +581,32 @@ recorder.setComponent({
         <p>
           <a href="viewer.html#live">Live</a> in the viewer mounts a test for real instead of
           replaying its frames. It runs the test's arrange phase, everything before its first
-          render: the <code>beforeAll</code> and then the <code>beforeEach</code> hooks, each from
-          the root suite down, then the body up to <code>render</code>. The component mounts there
-          and the test stops. Interactions, assertions and <code>afterEach</code> never run, so
-          every mount is a fresh start.
+          render, the way Vitest does:
+        </p>
+
+        <ul>
+          <li>
+            The project's setup files first, in their order, with the hooks they register:
+            <code>test.setupFiles</code>, or
+            <a href="configuration.html#option-live"><code>live.setupFiles</code></a> when the
+            config sets it.
+          </li>
+          <li>
+            The <code>beforeAll</code> and then the <code>beforeEach</code> hooks, each from the
+            root suite down, inside any <code>aroundAll</code> and <code>aroundEach</code> hooks.
+          </li>
+          <li>
+            Before a <code>beforeEach</code> hook, an <code>aroundEach</code> hook or the body, the
+            <code>test.extend</code> fixtures it uses and the <code>auto</code> ones.
+          </li>
+          <li>The body up to <code>render</code>.</li>
+        </ul>
+
+        <p>
+          The component mounts there and the test stops. Interactions, assertions,
+          <code>afterEach</code> and the teardown after <code>use()</code>,
+          <code>runTest()</code> or <code>runSuite()</code> never run, so every mount is a fresh
+          start.
         </p>
 
         <p class="file">src/Menu.test.tsx</p>
@@ -614,8 +636,10 @@ describe('Menu', () =&gt; {
         <ul>
           <li>
             <strong>Keep the arrange phase free of Node-only code.</strong> The live page imports
-            the test file in the browser, so an import such as <code>node:fs</code> or
-            <code>msw/node</code> at its top, or a hook that needs one, keeps the test out of Live.
+            the setup files and the test file in the browser, so an import such as
+            <code>node:fs</code> or <code>msw/node</code> at the top of the test file, or a hook
+            that needs one, keeps the test out of Live. For a setup file that needs Node, list a
+            browser version of it in <code>live: { setupFiles }</code>, as below.
           </li>
           <li>
             <strong>Give providers to <code>render</code>.</strong> Through <code>wrapper</code>,
@@ -627,7 +651,63 @@ describe('Menu', () =&gt; {
             its prop, so its calls show as actions under that name. A mock you named with
             <code>mockName()</code> keeps its name.
           </li>
+          <li>
+            <strong>Expect <code>vi.mock</code> to do nothing.</strong> The live page loads the real
+            module, and the inspector shows a notice for each <code>vi.mock</code> and
+            <code>vi.doMock</code> call (<a href="limitations.html#limit-live-module-mocks"
+              >Limitations</a
+            >).
+          </li>
         </ul>
+
+        <p>
+          A setup file with MSW's <code>setupServer</code> needs Node.
+          <code>live.setupFiles</code> replaces <code>test.setupFiles</code> on the live page, so
+          the same handlers can answer there through <code>setupWorker</code>. Test runs ignore it.
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    describeMe({
+      <span class="dim">// the live page imports these instead of test.setupFiles</span>
+      live: { setupFiles: ['./src/test/setup.ts', './src/test/msw.browser.ts'] },
+    }),
+  ],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts', './src/test/msw.node.ts'],
+  },
+})</code></pre>
+
+        <div class="pair">
+          <div>
+            <p class="file">src/test/msw.node.ts</p>
+            <pre><code>import { afterAll, beforeAll } from 'vitest'
+import { setupServer } from 'msw/node'
+import { handlers } from './handlers'
+
+const server = setupServer(...handlers)
+
+beforeAll(() =&gt; server.listen())
+afterAll(() =&gt; server.close())</code></pre>
+          </div>
+          <div>
+            <p class="file">src/test/msw.browser.ts</p>
+            <pre><code>import { beforeAll } from 'vitest'
+import { setupWorker } from 'msw/browser'
+import { handlers } from './handlers'
+
+const worker = setupWorker(...handlers)
+
+beforeAll(() =&gt; worker.start())</code></pre>
+          </div>
+        </div>
 
         <p>
           Some of what Vitest does has no effect on the live page.

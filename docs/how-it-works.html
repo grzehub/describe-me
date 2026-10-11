@@ -998,16 +998,20 @@ await server.close()</code></pre>
         <p>
           It sets <code>DESCRIBE_ME_LIVE=1</code> while it loads the config, and only then.
           <code>describeMe()</code> reads the variable when the config calls it, and returns its
-          live mode: no setup file, reporter, <code>provide</code> or recording redirect, but the
-          live page, the shims below and the dependencies to bundle before the first page loads.
-          Vitest never sets the variable, so a test run records as before.
+          live mode: no setup file of its own, reporter, <code>provide</code> or recording redirect,
+          but the live page, the shims below and the dependencies to bundle before the first page
+          loads. Vitest never sets the variable, so a test run records as before.
         </p>
 
         <p>
-          Both modes expose <code>api.live.protocol</code>. When the config has no
-          <code>describeMe()</code>, or one whose protocol is not the server's, the server closes
-          and throws. The message says that all describe-me packages must be on the same version, as
-          the <a href="#versions">recorder's guard</a> does.
+          Both modes expose <code>api.live.protocol</code> and <code>api.live.enabled</code>. When
+          the config has no <code>describeMe()</code>, or one whose protocol is not the server's,
+          the server closes and throws. The message says that all describe-me packages must be on
+          the same version, as the <a href="#versions">recorder's guard</a> does. With
+          <a href="configuration.html#option-live"><code>live: false</code></a
+          >, <code>enabled</code> is <code>false</code>: live mode adds nothing, and the server
+          closes and throws an error whose <code>code</code> is <code>DESCRIBE_ME_LIVE_OFF</code>.
+          <code>describe-me dev</code> then runs the viewer without Live.
         </p>
 
         <p>
@@ -1033,10 +1037,14 @@ await server.close()</code></pre>
                 <td><code>vitest</code></td>
                 <td>
                   <code>describe</code>, <code>it</code> and the hooks register as in Vitest, with
-                  every modifier. <code>vi.fn()</code> and <code>vi.spyOn()</code> post each call as
-                  an action. The rest of <code>vi</code> does nothing and returns <code>vi</code>.
-                  <code>expect</code> and every other name is inert: it takes any call and any
-                  property.
+                  every modifier, <code>aroundEach</code> and <code>aroundAll</code> included.
+                  <code>test.extend</code> keeps its fixtures. <code>vi.fn()</code> and
+                  <code>vi.spyOn()</code> post each call as an action. <code>vi.mock</code> and
+                  <code>vi.doMock</code> post a notice. The rest of <code>vi</code> does nothing and
+                  returns <code>vi</code>. <code>expect</code> and every other name is inert: it
+                  takes any call and any property. A package that imports <code>vitest</code>, such
+                  as <code>@testing-library/jest-dom/vitest</code>, gets the shim too, because the
+                  optimizer leaves <code>vitest</code> out of its bundles.
                 </td>
               </tr>
               <tr>
@@ -1077,6 +1085,12 @@ await server.close()</code></pre>
             <code>globalThis</code> before the test file imports.
           </li>
           <li>
+            <strong>Setup files</strong> The page imports <code>test.setupFiles</code>, or
+            <code>live.setupFiles</code> when the config sets it, one at a time in their order,
+            under the same shims. Their hooks register on the root suite before the test file's. One
+            that does not load ends the page with <code>setup-failed</code>.
+          </li>
+          <li>
             <strong>Import</strong> The page imports the test file, then calls the
             <code>describe</code> factories the way Vitest collects them: depth first, in order.
           </li>
@@ -1086,7 +1100,14 @@ await server.close()</code></pre>
           </li>
           <li>
             <strong>Run</strong> It runs the <code>beforeAll</code> hooks from the root down, then
-            the <code>beforeEach</code> hooks, then the body.
+            the <code>beforeEach</code> hooks, then the body. The <code>aroundAll</code> hooks of
+            each suite wrap its <code>beforeAll</code> hooks and everything below, and the
+            <code>aroundEach</code> hooks of the path wrap the <code>beforeEach</code> hooks and the
+            body, the first one outermost. Before each <code>aroundEach</code> hook,
+            <code>beforeEach</code> hook and the body, the page computes the
+            <code>test.extend</code> fixtures it destructures and the <code>auto</code> ones, each
+            once. <code>each</code> and <code>for</code> rows get their names by the rules of the
+            installed Vitest.
           </li>
           <li>
             <strong>First render</strong> The render names each unnamed <code>vi.fn()</code> after
@@ -1174,7 +1195,10 @@ await server.close()</code></pre>
               <tr>
                 <td><code>notice</code></td>
                 <td class="nowrap"><code>message</code></td>
-                <td>The viewer shows it in the inspector. Nothing sends one yet.</td>
+                <td>
+                  For each <code>vi.mock</code> or <code>vi.doMock</code> call, once per page: it
+                  names the module the page loads for real. The viewer shows it in the inspector.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -1209,6 +1233,13 @@ await server.close()</code></pre>
                 <td>The test file did not import, or one of its suites threw.</td>
               </tr>
               <tr>
+                <td><code>setup-failed</code></td>
+                <td>
+                  A setup file did not load, link or run its top level. The detail starts with the
+                  file.
+                </td>
+              </tr>
+              <tr>
                 <td><code>failed</code></td>
                 <td>The arrange phase threw, or did not reach the first render in time.</td>
               </tr>
@@ -1219,13 +1250,19 @@ await server.close()</code></pre>
         <p>What the page does not do:</p>
 
         <ul>
-          <li>It does not import the project's setup files.</li>
-          <li><code>vi.mock</code> has no effect, so the page loads the real module.</li>
+          <li>
+            <code>vi.mock</code> has no effect, so the page loads the real module. It posts a notice
+            instead.
+          </li>
           <li>
             Fake timers are skipped, so time is real. A toast that hides after 3 seconds hides after
             3 seconds.
           </li>
-          <li>Fixtures from <code>test.extend</code> are not computed.</li>
+          <li>
+            The teardown after <code>use()</code> in a fixture, or after <code>runTest()</code> or
+            <code>runSuite()</code> in an around hook, never runs, and neither do the cleanups of
+            the builder syntax.
+          </li>
         </ul>
 
         <h2 id="versions">

@@ -2,7 +2,10 @@ import { liveStop } from '@describe-me/core/live'
 import type { LiveTestMatch } from './find-live-test.js'
 import { liveExport } from './live-export.js'
 
-/** The parts of Vitest's test context that the live page offers. Fixtures are not computed. */
+/**
+ * The parts of Vitest's test context that the live page offers. The runner
+ * adds each `test.extend` fixture it computes as a property.
+ */
 export interface LiveTestContext {
   task: { name: string; fullName: string }
   expect: unknown
@@ -11,6 +14,7 @@ export interface LiveTestContext {
   onTestFinished(): void
   onTestFailed(): void
   annotate(): Promise<void>
+  [fixture: string]: unknown
 }
 
 function ignore(): undefined {
@@ -18,8 +22,9 @@ function ignore(): undefined {
 }
 
 /**
- * The context that the hooks and the body of a live test get. `skip()` stops
- * the test without a render, so the page reports `no-render`.
+ * The one context that the hooks and the body of a live test get, with the
+ * fixtures they use once the runner computed them. `skip()` stops the test
+ * without a render, so the page reports `no-render`.
  */
 export function liveTestContext(match: LiveTestMatch, signal: AbortSignal): LiveTestContext {
   return {

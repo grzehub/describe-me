@@ -29,9 +29,18 @@ export interface LiveServer {
   close(): Promise<void>
 }
 
+/** The code of the error for a project whose describeMe() has `live: false`. */
+const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
+
+type ServerPlugin = Vite.ViteDevServer['config']['plugins'][number]
+
+function describeMePlugin(server: Vite.ViteDevServer): ServerPlugin | undefined {
+  return server.config.plugins.find((candidate) => candidate.name === 'describe-me')
+}
+
 /** The live protocol of the project's describeMe() plugin, which must be this package's. */
 function livePluginProtocol(server: Vite.ViteDevServer, configName: string): number {
-  const plugin = server.config.plugins.find((candidate) => candidate.name === 'describe-me')
+  const plugin = describeMePlugin(server)
 
   if (plugin === undefined) {
     throw new Error(`describe-me: ${configName} has no describeMe() plugin`)
@@ -46,6 +55,18 @@ function livePluginProtocol(server: Vite.ViteDevServer, configName: string): num
   }
 
   return protocol
+}
+
+/** Throws with the code `DESCRIBE_ME_LIVE_OFF` when the project's describeMe() has `live: false`. */
+function checkLiveEnabled(server: Vite.ViteDevServer, configName: string): void {
+  if (describeMePlugin(server)?.api?.live?.enabled !== false) {
+    return
+  }
+
+  throw Object.assign(
+    new Error(`describe-me: live: false in ${configName} switches the live preview off`),
+    { code: LIVE_OFF },
+  )
 }
 
 /** Closes the server when `run` throws, so a failed start leaves no server behind. */
@@ -65,7 +86,9 @@ async function closingOnError<T>(
 /**
  * Starts the live preview: a second Vite dev server on the project's own
  * config, in mode `test` and on localhost only, whose page mounts one test
- * at a time. A change to the config file takes a new server.
+ * at a time. A change to the config file takes a new server. When the
+ * project's describeMe() has `live: false`, it closes the server and rejects
+ * with an error whose `code` is `DESCRIBE_ME_LIVE_OFF`.
  */
 export async function createLiveServer(options: LiveServerOptions): Promise<LiveServer> {
   const root = resolve(options.root)
@@ -90,9 +113,10 @@ export async function createLiveServer(options: LiveServerOptions): Promise<Live
     configFile: false,
   })
 
-  const protocol = await closingOnError(server, () =>
-    livePluginProtocol(server, relative(root, configFile) || configFile),
-  )
+  const configName = relative(root, configFile) || configFile
+  const protocol = await closingOnError(server, () => livePluginProtocol(server, configName))
+
+  await closingOnError(server, () => checkLiveEnabled(server, configName))
 
   await closingOnError(server, () => server.listen())
 

@@ -375,7 +375,12 @@
                   test. See <a href="writing-stories.html#live">What Live runs</a>.
                 </td>
                 <td><span class="badge env">viewer</span></td>
-                <td>Keep the arrange phase free of Node-only code.</td>
+                <td>
+                  Keep the arrange phase free of Node-only code. For a setup file, list a browser
+                  version of it in
+                  <a href="configuration.html#option-live"><code>live.setupFiles</code></a
+                  >.
+                </td>
                 <td><span class="badge status-by-design">by design</span></td>
               </tr>
               <tr id="limit-live-projects">
@@ -386,6 +391,19 @@
                 </td>
                 <td><span class="badge env">viewer</span></td>
                 <td>Put the plugins and aliases the components need in the root config.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-live-module-mocks">
+                <td>
+                  <code>vi.mock</code> and <code>vi.doMock</code> have no effect in Live, so the
+                  component uses the real module. The inspector shows a notice for each call. See
+                  <a href="writing-stories.html#live">What Live runs</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>
+                  Pass the mocked behaviour as props, or answer the requests in a setup file, such
+                  as MSW's <code>setupWorker</code> in <code>live.setupFiles</code>.
+                </td>
                 <td><span class="badge status-open">open</span></td>
               </tr>
               <tr id="limit-site-from-disk">
@@ -501,7 +519,8 @@
           <a href="#limit-static-snapshots">run your components</a>.
           <a href="viewer.html#live">Live</a> in <code>describe-me dev</code> mounts one test for
           real, but it runs <a href="#limit-live-arrange-only">only the arrange phase</a>,
-          <a href="#limit-live-node-only">no code that needs Node</a> and
+          <a href="#limit-live-node-only">no code that needs Node</a>,
+          <a href="#limit-live-module-mocks">no module mocks</a> and
           <a href="#limit-live-projects">only the root config</a>. A built site
           <a href="#limit-site-from-disk">needs HTTP</a>. A
           <a href="#limit-old-viewer">0.4 viewer</a> cannot read 0.5 data, and links to a test

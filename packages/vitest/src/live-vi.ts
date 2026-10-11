@@ -1,5 +1,6 @@
 import { liveMock, type LiveImplementation } from './live-mock.js'
 import { liveSpyOn } from './live-spy-on.js'
+import { noticeLiveModuleMock } from './notice-live-module-mock.js'
 
 let vi: object | undefined
 
@@ -22,6 +23,16 @@ function createVi(): object {
       return proxy
     },
     isMockFunction,
+    mock: (path: unknown) => {
+      noticeLiveModuleMock('vi.mock', path)
+
+      return proxy
+    },
+    doMock: (path: unknown) => {
+      noticeLiveModuleMock('vi.doMock', path)
+
+      return proxy
+    },
   }
 
   const proxy: object = new Proxy(known, {
@@ -43,8 +54,9 @@ function createVi(): object {
 
 /**
  * `vi` and its alias `vitest` on the live page. Keys it does not know do
- * nothing and return `vi`, so fake timers and module mocks are skipped and
- * time is real. `await vi.waitFor(…)` ends, because `vi` has no `then`.
+ * nothing and return `vi`, so fake timers are skipped and time is real.
+ * `vi.mock` and `vi.doMock` change nothing either, but post a notice that
+ * names the module. `await vi.waitFor(…)` ends, because `vi` has no `then`.
  */
 export function liveVi(): object {
   vi ??= createVi()

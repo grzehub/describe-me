@@ -20,268 +20,56 @@
  * starts fresh and ← leaves Live for a recorded frame. A link with `live=1`
  * opens Live in both examples, which proves that the CLI finds the project
  * from the jsdom manifest too. `describe-me dev --no-live` answers off and
- * shows no toggle. The viewer pages log no error. Remote requests are
- * answered locally, so remote fonts never decide the result. Run after
- * `pnpm build` and both examples' tests.
+ * shows no toggle. The viewer pages log no error. Last, the live fixtures of
+ * both examples run under Vitest and in the live preview, with setup files,
+ * fixtures, around hooks, `each` and `for` names, module mocks, a Node-only
+ * import, `setup-failed` and `live: false` (scripts/check-live/check-fixtures.mjs).
+ * Remote requests are answered locally, so remote fonts never decide the
+ * result. Run after `pnpm build` and both examples' tests.
  *
  * Usage: `node scripts/check-live.mjs`
  */
-import { spawn } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { createServer } from 'node:http'
-import { createRequire } from 'node:module'
-import { createServer as createNetServer } from 'node:net'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { checkFixtures, FIXTURE_ENV } from './check-live/check-fixtures.mjs'
+import {
+  checkLiveOffViewer,
+  openViewer,
+  startDev,
+  stopDev,
+  waitForPreview,
+} from './check-live/dev-server.mjs'
+import {
+  BASE,
+  checkMount,
+  checkQuiet,
+  delay,
+  errorMessage,
+  expectVisible,
+  FIRST_STATUS_TIMEOUT,
+  importCreateLiveServer,
+  LIVE_ENV,
+  LIVE_SOURCE,
+  manifestTests,
+  openHost,
+  readManifest,
+  show,
+  STATUS_TIMEOUT,
+  startHost,
+  waitForMessage,
+} from './check-live/live-frame.mjs'
 import { exampleNames } from './docs/example-names.mjs'
 import { launchChromium } from './docs/launch-chromium.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
 
-const LIVE_ENV = 'DESCRIBE_ME_LIVE'
-const LIVE_SOURCE = 'describe-me-live'
-const BASE = /^http:\/\/localhost:\d+\/__describe-me\/$/
-const FIRST_STATUS_TIMEOUT = 30_000
-const STATUS_TIMEOUT = 15_000
-const SIZE_TIMEOUT = 5_000
-const POLL = 50
 // `ink` of examples/react-jsdom/src/theme.ts.
 const THEME_INK = 'rgb(17, 17, 17)'
-const DESCRIBE_ME_BIN = join(repoRoot, 'packages', 'viewer', 'bin', 'describe-me.js')
-const VIEWER_READY_TIMEOUT = 60_000
 // `mounted` in packages/viewer/src/live-status-words.ts.
 const MOUNTED_WORDS = 'mounted as the test arranged it'
-const COLOURS = new RegExp(String.raw`\u001b\[[\d;]*m`, 'g')
 
 /** The test each example's viewer mounts live. */
 const VIEWER_TESTS = {
   'react-browser': 'Menu > selects an item and reports it',
   'react-jsdom': 'Heading > takes its colour from the theme',
-}
-
-// The host page keeps every message from the live frame, with the time it came.
-const HOST_PAGE = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <link rel="icon" href="data:,">
-    <title>check-live host</title>
-  </head>
-  <body>
-    <iframe id="live" title="live preview" width="800" height="600"></iframe>
-    <script>
-      window.liveOrigin = null
-      window.liveMessages = []
-      window.addEventListener('message', (event) => {
-        const frame = document.getElementById('live')
-
-        if (event.origin === window.liveOrigin && event.source === frame.contentWindow) {
-          window.liveMessages.push({ data: event.data, at: Date.now() })
-        }
-      })
-    </script>
-  </body>
-</html>
-`
-
-function errorMessage(error) {
-  return error instanceof Error ? error.message.split('\n')[0] : String(error)
-}
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/** The page that frames the live page, on 127.0.0.1, another origin than the live server's localhost. */
-function startHost() {
-  const server = createServer((_request, response) => {
-    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-    response.end(HOST_PAGE)
-  })
-
-  return new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      resolve({ server, url: `http://127.0.0.1:${server.address().port}/` })
-    })
-  })
-}
-
-function readManifest(root, name) {
-  const file = join(root, '.describe-me', 'manifest.json')
-
-  if (!existsSync(file)) {
-    throw new Error(`examples/${name} has no .describe-me/manifest.json. Run its tests first`)
-  }
-
-  return JSON.parse(readFileSync(file, 'utf8'))
-}
-
-/** `createLiveServer` as the example resolves it, so the check runs what a project installs. */
-async function importCreateLiveServer(root) {
-  const entry = createRequire(join(root, 'package.json')).resolve('@describe-me/vitest/live')
-  const { createLiveServer } = await import(pathToFileURL(entry).href)
-
-  return createLiveServer
-}
-
-/** Every test of the manifest, in module and test order, with its occurrence in the module. */
-function manifestTests(manifest) {
-  return manifest.modules.flatMap((module) => {
-    const seen = new Map()
-
-    return module.tests.map((test) => {
-      const path = [...test.path, test.name]
-      const key = JSON.stringify(path)
-      const occurrence = (seen.get(key) ?? 0) + 1
-
-      seen.set(key, occurrence)
-
-      return { file: module.id, path, occurrence, fullName: test.fullName }
-    })
-  })
-}
-
-function pageUrl(base, hostOrigin, { file, path, occurrence = 1 }) {
-  const query = new URLSearchParams({
-    file,
-    path: JSON.stringify(path),
-    occurrence: String(occurrence),
-    origin: hostOrigin,
-  })
-
-  return `${base}live.html?${query}`
-}
-
-/** What the live frame posted so far, without the `source` field, each with the host's time. */
-async function liveMessages(page) {
-  const kept = await page.evaluate(() => window.liveMessages)
-
-  return kept
-    .filter((message) => message.data?.source === LIVE_SOURCE)
-    .map((message) => ({ ...message.data, at: message.at }))
-}
-
-async function waitForMessage(page, matches, timeout) {
-  const deadline = Date.now() + timeout
-
-  while (Date.now() < deadline) {
-    const found = (await liveMessages(page)).find(matches)
-
-    if (found) {
-      return found
-    }
-
-    await delay(POLL)
-  }
-
-  return null
-}
-
-/**
- * Counts the loads of the live frame and the errors it logs, so each test can
- * be held to one load and no error while it was shown.
- */
-function watchFrame(page, liveOrigin) {
-  const watch = { loads: 0, errors: [] }
-
-  const isLive = (frame) => {
-    try {
-      return new URL(frame.url()).origin === liveOrigin
-    } catch {
-      return false
-    }
-  }
-
-  page.on('framenavigated', (frame) => {
-    if (frame !== page.mainFrame() && isLive(frame)) {
-      watch.loads += 1
-    }
-  })
-
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      watch.errors.push(`console: ${message.text()}`)
-    }
-  })
-
-  page.on('pageerror', (error) => watch.errors.push(`page error: ${errorMessage(error)}`))
-
-  return watch
-}
-
-/** Points the frame at a page, and waits for its status. */
-async function show(context, target, timeout) {
-  const { page, watch } = context
-
-  watch.loads = 0
-  watch.errors = []
-
-  await page.evaluate(
-    (src) => {
-      window.liveMessages = []
-      document.getElementById('live').src = src
-    },
-    pageUrl(context.base, context.hostOrigin, target),
-  )
-
-  return waitForMessage(page, (message) => message.type === 'status', timeout)
-}
-
-/** Shows one test of the manifest, and checks that it mounts cleanly. */
-async function checkMount(context, test, timeout) {
-  const label = `${context.name} ${test.file} ${test.fullName}`
-  const status = await show(context, test, timeout)
-
-  if (status === null) {
-    return { problems: [`${label}: no status within ${timeout / 1000} s`] }
-  }
-
-  if (status.status !== 'mounted') {
-    const detail = status.detail ? `: ${status.detail.split('\n')[0]}` : ''
-
-    return { problems: [`${label}: ${status.status}${detail}`] }
-  }
-
-  const size = await waitForMessage(
-    context.page,
-    (message) => message.type === 'size' && message.height > 0,
-    SIZE_TIMEOUT,
-  )
-
-  const problems = []
-
-  if (size === null || size.at - status.at > SIZE_TIMEOUT) {
-    problems.push(`${label}: no size with a positive height within ${SIZE_TIMEOUT / 1000} s`)
-  }
-
-  return { problems, mountedAt: status.at }
-}
-
-/** What happened while the test was shown, beyond its status: loads and errors. */
-async function checkQuiet(context, label) {
-  const errors = (await liveMessages(context.page))
-    .filter((message) => message.type === 'error')
-    .map((message) => `live error: ${message.message}`)
-
-  const problems = [...context.watch.errors, ...errors].map((error) => `${label}: ${error}`)
-
-  if (context.watch.loads !== 1) {
-    problems.push(
-      `${label}: the live frame loaded ${context.watch.loads} times, expected once. Did Vite find a dependency late?`,
-    )
-  }
-
-  return problems
-}
-
-async function expectVisible(locator, what, timeout) {
-  try {
-    await locator.first().waitFor({ state: 'visible', timeout })
-
-    return []
-  } catch {
-    return [`${what} did not show within ${timeout / 1000} s`]
-  }
 }
 
 async function selectsRename({ page, frame }) {
@@ -493,36 +281,9 @@ async function checkExample(browser, host, name) {
 
   const createLiveServer = await importCreateLiveServer(root)
   const server = await createLiveServer({ root, configFile: manifest.configFile })
-  const browserContext = await browser.newContext()
+  const context = await openHost(browser, host, name, server.base)
 
   try {
-    // Remote fonts and stylesheets of the preview head never decide the result, offline or not.
-    await browserContext.route(
-      (url) => url.protocol === 'https:',
-      (route) => {
-        const type = route.request().resourceType() === 'stylesheet' ? 'text/css' : 'text/plain'
-
-        return route.fulfill({ status: 200, contentType: type, body: '' })
-      },
-    )
-
-    const page = await browserContext.newPage()
-    const liveOrigin = new URL(server.base).origin
-
-    await page.goto(host.url)
-    await page.evaluate((origin) => {
-      window.liveOrigin = origin
-    }, liveOrigin)
-
-    const context = {
-      name,
-      page,
-      frame: page.frameLocator('#live'),
-      base: server.base,
-      hostOrigin: new URL(host.url).origin,
-      watch: watchFrame(page, liveOrigin),
-    }
-
     const tests = await checkTests(context, manifest)
     const statuses = await checkStatuses(context)
 
@@ -533,87 +294,9 @@ async function checkExample(browser, host, name) {
       statuses: statuses.passed,
     }
   } finally {
-    await browserContext.close()
+    await context.close()
     await server.close()
   }
-}
-
-/** A port on localhost that nothing listens on right now. */
-function freePort() {
-  const server = createNetServer()
-
-  return new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, 'localhost', () => {
-      const { port } = server.address()
-
-      server.close(() => resolve(port))
-    })
-  })
-}
-
-/**
- * Starts `describe-me dev` in an example, without a shell. Vite closes its
- * dev server when stdin ends, unless `CI` is exactly `true`, so stdin stays
- * piped and open. The output is kept for the error message.
- */
-async function startDev(root, args) {
-  const port = await freePort()
-  const child = spawn(
-    process.execPath,
-    [DESCRIBE_ME_BIN, 'dev', '--data', '.describe-me', '--port', String(port), ...args],
-    { cwd: root, stdio: ['pipe', 'pipe', 'pipe'] },
-  )
-
-  const chunks = []
-
-  child.stdout.on('data', (chunk) => chunks.push(chunk))
-  child.stderr.on('data', (chunk) => chunks.push(chunk))
-
-  return {
-    child,
-    url: `http://localhost:${port}/`,
-    output: () => Buffer.concat(chunks).toString('utf8').replace(COLOURS, '').trim(),
-  }
-}
-
-async function stopDev(dev) {
-  const { child } = dev
-
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return
-  }
-
-  const exited = new Promise((resolve) => child.once('exit', resolve))
-  const force = setTimeout(() => child.kill('SIGKILL'), 10_000)
-
-  child.kill('SIGTERM')
-  await exited
-  clearTimeout(force)
-}
-
-/** What `__live.json` says once the preview stopped starting, or the last answer at the timeout. */
-async function waitForPreview(dev) {
-  const deadline = Date.now() + VIEWER_READY_TIMEOUT
-  let last = null
-
-  while (Date.now() < deadline && dev.child.exitCode === null) {
-    try {
-      const response = await fetch(new URL('__live.json', dev.url))
-
-      last = response.ok ? await response.json() : last
-
-      if (last !== null && last.status !== 'starting') {
-        return last
-      }
-    } catch {
-      // The viewer is not listening yet.
-    }
-
-    await delay(POLL * 5)
-  }
-
-  return last
 }
 
 function testIdOf(manifest, fullName) {
@@ -626,44 +309,6 @@ function testIdOf(manifest, fullName) {
   }
 
   return test.id
-}
-
-/** A viewer page that keeps its console errors and page errors, and counts loads of the live frame. */
-async function openViewer(browser, url, liveOrigin) {
-  const browserContext = await browser.newContext({ viewport: { width: 1280, height: 800 } })
-
-  await browserContext.route(
-    (target) => target.protocol === 'https:',
-    (route) => route.fulfill({ status: 200, contentType: 'text/plain', body: '' }),
-  )
-
-  const page = await browserContext.newPage()
-  const viewer = { browserContext, page, errors: [], loads: 0 }
-
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      viewer.errors.push(`console: ${message.text()}`)
-    }
-  })
-
-  page.on('pageerror', (error) => viewer.errors.push(`page error: ${errorMessage(error)}`))
-  page.on('framenavigated', (frame) => {
-    if (frame !== page.mainFrame() && originOf(frame.url()) === liveOrigin) {
-      viewer.loads += 1
-    }
-  })
-
-  await page.goto(url)
-
-  return viewer
-}
-
-function originOf(url) {
-  try {
-    return new URL(url).origin
-  } catch {
-    return null
-  }
 }
 
 function linkParams(page) {
@@ -924,7 +569,7 @@ const BROWSER_STEPS = [
 
 /** Starts `describe-me dev` in an example and waits for `__live.json` to say `ready`. */
 async function startReadyDev(name) {
-  const dev = await startDev(join(repoRoot, 'examples', name), [])
+  const dev = await startDev(join(repoRoot, 'examples', name), '.describe-me')
   const preview = await waitForPreview(dev)
 
   if (preview?.status !== 'ready' || !BASE.test(preview.base ?? '')) {
@@ -982,39 +627,14 @@ async function checkViewer(browser, name) {
 async function checkNoLive(browser) {
   const name = exampleNames[0]
   const label = `${name} viewer --no-live`
-  const dev = await startDev(join(repoRoot, 'examples', name), ['--no-live'])
+  const dev = await startDev(join(repoRoot, 'examples', name), '.describe-me', ['--no-live'])
 
   try {
-    const preview = await waitForPreview(dev)
+    const problems = await checkLiveOffViewer(browser, dev)
 
-    if (JSON.stringify(preview) !== JSON.stringify({ status: 'off' })) {
-      return {
-        problems: [
-          `${label}: __live.json says ${JSON.stringify(preview)}, expected {"status":"off"}`,
-        ],
-        passed: 0,
-      }
-    }
-
-    const viewer = await openViewer(browser, dev.url, null)
-
-    try {
-      await viewer.page
-        .locator('.header .live .mono', { hasNotText: '…' })
-        .waitFor({ state: 'visible', timeout: STATUS_TIMEOUT })
-
-      const problems = [...viewer.errors]
-
-      if (await viewer.page.locator('.live-toggle').isVisible()) {
-        problems.push('the Live toggle shows')
-      }
-
-      return {
-        problems: problems.map((problem) => `${label}: ${problem}`),
-        passed: problems.length === 0 ? 1 : 0,
-      }
-    } finally {
-      await viewer.browserContext.close()
+    return {
+      problems: problems.map((problem) => `${label}: ${problem}`),
+      passed: problems.length === 0 ? 1 : 0,
     }
   } finally {
     await stopDev(dev)
@@ -1045,8 +665,9 @@ async function checkViewers(browser) {
   return total
 }
 
-// The check expects the flag unset before and after each server starts.
+// The check expects the flags unset before and after each server starts.
 delete process.env[LIVE_ENV]
+delete process.env[FIXTURE_ENV]
 
 const host = await startHost()
 const summaries = []
@@ -1054,6 +675,7 @@ let problems = []
 let behaviours = 0
 let statuses = 0
 let viewerSteps = 0
+let fixtures = null
 let browser = null
 
 try {
@@ -1072,6 +694,8 @@ try {
 
   problems.push(...viewers.problems)
   viewerSteps = viewers.passed
+  fixtures = await checkFixtures(browser, host)
+  problems.push(...fixtures.problems)
 } catch (error) {
   problems = [...problems, errorMessage(error)]
 } finally {
@@ -1089,5 +713,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-live: ok — ${summaries.join(', ')} mounted, ${behaviours} behaviours, ${statuses} statuses, viewer ${viewerSteps} steps`,
+  `check-live: ok — ${summaries.join(', ')} mounted, ${behaviours} behaviours, ${statuses} statuses, viewer ${viewerSteps} steps, ${fixtures.summary}`,
 )

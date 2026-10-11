@@ -15,6 +15,32 @@ if (process.env.BENCH_SKIP) {
   throw new Error('BENCH_SKIP works in examples/react-jsdom only')
 }
 
+// LIVE_FIXTURES=1 runs the fixtures of `pnpm check-live` in live-fixtures/,
+// with their own setup file and output directory.
+const liveFixtures = Boolean(process.env.LIVE_FIXTURES)
+
+if (liveFixtures && process.env.LIVE_FIXTURES !== '1') {
+  throw new Error(
+    `LIVE_FIXTURES: unknown value "${process.env.LIVE_FIXTURES}", expected 1 (no-live-setup and off work in examples/react-jsdom only)`,
+  )
+}
+
+if (liveFixtures && process.env.BENCH_MICRO) {
+  throw new Error('LIVE_FIXTURES does not work with BENCH_MICRO')
+}
+
+function testFiles(): string[] {
+  if (liveFixtures) {
+    return ['live-fixtures/**/*.test.tsx']
+  }
+
+  if (process.env.BENCH_MICRO) {
+    return ['bench/**/*.test.tsx']
+  }
+
+  return ['src/**/*.test.tsx']
+}
+
 // The fonts an app shell would load: Inter from Google Fonts and a local Lora,
 // whose fonts.css is copied into the output with its font.
 const previewHead = `
@@ -30,10 +56,12 @@ export default defineConfig({
       enabled,
       previewHead,
       ...(idle ? { exclude: '**', outDir: 'node_modules/.describe-me-idle' } : {}),
+      ...(liveFixtures ? { outDir: 'node_modules/.describe-me-live-fixtures' } : {}),
     }),
   ],
   test: {
-    include: process.env.BENCH_MICRO ? ['bench/**/*.test.tsx'] : ['src/**/*.test.tsx'],
+    include: testFiles(),
+    ...(liveFixtures ? { setupFiles: ['./live-fixtures/setup.ts'] } : {}),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
     browser: {
       enabled: true,

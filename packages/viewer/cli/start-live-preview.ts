@@ -4,8 +4,14 @@ import type { LivePreviewInfo } from './live-preview-info.js'
 import { liveProject } from './live-project.js'
 
 const PREFIX = 'describe-me: '
+// The code `createLiveServer()` rejects with when the project's config sets `live: false`.
+const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
 // Vite and its bundler colour their errors for the terminal.
 const COLOURS = new RegExp(String.raw`\u001b\[[\d;]*m`, 'g')
+
+function codeOf(error: unknown): unknown {
+  return typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+}
 
 function reasonOf(error: unknown): string {
   const message = (error instanceof Error ? error.message : String(error))
@@ -18,7 +24,7 @@ function reasonOf(error: unknown): string {
 /**
  * Starts the live preview of the project the manifest names, or of `--root`,
  * on a free port. Never throws: a preview that cannot start comes back as
- * `error` with the reason.
+ * `error` with the reason, and one the project's config switches off as `off`.
  */
 export async function startLivePreview(
   data: string,
@@ -40,6 +46,10 @@ export async function startLivePreview(
 
     return { status: 'ready', base: server.base }
   } catch (error) {
+    if (codeOf(error) === LIVE_OFF) {
+      return { status: 'off' }
+    }
+
     return { status: 'error', error: reasonOf(error) }
   }
 }

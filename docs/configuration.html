@@ -304,6 +304,19 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                   When the render frame is taken (<a href="#render-frame">render frame timing</a>).
                 </td>
               </tr>
+              <tr id="option-live">
+                <td><code>live</code></td>
+                <td class="nowrap"><code>false |</code><br /><code>{ setupFiles }</code></td>
+                <td>on, with <code>test.setupFiles</code></td>
+                <td>
+                  The live preview. <code>setupFiles</code>, a path or a list, replaces
+                  <code>test.setupFiles</code> on the live page, for a setup file that needs Node.
+                  <code>false</code> switches the preview off. Test runs ignore it (<a
+                    href="writing-stories.html#live"
+                    >Live</a
+                  >).
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -672,8 +685,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
         <p>
           The CLI sets <code>DESCRIBE_ME_DIR</code> for the viewer. The other variables below are
           switches of this repository's examples. The describe-me packages read none of them. The
-          examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks, and
-          <code>BENCH_SKIP</code> and <code>ACT_PARITY</code> work only in
+          examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks.
+          <code>BENCH_SKIP</code>, <code>ACT_PARITY</code> and the values
+          <code>no-live-setup</code> and <code>off</code> of <code>LIVE_FIXTURES</code> work only in
           <code>examples/react-jsdom</code>. Set them inline for one run. There is no
           <code>.env</code>.
         </p>
@@ -736,6 +750,18 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   frames. <code>eager</code> takes render frames right away and adds
                   <code>act-parity/setup.ts</code>, which loads Testing Library before describe-me's
                   setup file. <code>pnpm check-act-parity</code> sets it.
+                </td>
+              </tr>
+              <tr id="env-LIVE_FIXTURES">
+                <td><code>LIVE_FIXTURES</code></td>
+                <td>both examples</td>
+                <td>
+                  <code>1</code> runs <code>live-fixtures/</code> instead of <code>src/</code>, with
+                  their own setup files, writing to
+                  <code>node_modules/.describe-me-live-fixtures</code>. In
+                  <code>examples/react-jsdom</code>, <code>no-live-setup</code> leaves out
+                  <code>live.setupFiles</code> and <code>off</code> sets <code>live: false</code>,
+                  for the live preview of the same fixtures. <code>pnpm check-live</code> sets it.
                 </td>
               </tr>
             </tbody>
