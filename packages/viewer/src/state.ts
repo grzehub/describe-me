@@ -1,4 +1,5 @@
 import type { Manifest, ManifestTest } from '@describe-me/core/types'
+import type { LivePreviewInfo } from '../cli/live-preview-info.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
@@ -10,6 +11,10 @@ export interface State {
   /** A sidebar suite or module selection; when set, the overview replaces the frame view. */
   suiteKey: string | null
   frame: number
+  /** The selected test mounted live instead of its frame. `live=1` in the link. */
+  live: boolean
+  /** What `__live.json` says about the live preview. */
+  preview: LivePreviewInfo
   /** The replayed page's size in CSS pixels. `null` fits the stage's width or the content's height. */
   viewport: { width: number | null; height: number | null }
   /** Kept here so repaints rebuild the issues panel as it was. */
@@ -25,6 +30,8 @@ export const state: State = {
   testId: null,
   suiteKey: null,
   frame: 0,
+  live: false,
+  preview: { status: 'off' },
   viewport: { width: null, height: null },
   issuesOpen: false,
   scale: 1,
@@ -36,6 +43,7 @@ export function readHash(): void {
   state.testId = params.get('test')
   state.suiteKey = params.get('suite')
   state.frame = Number(params.get('frame') ?? 0) || 0
+  state.live = params.get('live') === '1'
   state.viewport = {
     width: parseViewportSize(params.get('w')),
     height: parseViewportSize(params.get('h'), MIN_FRAME_HEIGHT),

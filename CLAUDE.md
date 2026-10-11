@@ -31,7 +31,7 @@ pnpm check-frame-timing   # frame compaction and renderFrame validation, after p
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
-pnpm check-live   # every test of both examples mounted in the live preview, in Chromium, after pnpm build and both examples' tests
+pnpm check-live   # every test of both examples mounted in the live preview, and Live in both examples' viewers through describe-me dev, in Chromium, after pnpm build and both examples' tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
@@ -65,6 +65,8 @@ pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z
 - Live mode (`DESCRIBE_ME_LIVE=1`, set only by `createLiveServer()` while it
   loads the config) lives in `packages/vitest/src/*live*.ts`, and a test run
   never takes that path.
+- The CLI reaches `@describe-me/vitest/live` only through the project's root,
+  and `describe-me` never depends on `@describe-me/vitest`.
 - Snapshots are DOM + stylesheets via rrweb-snapshot; do not add layout or
   screenshot capture to the hot path without measuring (`bench:micro`).
 - A change in behaviour updates its docs page in the same PR.

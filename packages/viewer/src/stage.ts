@@ -1,7 +1,11 @@
+import type { ManifestTest } from '@describe-me/core/types'
 import { applyViewport } from './apply-viewport.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
 import { fontsSettled } from './fonts-settled.js'
+import { liveSession } from './live-session.js'
+import { liveShown } from './live-shown.js'
+import { paintLive } from './paint-live.js'
 import { replaySnapshot } from './replay-snapshot.js'
 import { renderStageNote } from './stage-note.js'
 import { currentTest, state } from './state.js'
@@ -64,8 +68,9 @@ function shows(slot: HTMLElement | null, shown: Shown): boolean {
 function refit(stage: HTMLElement, frames: HTMLElement): void {
   for (const slot of frames.querySelectorAll<HTMLElement>(':scope > .stage-slot')) {
     const iframe = slot.querySelector('iframe')
+    const liveHeight = slot.classList.contains('live-slot') ? liveSession.height : undefined
     if (iframe) {
-      state.scale = applyViewport(slot, iframe, stage)
+      state.scale = applyViewport(slot, iframe, stage, liveHeight)
     }
   }
 
@@ -88,6 +93,15 @@ function showEmpty(frames: HTMLElement, message: string): void {
   frames.append(el('div', { class: 'empty' }, message))
   state.scale = 1
   renderViewportControls()
+  renderStageNote(null)
+}
+
+/** Live takes the stage. A snapshot still loading must not swap in over it. */
+function showLive(stage: HTMLElement, frames: HTMLElement, test: ManifestTest): void {
+  ++paintToken
+  removeIncoming(frames)
+  paintLive(stage, frames, test)
+  refit(stage, frames)
   renderStageNote(null)
 }
 
@@ -165,9 +179,10 @@ async function swapIn(
 }
 
 /**
- * Show the current frame on the stage. A new frame is built in a hidden slot
- * next to the visible one and swapped in once its fonts load, or after 200 ms,
- * so the stage never goes blank.
+ * Show the current frame on the stage, or the test live. A new frame is built
+ * in a hidden slot next to the visible one and swapped in once its fonts load,
+ * or after 200 ms, so the stage never goes blank. Leaving Live takes the same
+ * path, and the swap removes the live slot.
  */
 export async function paintStage(): Promise<void> {
   const { stage, frames } = testView()
@@ -176,6 +191,11 @@ export async function paintStage(): Promise<void> {
   const test = currentTest()
   if (!test) {
     showEmpty(frames, 'select a test')
+    return
+  }
+
+  if (liveShown()) {
+    showLive(stage, frames, test)
     return
   }
 

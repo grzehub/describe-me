@@ -1,8 +1,34 @@
 import { el } from './el.js'
+import { liveSection } from './live-section.js'
+import { liveShown } from './live-shown.js'
 import { currentTest, state } from './state.js'
 import { valueCell } from './value-cell.js'
 
-/** The inspector's sections for one test: status, component props, current frame, errors. */
+function keyHint(): HTMLElement {
+  const hint = el(
+    'div',
+    { class: 'hint' },
+    el('kbd', {}, '←'),
+    ' ',
+    el('kbd', {}, '→'),
+    ' frames · ',
+    el('kbd', {}, '↑'),
+    ' ',
+    el('kbd', {}, '↓'),
+    ' tests',
+  )
+
+  if (state.preview.status === 'ready') {
+    hint.append(' · ', el('kbd', {}, 'L'), ' live')
+  }
+
+  return hint
+}
+
+/**
+ * The inspector's sections for one test: status, component props, the
+ * current frame or the live section, errors.
+ */
 export function renderInspector(): HTMLElement[] {
   const test = currentTest()
   if (!test) {
@@ -11,9 +37,11 @@ export function renderInspector(): HTMLElement[] {
 
   const sections: HTMLElement[] = []
 
+  const live = liveShown()
   const frame = test.frames[state.frame]
-  const props =
-    (frame?.meta?.props as Record<string, unknown> | undefined) ?? test.component?.props ?? {}
+  // A live frame has no frame meta, so it shows the props the test rendered with.
+  const frameProps = live ? undefined : (frame?.meta?.props as Record<string, unknown> | undefined)
+  const props = frameProps ?? test.component?.props ?? {}
 
   const status = el('section', {}, el('h3', {}, 'test'))
   status.append(
@@ -43,7 +71,9 @@ export function renderInspector(): HTMLElement[] {
     sections.push(el('section', {}, el('h3', {}, `component · ${test.component.name}`), table))
   }
 
-  if (frame) {
+  if (live) {
+    sections.push(liveSection())
+  } else if (frame) {
     sections.push(
       el(
         'section',
@@ -64,24 +94,7 @@ export function renderInspector(): HTMLElement[] {
     sections.push(sec)
   }
 
-  sections.push(
-    el(
-      'section',
-      {},
-      el(
-        'div',
-        { class: 'hint' },
-        el('kbd', {}, '←'),
-        ' ',
-        el('kbd', {}, '→'),
-        ' frames · ',
-        el('kbd', {}, '↑'),
-        ' ',
-        el('kbd', {}, '↓'),
-        ' tests',
-      ),
-    ),
-  )
+  sections.push(el('section', {}, keyHint()))
 
   return sections
 }

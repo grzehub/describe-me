@@ -1,6 +1,6 @@
 import type { State } from './state.js'
 
-/** The link of a view, without the `#`: the selection, the frame and the viewport size. */
+/** The link of a view, without the `#`: the selection, the frame, the viewport size and Live. */
 export function stateHash(state: State): string {
   const params = new URLSearchParams()
   if (state.suiteKey) {
@@ -21,6 +21,10 @@ export function stateHash(state: State): string {
 
   if (state.viewport.height !== null) {
     params.set('h', String(state.viewport.height))
+  }
+
+  if (state.live) {
+    params.set('live', '1')
   }
 
   return params.toString()

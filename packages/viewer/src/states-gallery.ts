@@ -4,7 +4,7 @@ import { loadSnapshot } from './data.js'
 import { el } from './el.js'
 import { fontsSettled } from './fonts-settled.js'
 import { replaySnapshot } from './replay-snapshot.js'
-import { select } from './state.js'
+import { select, state } from './state.js'
 
 /** Bumped on every gallery render, so snapshots that arrive late are dropped. */
 let galleryToken = 0
@@ -118,7 +118,11 @@ export function renderStatesGallery(tests: ManifestTest[]): HTMLElement {
         {
           class: 'tile',
           title: test.fullName,
-          click: () => select(test.id, lastIndex),
+          click: () => {
+            // A thumbnail stands for a recorded frame, so it opens that frame, not Live.
+            state.live = false
+            select(test.id, lastIndex)
+          },
         },
         thumb,
         el(

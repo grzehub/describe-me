@@ -350,12 +350,43 @@
               </tr>
               <tr id="limit-static-snapshots">
                 <td>
-                  The viewer replays recorded snapshots. It cannot mount a component live or change
-                  its props. See <a href="#roadmap">What comes next</a>.
+                  The viewer only replayed recorded snapshots and could not mount a component live.
+                  See <a href="viewer.html#live">Live</a>.
                 </td>
                 <td><span class="badge env">viewer</span></td>
-                <td>Write a test for each state you want to show.</td>
-                <td><span class="badge status-planned">planned</span></td>
+                <td>On 0.5, write a test for each state you want to show.</td>
+                <td><span class="badge status-fixed">fixed in 0.6.0</span></td>
+              </tr>
+              <tr id="limit-live-arrange-only">
+                <td>
+                  Live runs only the arrange phase of a test, so it is a fresh start, not frame N of
+                  the timeline. See <a href="writing-stories.html#live">What Live runs</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>
+                  Click and type in the frame to reach a later state, or open the recorded frame.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-live-node-only">
+                <td>
+                  Arrange code that needs Node, such as <code>node:fs</code> or
+                  <code>msw/node</code>, does not load in the browser, so Live cannot mount the
+                  test. See <a href="writing-stories.html#live">What Live runs</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>Keep the arrange phase free of Node-only code.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-live-projects">
+                <td>
+                  Live loads the root config, so a <code>test.projects</code> entry with a config of
+                  its own runs with the plugins and aliases of the root config. See
+                  <a href="how-it-works.html#live-preview">The live preview</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>Put the plugins and aliases the components need in the root config.</td>
+                <td><span class="badge status-open">open</span></td>
               </tr>
               <tr id="limit-site-from-disk">
                 <td>
@@ -466,8 +497,13 @@
         </h2>
 
         <p>
-          The viewer replays <a href="#limit-static-snapshots">recorded snapshots</a>. It does not
-          run your components. A built site <a href="#limit-site-from-disk">needs HTTP</a>. A
+          The viewer replays recorded snapshots, and up to 0.5 it could not
+          <a href="#limit-static-snapshots">run your components</a>.
+          <a href="viewer.html#live">Live</a> in <code>describe-me dev</code> mounts one test for
+          real, but it runs <a href="#limit-live-arrange-only">only the arrange phase</a>,
+          <a href="#limit-live-node-only">no code that needs Node</a> and
+          <a href="#limit-live-projects">only the root config</a>. A built site
+          <a href="#limit-site-from-disk">needs HTTP</a>. A
           <a href="#limit-old-viewer">0.4 viewer</a> cannot read 0.5 data, and links to a test
           <a href="#limit-test-id-rename">break when it is renamed</a>.
           <a href="viewer.html#hosting">Viewer and CLI</a> has the details.

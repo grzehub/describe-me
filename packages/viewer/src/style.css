@@ -1042,3 +1042,110 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ----------------------------------------------------------------- live -- */
+
+/* The first button of the toolbar's segment, set apart from the sizes by a rule. */
+.crumbs .tools .live-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 7px;
+}
+.crumbs .tools .live-toggle::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: -5px;
+  bottom: 4px;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+/* The rule above sets `display`, so `hidden` needs its own. */
+.crumbs .tools .live-toggle[hidden] {
+  display: none;
+}
+.crumbs .tools .live-toggle::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+.crumbs .tools .live-toggle.on {
+  color: var(--accent);
+}
+.crumbs .tools .live-toggle.on::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--tint-strong);
+}
+.crumbs .tools .live-toggle[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.crumbs .tools .live-toggle[aria-disabled='true']:hover {
+  color: var(--ink-3);
+}
+/* The accent ring tells a live frame from a recorded one. */
+.stage-slot.live-slot {
+  box-shadow:
+    0 0 0 2px var(--ring),
+    var(--shadow-md);
+}
+.live-section h4 {
+  margin: 14px 0 6px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.live-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 500;
+}
+.live-section .err {
+  margin-top: 8px;
+}
+.live-restart {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--raised);
+  color: var(--ink-2);
+  font-size: 11.5px;
+}
+.live-restart:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.live-actions {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 0 22px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-word;
+}
+.live-actions li::marker {
+  color: var(--ink-3);
+}
+.live-notice {
+  margin-top: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--warn);
+  color: var(--ink-2);
+}

@@ -48,6 +48,7 @@ export const sections = {
     'async',
     'naming',
     'props',
+    'live',
     'tips',
   ],
   'styles-and-fonts.html': [
@@ -66,12 +67,13 @@ export const sections = {
     'search',
     'keyboard',
     'viewport',
+    'live',
     'links',
     'overview',
     'issues',
     'hosting',
   ],
-  'troubleshooting.html': ['diagnostics', 'warnings', 'symptoms', 'report'],
+  'troubleshooting.html': ['diagnostics', 'warnings', 'symptoms', 'live', 'report'],
   'api.html': ['vitest', 'react', 'core', 'cli'],
   'how-it-works.html': [
     'architecture',

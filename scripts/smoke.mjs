@@ -48,7 +48,10 @@
  * Both manifests must name the config file of their run, and `live.mjs`
  * starts `createLiveServer()` on each of the two configs. The live page of the
  * test `Hello > greets and counts waves` must mount in both, and a click on its
- * button must count the wave.
+ * button must count the wave. Then `describe-me dev` runs from the tarballs
+ * on each data directory: its `__live.json` must say `ready`, and the same
+ * test must mount through it and count a click. This proves that the CLI
+ * finds the project and its config file from the manifest.
  * The version guard is checked three ways: the packed packages peer on each
  * other at this release, both manifests name `@describe-me/vitest` and its
  * version as their `generator`, and a jsdom run whose setup file plants a
@@ -1285,17 +1288,27 @@ export default defineConfig({
 /**
  * `live.mjs` mounts the Hello test of each environment through
  * `createLiveServer()` from the installed packages, opens its live page
- * directly and counts a real click.
+ * directly and counts a real click. Then it does the same through
+ * `describe-me dev` on each data directory, whose `__live.json` must say
+ * `ready`. Vite closes its dev server when stdin ends, and `CI=1` does not
+ * stop that, so stdin stays piped and open.
  */
 function scaffoldLive() {
   writeFileSync(
     join(app, 'live.mjs'),
-    `import { chromium } from 'playwright'
+    `import { spawn } from 'node:child_process'
+import { createServer } from 'node:net'
+import { chromium } from 'playwright'
 import { createLiveServer } from '@describe-me/vitest/live'
 
 const cases = [
   { configFile: 'vitest.config.ts', file: 'src/Hello.test.tsx' },
   { configFile: 'vitest.dom.config.ts', file: 'dom/Hello.test.tsx' },
+]
+
+const devCases = [
+  { data: '.describe-me', file: 'src/Hello.test.tsx' },
+  { data: '.describe-me-dom', file: 'dom/Hello.test.tsx' },
 ]
 
 const path = JSON.stringify(['Hello', 'greets and counts waves'])
@@ -1317,6 +1330,73 @@ async function mountAndClick(page, base, file) {
   await page.getByRole('button', { name: 'waved 1 times' }).waitFor({ timeout: 5_000 })
 }
 
+function freePort() {
+  const server = createServer()
+
+  return new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, 'localhost', () => {
+      const { port } = server.address()
+
+      server.close(() => resolve(port))
+    })
+  })
+}
+
+async function startDev(data) {
+  const port = await freePort()
+  const child = spawn(
+    process.execPath,
+    ['node_modules/describe-me/bin/describe-me.js', 'dev', '--data', data, '--port', String(port)],
+    { stdio: ['pipe', 'pipe', 'pipe'] },
+  )
+
+  const chunks = []
+
+  child.stdout.on('data', (chunk) => chunks.push(chunk))
+  child.stderr.on('data', (chunk) => chunks.push(chunk))
+
+  return { child, data, url: \`http://localhost:\${port}/\`, output: () => Buffer.concat(chunks).toString('utf8') }
+}
+
+async function waitForReady(dev) {
+  const deadline = Date.now() + 60_000
+  let last = null
+
+  while (Date.now() < deadline && dev.child.exitCode === null) {
+    try {
+      const response = await fetch(new URL('__live.json', dev.url))
+
+      last = response.ok ? await response.json() : last
+
+      if (last !== null && last.status !== 'starting') {
+        break
+      }
+    } catch {
+      // The viewer is not listening yet.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+
+  if (last?.status !== 'ready') {
+    throw new Error(\`live: describe-me dev --data \${dev.data} says \${JSON.stringify(last)}:\\n\${dev.output()}\`)
+  }
+
+  return last.base
+}
+
+async function stopDev(dev) {
+  if (dev.child.exitCode !== null || dev.child.signalCode !== null) {
+    return
+  }
+
+  const exited = new Promise((resolve) => dev.child.once('exit', resolve))
+
+  dev.child.kill('SIGTERM')
+  await exited
+}
+
 try {
   for (const { configFile, file } of cases) {
     const server = await createLiveServer({ root: process.cwd(), configFile })
@@ -1326,6 +1406,17 @@ try {
       console.log(\`live: \${file} mounted with \${configFile} and counted a click\`)
     } finally {
       await server.close()
+    }
+  }
+
+  for (const { data, file } of devCases) {
+    const dev = await startDev(data)
+
+    try {
+      await mountAndClick(await browser.newPage(), await waitForReady(dev), file)
+      console.log(\`live: describe-me dev on \${data} mounted \${file}\`)
+    } finally {
+      await stopDev(dev)
     }
   }
 } finally {

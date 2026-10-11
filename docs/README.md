@@ -126,7 +126,7 @@ Cards in a grid, and a card that opens an example viewer (with an arrow):
   >
   <a class="card viewer" href="examples/react-browser/"
     ><h3>Browser mode</h3>
-    <p>The live viewer.</p></a
+    <p>The example's viewer.</p></a
   >
 </div>
 ```
@@ -226,6 +226,7 @@ flag:
 | `version-<slug>`               | installation.html    | supported versions: the package name without `@`, `/` turned into `-` (`testing-library-react`), and `version-node`                                                |
 | `cmd-<command>`, `flag-<flag>` | viewer.html          | CLI commands and flags (`flag-no-vendor-fonts` for the negated one)                                                                                                |
 | `diag-<key>`                   | troubleshooting.html | every key of `ManifestDiagnostics`                                                                                                                                 |
+| `live-<status>`                | troubleshooting.html | every member of `LiveStatus`                                                                                                                                       |
 | `entry-<pkg>[-<subpath>]`      | api.html             | entry points: `pkg` is `vitest`, `react`, `core`, or `cli` for the `describe-me` package. The subpath without `./`, `/` turned into `-` (`entry-vitest-setup-dom`) |
 | `manifest-<field>`             | how-it-works.html    | every field of `manifest.json`                                                                                                                                     |
 | `limit-<slug>`                 | limitations.html     | every known limitation                                                                                                                                             |
@@ -235,7 +236,9 @@ flag:
 A link can open one test of an example viewer, at a frame and a viewport
 size. The view sits after `#` as URL parameters: `test` (the 12-character id
 of a test), `frame` (from 0), `suite` (`<module>::<suite path joined with
-' > '>`, which opens the component overview instead), `w` and `h` in pixels.
+' > '>`, which opens the component overview instead), `w` and `h` in pixels,
+and `live=1`, which opens the test in Live and needs `test`. The example
+viewers are static sites without Live, so no page links them with `live=1`.
 In HTML, write `&` as `&amp;`:
 
 ```html
@@ -248,10 +251,10 @@ exact match it lists names that contain the text.
 
 `pnpm check-docs` reads both examples' manifests and checks that the test
 exists and the viewer shows it, that the frame exists, that the suite names a
-module and a suite of it, that `w` is 1 to 10000 and `h` 120 to 10000, and
-that there are no other parameters. Run both examples' tests first. Test ids
-are stable across machines, so a link breaks only when its test is renamed or
-moved. Link to a viewer with the trailing slash: `examples/react-jsdom/`.
+module and a suite of it, that `w` is 1 to 10000 and `h` 120 to 10000, that
+`live` is `1` next to a `test`, and that there are no other parameters. Run
+both examples' tests first. Test ids are stable across machines, so a link
+breaks only when its test is renamed or moved. Link to a viewer with the trailing slash: `examples/react-jsdom/`.
 
 ## Stubs
 
@@ -284,7 +287,10 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
   records a frame.
 - `links.mjs`: relative links point at a page, `docs.css`, `favicon.svg` or an
   example viewer, fragments at ids of their target, SVG references at ids of
-  their page, and deep links at tests, frames and suites of the manifests.
+  their page, and deep links at tests, frames and suites of the manifests. A
+  deep link has `live` only as `live=1`, and only with a `test`.
+- `live-statuses.mjs`: `troubleshooting.html#live` has a `live-*` element for
+  every member of `LiveStatus`, and every `live-` id on the page names one.
 - `manifest-fields.mjs`: `how-it-works.html#manifest` has a `manifest-*` row
   for every field of `manifest.json`.
 - `options.mjs`: `configuration.html` has an `option-*` row for every option
