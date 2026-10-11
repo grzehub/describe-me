@@ -1,5 +1,27 @@
 # @describe-me/core
 
+## 0.6.0
+
+### Minor Changes
+
+- [#70](https://github.com/grzehub/describe-me/pull/70) [`fdb8a2b`](https://github.com/grzehub/describe-me/commit/fdb8a2bb79651478b98b602a71564fd9001109e4) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Live preview runtime. `createLiveServer({ root, configFile?, port? })` from the new `@describe-me/vitest/live` starts a second Vite dev server on the project's own Vitest config. Its page imports one test file in the browser, with `vitest`, the render modules, `vitest/browser` and `@describe-me/vitest` swapped for shims. It runs the test's `beforeAll` and `beforeEach` hooks and its body, and stops at the first render. The component stays mounted and live, and nothing after the render runs.
+
+  - New entry points, used by the live preview and not for import in tests: `@describe-me/core/live`, `@describe-me/vitest/live-runtime`, `@describe-me/react/live` and `@describe-me/react/live-testing-library`.
+  - `@describe-me/core/types` adds `LiveStatus`, `LiveReport`, `LiveMessage`, `LIVE_MESSAGE_SOURCE` and `LIVE_PROTOCOL`.
+  - `describeMe()` exposes `api.live.protocol`. While `createLiveServer()` loads the config, it adds no setup file, reporter or recording redirect and serves the live page instead. Test runs do not change.
+  - The manifest has a new field, `configFile`: the config file of the run, relative to `root`.
+  - `@describe-me/react` peers on `react-dom` `^18.0.0 || ^19.0.0`.
+
+- [#73](https://github.com/grzehub/describe-me/pull/73) [`39ede6d`](https://github.com/grzehub/describe-me/commit/39ede6dcf0569c7245acc231cfa27330aa968e38) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Live preview of setup files and fixtures. The live page imports the project's `test.setupFiles` before the test file, under the same shims, and their hooks run as in Vitest. It computes the `test.extend` fixtures a test uses, without their teardown. It runs `aroundEach` and `aroundAll` around the rest of the arrange phase, and names `each` and `for` rows the way the installed Vitest does.
+
+  - `describeMe({ live })`: `live: { setupFiles }` replaces `test.setupFiles` for the live preview, for a setup file that needs Node such as MSW's `setupServer`. `live: false` switches the preview off for the project. Test runs ignore the option.
+  - `LiveStatus` adds `setup-failed`: a setup file did not load in the browser. The detail names the file.
+  - `vi.mock` and `vi.doMock` still do nothing live. The page posts a `notice` that names the module, and the inspector lists it.
+  - A package that imports `vitest`, such as `@testing-library/jest-dom/vitest`, gets the shim too.
+  - The plugin exposes `api.live.enabled`. With `live: false`, `createLiveServer()` rejects with the code `DESCRIBE_ME_LIVE_OFF`, and `describe-me dev` reports the preview as off and hides the Live toggle.
+  - `LivePageOptions` of `@describe-me/vitest/live-runtime` takes `setupFiles` and `vitestMajor`.
+  - The recording hooks destructure the test context, so a test from `test.extend` no longer fails in Vitest with "The 1st argument inside a fixture must use object destructuring pattern".
+
 ## 0.5.4
 
 ### Patch Changes
