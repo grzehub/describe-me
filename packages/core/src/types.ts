@@ -140,6 +140,8 @@ export interface ManifestTest {
   /** suite names from outermost to innermost */
   path: string[]
   fullName: string
+  /** Vitest tags, its own and inherited, when it has any. Absent in manifests written before 0.7. */
+  tags?: string[]
   state: TestState
   duration?: number
   errors?: { message: string; stack?: string }[]

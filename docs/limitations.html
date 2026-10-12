@@ -120,6 +120,19 @@
                 <td>Make the tests you want in the docs sequential.</td>
                 <td><span class="badge status-by-design">by design</span></td>
               </tr>
+              <tr id="limit-stories-vitest">
+                <td>
+                  <code>stories: 'tagged'</code> needs test tags, which arrived in Vitest 4.1. On
+                  4.0 it throws before any test runs. See
+                  <a href="configuration.html#stories">Which tests become stories</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  Upgrade to Vitest 4.1, or keep <code>stories: 'all'</code> and pick files with
+                  <code>include</code>.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
               <tr id="limit-pseudo-classes">
                 <td>
                   States such as <code>:hover</code> or <code>:focus-visible</code> are not part of

@@ -3,11 +3,13 @@ import { META_KEY, recorder } from '@describe-me/core'
 import type { AroundWait } from '@describe-me/core'
 import { fileFilter } from './file-filter.js'
 import type { RuntimeOptions } from './runtime-options.js'
+import { tagFilter } from './tag-filter.js'
 
 /**
  * The per-test lifecycle shared by every environment: begin a recording, take
  * a deferred render frame or else the closing frame, hand the frames to the
- * reporter via task.meta, and only then let adapters unmount. Teardown runs
+ * reporter via task.meta, and only then let adapters unmount. Which tests
+ * record follows the file globs and then the test's tags. Teardown runs
  * for unrecorded tests too, because Testing Library's auto-cleanup is off in
  * jsdom. Concurrent tests would share the one recorder, so they are not
  * recorded. The hooks destructure the context, because Vitest rejects any
@@ -15,6 +17,7 @@ import type { RuntimeOptions } from './runtime-options.js'
  */
 export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: AroundWait): void {
   const isRecordedFile = fileFilter(options)
+  const isRecordedTags = tagFilter(options.stories)
   let warnedConcurrent = false
 
   recorder.configure({ renderFrame: options.renderFrame, aroundWait })
@@ -29,7 +32,8 @@ export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: Aro
       return
     }
 
-    if (isRecordedFile(task.file.name)) {
+    // Vitest before 4.1 has no tags, so every test counts as untagged.
+    if (isRecordedFile(task.file.name) && isRecordedTags(task.tags ?? [])) {
       recorder.begin()
     }
   })

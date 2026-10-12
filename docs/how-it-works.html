@@ -754,7 +754,8 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             occurrence. It stays the same across runs and machines. <code>vitestId</code> is
             Vitest's own id in the run that recorded it, absent before 0.5. Then <code>name</code>,
             <code>path</code> (the suite names, outermost first), <code>fullName</code>,
-            <code>state</code>, <code>duration</code>, <code>errors</code>,
+            <code>tags</code> (its Vitest tags, own and inherited, when it has any, absent before
+            0.7), <code>state</code>, <code>duration</code>, <code>errors</code>,
             <code>component</code> (name, props and source file) and <code>frames</code>.
           </li>
           <li>

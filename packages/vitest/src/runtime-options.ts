@@ -6,6 +6,7 @@
  */
 
 import type { RenderFrameMode } from '@describe-me/core/types'
+import type { StoriesMode } from './stories-mode.js'
 
 export interface CompiledGlob {
   source: string
@@ -21,6 +22,7 @@ export interface RuntimeOptions {
   /** Wins over `include`. */
   exclude: CompiledGlob[]
   renderFrame: RenderFrameMode
+  stories: StoriesMode
 }
 
 export const RUNTIME_OPTIONS_KEY = 'describe-me' as const

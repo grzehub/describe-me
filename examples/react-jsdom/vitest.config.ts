@@ -73,6 +73,30 @@ function testProjects() {
   }
 }
 
+// STORIES=all|tagged runs the fixtures of `pnpm check-stories` in stories/,
+// with that `stories` option and an output directory of their own.
+const stories = process.env.STORIES || null
+const storiesModes = ['all', 'tagged']
+
+if (stories !== null && !storiesModes.includes(stories)) {
+  throw new Error(`STORIES: unknown value "${stories}", expected ${storiesModes.join(', ')}`)
+}
+
+if (stories !== null && (liveFixtures !== null || actParity || process.env.BENCH_MICRO)) {
+  throw new Error('STORIES does not work with LIVE_FIXTURES, ACT_PARITY or BENCH_MICRO')
+}
+
+function storiesOptions(): DescribeMeOptions {
+  if (stories === null) {
+    return {}
+  }
+
+  return {
+    outDir: 'node_modules/.describe-me-stories',
+    stories: stories as DescribeMeOptions['stories'],
+  }
+}
+
 // A package entry covers the setup files that are bare specifiers.
 const fixtureSetupFiles = [
   './live-fixtures/setup.ts',
@@ -131,6 +155,10 @@ function testFiles(): string[] {
   // only the projects name files.
   if (projects !== null) {
     return []
+  }
+
+  if (stories !== null) {
+    return ['stories/**/*.test.tsx']
   }
 
   if (process.env.BENCH_MICRO) {
@@ -201,6 +229,7 @@ export default defineConfig({
       ...benchOptions(),
       ...liveFixtureOptions(),
       ...projectOptions(),
+      ...storiesOptions(),
     }),
   ],
   test: {
