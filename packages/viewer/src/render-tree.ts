@@ -4,6 +4,7 @@ import { regions } from './regions.js'
 import { renderSidebar } from './sidebar.js'
 import { currentTest, state } from './state.js'
 import { suiteKey } from './suite-key.js'
+import { tagFilterBar } from './tag-filter-bar.js'
 
 let revealed: string | null = null
 
@@ -20,12 +21,12 @@ function expandPathTo(test: ManifestTest): void {
 }
 
 /**
- * Fill the sidebar's tree. A test selected since the last reveal gets its
+ * Fill the sidebar's tree and the tag filter above it. A test selected since the last reveal gets its
  * module and suites opened and its row scrolled into view. A refresh that
  * keeps the test leaves the sidebar's scroll alone.
  */
 export function renderTree(): void {
-  const { tree } = regions()
+  const { tagFilter, tree } = regions()
   const test = state.suiteKey ? null : currentTest()
   const reveal = test !== null && test.id !== revealed
 
@@ -39,6 +40,8 @@ export function renderTree(): void {
     revealed = test.id
   }
 
+  tagFilter.replaceChildren(...tagFilterBar())
+  tagFilter.hidden = state.tag === null
   tree.replaceChildren(...renderSidebar(renderTree))
 
   if (reveal) {

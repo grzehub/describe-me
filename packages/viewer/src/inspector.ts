@@ -2,6 +2,7 @@ import { el } from './el.js'
 import { liveSection } from './live-section.js'
 import { liveShown } from './live-shown.js'
 import { currentTest, state } from './state.js'
+import { tagButtons } from './tag-buttons.js'
 import { valueCell } from './value-cell.js'
 
 function keyHint(): HTMLElement {
@@ -26,8 +27,8 @@ function keyHint(): HTMLElement {
 }
 
 /**
- * The inspector's sections for one test: status, component props, the
- * current frame or the live section, errors.
+ * The inspector's sections for one test: status and tags, component props,
+ * the current frame or the live section, errors.
  */
 export function renderInspector(): HTMLElement[] {
   const test = currentTest()
@@ -55,6 +56,11 @@ export function renderInspector(): HTMLElement[] {
         : null,
     ),
   )
+
+  const tags = tagButtons(test)
+  if (tags) {
+    status.append(tags)
+  }
 
   sections.push(status)
 

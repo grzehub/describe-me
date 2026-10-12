@@ -61,6 +61,8 @@ export default defineConfig({
   ],
   test: {
     include: testFiles(),
+    // A tag of the project's own, which the viewer shows and filters by.
+    tags: [{ name: 'forms', description: 'form controls' }],
     ...(liveFixtures ? { setupFiles: ['./live-fixtures/setup.ts'] } : {}),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
     browser: {

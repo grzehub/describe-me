@@ -7,7 +7,10 @@
  * `ready` with the base `__live/`, and `L` mounts a test in a live frame
  * without a sandbox, on the site's own origin. In react-browser a click on
  * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
- * inspector. No request to the site may fail and the page may throw no error.
+ * inspector. In react-browser the tag `forms` shows on its tests, the search
+ * finds them by it, `#tag=forms` and a click on the tag in the inspector narrow
+ * the sidebar to them, and × shows every test again. No request to the site
+ * may fail and the page may throw no error.
  * Remote requests are answered locally, so remote fonts never decide the
  * result. Run after `pnpm site:build`.
  *
@@ -47,6 +50,9 @@ const LIVE_TESTS = {
   'react-browser': { fullName: 'Menu > selects an item and reports it', act: selectsRename },
   'react-jsdom': { fullName: 'Heading > takes its colour from the theme' },
 }
+
+/** The example whose tests carry a tag of the project's own, and that tag. */
+const TAGGED = { name: 'react-browser', tag: 'forms' }
 
 function errorMessage(error) {
   return error instanceof Error ? error.message.split('\n')[0] : String(error)
@@ -138,6 +144,103 @@ async function checkViewer(context, url, name) {
     }
 
     console.log(`check-site: examples/${name}/ shows ${expected} tests`)
+
+    return []
+  } finally {
+    await page.close()
+  }
+}
+
+async function rowCount(page) {
+  return page.locator('.tree .test').count()
+}
+
+/** Whether the sidebar settles on `count` rows. The viewer repaints after the event that changed it. */
+async function showsRows(page, count) {
+  return page
+    .waitForFunction((rows) => document.querySelectorAll('.tree .test').length === rows, count, {
+      timeout: 5_000,
+    })
+    .then(() => true)
+    .catch(() => false)
+}
+
+/** The steps of the tag check, each returning a problem or `null`. */
+async function tagSteps(page, url, tagged, total) {
+  const { name, tag } = TAGGED
+  const rows = page.locator('.tree .test', {
+    has: page.locator('.test-tags .tag', { hasText: tag }),
+  })
+
+  if ((await rows.count()) !== tagged) {
+    return `${await rows.count()} rows show the tag ${tag}, the manifest has ${tagged}`
+  }
+
+  await page.locator('.sidebar-search').fill(tag)
+
+  if (!(await showsRows(page, tagged))) {
+    return `searching "${tag}" shows ${await rowCount(page)} tests, expected ${tagged}`
+  }
+
+  await page.locator('.sidebar-search').fill('')
+
+  // Without the wait the debounced search would still narrow the list below.
+  if (!(await showsRows(page, total))) {
+    return `clearing the search shows ${await rowCount(page)} tests, expected ${total}`
+  }
+
+  await page.goto(`${url}examples/${name}/#tag=${tag}`)
+  await page.locator('.tag-filter').waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  if (!(await showsRows(page, tagged))) {
+    return `#tag=${tag} shows ${await rowCount(page)} tests, expected ${tagged}`
+  }
+
+  await page.locator('.tag-filter-clear').click()
+
+  if (!(await showsRows(page, total)) || page.url().includes('tag=')) {
+    return `× left ${await rowCount(page)} tests and the link ${page.url().slice(url.length)}`
+  }
+
+  await rows.first().click()
+  await page.locator('.inspector .tags button.tag', { hasText: tag }).click()
+
+  if (!(await showsRows(page, tagged)) || !page.url().includes(`tag=${tag}`)) {
+    return `the tag in the inspector shows ${await rowCount(page)} tests, link ${page.url().slice(url.length)}`
+  }
+
+  return null
+}
+
+async function checkTags(context, url) {
+  const { name, tag } = TAGGED
+  const manifest = readSiteManifest(name)
+  const shown = shownTests(manifest)
+  const tagged = shown.filter((test) => test.tags?.includes(tag)).length
+
+  if (tagged === 0) {
+    return [`examples/${name}/: no test of the manifest is tagged ${tag}`]
+  }
+
+  const page = await context.newPage()
+  const failures = []
+
+  page.on('pageerror', (error) => failures.push(errorMessage(error)))
+
+  try {
+    await page.goto(`${url}examples/${name}/`)
+    await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
+
+    const problem = await tagSteps(page, url, tagged, shown.length)
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `examples/${name}/ tags: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ shows and filters by the tag ${tag} (${tagged} tests)`,
+    )
 
     return []
   } finally {
@@ -301,6 +404,8 @@ try {
     problems.push(...(await checkViewer(context, url, name)))
   }
 
+  problems.push(...(await checkTags(context, url)))
+
   for (const name of exampleNames) {
     problems.push(...(await checkLive(browser, url, name)))
   }
@@ -321,5 +426,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests and mount one in Live`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag and mount one in Live`,
 )

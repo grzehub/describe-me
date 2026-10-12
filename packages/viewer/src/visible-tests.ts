@@ -1,6 +1,7 @@
 import type { ManifestTest } from '@describe-me/core/types'
 import { CollapsedSuites } from './collapsed-suites.js'
-import { matchesQuery } from './matches-query.js'
+import { filterActive } from './filter-active.js'
+import { matchesFilter } from './matches-filter.js'
 import { soleSuite } from './sole-suite.js'
 import { state } from './state.js'
 import { suiteKey } from './suite-key.js'
@@ -15,7 +16,7 @@ function collect(
 ): void {
   for (const child of node.children) {
     if (!('suites' in child)) {
-      if (matchesQuery(child, moduleId, state.query)) {
+      if (matchesFilter(child, moduleId)) {
         into.push(child)
       }
 
@@ -30,8 +31,8 @@ function collect(
 }
 
 /**
- * The tests the sidebar shows, in its order, after the search and the
- * collapsed suites. It walks the same tree by the same rules as the sidebar.
+ * The tests the sidebar shows, in its order, after the search, the tag filter
+ * and the collapsed suites. It walks the same tree by the same rules as the sidebar.
  */
 export function visibleTests(): ManifestTest[] {
   const manifest = state.manifest
@@ -39,8 +40,8 @@ export function visibleTests(): ManifestTest[] {
     return []
   }
 
-  // A search shows every match, collapsed or not.
-  const collapsed = state.query.trim() ? null : CollapsedSuites.for(manifest.root)
+  // A search or a tag shows every match, collapsed or not.
+  const collapsed = filterActive() ? null : CollapsedSuites.for(manifest.root)
   const tests: ManifestTest[] = []
 
   for (const mod of manifest.modules) {
