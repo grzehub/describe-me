@@ -29,6 +29,44 @@ if (liveFixtures !== null && (actParity || process.env.BENCH_MICRO)) {
   throw new Error('LIVE_FIXTURES does not work with ACT_PARITY or BENCH_MICRO')
 }
 
+// PROJECTS=1 runs src/ and projects/ as two inline projects, which in Vitest 5
+// share the root's Vite server: `components` extends the root config and
+// `plain` does not. It writes to an output directory of its own, for
+// `pnpm check-projects`.
+const projects = process.env.PROJECTS || null
+
+if (projects !== null && projects !== '1') {
+  throw new Error(`PROJECTS: unknown value "${projects}", expected 1`)
+}
+
+if (projects !== null && (liveFixtures !== null || actParity || process.env.BENCH_MICRO)) {
+  throw new Error('PROJECTS does not work with LIVE_FIXTURES, ACT_PARITY or BENCH_MICRO')
+}
+
+function projectOptions(): DescribeMeOptions {
+  return projects === null ? {} : { outDir: 'node_modules/.describe-me-projects' }
+}
+
+function testProjects() {
+  if (projects === null) {
+    return {}
+  }
+
+  return {
+    projects: [
+      { extends: true, test: { name: 'components', include: ['src/**/*.test.tsx'] } },
+      {
+        test: {
+          name: 'plain',
+          environment: 'jsdom',
+          globals: true,
+          include: ['projects/**/*.test.tsx'],
+        },
+      },
+    ],
+  }
+}
+
 // A package entry covers the setup files that are bare specifiers.
 const fixtureSetupFiles = [
   './live-fixtures/setup.ts',
@@ -81,6 +119,12 @@ function testFiles(): string[] {
 
   if (actParity) {
     return ['act-parity/**/*.test.tsx']
+  }
+
+  // Vitest 5 merges the root's `include` into inline projects, even those that
+  // do not extend the root config, so the projects name their own files.
+  if (projects !== null) {
+    return []
   }
 
   if (process.env.BENCH_MICRO) {
@@ -150,6 +194,7 @@ export default defineConfig({
       renderFrame: renderFrame(),
       ...benchOptions(),
       ...liveFixtureOptions(),
+      ...projectOptions(),
     }),
   ],
   test: {
@@ -158,6 +203,7 @@ export default defineConfig({
     ...setupFiles(),
     globals: true,
     include: testFiles(),
+    ...testProjects(),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
   },
 })

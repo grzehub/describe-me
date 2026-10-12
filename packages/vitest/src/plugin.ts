@@ -1,6 +1,7 @@
 import type { ViteUserConfig } from 'vitest/config'
 import { LIVE_PROTOCOL, type RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
+import { addSetupFile } from './add-setup-file.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
 import { defaultReporters } from './default-reporters.js'
@@ -98,6 +99,8 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   // Set by `config()`, which Vite runs before `configResolved` and `resolveId`.
   // Stays null while the plugin is disabled.
   let renderModule: RenderModule | null = null
+  // The profile's setup file, also set by `config()`, for the projects that skip it.
+  let setupFile: string | null = null
   // Known once Vite has resolved its config. Vitest always serves; a production
   // build that shares the config must not carry the export registration.
   let root = ''
@@ -130,6 +133,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
       const profile = await loadProfile(environment)
       renderModule = profile.renderModules[framework]
+      setupFile = profile.setupFile
       const { config, setupWarnings } = profile.configFor({ userConfig, options, renderModule })
 
       const reporter = new DescribeMeReporter({
@@ -148,6 +152,14 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       return {
         ...config,
         test: { setupFiles: [profile.setupFile], ...config.test, reporters, provide },
+      }
+    },
+
+    // Runs for every project the plugin's Vite server serves, also those that
+    // share the root's server and so never reach `config()` (see addSetupFile).
+    configureVitest({ project }) {
+      if (setupFile !== null) {
+        addSetupFile(project, setupFile)
       }
     },
 

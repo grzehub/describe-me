@@ -160,6 +160,40 @@
                 </td>
                 <td><span class="badge status-open">open</span></td>
               </tr>
+              <tr id="limit-projects-shared-server">
+                <td>
+                  In Vitest 5, inline <code>test.projects</code> entries share the root's Vite
+                  server and did not get describe-me's setup file. Their tests recorded nothing and
+                  left every component mounted for the next test. See
+                  <a href="installation.html#monorepos">Monorepos and projects</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  On 0.6.0, set <code>test.sharedViteServer: false</code> in the root config, or
+                  upgrade all packages.
+                </td>
+                <td><span class="badge status-fixed">fixed in 0.6.1</span></td>
+              </tr>
+              <tr id="limit-projects-same-file">
+                <td>
+                  A test file that two projects run is one module in the manifest, so the project
+                  that finishes last decides its stories. See
+                  <a href="installation.html#monorepos">Monorepos and projects</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Give each project its own test files.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-projects-plugin">
+                <td>
+                  <code>describeMe()</code> in the <code>plugins</code> of a project, and not in the
+                  root config, writes no manifest, because Vitest runs only the root config's
+                  reporters. See <a href="installation.html#monorepos">Monorepos and projects</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Add <code>describeMe()</code> to the root config.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
               <tr id="limit-filtered-run">
                 <td>
                   A test skipped in a filtered run (<code>-t</code>, <code>.only</code>,
