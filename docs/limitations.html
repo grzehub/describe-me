@@ -122,8 +122,10 @@
               </tr>
               <tr id="limit-stories-vitest">
                 <td>
-                  <code>stories: 'tagged'</code> needs test tags, which arrived in Vitest 4.1. On
-                  4.0 it throws before any test runs. See
+                  <code>stories: 'tagged'</code> and <code>no-docs</code> need test tags, which
+                  arrived in Vitest 4.1. On 4.0 <code>stories: 'tagged'</code> throws before any
+                  test runs, and a test tagged <code>no-docs</code> still becomes a story, because
+                  4.0 ignores tags. See
                   <a href="configuration.html#stories">Which tests become stories</a>.
                 </td>
                 <td><span class="badge env">both</span></td>

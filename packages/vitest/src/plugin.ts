@@ -67,7 +67,7 @@ export interface DescribeMeOptions {
    * Which tests of the recorded files become stories. `'all'` records every
    * test, `'tagged'` only those tagged `docs`, on the test, a `describe` or the
    * file (`@module-tag docs`). A `no-docs` tag leaves a test out in both modes.
-   * The plugin defines both tags. `'tagged'` needs Vitest 4.1. Default: `'all'`.
+   * The plugin defines both tags, which need Vitest 4.1. Default: `'all'`.
    */
   stories?: StoriesMode
   /**

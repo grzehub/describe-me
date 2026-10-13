@@ -520,9 +520,10 @@ import { expect, it } from 'vitest'</code></pre>
           <code>stories</code> no longer selects. The manifest stores each test's tags for that.
         </p>
         <p>
-          The plugin defines both tags in <code>test.tags</code>. Tags arrived in Vitest 4.1. On
-          Vitest 4.0, <code>stories: 'all'</code> records as before, and
-          <code>stories: 'tagged'</code> throws before any test runs:
+          The plugin defines both tags in <code>test.tags</code>. Tags arrived in Vitest 4.1. Vitest
+          4.0 ignores them, so there <code>stories: 'all'</code> records every test as before, also
+          one tagged <code>no-docs</code>, and <code>stories: 'tagged'</code> throws before any test
+          runs:
         </p>
         <pre>
 describe-me: stories: 'tagged' needs test tags, which arrived in Vitest 4.1. This project resolves Vitest 4.0.</pre>
