@@ -21,9 +21,9 @@ function expandPathTo(test: ManifestTest): void {
 }
 
 /**
- * Fill the sidebar's tree and the tag filter above it. A test selected since the last reveal gets its
- * module and suites opened and its row scrolled into view. A refresh that
- * keeps the test leaves the sidebar's scroll alone.
+ * Fill the sidebar's tree and the tag filter above it. A test selected since
+ * the last reveal gets its module and suites opened and its row scrolled into
+ * view. A refresh that keeps the test leaves the sidebar's scroll alone.
  */
 export function renderTree(): void {
   const { tagFilter, tree } = regions()
