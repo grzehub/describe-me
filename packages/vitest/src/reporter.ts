@@ -69,6 +69,14 @@ function recordOf(tc: TestCase): TestRecord | undefined {
   return (tc.meta() as Record<string, unknown>)[META_KEY] as TestRecord | undefined
 }
 
+/** The test's tags for the manifest, where `undefined` leaves them out of the JSON. */
+function tagsOf(tc: TestCase): string[] | undefined {
+  // Vitest before 4.1 has no tags.
+  const tags = tc.tags ?? []
+
+  return tags.length > 0 ? tags : undefined
+}
+
 export default class DescribeMeReporter implements Reporter {
   private readonly outDirOption: string
   private readonly isRecordedFile: (fileName: string) => boolean
@@ -178,8 +186,8 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   /**
-   * A test skipped in this run keeps its previous entry, so a filtered run does
-   * not erase documentation.
+   * A test skipped in this run keeps its previous entry with its current tags,
+   * so a filtered run does not erase documentation.
    */
   onTestModuleEnd(module: TestModule): void {
     const id = relative(this.root, module.moduleId)
@@ -314,12 +322,19 @@ export default class DescribeMeReporter implements Reporter {
       return undefined
     }
 
-    return previous?.tests.find((test) => test.id === stableId && isRecordedTest(test))
+    const kept = previous?.tests.find((test) => test.id === stableId && isRecordedTest(test))
+
+    if (kept === undefined) {
+      return undefined
+    }
+
+    // Tags belong to the test, not to the run, and Vitest knows them for a
+    // skipped test too. The viewer shows and filters by them.
+    return { ...kept, tags: tagsOf(tc) }
   }
 
   private toManifestTest(tc: TestCase, stableId: string, record: TestRecord): ManifestTest {
     const result = tc.result()
-    const tags = tc.tags ?? []
     const frames: ManifestFrame[] = record.frames.map((frame) => ({
       id: frame.id,
       kind: frame.kind,
@@ -335,8 +350,7 @@ export default class DescribeMeReporter implements Reporter {
       name: tc.name,
       path: testPath(tc),
       fullName: tc.fullName,
-      // `undefined` leaves it out of the JSON.
-      tags: tags.length > 0 ? tags : undefined,
+      tags: tagsOf(tc),
       state: (result.state as TestState) ?? 'pending',
       duration: tc.diagnostic()?.duration,
       errors: result.errors?.map((error) => ({ message: error.message, stack: error.stack })),

@@ -4,8 +4,9 @@
  * tag rule, the option's validation, the tag definitions the plugin adds and
  * the Vitest version check. Then it runs `examples/react-jsdom/stories/` with
  * `stories: 'all'` and `'tagged'`, and filtered, where the manifest must drop
- * what the last run kept and the current tags or option no longer select.
- * Run after `pnpm build`. Exits 1 on the first mismatch.
+ * what the last run kept and the current tags or option no longer select, and
+ * give the tests it keeps their current tags. Run after `pnpm build`. Exits 1
+ * on the first mismatch.
  *
  * Usage: `node scripts/check-stories.mjs`
  */
@@ -35,6 +36,15 @@ const ALL = [
   'stories/tagged.test.tsx > has no tag',
   'stories/untagged.test.tsx > lives in a file without tags',
 ].sort()
+
+/** The tags each story of `ALL` carries in the fixtures. */
+const CURRENT_TAGS = {
+  'stories/module-tag.test.tsx > inherits docs from its file': ['docs'],
+  'stories/tagged.test.tsx > carries docs itself': ['docs'],
+  'stories/tagged.test.tsx > tagged suite > inherits docs from its suite': ['docs'],
+  'stories/tagged.test.tsx > has no tag': [],
+  'stories/untagged.test.tsx > lives in a file without tags': [],
+}
 
 function fail(name, detail, notes = []) {
   console.error(`FAIL  ${name} (${detail})`)
@@ -187,6 +197,28 @@ function manifestTests() {
     .sort()
 }
 
+/** The tags of every test of the manifest, by `<module> > <full name>`. */
+function manifestTags() {
+  const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'))
+
+  return Object.fromEntries(
+    manifest.modules.flatMap((mod) =>
+      mod.tests.map((test) => [`${mod.id} > ${test.fullName}`, test.tags ?? []]),
+    ),
+  )
+}
+
+/** Gives every test of the manifest the tag `stale`, as a run before a retag would have left it. */
+function staleTags() {
+  const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'))
+
+  for (const test of manifest.modules.flatMap((mod) => mod.tests)) {
+    test.tags = ['stale']
+  }
+
+  writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2))
+}
+
 /**
  * Gives the manifest an entry for the `no-docs` test of tagged.test.tsx, as a
  * run from before it was tagged would have left it, with the frames of
@@ -226,6 +258,14 @@ function checkRuns() {
   runVitest('all')
   runVitest('all', ['-t', 'has no tag'])
   expectEqual('a run filtered by name keeps the skipped stories', manifestTests(), ALL)
+
+  staleTags()
+  runVitest('all', ['-t', 'has no tag'])
+  expectEqual(
+    'a run filtered by name gives the skipped stories their current tags',
+    manifestTags(),
+    CURRENT_TAGS,
+  )
 
   addUntaggedEntry()
   runVitest('all', ['-t', 'has no tag'])

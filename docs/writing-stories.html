@@ -286,7 +286,7 @@ describe('Counter', () =&gt; {
             <strong>Filtered runs.</strong> A run of some files, or with <code>-t</code>,
             <code>.only</code> or <code>.skip</code>, does not erase the rest. Files that did not
             run and tests that were skipped keep what the last run recorded for them, unless their
-            tags no longer select them.
+            tags no longer select them. A skipped test takes its current tags.
           </li>
           <li>
             <strong>Concurrent tests.</strong> They are never recorded, as
