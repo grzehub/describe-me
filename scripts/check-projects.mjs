@@ -1,11 +1,12 @@
 /**
  * Checks that tests record in inline `test.projects`, which in Vitest 5 share
  * the root's Vite server and never reach the plugin's `config` hook. It runs
- * `examples/react-jsdom` with `PROJECTS=1`: `src/` as a project that extends
- * the root config and `projects/` as one that does not. Every test must pass,
- * so no test leaves its component mounted for the next one, and the manifest
- * must hold the same stories as the plain run of the example. Run after
- * `pnpm build` and the example's tests. Exits 1 on the first mismatch.
+ * `examples/react-jsdom` with `PROJECTS=1`: `src/` as a project with
+ * `extends: true` and `projects/` as one without `extends`, which Vitest 5
+ * extends from the root config by default. Every test must pass, so no test
+ * leaves its component mounted for the next one, and the manifest must hold
+ * the same stories as the plain run of the example. Run after `pnpm build`
+ * and the example's tests. Exits 1 on the first mismatch.
  *
  * Usage: `node scripts/check-projects.mjs`
  */
@@ -80,23 +81,25 @@ function checkManifest() {
     const missing = expected.filter((test) => !actual.includes(test))
     const extra = actual.filter((test) => !expected.includes(test))
 
-    fail('the extending project records the same stories as the plain run', 'mismatch', [
+    fail('the project with extends: true records the same stories as the plain run', 'mismatch', [
       ...missing.map((test) => `missing ${test}`),
       ...extra.map((test) => `extra   ${test}`),
     ])
   }
 
-  pass(`the extending project records the same ${expected.length} stories as the plain run`)
+  pass(
+    `the project with extends: true records the same ${expected.length} stories as the plain run`,
+  )
 
   const leak = testsOf(projects, (id) => id === LEAK_MODULE)
 
   if (leak.length !== 2) {
-    fail('the project that does not extend the root config records', `${leak.length} tests`, [
+    fail('the project without extends records', `${leak.length} tests`, [
       `expected 2 tests in ${LEAK_MODULE}`,
     ])
   }
 
-  pass('the project that does not extend the root config records')
+  pass('the project without extends records')
 }
 
 rmSync(OUT_DIR, { recursive: true, force: true })

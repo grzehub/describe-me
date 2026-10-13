@@ -30,9 +30,11 @@ if (liveFixtures !== null && (actParity || process.env.BENCH_MICRO)) {
 }
 
 // PROJECTS=1 runs src/ and projects/ as two inline projects, which in Vitest 5
-// share the root's Vite server: `components` extends the root config and
-// `plain` does not. It writes to an output directory of its own, for
-// `pnpm check-projects`.
+// share the root's Vite server. `components` extends the root config with
+// `extends: true`, `plain` without it, because Vitest 5 extends an inline
+// project by default. `plain` takes jsdom and globals from the root, so its
+// tests fail if it stops inheriting. It writes to an output directory of its
+// own, for `pnpm check-projects`.
 const projects = process.env.PROJECTS || null
 
 if (projects !== null && projects !== '1') {
@@ -55,14 +57,7 @@ function testProjects() {
   return {
     projects: [
       { extends: true, test: { name: 'components', include: ['src/**/*.test.tsx'] } },
-      {
-        test: {
-          name: 'plain',
-          environment: 'jsdom',
-          globals: true,
-          include: ['projects/**/*.test.tsx'],
-        },
-      },
+      { test: { name: 'plain', include: ['projects/**/*.test.tsx'] } },
     ],
   }
 }
@@ -121,8 +116,8 @@ function testFiles(): string[] {
     return ['act-parity/**/*.test.tsx']
   }
 
-  // Vitest 5 merges the root's `include` into inline projects, even those that
-  // do not extend the root config, so the projects name their own files.
+  // Projects that extend the root config add its `include` to their own, so
+  // only the projects name files.
   if (projects !== null) {
     return []
   }

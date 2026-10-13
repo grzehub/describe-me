@@ -769,8 +769,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                 <td><code>PROJECTS</code></td>
                 <td class="nowrap"><code>examples/react-jsdom</code></td>
                 <td>
-                  <code>1</code> runs <code>src/</code> as an inline project that extends the root
-                  config and <code>projects/</code> as one that does not, writing to
+                  <code>1</code> runs <code>src/</code> as an inline project with
+                  <code>extends: true</code> and <code>projects/</code> as one without
+                  <code>extends</code>, which Vitest 5 extends from the root config too, writing to
                   <code>node_modules/.describe-me-projects</code>. <code>pnpm check-projects</code>
                   sets it.
                 </td>
