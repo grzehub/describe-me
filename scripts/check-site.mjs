@@ -9,8 +9,8 @@
  * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
  * inspector. In react-browser the tag `forms` shows on its tests, the search
  * finds them by it, `#tag=forms` and a click on the tag in the inspector narrow
- * the sidebar to them, and × shows every test again. No request to the site
- * may fail and the page may throw no error.
+ * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
+ * test again. No request to the site may fail and the page may throw no error.
  * Remote requests are answered locally, so remote fonts never decide the
  * result. Run after `pnpm site:build`.
  *
@@ -194,6 +194,15 @@ async function tagSteps(page, url, tagged, total) {
 
   if (!(await showsRows(page, tagged))) {
     return `#tag=${tag} shows ${await rowCount(page)} tests, expected ${tagged}`
+  }
+
+  const opened = page.locator('.tree .test.active', {
+    has: page.locator('.test-tags .tag', { hasText: tag }),
+  })
+
+  // A link with only a tag opens one of the tests the filtered list shows.
+  if ((await opened.count()) !== 1) {
+    return `#tag=${tag} opens a test the filtered list does not show`
   }
 
   await page.locator('.tag-filter-clear').click()
