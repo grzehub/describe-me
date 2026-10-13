@@ -3,10 +3,12 @@
  * the root's Vite server and never reach the plugin's `config` hook. It runs
  * `examples/react-jsdom` with `PROJECTS=1`: `src/` as a project with
  * `extends: true` and `projects/` as one without `extends`, which Vitest 5
- * extends from the root config by default. Every test must pass, so no test
- * leaves its component mounted for the next one, and the manifest must hold
- * the same stories as the plain run of the example. Run after `pnpm build`
- * and the example's tests. Exits 1 on the first mismatch.
+ * extends from the root config by default. A third project with
+ * `extends: false` runs without describe-me. Every test must pass, so no test
+ * leaves its component mounted for the next one, the third project's ones on
+ * Testing Library's own cleanup. The manifest must hold the same stories as
+ * the plain run of the example and nothing of the third project. Run after
+ * `pnpm build` and the example's tests. Exits 1 on the first mismatch.
  *
  * Usage: `node scripts/check-projects.mjs`
  */
@@ -20,6 +22,7 @@ const EXAMPLE = fileURLToPath(new URL('../examples/react-jsdom/', import.meta.ur
 const OUT_DIR = join(EXAMPLE, 'node_modules/.describe-me-projects')
 const PLAIN_MANIFEST = join(EXAMPLE, '.describe-me/manifest.json')
 const LEAK_MODULE = 'projects/leak.test.tsx'
+const ISOLATED_MODULE = 'projects/isolated.test.tsx'
 
 function fail(name, detail, notes = []) {
   console.error(`FAIL  ${name} (${detail})`)
@@ -100,6 +103,16 @@ function checkManifest() {
   }
 
   pass('the project without extends records')
+
+  const isolated = testsOf(projects, (id) => id === ISOLATED_MODULE)
+
+  if (isolated.length !== 0) {
+    fail('the project with extends: false stays out of the manifest', `${isolated.length} tests`, [
+      `expected no test of ${ISOLATED_MODULE}`,
+    ])
+  }
+
+  pass('the project with extends: false stays out of the manifest')
 }
 
 rmSync(OUT_DIR, { recursive: true, force: true })

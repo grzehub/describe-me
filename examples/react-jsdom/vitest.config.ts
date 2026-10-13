@@ -29,12 +29,13 @@ if (liveFixtures !== null && (actParity || process.env.BENCH_MICRO)) {
   throw new Error('LIVE_FIXTURES does not work with ACT_PARITY or BENCH_MICRO')
 }
 
-// PROJECTS=1 runs src/ and projects/ as two inline projects, which in Vitest 5
-// share the root's Vite server. `components` extends the root config with
-// `extends: true`, `plain` without it, because Vitest 5 extends an inline
-// project by default. `plain` takes jsdom and globals from the root, so its
-// tests fail if it stops inheriting. It writes to an output directory of its
-// own, for `pnpm check-projects`.
+// PROJECTS=1 runs src/ and projects/ as three inline projects. `components`
+// extends the root config with `extends: true`, `plain` without it, because
+// Vitest 5 extends an inline project by default. Both share the root's Vite
+// server. `plain` takes jsdom and globals from the root, so its tests fail if
+// it stops inheriting. `isolated` has `extends: false` and no describe-me, so
+// Testing Library must still clean up after its tests. It writes to an output
+// directory of its own, for `pnpm check-projects`.
 const projects = process.env.PROJECTS || null
 
 if (projects !== null && projects !== '1') {
@@ -57,7 +58,17 @@ function testProjects() {
   return {
     projects: [
       { extends: true, test: { name: 'components', include: ['src/**/*.test.tsx'] } },
-      { test: { name: 'plain', include: ['projects/**/*.test.tsx'] } },
+      { test: { name: 'plain', include: ['projects/leak.test.tsx'] } },
+      {
+        extends: false,
+        plugins: [react()],
+        test: {
+          name: 'isolated',
+          environment: 'jsdom',
+          globals: true,
+          include: ['projects/isolated.test.tsx'],
+        },
+      },
     ],
   }
 }

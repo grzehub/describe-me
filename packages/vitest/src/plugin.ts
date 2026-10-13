@@ -1,12 +1,11 @@
 import type { ViteUserConfig } from 'vitest/config'
 import { LIVE_PROTOCOL, type RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
-import { addSetupFile } from './add-setup-file.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
 import { defaultReporters } from './default-reporters.js'
 import { detectEnvironment } from './detect-environment.js'
-import type { RenderModule } from './environment-profile.js'
+import type { EnvironmentProfile, RenderModule } from './environment-profile.js'
 import { isAdapterModule } from './is-adapter-module.js'
 import { LIVE_ENV } from './live-env.js'
 import { livePlugin } from './live-plugin.js'
@@ -16,6 +15,7 @@ import { projectModulePath } from './project-module-path.js'
 import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
 import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
+import { setUpProject } from './set-up-project.js'
 import { validateRenderFrame } from './validate-render-frame.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
@@ -99,8 +99,8 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
   // Set by `config()`, which Vite runs before `configResolved` and `resolveId`.
   // Stays null while the plugin is disabled.
   let renderModule: RenderModule | null = null
-  // The profile's setup file, also set by `config()`, for the projects that skip it.
-  let setupFile: string | null = null
+  // The chosen profile, also set by `config()`, for the projects that skip it.
+  let projectProfile: EnvironmentProfile | null = null
   // Known once Vite has resolved its config. Vitest always serves; a production
   // build that shares the config must not carry the export registration.
   let root = ''
@@ -133,7 +133,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
       const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
       const profile = await loadProfile(environment)
       renderModule = profile.renderModules[framework]
-      setupFile = profile.setupFile
+      projectProfile = profile
       const { config, setupWarnings } = profile.configFor({ userConfig, options, renderModule })
 
       const reporter = new DescribeMeReporter({
@@ -156,10 +156,10 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
     },
 
     // Runs for every project the plugin's Vite server serves, also those that
-    // share the root's server and so never reach `config()` (see addSetupFile).
+    // share the root's server and so never reach `config()` (see setUpProject).
     configureVitest({ project }) {
-      if (setupFile !== null) {
-        addSetupFile(project, setupFile)
+      if (projectProfile !== null) {
+        setUpProject(project, projectProfile)
       }
     },
 

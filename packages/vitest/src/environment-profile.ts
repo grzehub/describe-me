@@ -34,6 +34,12 @@ export interface EnvironmentProfile {
   renderModules: Record<NonNullable<DescribeMeOptions['framework']>, RenderModule>
   /** The setup file that patches interactions and registers the recording hooks. */
   setupFile: string
+  /**
+   * Variables the tests of a project with the setup file need. The plugin sets
+   * them per project and never in the root's `test.env`, which Vitest hands to
+   * every project, also to one without describe-me.
+   */
+  env: Record<string, string>
   /** The rest of the environment's config, built in the plugin's `config` hook. */
   configFor(context: ProfileContext): ProfileConfig
 }
