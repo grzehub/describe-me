@@ -1,5 +1,18 @@
 # @describe-me/core
 
+## 0.7.0
+
+### Minor Changes
+
+- [#76](https://github.com/grzehub/describe-me/pull/76) [`eb691d4`](https://github.com/grzehub/describe-me/commit/eb691d4a8f27eb1e061f7fec765379c579cf48d4) Thanks [@sebastianmusial](https://github.com/sebastianmusial)! - Pick single tests for the docs with Vitest tags. `describeMe({ stories })` takes `'all'` (default, every test of the recorded files) or `'tagged'` (only tests tagged `docs`, on the test, a `describe` or the file through `@module-tag docs`). A test tagged `no-docs` is never a story. The plugin defines both tags in `test.tags`. Tags need Vitest 4.1: on 4.0 `stories: 'tagged'` throws, and `no-docs` has no effect.
+
+  - `DescribeMeOptions` and `DescribeMeReporterOptions` add `stories`.
+  - `ManifestTest` adds `tags`, so a filtered run drops tests the current `stories` no longer selects.
+
+- [#78](https://github.com/grzehub/describe-me/pull/78) [`7b64ddd`](https://github.com/grzehub/describe-me/commit/7b64ddde00c6924cfab2f2e1a903517e8ea8250f) Thanks [@sebastianmusial](https://github.com/sebastianmusial)! - Tags in the viewer. A test's Vitest tags show next to its name and in the inspector, and the search matches them. A click on a tag in the inspector narrows the sidebar to the tests with that tag. The tag is part of the link (`tag=`), × above the tree clears it, and ↑ ↓ follow it. `docs` and `no-docs` do not show.
+
+  - `@describe-me/core/types` exports `DOCS_TAG` and `NO_DOCS_TAG`, which `@describe-me/vitest` now takes from there.
+
 ## 0.6.1
 
 No changes in this release.
