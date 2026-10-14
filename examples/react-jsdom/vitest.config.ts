@@ -29,6 +29,50 @@ if (liveFixtures !== null && (actParity || process.env.BENCH_MICRO)) {
   throw new Error('LIVE_FIXTURES does not work with ACT_PARITY or BENCH_MICRO')
 }
 
+// PROJECTS=1 runs src/ and projects/ as three inline projects. `components`
+// extends the root config with `extends: true`, `plain` without it, because
+// Vitest 5 extends an inline project by default. Both share the root's Vite
+// server. `plain` takes jsdom and globals from the root, so its tests fail if
+// it stops inheriting. `isolated` has `extends: false` and no describe-me, so
+// Testing Library must still clean up after its tests. It writes to an output
+// directory of its own, for `pnpm check-projects`.
+const projects = process.env.PROJECTS || null
+
+if (projects !== null && projects !== '1') {
+  throw new Error(`PROJECTS: unknown value "${projects}", expected 1`)
+}
+
+if (projects !== null && (liveFixtures !== null || actParity || process.env.BENCH_MICRO)) {
+  throw new Error('PROJECTS does not work with LIVE_FIXTURES, ACT_PARITY or BENCH_MICRO')
+}
+
+function projectOptions(): DescribeMeOptions {
+  return projects === null ? {} : { outDir: 'node_modules/.describe-me-projects' }
+}
+
+function testProjects() {
+  if (projects === null) {
+    return {}
+  }
+
+  return {
+    projects: [
+      { extends: true, test: { name: 'components', include: ['src/**/*.test.tsx'] } },
+      { test: { name: 'plain', include: ['projects/leak.test.tsx'] } },
+      {
+        extends: false,
+        plugins: [react()],
+        test: {
+          name: 'isolated',
+          environment: 'jsdom',
+          globals: true,
+          include: ['projects/isolated.test.tsx'],
+        },
+      },
+    ],
+  }
+}
+
 // A package entry covers the setup files that are bare specifiers.
 const fixtureSetupFiles = [
   './live-fixtures/setup.ts',
@@ -81,6 +125,12 @@ function testFiles(): string[] {
 
   if (actParity) {
     return ['act-parity/**/*.test.tsx']
+  }
+
+  // Projects that extend the root config add its `include` to their own, so
+  // only the projects name files.
+  if (projects !== null) {
+    return []
   }
 
   if (process.env.BENCH_MICRO) {
@@ -150,6 +200,7 @@ export default defineConfig({
       renderFrame: renderFrame(),
       ...benchOptions(),
       ...liveFixtureOptions(),
+      ...projectOptions(),
     }),
   ],
   test: {
@@ -158,6 +209,7 @@ export default defineConfig({
     ...setupFiles(),
     globals: true,
     include: testFiles(),
+    ...testProjects(),
     ...(benchOut ? { reporters: [['json', { outputFile: benchOut }]] } : {}),
   },
 })

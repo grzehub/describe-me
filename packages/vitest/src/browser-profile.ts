@@ -10,6 +10,7 @@ export const browserProfile: EnvironmentProfile = {
     },
   },
   setupFile: '@describe-me/vitest/setup',
+  env: {},
   configFor({ renderModule }) {
     return {
       config: {

@@ -31,6 +31,7 @@ pnpm check-frame-timing   # frame compaction and renderFrame validation, after p
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
+pnpm check-projects   # inline test.projects record and unmount, and one with extends: false keeps Testing Library's cleanup, on examples/react-jsdom with PROJECTS=1, after pnpm build and the jsdom example's tests
 pnpm check-live   # every test of both examples mounted in the live preview, Live in both examples' viewers through describe-me dev, the live fixtures of both examples under Vitest and in the live preview, and the same tests and fixtures in a static build served under a sub-path, in Chromium, after pnpm build and both examples' tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size

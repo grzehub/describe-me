@@ -563,6 +563,31 @@ jobs:
         </h2>
 
         <p>
+          Add <code>describeMe()</code> to the root config. Every inline project that extends it
+          records: with <code>extends: true</code>, and in Vitest 5 also without
+          <code>extends</code>, because Vitest 5 extends an inline project by default. In Vitest 5
+          those projects share the root's Vite server and skip the plugin's
+          <code>config</code> hook, so the plugin gives them its setup file in
+          <code>configureVitest</code>. Before 0.6.1 they recorded nothing and left components
+          mounted (<a href="limitations.html#limit-projects-shared-server">fixed</a>).
+        </p>
+        <p>
+          A project with <code>extends: false</code>, or with a config file of its own, does not get
+          the root config's plugins. Without <code>describeMe()</code> in its own config it records
+          nothing, and Testing Library cleans up after each of its tests as usual. Before 0.6.1 its
+          components stayed mounted (<a href="limitations.html#limit-projects-cleanup">fixed</a>).
+        </p>
+        <p>
+          Two limits remain. <code>describeMe()</code> in the <code>plugins</code> of a project
+          alone writes no manifest, because Vitest runs only the root config's reporters (<a
+            href="limitations.html#limit-projects-plugin"
+            >limitation</a
+          >). A test file that two projects run is one module in the manifest (<a
+            href="limitations.html#limit-projects-same-file"
+            >limitation</a
+          >).
+        </p>
+        <p>
           With <code>test.projects</code> entries that set their own <code>root</code>, the setup
           file matches <code>include</code> and <code>exclude</code> against a path relative to the
           project root, and the reporter against a path relative to the Vitest root. Globs that

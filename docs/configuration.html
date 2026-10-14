@@ -105,6 +105,13 @@
             next to yours or next to Vitest's defaults. See <a href="#reporters">Reporters</a>.
           </li>
           <li>
+            <strong>Projects.</strong> Its <code>configureVitest</code> hook gives every project it
+            serves the setup file, where it is missing, and the variables below. In Vitest 5 an
+            inline project that shares the root's Vite server never reaches the
+            <code>config</code> hook. See
+            <a href="installation.html#monorepos">Monorepos and projects</a>.
+          </li>
+          <li>
             <strong>The <code>render</code> redirect.</strong> Its <code>resolveId</code> hook sends
             imports of <code>vitest-browser-react</code> (browser mode) or
             <code>@testing-library/react</code> (DOM) to <code>@describe-me/react</code> or
@@ -141,9 +148,12 @@
         <ul>
           <li><code>test.setupFiles</code>: <code>@describe-me/vitest/setup-dom</code>.</li>
           <li>
-            <code>test.env.RTL_SKIP_AUTO_CLEANUP = 'true'</code>. Testing Library would otherwise
-            unmount in its own <code>afterEach</code>, before the closing frame is taken.
-            describe-me unmounts after that frame instead.
+            <code>RTL_SKIP_AUTO_CLEANUP = 'true'</code> in the <code>test.env</code> of every
+            project it serves. Testing Library would otherwise unmount in its own
+            <code>afterEach</code>, before the closing frame is taken. describe-me unmounts after
+            that frame instead. It never goes into the root config's <code>test.env</code>, which
+            Vitest hands to every project, so a project without describe-me keeps Testing Library's
+            cleanup.
           </li>
           <li>
             <code>test.css = true</code>, unless you set <code>test.css</code>. Vitest stubs CSS
@@ -687,7 +697,7 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           The CLI sets <code>DESCRIBE_ME_DIR</code> for the viewer. The other variables below are
           switches of this repository's examples. The describe-me packages read none of them. The
           examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks.
-          <code>BENCH_SKIP</code>, <code>ACT_PARITY</code> and the values
+          <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code> and the values
           <code>no-live-setup</code> and <code>off</code> of <code>LIVE_FIXTURES</code> work only in
           <code>examples/react-jsdom</code>. Set them inline for one run. There is no
           <code>.env</code>.
@@ -763,6 +773,18 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>examples/react-jsdom</code>, <code>no-live-setup</code> leaves out
                   <code>live.setupFiles</code> and <code>off</code> sets <code>live: false</code>,
                   for the live preview of the same fixtures. <code>pnpm check-live</code> sets it.
+                </td>
+              </tr>
+              <tr id="env-PROJECTS">
+                <td><code>PROJECTS</code></td>
+                <td class="nowrap"><code>examples/react-jsdom</code></td>
+                <td>
+                  <code>1</code> runs <code>src/</code> as an inline project with
+                  <code>extends: true</code>, <code>projects/leak.test.tsx</code> as one without
+                  <code>extends</code>, which Vitest 5 extends from the root config too, and
+                  <code>projects/isolated.test.tsx</code> as one with <code>extends: false</code>,
+                  writing to <code>node_modules/.describe-me-projects</code>.
+                  <code>pnpm check-projects</code> sets it.
                 </td>
               </tr>
             </tbody>

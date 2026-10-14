@@ -14,6 +14,9 @@ export const domProfile: EnvironmentProfile = {
     },
   },
   setupFile: '@describe-me/vitest/setup-dom',
+  // Testing Library would otherwise unmount in its own afterEach, before the
+  // closing frame is taken. The adapter unmounts through the recorder instead.
+  env: { RTL_SKIP_AUTO_CLEANUP: 'true' },
   configFor({ userConfig, options }) {
     const build =
       options.styledComponentsBrowserBuild === false
@@ -21,11 +24,7 @@ export const domProfile: EnvironmentProfile = {
         : styledComponentsBrowserBuild(userConfig.root ?? process.cwd())
 
     const userTest = userConfig.test
-    const test: TestConfig = {
-      // Testing Library would otherwise unmount in its own afterEach, before the
-      // closing frame is taken. The adapter unmounts through the recorder instead.
-      env: { RTL_SKIP_AUTO_CLEANUP: 'true' },
-    }
+    const test: TestConfig = {}
 
     // Vitest stubs CSS imports by default, which would leave every imported
     // stylesheet out of the snapshots. An explicit choice by the user wins.
