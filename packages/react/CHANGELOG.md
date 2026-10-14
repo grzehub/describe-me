@@ -1,5 +1,13 @@
 # @describe-me/react
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [[`0bbadf6`](https://github.com/grzehub/describe-me/commit/0bbadf6d11fcf82363359584a907db4da488521c)]:
+  - @describe-me/vitest@0.6.1
+  - @describe-me/core@0.6.1
+
 ## 0.6.0
 
 ### Minor Changes

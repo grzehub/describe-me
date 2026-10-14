@@ -1,5 +1,12 @@
 # describe-me
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @describe-me/core@0.6.1
+
 ## 0.6.0
 
 ### Minor Changes
