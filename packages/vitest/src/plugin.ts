@@ -1,10 +1,13 @@
+import { resolve } from 'node:path'
 import type { ViteUserConfig } from 'vitest/config'
 import { LIVE_PROTOCOL, type RenderFrameMode } from '@describe-me/core/types'
 import { adapterPackageRoot } from './adapter-package-root.js'
+import { checkTagsSupported } from './check-tags-supported.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
 import { defaultReporters } from './default-reporters.js'
 import { detectEnvironment } from './detect-environment.js'
+import { docsTagDefinitions } from './docs-tag-definitions.js'
 import type { EnvironmentProfile, RenderModule } from './environment-profile.js'
 import { isAdapterModule } from './is-adapter-module.js'
 import { LIVE_ENV } from './live-env.js'
@@ -16,7 +19,9 @@ import { registerExports } from './register-exports.js'
 import DescribeMeReporter from './reporter.js'
 import { RUNTIME_OPTIONS_KEY, type RuntimeOptions } from './runtime-options.js'
 import { setUpProject } from './set-up-project.js'
+import type { StoriesMode } from './stories-mode.js'
 import { validateRenderFrame } from './validate-render-frame.js'
+import { validateStories } from './validate-stories.js'
 
 /** Where the tests run: Vitest browser mode, or a simulated DOM such as jsdom. */
 export type DescribeMeEnvironment = 'browser' | 'dom'
@@ -58,6 +63,13 @@ export interface DescribeMeOptions {
   include?: string | string[]
   /** Test files never to record, as globs like `include`. Wins over `include`. Default: none. */
   exclude?: string | string[]
+  /**
+   * Which tests of the recorded files become stories. `'all'` records every
+   * test, `'tagged'` only those tagged `docs`, on the test, a `describe` or the
+   * file (`@module-tag docs`). A `no-docs` tag leaves a test out in both modes.
+   * The plugin defines both tags, which need Vitest 4.1. Default: `'all'`.
+   */
+  stories?: StoriesMode
   /**
    * HTML the viewer adds to the start of the `<head>` of every replayed frame,
    * like Storybook's `preview-head.html`. It never reaches the test page.
@@ -128,7 +140,10 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
         include: compileInclude(options.include),
         exclude: compileGlobs(options.exclude),
         renderFrame: validateRenderFrame(options.renderFrame),
+        stories: validateStories(options.stories),
       }
+
+      checkTagsSupported(runtimeOptions.stories, resolve(userConfig.root ?? process.cwd()))
 
       const provide = { [RUNTIME_OPTIONS_KEY]: runtimeOptions }
       const profile = await loadProfile(environment)
@@ -140,6 +155,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
         outDir,
         include: options.include,
         exclude: options.exclude,
+        stories: runtimeOptions.stories,
         previewHead: options.previewHead,
         setupWarnings,
       })
@@ -151,7 +167,13 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
 
       return {
         ...config,
-        test: { setupFiles: [profile.setupFile], ...config.test, reporters, provide },
+        test: {
+          setupFiles: [profile.setupFile],
+          ...config.test,
+          reporters,
+          provide,
+          tags: docsTagDefinitions(userConfig),
+        },
       }
     },
 

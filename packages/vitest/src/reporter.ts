@@ -27,7 +27,9 @@ import { printDiagnostics } from './print-diagnostics.js'
 import { readGenerator } from './read-generator.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
+import type { StoriesMode } from './stories-mode.js'
 import { StyleStore } from './style-store.js'
+import { tagFilter } from './tag-filter.js'
 import { testPath } from './test-path.js'
 
 export interface DescribeMeReporterOptions {
@@ -44,6 +46,11 @@ export interface DescribeMeReporterOptions {
    * `include`. Default: none.
    */
   exclude?: string | string[]
+  /**
+   * Which tests appear in the manifest: `'all'`, or only those tagged `docs`.
+   * A test tagged `no-docs` never does. Default: `'all'`.
+   */
+  stories?: StoriesMode
   /**
    * HTML the viewer adds to the start of the `<head>` of every replayed frame,
    * like Storybook's `preview-head.html`. It never reaches the test page.
@@ -62,9 +69,18 @@ function recordOf(tc: TestCase): TestRecord | undefined {
   return (tc.meta() as Record<string, unknown>)[META_KEY] as TestRecord | undefined
 }
 
+/** The test's tags for the manifest, where `undefined` leaves them out of the JSON. */
+function tagsOf(tc: TestCase): string[] | undefined {
+  // Vitest before 4.1 has no tags.
+  const tags = tc.tags ?? []
+
+  return tags.length > 0 ? tags : undefined
+}
+
 export default class DescribeMeReporter implements Reporter {
   private readonly outDirOption: string
   private readonly isRecordedFile: (fileName: string) => boolean
+  private readonly isRecordedTags: (tags: readonly string[]) => boolean
   private readonly emptyInclude: boolean
   private readonly previewHead: string | undefined
   private readonly generator: ManifestGenerator | undefined
@@ -82,6 +98,7 @@ export default class DescribeMeReporter implements Reporter {
     this.outDirOption = options.outDir ?? '.describe-me'
     const include = compileInclude(options.include)
     this.isRecordedFile = fileFilter({ include, exclude: compileGlobs(options.exclude) })
+    this.isRecordedTags = tagFilter(options.stories ?? 'all')
     this.emptyInclude = include !== null && include.length === 0
 
     // A blank head, such as an empty preview-head.html, is the same as none.
@@ -122,7 +139,8 @@ export default class DescribeMeReporter implements Reporter {
    * A filtered run (`vitest run Button.test.tsx`) must not wipe the other
    * modules from the manifest, so start from whatever the last run wrote.
    * Modules whose file is gone or no longer selected by `include` / `exclude`
-   * are dropped, and so are the empty tests that 0.4 still wrote.
+   * are dropped, and so are tests that `stories` no longer selects and the
+   * empty tests that 0.4 still wrote.
    */
   private seedFromPreviousRun(): void {
     const file = join(this.outDir, 'manifest.json')
@@ -133,7 +151,9 @@ export default class DescribeMeReporter implements Reporter {
     try {
       const previous = JSON.parse(readFileSync(file, 'utf8')) as Manifest
       for (const mod of previous.modules ?? []) {
-        const tests = this.withStableIds(mod).filter((test) => isRecordedTest(test))
+        const tests = this.withStableIds(mod).filter(
+          (test) => isRecordedTest(test) && this.isRecordedTags(test.tags ?? []),
+        )
 
         if (
           tests.length > 0 &&
@@ -166,8 +186,8 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   /**
-   * A test skipped in this run keeps its previous entry, so a filtered run does
-   * not erase documentation.
+   * A test skipped in this run keeps its previous entry with its current tags,
+   * so a filtered run does not erase documentation.
    */
   onTestModuleEnd(module: TestModule): void {
     const id = relative(this.root, module.moduleId)
@@ -286,6 +306,12 @@ export default class DescribeMeReporter implements Reporter {
     stableId: string,
     previous: ManifestModule | undefined,
   ): ManifestTest | undefined {
+    // Before the skipped branch, so a test tagged out since the last run does
+    // not survive a filtered run on its old frames. Vitest before 4.1 has no tags.
+    if (!this.isRecordedTags(tc.tags ?? [])) {
+      return undefined
+    }
+
     const record = recordOf(tc)
 
     if (record && isRecordedTest(record)) {
@@ -296,7 +322,15 @@ export default class DescribeMeReporter implements Reporter {
       return undefined
     }
 
-    return previous?.tests.find((test) => test.id === stableId && isRecordedTest(test))
+    const kept = previous?.tests.find((test) => test.id === stableId && isRecordedTest(test))
+
+    if (kept === undefined) {
+      return undefined
+    }
+
+    // Tags belong to the test, not to the run, and Vitest knows them for a
+    // skipped test too. The viewer shows and filters by them.
+    return { ...kept, tags: tagsOf(tc) }
   }
 
   private toManifestTest(tc: TestCase, stableId: string, record: TestRecord): ManifestTest {
@@ -316,6 +350,7 @@ export default class DescribeMeReporter implements Reporter {
       name: tc.name,
       path: testPath(tc),
       fullName: tc.fullName,
+      tags: tagsOf(tc),
       state: (result.state as TestState) ?? 'pending',
       duration: tc.diagnostic()?.duration,
       errors: result.errors?.map((error) => ({ message: error.message, stack: error.stack })),

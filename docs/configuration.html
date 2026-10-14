@@ -96,9 +96,15 @@
           </li>
           <li>
             <strong><code>test.provide</code>.</strong> It checks <code>include</code>,
-            <code>exclude</code> and <code>renderFrame</code>, and hands them to the setup file
-            under the key <code>describe-me</code>. Vite deep-merges <code>provide</code>, so your
-            own keys stay. Invalid values throw before any test runs.
+            <code>exclude</code>, <code>stories</code> and <code>renderFrame</code>, and hands them
+            to the setup file under the key <code>describe-me</code>. Vite deep-merges
+            <code>provide</code>, so your own keys stay. Invalid values throw before any test runs.
+          </li>
+          <li>
+            <strong><code>test.tags</code>.</strong> It defines the tags <code>docs</code> and
+            <code>no-docs</code>, because Vitest throws on a tag it has no definition for. A tag
+            your config already defines is left to you. See
+            <a href="#stories">Which tests become stories</a>.
           </li>
           <li>
             <strong>The reporter.</strong> It adds its reporter, which writes the output directory,
@@ -292,6 +298,18 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                   >).
                 </td>
               </tr>
+              <tr id="option-stories">
+                <td><code>stories</code></td>
+                <td class="nowrap"><code>'all' | 'tagged'</code></td>
+                <td class="nowrap"><code>'all'</code></td>
+                <td>
+                  Which tests of the recorded files become stories: all of them, or only those
+                  tagged <code>docs</code>. A test tagged <code>no-docs</code> never does (<a
+                    href="#stories"
+                    >which tests become stories</a
+                  >).
+                </td>
+              </tr>
               <tr id="option-previewHead">
                 <td><code>previewHead</code></td>
                 <td class="nowrap"><code>string</code></td>
@@ -422,6 +440,97 @@ describe-me: include is an empty list, so no test file is recorded. Leave includ
         <p>
           Concurrent tests are never recorded, because they would share one recorder. See
           <a href="environments.html#both">Environments</a>.
+        </p>
+
+        <h2 id="stories">
+          Which tests become stories
+          <a class="anchor" href="#stories" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          Within the files that record, <code>stories</code> and two
+          <a href="https://vitest.dev/guide/test-tags">Vitest tags</a> pick single tests, so a file
+          can keep its edge cases and regression tests next to the stories without showing them in
+          the docs. Tag a test or a <code>describe</code>:
+        </p>
+
+        <p class="file">src/Button.test.tsx</p>
+        <pre><code>import { describe, expect, it } from 'vitest'
+
+describe('Button', { tags: ['docs'] }, () =&gt; {
+  it('primary', async () =&gt; { … })
+  <span class="dim">// a regression test, left out of the docs</span>
+  it('keeps its width without children', { tags: ['no-docs'] }, async () =&gt; { … })
+})
+
+it('disabled', { tags: ['docs'] }, async () =&gt; { … })</code></pre>
+
+        <p>
+          Or a whole file, with <code>@module-tag</code> in a comment. Vitest reads every
+          <code>//</code> or <code>*</code> comment line of the file that holds
+          <code>@module-tag</code>, and takes the word after it as a tag, so mention it nowhere else
+          in the file:
+        </p>
+
+        <p class="file">src/Card.test.tsx</p>
+        <pre><code>/**
+ * @module-tag docs
+ */
+import { expect, it } from 'vitest'</code></pre>
+
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Tags of the test</th>
+                <th><code>stories: 'all'</code></th>
+                <th><code>stories: 'tagged'</code></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>none</td>
+                <td>a story</td>
+                <td>left out</td>
+              </tr>
+              <tr>
+                <td><code>docs</code></td>
+                <td>a story</td>
+                <td>a story</td>
+              </tr>
+              <tr>
+                <td><code>no-docs</code>, also next to <code>docs</code></td>
+                <td>left out</td>
+                <td>left out</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          A test carries its own tags and those of its <code>describe</code> blocks and its file, so
+          <code>no-docs</code> on a test wins over <code>docs</code> on its suite. The reverse does
+          not work: a test inside a <code>no-docs</code> suite cannot opt back in. Tags apply after
+          <code>include</code> and <code>exclude</code>, and a test still needs a frame to be a
+          story (<a href="writing-stories.html#left-out">tests that are left out</a>).
+        </p>
+        <p>
+          A test left out this way still runs and reports as usual. It also leaves the manifest in a
+          filtered run, and so do tests that an earlier run kept but the current
+          <code>stories</code> no longer selects. The manifest stores each test's tags for that.
+        </p>
+        <p>
+          The plugin defines both tags in <code>test.tags</code>. Tags arrived in Vitest 4.1. Vitest
+          4.0 ignores them, so there <code>stories: 'all'</code> records every test as before, also
+          one tagged <code>no-docs</code>, and <code>stories: 'tagged'</code> throws before any test
+          runs:
+        </p>
+        <pre>
+describe-me: stories: 'tagged' needs test tags, which arrived in Vitest 4.1. This project resolves Vitest 4.0.</pre>
+        <p>
+          Your config may type its tags by extending Vitest's <code>TestTags</code> interface. Add
+          <code>'docs' | 'no-docs'</code> to that type then. describe-me does not extend it itself,
+          because a typed list would reject your other tags.
         </p>
 
         <h2 id="render-frame">
@@ -644,6 +753,14 @@ export default defineConfig({
                 <td>Test files to leave out of the manifest. Wins over <code>include</code>.</td>
               </tr>
               <tr>
+                <td><code>stories</code></td>
+                <td class="nowrap"><code>'all'</code></td>
+                <td>
+                  Tests that appear in the manifest: all, or only those tagged <code>docs</code>.
+                  Tests tagged <code>no-docs</code> never do.
+                </td>
+              </tr>
+              <tr>
                 <td><code>previewHead</code></td>
                 <td class="nowrap">none</td>
                 <td>HTML the viewer adds to the start of every replayed frame's head.</td>
@@ -664,6 +781,13 @@ export default defineConfig({
           file only through the plugin. Set it with <code>recorder.configure()</code> in a setup
           file of your own, listed after describe-me's:
         </p>
+        <p>
+          The setup file of a hand-wired setup skips tests tagged <code>no-docs</code>, as with
+          <code>stories: 'all'</code>. The reporter's <code>stories: 'tagged'</code> still keeps
+          only tests tagged <code>docs</code> in the manifest, but the setup file records the others
+          too, which costs time. Define both tags in <code>test.tags</code> yourself, or Vitest
+          throws on them.
+        </p>
 
         <p class="file">describe-me-timing.ts</p>
         <pre><code>import { recorder } from '@describe-me/vitest'
@@ -677,9 +801,10 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           <li>Vitest's default reporters. Name the reporters you want yourself.</li>
           <li>The <code>render</code> redirect. Your tests import the adapter directly.</li>
           <li>
-            <code>include</code>, <code>exclude</code> and <code>renderFrame</code> in the setup
-            file, and their checks before the run.
+            <code>include</code>, <code>exclude</code>, <code>stories</code> and
+            <code>renderFrame</code> in the setup file, and their checks before the run.
           </li>
+          <li>The definitions of the <code>docs</code> and <code>no-docs</code> tags.</li>
           <li>The export registration, so components may lose their export names.</li>
           <li>The browser build of styled-components in jsdom.</li>
           <li>
@@ -697,10 +822,10 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           The CLI sets <code>DESCRIBE_ME_DIR</code> for the viewer. The other variables below are
           switches of this repository's examples. The describe-me packages read none of them. The
           examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks.
-          <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code> and the values
-          <code>no-live-setup</code> and <code>off</code> of <code>LIVE_FIXTURES</code> work only in
-          <code>examples/react-jsdom</code>. Set them inline for one run. There is no
-          <code>.env</code>.
+          <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code>,
+          <code>STORIES</code> and the values <code>no-live-setup</code> and <code>off</code> of
+          <code>LIVE_FIXTURES</code> work only in <code>examples/react-jsdom</code>. Set them inline
+          for one run. There is no <code>.env</code>.
         </p>
 
         <div class="scroll">
@@ -787,6 +912,16 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>pnpm check-projects</code> sets it.
                 </td>
               </tr>
+              <tr id="env-STORIES">
+                <td><code>STORIES</code></td>
+                <td class="nowrap"><code>examples/react-jsdom</code></td>
+                <td>
+                  <code>all</code> or <code>tagged</code> runs <code>stories/</code> instead of
+                  <code>src/</code>, with that <code>stories</code> option, writing to
+                  <code>node_modules/.describe-me-stories</code>. <code>pnpm check-stories</code>
+                  sets it.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -833,6 +968,7 @@ describeMe({
           <li><a href="#plugin">What the plugin changes</a></li>
           <li><a href="#options">Options</a></li>
           <li><a href="#include-exclude">Which tests record</a></li>
+          <li><a href="#stories">Which tests become stories</a></li>
           <li><a href="#render-frame">Render frame timing</a></li>
           <li><a href="#reporters">Reporters</a></li>
           <li><a href="#separate-config">A config of its own</a></li>

@@ -44,6 +44,7 @@ jobs:
       - run: pnpm check-version-guard
       - run: pnpm check-act-parity
       - run: pnpm check-projects
+      - run: pnpm check-stories
       - run: pnpm check-live
 
   smoke:
