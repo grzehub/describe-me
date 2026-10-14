@@ -871,20 +871,21 @@
         </p>
 
         <p>
-          The root entry point also exports the 31 names of
+          The root entry point also exports the 33 names of
           <a href="#entry-core-types"><code>@describe-me/core/types</code></a
           >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
           <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
           <code>ASSET_URL_PREFIX</code>, <code>STYLE_URL_PREFIX</code>,
           <code>RenderFrameMode</code>, <code>AroundWait</code>, <code>RecorderOptions</code>,
           <code>CaptureOptions</code>, <code>Frame</code>, <code>TestRecord</code>,
-          <code>META_KEY</code>, <code>TestState</code>, <code>ManifestFrame</code>,
-          <code>ManifestTest</code>, <code>ManifestModule</code>, <code>PropKind</code>,
-          <code>PropDoc</code>, <code>ComponentDoc</code>, <code>ManifestGenerator</code>,
-          <code>Manifest</code>, <code>FontMissing</code>, <code>RemoteStylesheet</code>,
-          <code>ANONYMOUS_COMPONENT</code>, <code>ManifestDiagnostics</code>,
-          <code>LiveStatus</code>, <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>,
-          <code>LiveReport</code> and <code>LiveMessage</code>.
+          <code>META_KEY</code>, <code>DOCS_TAG</code>, <code>NO_DOCS_TAG</code>,
+          <code>TestState</code>, <code>ManifestFrame</code>, <code>ManifestTest</code>,
+          <code>ManifestModule</code>, <code>PropKind</code>, <code>PropDoc</code>,
+          <code>ComponentDoc</code>, <code>ManifestGenerator</code>, <code>Manifest</code>,
+          <code>FontMissing</code>, <code>RemoteStylesheet</code>, <code>ANONYMOUS_COMPONENT</code>,
+          <code>ManifestDiagnostics</code>, <code>LiveStatus</code>,
+          <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>, <code>LiveReport</code> and
+          <code>LiveMessage</code>.
         </p>
 
         <h3 id="entry-core-types">
@@ -1020,6 +1021,20 @@
                 <td><code>META_KEY</code></td>
                 <td><code>'describeMe'</code></td>
                 <td>The key of <code>task.meta</code> that carries a test's record.</td>
+              </tr>
+              <tr>
+                <td><code>DOCS_TAG</code></td>
+                <td><code>'docs'</code></td>
+                <td>
+                  The tag that picks a test for the docs under
+                  <a href="configuration.html#stories"><code>stories: 'tagged'</code></a
+                  >. The viewer leaves it out of a test's tags.
+                </td>
+              </tr>
+              <tr>
+                <td><code>NO_DOCS_TAG</code></td>
+                <td><code>'no-docs'</code></td>
+                <td>The tag that keeps a test out of the docs. The viewer leaves it out too.</td>
               </tr>
               <tr>
                 <td><code>TestState</code></td>

@@ -44,7 +44,7 @@ pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code s
 pnpm site:build       # docs/ plus both example viewers with Live → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
 pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
 pnpm site             # site:build, then site:serve
-pnpm check-site       # docs.css applies, both viewers load and Live mounts a test in both, in Chromium, after pnpm site:build
+pnpm check-site       # docs.css applies, both viewers load, react-browser shows and filters by its tag forms, and Live mounts a test in both, in Chromium, after pnpm site:build
 pnpm docs:screenshots [page.html …]   # light and dark, 1280 and 390 px wide [--out dir]
 pnpm docs:link react-browser "<full test name>" [frame]   # a deep link into an example viewer for a docs page
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] [--react x.y.z] (Node ^20.19 || >=22.12)

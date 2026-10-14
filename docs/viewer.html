@@ -234,9 +234,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <strong>Sidebar.</strong> The search field, then one block per test file with its
             <code>describe</code> blocks and tests in source order. A file with a single top-level
-            <code>describe</code> shows its name over the file path. Each test shows its status and
-            its number of frames. A click on a file or <code>describe</code> row opens its
-            <a href="#overview">overview</a>. The arrow in front of it collapses it.
+            <code>describe</code> shows its name over the file path. Each test shows its status, its
+            <a href="#search">tags</a> and its number of frames. A click on a file or
+            <code>describe</code> row opens its <a href="#overview">overview</a>. The arrow in front
+            of it collapses it.
           </li>
           <li>
             <strong>Stage.</strong> The test's path and the
@@ -268,11 +269,20 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
 
         <p>
           The field at the top of the sidebar filters the tests. Every word you type must occur,
-          case-insensitive, in the test's full name with its suites, in its file path or in its
-          component's name. Different words may match different fields, so
+          case-insensitive, in the test's full name with its suites, in its file path, in its
+          component's name or in its tags. Different words may match different fields, so
           <code>counter.test reset</code> finds the Counter test that resets, by its file and its
           name. A search shows matches inside collapsed suites too. The search is not part of the
           link and is not stored.
+        </p>
+        <p>
+          A test's <a href="https://vitest.dev/guide/test-tags">Vitest tags</a>, its own and those
+          of its <code>describe</code> blocks and file, show next to its name and in the inspector.
+          A click on a tag in the inspector narrows the sidebar to the tests with that tag, and a
+          second click shows every test again, as does the × next to the tag above the tree. The tag
+          is part of the <a href="#links">link</a>, and <kbd>↑</kbd> <kbd>↓</kbd> follow it like the
+          search. <code>docs</code> and <code>no-docs</code> do not show, because they only pick
+          which tests <a href="configuration.html#stories">become stories</a>.
         </p>
         <p>
           The arrow in front of a file or <code>describe</code> row collapses it. The browser keeps
@@ -538,6 +548,11 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <code>live=1</code> opens the test in <a href="#live">Live</a>, so it needs
             <code>test</code>. Until the live preview is ready, the recorded frame shows.
+          </li>
+          <li>
+            <code>tag</code> narrows the sidebar to the tests with that <a href="#search">tag</a>.
+            Without <code>test</code>, the first of them opens. Setting or clearing it adds a
+            history entry.
           </li>
           <li>
             Opening a test or an overview adds a history entry, so Back and Forward move between

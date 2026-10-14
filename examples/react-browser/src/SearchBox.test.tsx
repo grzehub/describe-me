@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import { SearchBox } from './SearchBox'
 
-describe('SearchBox', () => {
+describe('SearchBox', { tags: ['forms'] }, () => {
   it('enables the button once there is a query', async () => {
     const screen = await render(<SearchBox />)
     await expect.element(screen.getByRole('button', { name: 'Search' })).toBeDisabled()

@@ -7,6 +7,8 @@ export interface Regions {
   sidebar: HTMLElement
   /** The sidebar's search field, above the tree. */
   search: HTMLInputElement
+  /** The tag the tree is narrowed to, between the search and the tree. Hidden without one. */
+  tagFilter: HTMLElement
   /** The sidebar's module blocks go here. */
   tree: HTMLElement
   center: HTMLElement
@@ -33,8 +35,9 @@ export function regions(): Regions {
     'aria-label': 'Search tests',
   })
 
+  const tagFilter = el('div', { class: 'tag-filter', role: 'status', hidden: true })
   const tree = el('div', { class: 'tree' })
-  const sidebar = el('aside', { class: 'sidebar' }, search, tree)
+  const sidebar = el('aside', { class: 'sidebar' }, search, tagFilter, tree)
   const center = el('div', { class: 'center' })
   const inspector = el('aside', { class: 'inspector' })
 
@@ -42,7 +45,7 @@ export function regions(): Regions {
     .getElementById('app')!
     .replaceChildren(header, banner, el('div', { class: 'body' }, sidebar, center, inspector))
 
-  built = { header, banner, sidebar, search, tree, center, inspector }
+  built = { header, banner, sidebar, search, tagFilter, tree, center, inspector }
 
   return built
 }

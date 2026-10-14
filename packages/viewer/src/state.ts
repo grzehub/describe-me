@@ -23,6 +23,8 @@ export interface State {
   scale: number
   /** The sidebar's search. Neither in the link nor stored. */
   query: string
+  /** The tag the sidebar is narrowed to. `tag=` in the link, so a filtered list can be shared. */
+  tag: string | null
 }
 
 export const state: State = {
@@ -36,6 +38,7 @@ export const state: State = {
   issuesOpen: false,
   scale: 1,
   query: '',
+  tag: null,
 }
 
 export function readHash(): void {
@@ -44,6 +47,7 @@ export function readHash(): void {
   state.suiteKey = params.get('suite')
   state.frame = Number(params.get('frame') ?? 0) || 0
   state.live = params.get('live') === '1'
+  state.tag = params.get('tag') || null
   state.viewport = {
     width: parseViewportSize(params.get('w')),
     height: parseViewportSize(params.get('h'), MIN_FRAME_HEIGHT),
@@ -84,6 +88,13 @@ export function select(testId: string, frame = 0, mode: 'push' | 'replace' = 'pu
   state.suiteKey = null
   state.frame = frame
   writeHash(mode)
+  rerender()
+}
+
+/** Narrow the sidebar to the tests with `tag`, or show every test again with `null`. */
+export function filterByTag(tag: string | null): void {
+  state.tag = tag
+  writeHash('push')
   rerender()
 }
 

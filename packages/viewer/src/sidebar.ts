@@ -1,13 +1,15 @@
 import type { ManifestModule, ManifestTest } from '@describe-me/core/types'
 import { CollapsedSuites } from './collapsed-suites.js'
 import { el } from './el.js'
-import { matchesQuery } from './matches-query.js'
+import { filterActive } from './filter-active.js'
+import { matchesFilter } from './matches-filter.js'
+import { shownTags } from './shown-tags.js'
 import { soleSuite } from './sole-suite.js'
 import { select, selectSuite, state } from './state.js'
 import { suiteKey } from './suite-key.js'
 import { buildTree, type SuiteNode } from './tree.js'
 
-/** What every row of one repaint needs to know. `collapsed` is `null` while a search is on. */
+/** What every row of one repaint needs to know. `collapsed` is `null` while a filter is on. */
 interface Walk {
   moduleId: string
   collapsed: CollapsedSuites | null
@@ -69,6 +71,17 @@ function suiteButton(label: string, key: string): HTMLElement {
   )
 }
 
+/** The test's tags, quiet next to its name. A row is a button, so they are not buttons too. */
+function tagChips(test: ManifestTest): HTMLElement | null {
+  const tags = shownTags(test)
+
+  if (tags.length === 0) {
+    return null
+  }
+
+  return el('span', { class: 'test-tags' }, ...tags.map((tag) => el('span', { class: 'tag' }, tag)))
+}
+
 function testButton(test: ManifestTest): HTMLElement {
   return el(
     'button',
@@ -79,16 +92,17 @@ function testButton(test: ManifestTest): HTMLElement {
     },
     el('span', { class: `dot ${test.state}` }),
     el('span', { class: 'test-name' }, test.name),
+    tagChips(test),
     el('span', { class: 'n' }, String(test.frames.length)),
   )
 }
 
-/** The rows under one suite, in source order. A search leaves out tests that do not match. */
+/** The rows under one suite, in source order. A filter leaves out tests that do not match. */
 function renderRows(node: SuiteNode, path: string[], walk: Walk): DocumentFragment {
   const rows = document.createDocumentFragment()
   for (const child of node.children) {
     if (!('suites' in child)) {
-      if (matchesQuery(child, walk.moduleId, state.query)) {
+      if (matchesFilter(child, walk.moduleId)) {
         rows.append(testButton(child))
       }
 
@@ -104,7 +118,7 @@ function renderRows(node: SuiteNode, path: string[], walk: Walk): DocumentFragme
   return rows
 }
 
-/** A suite and its rows, or `null` when a search leaves nothing in it. */
+/** A suite and its rows, or `null` when a filter leaves nothing in it. */
 function renderSuite(node: SuiteNode, path: string[], walk: Walk): HTMLElement | null {
   const key = suiteKey(walk.moduleId, path)
   const header = headerRow(suiteButton(node.name, key), node.name, key, walk)
@@ -121,14 +135,14 @@ function renderSuite(node: SuiteNode, path: string[], walk: Walk): HTMLElement |
   return el('div', { class: 'suite' }, header, rows)
 }
 
-/** A module block, or `null` when a search leaves nothing in it. */
+/** A module block, or `null` when a filter leaves nothing in it. */
 function renderModule(
   mod: ManifestModule,
   collapsed: CollapsedSuites | null,
   onToggle: () => void,
 ): HTMLElement | null {
   const walk: Walk = { moduleId: mod.id, collapsed, onToggle }
-  // On the whole tree, so a module header keeps its shape while a search narrows it.
+  // On the whole tree, so a module header keeps its shape while a filter narrows it.
   const root = buildTree(mod)
   const only = soleSuite(root)
   const path = only ? [only.name] : []
@@ -152,9 +166,22 @@ function renderModule(
   return el('div', { class: 'module' }, header, el('div', { class: 'suite root' }, rows))
 }
 
+/** What the empty sidebar says, naming the search, the tag or both. */
+function noMatches(): string {
+  const query = state.query.trim()
+
+  if (state.tag === null) {
+    return `no tests match "${query}"`
+  }
+
+  return query
+    ? `no tests tagged "${state.tag}" match "${query}"`
+    : `no tests tagged "${state.tag}"`
+}
+
 /**
  * One block per test module, each holding its suite tree, or a line saying the
- * search found nothing. `onToggle` repaints after a module or suite opens or closes.
+ * filter found nothing. `onToggle` repaints after a module or suite opens or closes.
  */
 export function renderSidebar(onToggle: () => void): HTMLElement[] {
   const manifest = state.manifest
@@ -162,14 +189,14 @@ export function renderSidebar(onToggle: () => void): HTMLElement[] {
     return []
   }
 
-  const query = state.query.trim()
-  const collapsed = query ? null : CollapsedSuites.for(manifest.root)
+  const filtered = filterActive()
+  const collapsed = filtered ? null : CollapsedSuites.for(manifest.root)
   const blocks = manifest.modules
     .map((mod) => renderModule(mod, collapsed, onToggle))
     .filter((block): block is HTMLElement => block !== null)
 
-  if (blocks.length === 0 && query) {
-    return [el('div', { class: 'empty' }, `no tests match "${query}"`)]
+  if (blocks.length === 0 && filtered) {
+    return [el('div', { class: 'empty' }, noMatches())]
   }
 
   return blocks

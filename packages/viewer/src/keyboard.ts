@@ -1,4 +1,5 @@
 import type { ManifestTest } from '@describe-me/core/types'
+import { filterActive } from './filter-active.js'
 import { liveShown } from './live-shown.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
@@ -36,7 +37,8 @@ function nearestShown(shown: ManifestTest[], id: string, step: 1 | -1): Manifest
 /**
  * The next or previous test the sidebar shows. From a test hidden in a
  * collapsed suite, that is the nearest shown row in sidebar order. From a test
- * the search does not match, ↓ enters at the first match and ↑ at the last.
+ * the search or the tag filter leaves out, ↓ enters at the first match and ↑
+ * at the last.
  */
 function neighbour(id: string, step: 1 | -1): ManifestTest | undefined {
   const tests = visibleTests()
@@ -45,7 +47,7 @@ function neighbour(id: string, step: 1 | -1): ManifestTest | undefined {
     return tests[index + step]
   }
 
-  if (state.query.trim() === '') {
+  if (!filterActive()) {
     return nearestShown(tests, id, step)
   }
 

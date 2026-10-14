@@ -113,6 +113,15 @@ export interface TestRecord {
 
 export const META_KEY = 'describeMe' as const
 
+/**
+ * The Vitest tag that picks a test, a suite or a file for the docs when the
+ * plugin's `stories` is `'tagged'`. The viewer leaves it out of a test's tags.
+ */
+export const DOCS_TAG = 'docs' as const
+
+/** The Vitest tag that keeps a test, a suite or a file out of the docs, whatever `stories` says. */
+export const NO_DOCS_TAG = 'no-docs' as const
+
 // ---------- manifest (written by the reporter, read by the viewer) ----------
 
 export type TestState = 'passed' | 'failed' | 'skipped' | 'pending'
