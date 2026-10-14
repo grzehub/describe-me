@@ -82,8 +82,11 @@ if (stories !== null && !storiesModes.includes(stories)) {
   throw new Error(`STORIES: unknown value "${stories}", expected ${storiesModes.join(', ')}`)
 }
 
-if (stories !== null && (liveFixtures !== null || actParity || process.env.BENCH_MICRO)) {
-  throw new Error('STORIES does not work with LIVE_FIXTURES, ACT_PARITY or BENCH_MICRO')
+if (
+  stories !== null &&
+  (liveFixtures !== null || actParity || process.env.BENCH_MICRO || projects !== null)
+) {
+  throw new Error('STORIES does not work with LIVE_FIXTURES, ACT_PARITY, BENCH_MICRO or PROJECTS')
 }
 
 function storiesOptions(): DescribeMeOptions {
