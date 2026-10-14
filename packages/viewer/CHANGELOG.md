@@ -1,5 +1,18 @@
 # describe-me
 
+## 0.7.0
+
+### Minor Changes
+
+- [#78](https://github.com/grzehub/describe-me/pull/78) [`7b64ddd`](https://github.com/grzehub/describe-me/commit/7b64ddde00c6924cfab2f2e1a903517e8ea8250f) Thanks [@sebastianmusial](https://github.com/sebastianmusial)! - Tags in the viewer. A test's Vitest tags show next to its name and in the inspector, and the search matches them. A click on a tag in the inspector narrows the sidebar to the tests with that tag. The tag is part of the link (`tag=`), × above the tree clears it, and ↑ ↓ follow it. `docs` and `no-docs` do not show.
+
+  - `@describe-me/core/types` exports `DOCS_TAG` and `NO_DOCS_TAG`, which `@describe-me/vitest` now takes from there.
+
+### Patch Changes
+
+- Updated dependencies [[`eb691d4`](https://github.com/grzehub/describe-me/commit/eb691d4a8f27eb1e061f7fec765379c579cf48d4), [`7b64ddd`](https://github.com/grzehub/describe-me/commit/7b64ddde00c6924cfab2f2e1a903517e8ea8250f)]:
+  - @describe-me/core@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes
