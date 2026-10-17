@@ -12,19 +12,23 @@
  * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
  * test again. In both viewers `bg` and the background switch set the stage's
  * canvas and the frame's color scheme, in a replayed frame, in Live and in the
- * overview's thumbnails, and no frame paints an opaque backdrop. The sidebar's
- * edge sets its width with ← → and by dragging, a double-click sets it back,
- * frames ignore the pointer during a drag and the stage refits after it, and
- * each viewer keeps its own width after a reload. The viewer's theme switch
- * sets the chrome's colors and survives a reload, the stored theme is set
- * before `<body>`, a repaint keeps a focused theme button focused, the switch
- * works without storage until a reload, and no theme changes a frame's pixels,
- * canvas, color scheme or media query, in replay and in Live. With the
- * react-browser manifest padded in memory, a long props table folds in the
- * overview and in the inspector, and stays unfolded through a frame step and a
- * visit to another test until the page reloads. No request to the site may
- * fail and the page may throw no error. Remote requests are answered locally,
- * so remote fonts never decide the result. Run after `pnpm site:build`.
+ * overview's thumbnails, and no frame paints an opaque backdrop. With the live
+ * page held back, the dimmed recorded frame stays under the live frame until
+ * the first status and fades out after, leaving Live or picking another test
+ * while it loads leaves one slot, and reduced motion keeps only the dimmed
+ * frame. The sidebar's edge sets its width with ← → and by dragging, a
+ * double-click sets it back, frames ignore the pointer during a drag and the
+ * stage refits after it, and each viewer keeps its own width after a reload.
+ * The viewer's theme switch sets the chrome's colors and survives a reload,
+ * the stored theme is set before `<body>`, a repaint keeps a focused theme
+ * button focused, the switch works without storage until a reload, and no
+ * theme changes a frame's pixels, canvas, color scheme or media query, in
+ * replay and in Live. With the react-browser manifest padded in memory, a long
+ * props table folds in the overview and in the inspector, and stays unfolded
+ * through a frame step and a visit to another test until the page reloads. No
+ * request to the site may fail and the page may throw no error. Remote
+ * requests are answered locally, so remote fonts never decide the result. Run
+ * after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -44,8 +48,9 @@ const DARK_BACKGROUND = 'rgb(17, 19, 22)'
 const VIEWER_TIMEOUT = 20_000
 const LIVE_TIMEOUT = 30_000
 const LIVE_READY = JSON.stringify({ status: 'ready', base: '__live/' })
-// `mounted` in packages/viewer/src/live-status-words.ts.
+// `mounted` and `loading` in packages/viewer/src/live-status-words.ts.
 const MOUNTED_WORDS = 'mounted as the test arranged it'
+const LOADING_WORDS = 'mounting…'
 // --canvas-light and --canvas-dark in packages/viewer/src/style.css.
 const LIGHT_CANVAS = 'rgb(255, 255, 255)'
 const DARK_CANVAS = 'rgb(20, 22, 25)'
@@ -571,11 +576,13 @@ async function checkLongProps(context, url) {
 
 /**
  * A page that answers remote requests locally and keeps failed site requests
- * and page errors. `colorScheme: null` turns the emulation off.
+ * and page errors. `colorScheme: null` turns the emulation off, and
+ * `reducedMotion` sets `prefers-reduced-motion`.
  */
-async function openLivePage(browser, url, colorScheme = 'light') {
+async function openLivePage(browser, url, colorScheme = 'light', reducedMotion = 'no-preference') {
   const context = await browser.newContext({
     colorScheme,
+    reducedMotion,
     viewport: { width: 1280, height: 800 },
   })
 
@@ -834,6 +841,20 @@ async function replaySteps(page, url, name, id) {
   return eachBackground(page, RECORDED_IFRAME)
 }
 
+/** Waits until the live frame has faded in and the recorded frame under it is gone. */
+async function faded(page) {
+  await page.locator('.stage-slot.live-underlay').waitFor({ state: 'detached', timeout: 5_000 })
+  await page
+    .locator('.stage-slot.live-slot:not(.loading)')
+    .waitFor({ state: 'attached', timeout: 5_000 })
+
+  await page.waitForFunction(
+    (selector) => getComputedStyle(document.querySelector(selector)).opacity === '1',
+    LIVE_IFRAME,
+    { timeout: 5_000 },
+  )
+}
+
 /** The switch in Live, which must not reload the live frame. */
 async function liveSteps(page) {
   await page
@@ -845,6 +866,8 @@ async function liveSteps(page) {
     .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
     .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
 
+  // Until the fade ends, the recorded frame under the live one changes the stage's pixels.
+  await faded(page)
   await page.locator(LIVE_IFRAME).evaluate((iframe) => {
     iframe.contentWindow.stageBackgroundMarker = true
   })
@@ -925,6 +948,365 @@ async function checkStageBackground(browser, url, name) {
 
     console.log(
       `check-site: examples/${name}/ bg sets the canvas and the frames' color scheme, in replay, in Live and in the overview, with no backdrop`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${[errorMessage(error), ...failures].join(', ')}`]
+  } finally {
+    await context.close()
+  }
+}
+
+/**
+ * Holds every request for `live.html` until `release()`, so a live frame stays
+ * loading. `continue()` throws once the route is gone or the frame was
+ * removed, and the request goes through anyway.
+ */
+async function holdLivePage(page) {
+  let open = () => {}
+  let released = null
+  const gate = new Promise((resolve) => {
+    open = resolve
+  })
+
+  const held = []
+  const matcher = (target) => target.pathname.endsWith('/live.html')
+  const handler = (route) => {
+    const continued = gate.then(() => route.continue()).catch(() => {})
+
+    held.push(continued)
+
+    return continued
+  }
+
+  await page.route(matcher, handler)
+
+  return () => {
+    released ??= (async () => {
+      open()
+      await Promise.all(held)
+      await page.unroute(matcher, handler)
+    })()
+
+    return released
+  }
+}
+
+/**
+ * Live's loading state, read in the page, `id` being the test first shown.
+ * With `expected`, whether the page shows it, for `waitForFunction()`.
+ */
+function liveLoading({ id, expected }) {
+  const styleOf = (element) => (element ? getComputedStyle(element) : null)
+  const frames = document.querySelector('.stage-frames')
+  const live = document.querySelector('.stage-slot.live-slot')
+  const underlay = document.querySelector('.stage-slot.live-underlay')
+  const slot = styleOf(live)
+  const iframe = styleOf(live?.querySelector('iframe'))
+  const underlayOpacity = Number(styleOf(underlay?.querySelector('iframe'))?.opacity ?? 'NaN')
+  const dot = getComputedStyle(document.querySelector('.live-toggle'), '::before')
+  const seen = {
+    live: document.querySelectorAll('.stage-slot.live-slot').length,
+    loading: document.querySelectorAll('.stage-slot.live-slot.loading').length,
+    liveOfTest: live?.dataset.test === id,
+    liveOpacity: iframe?.opacity ?? null,
+    liveTransition: iframe?.transitionProperty ?? null,
+    liveDuration: iframe?.transitionDuration ?? null,
+    shimmer: slot ? slot.animationName !== 'none' : null,
+    shimmerImage: slot ? slot.backgroundImage !== 'none' : null,
+    underlays: document.querySelectorAll('.stage-slot.live-underlay').length,
+    underlayOfTest: underlay?.dataset.test === id,
+    underlayDimmed: underlayOpacity > 0 && underlayOpacity < 1,
+    recorded: document.querySelectorAll('.stage-slot[data-frame]:not(.incoming) iframe').length,
+    slots: frames.querySelectorAll(':scope > .stage-slot').length,
+    onlyRecorded:
+      frames.children.length === 1 &&
+      frames.children[0].matches('.stage-slot[data-frame]:not(.incoming)'),
+    toggle: document.querySelector('.live-toggle.loading') !== null,
+    pulse: dot.animationName !== 'none',
+    dotDim: Number(dot.opacity) < 1,
+    status: document.querySelector('.live-section .live-status')?.textContent.trim() ?? null,
+  }
+
+  if (expected === undefined) {
+    return seen
+  }
+
+  return Object.entries(expected).every(([key, value]) => seen[key] === value)
+}
+
+/** What the page shows that `expected` does not, for a problem's message. */
+async function loadingMismatch(page, id, expected) {
+  const seen = await page.evaluate(liveLoading, { id })
+  const differs = Object.keys(expected).filter((key) => seen[key] !== expected[key])
+
+  return differs.map((key) => `${key} is ${JSON.stringify(seen[key])}`).join(', ')
+}
+
+/** Waits until the stage shows `expected`. Returns a problem or `null`. */
+async function showsLoading(page, id, expected, timeout) {
+  const shown = await page
+    .waitForFunction(liveLoading, { id, expected }, { timeout })
+    .then(() => true)
+    .catch(() => false)
+
+  return shown ? null : loadingMismatch(page, id, expected)
+}
+
+/** Whether the stage still shows `expected`, read once. Returns a problem or `null`. */
+async function stillShowsLoading(page, id, expected) {
+  const shown = await page.evaluate(liveLoading, { id, expected })
+
+  return shown ? null : loadingMismatch(page, id, expected)
+}
+
+/** What the stage shows while a new live frame of the test loads over its recorded frame. */
+function loadingOverRecorded() {
+  return {
+    loading: 1,
+    liveOfTest: true,
+    liveOpacity: '0',
+    liveTransition: 'opacity',
+    liveDuration: '0.15s',
+    shimmer: true,
+    underlays: 1,
+    underlayOfTest: true,
+    underlayDimmed: true,
+    recorded: 0,
+    toggle: true,
+    pulse: true,
+    status: LOADING_WORDS,
+  }
+}
+
+/** The test's recorded frame on the stage, with Live ready to start. */
+async function showRecorded(page, url, name, id) {
+  await page.goto(`${url}examples/${name}/#test=${id}`)
+  await page.locator(RECORDED_IFRAME).waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+}
+
+/** Records in the page when the underlay gets `leaving` and when it leaves the stage. */
+function watchUnderlay() {
+  const frames = document.querySelector('.stage-frames')
+  const underlay = frames.querySelector(':scope > .live-underlay')
+  const seen = { leaving: null, removed: null }
+  const observer = new MutationObserver(() => {
+    if (seen.leaving === null && underlay.classList.contains('leaving')) {
+      seen.leaving = performance.now()
+    }
+
+    if (seen.removed === null && underlay.parentElement !== frames) {
+      seen.removed = performance.now()
+      observer.disconnect()
+    }
+  })
+
+  window.liveUnderlaySeen = seen
+  observer.observe(frames, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class'],
+  })
+}
+
+/** Until the first status the dimmed recorded frame stays, then it fades out and leaves. */
+async function loadingSteps(page, id, release) {
+  await page.keyboard.press('l')
+
+  const loading = loadingOverRecorded()
+  const shown = await showsLoading(page, id, loading, 5_000)
+
+  if (shown) {
+    return `while it loads: ${shown}`
+  }
+
+  await page.waitForTimeout(500)
+
+  const kept = await stillShowsLoading(page, id, loading)
+
+  if (kept) {
+    return `500 ms later, still held: ${kept}`
+  }
+
+  await page.evaluate(watchUnderlay)
+  await release()
+  await page
+    .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
+    .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
+
+  const settled = await showsLoading(
+    page,
+    id,
+    { underlays: 0, live: 1, loading: 0, slots: 1, liveOpacity: '1', toggle: false },
+    2_000,
+  )
+
+  if (settled) {
+    return `after the first status: ${settled}`
+  }
+
+  const { leaving, removed } = await page.evaluate(() => window.liveUnderlaySeen)
+
+  if (leaving === null || removed === null || removed - leaving < 100) {
+    return `the underlay got leaving at ${leaving} ms and left at ${removed} ms, expected 100 ms or more between`
+  }
+
+  return null
+}
+
+/** `L` leaves Live once it mounted, and the recorded frame comes back. */
+async function leaveLive(page) {
+  await page.keyboard.press('l')
+  await page.locator(RECORDED_IFRAME).waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  return null
+}
+
+/** `L` again while Live loads: the swap leaves the recorded frame alone on the stage. */
+async function leaveWhileLoading(page, id, release) {
+  await page.keyboard.press('l')
+  await page.locator('.stage-slot.live-underlay').waitFor({ state: 'attached', timeout: 5_000 })
+  await page.keyboard.press('l')
+
+  const left = await showsLoading(
+    page,
+    id,
+    { onlyRecorded: true, live: 0, underlays: 0, toggle: false },
+    5_000,
+  )
+
+  await release()
+
+  return left ? `leaving Live while it loads: ${left}` : null
+}
+
+/** Another test while Live loads: no underlay, and the shimmer runs on the empty canvas. */
+async function otherTestWhileLoading(page, id, release) {
+  await page.keyboard.press('l')
+  await page.locator('.stage-slot.live-underlay').waitFor({ state: 'attached', timeout: 5_000 })
+  await page.locator('.tree .test:not(.active)').first().click()
+
+  const picked = await showsLoading(
+    page,
+    id,
+    { underlays: 0, live: 1, loading: 1, liveOfTest: false, shimmerImage: true },
+    5_000,
+  )
+
+  await release()
+
+  if (picked) {
+    return `another test while Live loads: ${picked}`
+  }
+
+  await page.waitForFunction(
+    (words) => {
+      const status = document.querySelector('.live-section .live-status')
+
+      return status !== null && !status.textContent.includes(words)
+    },
+    LOADING_WORDS,
+    { timeout: LIVE_TIMEOUT },
+  )
+
+  const ended = await showsLoading(page, id, { live: 1, loading: 0 }, 2_000)
+
+  return ended ? `after the other test's first status: ${ended}` : null
+}
+
+/** Runs `step` with `live.html` held, and never leaves a request held behind. */
+async function whileHeld(page, step) {
+  const release = await holdLivePage(page)
+
+  try {
+    return await step(release)
+  } finally {
+    await release()
+  }
+}
+
+/** Live's loading state: the dimmed recorded frame until the first status, and one slot after. */
+async function checkLiveLoading(browser, url, name) {
+  const label = `examples/${name}/ Live loading`
+  const { context, page, failures } = await openLivePage(browser, url)
+  const id = testIdOf(name, LIVE_TESTS[name].fullName)
+
+  try {
+    await showRecorded(page, url, name, id)
+
+    const problem =
+      (await whileHeld(page, (release) => loadingSteps(page, id, release))) ??
+      (await leaveLive(page)) ??
+      (await whileHeld(page, (release) => leaveWhileLoading(page, id, release))) ??
+      (await whileHeld(page, (release) => otherTestWhileLoading(page, id, release)))
+
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ keeps the dimmed recorded frame under Live until the first status, fades it out after, and leaving Live or picking another test while it loads leaves one slot`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${[errorMessage(error), ...failures].join(', ')}`]
+  } finally {
+    await context.close()
+  }
+}
+
+/** With reduced motion, no shimmer, pulse or fade while Live loads, only the dimmed frame. */
+async function checkLiveLoadingReducedMotion(browser, url) {
+  const name = 'react-browser'
+  const label = `examples/${name}/ Live loading with reduced motion`
+  const { context, page, failures } = await openLivePage(browser, url, 'light', 'reduce')
+  const id = testIdOf(name, LIVE_TESTS[name].fullName)
+
+  try {
+    await showRecorded(page, url, name, id)
+
+    const problem = await whileHeld(page, async (release) => {
+      await page.keyboard.press('l')
+
+      const shown = await showsLoading(
+        page,
+        id,
+        {
+          loading: 1,
+          shimmer: false,
+          shimmerImage: false,
+          liveDuration: '0s',
+          pulse: false,
+          dotDim: true,
+          underlayDimmed: true,
+        },
+        5_000,
+      )
+
+      await release()
+      await page
+        .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
+        .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
+
+      return shown
+    })
+
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ with reduced motion shows only the dimmed recorded frame while Live loads`,
     )
 
     return []
@@ -1603,6 +1985,11 @@ try {
     problems.push(...(await checkStageBackground(browser, url, name)))
   }
 
+  for (const name of exampleNames) {
+    problems.push(...(await checkLiveLoading(browser, url, name)))
+  }
+
+  problems.push(...(await checkLiveLoadingReducedMotion(browser, url)))
   problems.push(...(await checkSidebarWidth(browser, url)))
 
   for (const name of exampleNames) {
@@ -1625,5 +2012,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, mount one in Live, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, mount one in Live, show Live loading, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )

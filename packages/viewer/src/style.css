@@ -881,8 +881,8 @@ button.tag.active {
 }
 
 /*
- * No transitions on the frames or their slots: heights are measured right
- * after every size change.
+ * Sizes of the frames and their slots never transition, because heights are
+ * measured right after every size change.
  */
 .stage {
   position: relative;
@@ -1347,6 +1347,79 @@ kbd {
   font-weight: 600;
   line-height: 16px;
   pointer-events: none;
+}
+/*
+ * While the live page loads, its frame is see-through and a band sweeps the
+ * slot's own background, over the empty canvas or through the dimmed
+ * underlay. Fixed colors, because the canvas does not follow the viewer's
+ * scheme. No `position`, `transform`, `filter`, `contain` or `will-change` on
+ * the slot: it would become a containing block and clip the Live label.
+ */
+.stage-slot.live-slot.loading {
+  background-image: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(74, 99, 216, 0.2) 50%,
+    transparent 60%
+  );
+  background-size: 300% 100%;
+  animation: live-shimmer 1.4s linear infinite;
+}
+.stage[data-canvas='dark'] .stage-slot.live-slot.loading {
+  background-image: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(142, 162, 255, 0.24) 50%,
+    transparent 60%
+  );
+}
+.stage-slot.live-slot iframe {
+  transition: opacity 150ms ease-out;
+}
+.stage-slot.live-slot.loading iframe {
+  opacity: 0;
+}
+/* At opacity 1 the live iframe paints below a translucent underlay, so the underlay fades out. */
+.stage-slot.live-underlay iframe {
+  opacity: 0.4;
+  transition: opacity 150ms ease-out;
+}
+.stage-slot.live-underlay.leaving iframe {
+  opacity: 0;
+}
+.crumbs .tools .live-toggle.on.loading::before {
+  animation: live-pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes live-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@keyframes live-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-slot.live-slot.loading,
+  .stage[data-canvas='dark'] .stage-slot.live-slot.loading {
+    background: none;
+    animation: none;
+  }
+  .stage-slot.live-slot iframe,
+  .stage-slot.live-underlay iframe {
+    transition: none;
+  }
+  .crumbs .tools .live-toggle.on.loading::before {
+    animation: none;
+    opacity: 0.5;
+  }
 }
 .live-section h4 {
   margin: 14px 0 6px;

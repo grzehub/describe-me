@@ -482,6 +482,29 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
         </ul>
 
+        <h3>While it mounts</h3>
+        <ul>
+          <li>
+            Until the live page reports a status, the recorded frame stays under the live frame,
+            dimmed, with a shimmer. The Live label shows from the start.
+          </li>
+          <li>
+            With no recorded frame of the test on the stage, the shimmer runs on the empty canvas.
+            That happens after <strong>Restart</strong> of a mounted test, after picking another
+            test in Live, and with a <code>live=1</code> link that opens Live before the frame
+            shows.
+          </li>
+          <li>The dot of the Live toggle pulses, and the inspector says "mounting…".</li>
+          <li>
+            Any status ends it, one that went wrong too. The live frame fades in and the recorded
+            frame fades out.
+          </li>
+          <li>
+            With <code>prefers-reduced-motion: reduce</code> there is no shimmer and no fade, and
+            the toggle's dot is dim instead of pulsing.
+          </li>
+        </ul>
+
         <h3>What is real</h3>
         <ul>
           <li>Clicks, typing, timers and time are real.</li>

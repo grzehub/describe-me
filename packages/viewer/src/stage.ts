@@ -47,8 +47,11 @@ function delay(ms: number): Promise<void> {
   })
 }
 
+/** The underlay under a loading live frame never counts, so leaving Live swaps a frame in. */
 function visibleSlot(frames: HTMLElement): HTMLElement | null {
-  return frames.querySelector<HTMLElement>(':scope > .stage-slot:not(.incoming)')
+  return frames.querySelector<HTMLElement>(
+    ':scope > .stage-slot:not(.incoming):not(.live-underlay)',
+  )
 }
 
 function removeIncoming(frames: HTMLElement): void {

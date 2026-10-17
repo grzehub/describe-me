@@ -1,4 +1,5 @@
 import { el } from './el.js'
+import { liveSession } from './live-session.js'
 import { liveShown } from './live-shown.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
 import type { StageBackground } from './parse-stage-background.js'
@@ -139,6 +140,7 @@ function syncLiveToggle(button: HTMLElement): void {
   button.hidden = preview.status === 'off'
   button.title = titles[preview.status]
   button.classList.toggle('on', shown)
+  button.classList.toggle('loading', shown && liveSession.status === 'loading')
   button.setAttribute('aria-pressed', String(shown))
 
   if (preview.status === 'ready') {
