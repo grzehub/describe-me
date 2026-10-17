@@ -24,7 +24,7 @@ cd examples/react-jsdom && pnpm test          # 28 tests, jsdom (23 in the manif
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 pnpm check-manifest   # both examples' manifests, after running their tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
-pnpm check-asset-store   # CSS references, copied CSS, preview head and asset GC, after pnpm build
+pnpm check-asset-store   # CSS references, copied CSS, preview head, asset GC, and machine paths in snapshots, error texts and `assetsMissing`, after pnpm build
 pnpm check-font-audit   # which font families count as missing, after pnpm build
 pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after pnpm build
 pnpm check-frame-timing   # frame compaction and renderFrame validation, after pnpm build
@@ -44,7 +44,7 @@ pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code s
 pnpm site:build       # docs/ plus both example viewers with Live → site/ [--no-vendor-fonts], after pnpm build and both examples' tests
 pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
 pnpm site             # site:build, then site:serve
-pnpm check-site       # docs.css applies, both viewers load, react-browser shows and filters by its tag forms and folds a long props table, an overview with several components paints every gallery in both, Live mounts a test in both and shows its loading state (the dimmed recorded frame until the first status, one slot after leaving Live or picking another test while it loads, and reduced motion), the stage background (bg sets the canvas and the frames' color scheme, in replay, in Live and in the overview), the sidebar's edge sets the width from the keyboard and by dragging, per project and kept after a reload, and the viewer theme (it survives a reload and leaves the frames alone), in Chromium, after pnpm site:build
+pnpm check-site       # no file of the site names the checkout or the home directory, docs.css applies, both viewers load, react-browser shows and filters by its tag forms and folds a long props table, an overview with several components paints every gallery in both, Live mounts a test in both and shows its loading state (the dimmed recorded frame until the first status, one slot after leaving Live or picking another test while it loads, and reduced motion), the stage background (bg sets the canvas and the frames' color scheme, in replay, in Live and in the overview), the sidebar's edge sets the width from the keyboard and by dragging, per project and kept after a reload, and the viewer theme (it survives a reload and leaves the frames alone), in Chromium, after pnpm site:build
 pnpm docs:screenshots [page.html …]   # light and dark, 1280 and 390 px wide [--out dir]
 pnpm docs:link react-browser "<full test name>" [frame]   # a deep link into an example viewer for a docs page
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] [--react x.y.z] (Node ^20.19 || >=22.12)

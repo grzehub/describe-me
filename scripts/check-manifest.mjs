@@ -12,7 +12,9 @@
  * `f0`, and a closing frame is always a test's last. Every referenced
  * snapshot file must also exist and hold an rrweb serialized document whose
  * ids start at 1 and carry no `rootId`, and no two files may hold the same
- * DOM (compared without rrweb's node ids). `--structure-only` runs just these
+ * DOM (compared without rrweb's node ids). No snapshot may hold a `<script>`
+ * element or a `data-vite-dev-id` that is absolute or has a `..` segment, so
+ * none names the machine that recorded it. `--structure-only` runs just these
  * guarantees and snapshot checks, which is what a real project can promise.
  * The full check also expects `at` never to decrease within a test. In a real
  * project, captures the test did not await can overlap and break that.
@@ -73,6 +75,9 @@ const HEAD_URL = /(?<![\w-])(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>
 // The same pattern as RAW_TEXT in packages/vitest/src/rewrite-head-references.ts.
 const RAW_TEXT =
   /<!--[\s\S]*?--!?>|<script\b[\s\S]*?<\/script\b[^>]*>|(<style\b[^>]*>)([\s\S]*?)(<\/style\b[^>]*>)/gi
+
+// The same pattern as ABSOLUTE_PATH in packages/vitest/src/clean-snapshot.ts.
+const ABSOLUTE_PATH = /^(?:[\\/]|[A-Za-z]:)/
 
 const TEST_ID = /^[0-9a-f]{12}$/
 // How far past the last occurrence of a name the next may be. The reporter leaves some tests out.
@@ -427,6 +432,34 @@ function childrenOf(node) {
   return Array.isArray(node.childNodes) ? node.childNodes : []
 }
 
+function isScript(node) {
+  return (
+    node.type === 2 && typeof node.tagName === 'string' && node.tagName.toLowerCase() === 'script'
+  )
+}
+
+/** What the reporter removes before it stores a snapshot: `<script>` elements and machine paths. */
+function machineTraces(node, traces = { scripts: 0, devIds: [] }) {
+  if (isScript(node)) {
+    traces.scripts++
+  }
+
+  const devId = node.attributes?.['data-vite-dev-id']
+
+  if (
+    typeof devId === 'string' &&
+    (ABSOLUTE_PATH.test(devId) || devId.split(/[\\/]/).includes('..'))
+  ) {
+    traces.devIds.push(devId)
+  }
+
+  for (const child of childrenOf(node)) {
+    machineTraces(child, traces)
+  }
+
+  return traces
+}
+
 function countRootIds(node) {
   let count = Object.hasOwn(node, 'rootId') ? 1 : 0
   for (const child of childrenOf(node)) {
@@ -479,6 +512,16 @@ function inspectSnapshot(file, abs) {
 
   if (serialized.id !== 1) {
     problems.push(`${file}: root node id is ${serialized.id}, expected 1`)
+  }
+
+  const traces = machineTraces(serialized)
+
+  if (traces.scripts > 0) {
+    problems.push(`${file}: ${traces.scripts} <script> element(s)`)
+  }
+
+  for (const devId of traces.devIds) {
+    problems.push(`${file}: data-vite-dev-id ${devId} is absolute or has a .. segment`)
   }
 
   return { problems, key: domKey(serialized) }

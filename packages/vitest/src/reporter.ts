@@ -16,6 +16,7 @@ import {
   type TestState,
 } from '@describe-me/core/types'
 import { AssetStore } from './asset-store.js'
+import { cleanSnapshot } from './clean-snapshot.js'
 import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
@@ -24,6 +25,7 @@ import { fileFilter } from './file-filter.js'
 import { FontAudit } from './font-audit.js'
 import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
+import { ProjectPaths } from './project-paths.js'
 import { readGenerator } from './read-generator.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
@@ -61,6 +63,8 @@ export interface DescribeMeReporterOptions {
   setupWarnings?: string[]
 }
 
+type ManifestError = NonNullable<ManifestTest['errors']>[number]
+
 function toPosix(moduleId: string): string {
   return moduleId.split(sep).join('/')
 }
@@ -88,6 +92,7 @@ export default class DescribeMeReporter implements Reporter {
   private root = process.cwd()
   private configFile: string | undefined
   private outDir = ''
+  private paths!: ProjectPaths
   private snapshots!: SnapshotStore
   private assets!: AssetStore
   private styles!: StyleStore
@@ -112,6 +117,7 @@ export default class DescribeMeReporter implements Reporter {
     // A script that calls the reporter directly passes no Vite server, so there is no file to name.
     this.configFile = this.relativeConfigFile(vitest.vite?.config.configFile)
     this.outDir = resolve(this.root, this.outDirOption)
+    this.paths = new ProjectPaths(this.root)
     this.snapshots = new SnapshotStore(this.outDir)
     this.assets = new AssetStore(this.outDir, this.root)
     this.styles = new StyleStore(this.outDir)
@@ -269,7 +275,7 @@ export default class DescribeMeReporter implements Reporter {
 
     // Never seeded from the last run: the plugin checks the setup on every start.
     if (this.setupWarnings.length > 0) {
-      manifest.setupWarnings = this.setupWarnings
+      manifest.setupWarnings = this.setupWarnings.map((warning) => this.paths.inText(warning))
     }
 
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
@@ -353,21 +359,35 @@ export default class DescribeMeReporter implements Reporter {
       tags: tagsOf(tc),
       state: (result.state as TestState) ?? 'pending',
       duration: tc.diagnostic()?.duration,
-      errors: result.errors?.map((error) => ({ message: error.message, stack: error.stack })),
+      errors: result.errors?.map((error) => this.errorOf(error)),
       component: record.component,
       frames,
+    }
+  }
+
+  /** A test error with its files named from the root. A missing stack stays missing. */
+  private errorOf(error: ManifestError): ManifestError {
+    const { message, stack } = error
+
+    return {
+      // Vitest passes on a thrown object that has no message as it is.
+      message: typeof message === 'string' ? this.paths.inText(message) : message,
+      stack: typeof stack === 'string' ? this.paths.inText(stack) : stack,
     }
   }
 
   /**
    * Store one frame's DOM, with asset URLs pointing into the asset store and
    * long stylesheets moved to the style store. Assets go first, so stored CSS
-   * carries asset URLs too.
+   * carries asset URLs too. Cleaning goes last, so it parses the snapshot
+   * without its long sheets, and the stored name is the hash of the cleaned text.
    */
   private writeSnapshot(snapshot: unknown, origin: string | undefined): string {
     // A mixed install, where an older core created the global recorder, still hands over objects.
     const json = typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot)
 
-    return this.snapshots.write(this.styles.extract(this.assets.rewrite(json, origin)))
+    return this.snapshots.write(
+      cleanSnapshot(this.styles.extract(this.assets.rewrite(json, origin)), this.paths),
+    )
   }
 }

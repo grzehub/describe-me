@@ -567,7 +567,9 @@ describe-me: https://fonts.bunny.net/css?family=… did not download (…). It k
           </li>
           <li>
             <strong>Left alone.</strong> Links to pages, such as <code>&lt;a href="/"&gt;</code>,
-            scripts and the dev server's own paths are not assets and stay as they are.
+            URLs of script files and the dev server's own paths are not assets and stay as they are.
+            <code>&lt;script&gt;</code> elements are dropped from the snapshot, because the viewer
+            never runs them.
           </li>
           <li>
             <strong>CSS files.</strong> A copied CSS file keeps working, because its

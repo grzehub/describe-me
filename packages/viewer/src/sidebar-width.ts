@@ -1,7 +1,7 @@
 const instances = new Map<string, SidebarWidth>()
 
 /**
- * The sidebar width the reader chose, kept in `localStorage` per project root
+ * The sidebar width the reader chose, kept in `localStorage` per project
  * because several projects share `localhost:6006`. Without storage it still
  * works for the page's lifetime.
  */
@@ -19,7 +19,7 @@ export class SidebarWidth {
     this.width = this.load()
   }
 
-  /** The one instance for a project root. */
+  /** The one instance for a project. */
   static for(root: string): SidebarWidth {
     let width = instances.get(root)
     if (!width) {

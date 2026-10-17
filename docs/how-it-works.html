@@ -537,6 +537,17 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         </p>
 
         <p>
+          Before it stores a snapshot, the reporter removes what names the machine that recorded it.
+          Every <code>&lt;script&gt;</code> goes, wherever it sits, because the viewer never runs
+          one. Vite marks each <code>&lt;style&gt;</code> it injects with
+          <code>data-vite-dev-id</code>, the absolute path of the file. That path becomes relative
+          to the root, such as <code>src/styles.css</code>, or starts at the last
+          <code>node_modules/</code> for a file outside the root. Any other file outside the root
+          loses the attribute. Values that the tests put into a frame, such as props, labels and the
+          text they render, stay as they are.
+        </p>
+
+        <p>
           A frame has no layout and no screenshot. The viewer's browser lays the DOM out again from
           its styles, at the width you pick.
         </p>
@@ -580,7 +591,15 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             decides where a chunk ends. So a sheet that grows from test to test shares most of its
             chunks. The snapshot keeps <code>describe-me-style:&lt;hash&gt;+&lt;hash&gt;…</code>.
           </li>
-          <li>Writes the snapshot to <code>snapshots/</code>.</li>
+          <li>
+            Removes every <code>&lt;script&gt;</code> and writes
+            <code>data-vite-dev-id</code> relative to the root, as
+            <a href="#snapshot">What a frame holds</a> says.
+          </li>
+          <li>
+            Writes the snapshot to <code>snapshots/</code>, named after the hash of the cleaned
+            text.
+          </li>
         </ol>
 
         <p>Assets come first, so the stored stylesheets point at the copied files too.</p>
@@ -599,12 +618,12 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         </p>
 
         <p>
-          <code>describe-me build</code> copies the directory into the site as
-          <code>__data/</code> and downloads web fonts into the copy. The directory itself never
-          changes. <a href="styles-and-fonts.html#assets">Styles and fonts</a> says which files are
-          copied, <a href="styles-and-fonts.html#vendoring">Vendoring fonts</a> how fonts are
-          downloaded, and <a href="performance.html#output">Performance</a> how large the output
-          gets.
+          <code>describe-me build</code> copies the directory into the site as <code>__data/</code>,
+          writes an id of the project as <code>root</code> in the copy of the manifest and downloads
+          web fonts into the copy. The directory itself never changes.
+          <a href="styles-and-fonts.html#assets">Styles and fonts</a> says which files are copied,
+          <a href="styles-and-fonts.html#vendoring">Vendoring fonts</a> how fonts are downloaded,
+          and <a href="performance.html#output">Performance</a> how large the output gets.
         </p>
 
         <h2 id="manifest">
@@ -659,7 +678,10 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                 <td class="nowrap">never</td>
                 <td>
                   The Vitest root of the run, as an absolute path. Module ids and component files
-                  are relative to it.
+                  are relative to it. In the copy that <code>describe-me build</code> writes into a
+                  site, it is an id of the project instead: the first 16 hex characters of a SHA-1
+                  of the path. The viewer keeps the collapsed rows and the sidebar width per
+                  <code>root</code>, so two sites on one origin keep theirs apart.
                 </td>
               </tr>
               <tr id="manifest-configFile">
@@ -697,8 +719,11 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                 <td class="nowrap">before 0.4</td>
                 <td>
                   Paths that snapshots, the preview head or copied CSS files point at but that do
-                  not exist, so they will not load in the viewer. They are root-relative, or
-                  <code>/@fs/…</code> outside the root. Only what this run found.
+                  not exist, so they will not load in the viewer. They are root-relative inside the
+                  root, such as <code>/fonts/gone.woff2</code>. A path outside the root starts at
+                  its last <code>node_modules/</code>, such as
+                  <code>node_modules/pkg/logo.svg</code>, or else is relative to the root, such as
+                  <code>../shared/gone.woff2</code>. Only what this run found.
                 </td>
               </tr>
               <tr id="manifest-head">
@@ -756,7 +781,10 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             <code>path</code> (the suite names, outermost first), <code>fullName</code>,
             <code>tags</code> (its Vitest tags, own and inherited, when it has any, absent before
             0.7), <code>state</code>, <code>duration</code>, <code>errors</code>,
-            <code>component</code> (name, props and source file) and <code>frames</code>.
+            <code>component</code> (name, props and source file) and <code>frames</code>. In the
+            message and stack of each of the <code>errors</code>, a path under the root or under a
+            folder above it is relative to the root, such as <code>src/Button.test.tsx:9:52</code>,
+            unless that folder sits right under <code>/</code>, as <code>/home</code> does.
           </li>
           <li>
             A frame (<code>ManifestFrame</code>) is a <a href="#snapshot">frame</a> whose
@@ -1070,6 +1098,11 @@ const { protocol } = await buildLive({
           <li>
             It builds with <code>NODE_ENV=development</code>, so React and
             <code>import.meta.env</code> behave as under <code>describe-me dev</code>.
+          </li>
+          <li>
+            File paths in the built code, such as the ones React's development JSX keeps for its
+            warnings, are relative to the root, such as <code>src/Button.test.tsx</code>, as in a
+            test's <code>errors</code>.
           </li>
         </ul>
 

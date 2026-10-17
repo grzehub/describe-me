@@ -6,6 +6,7 @@ import { fontCacheDir } from './font-cache-dir.js'
 import { printVendorReport } from './print-vendor-report.js'
 import { vendorFonts } from './vendor-fonts.js'
 import { viewerRoot } from './viewer-root.js'
+import { writeProjectId } from './write-project-id.js'
 
 /** What `build` does besides the Vite build. */
 export interface RunBuildOptions {
@@ -19,9 +20,9 @@ export interface RunBuildOptions {
 
 /**
  * Produce a self-contained static site: the viewer plus the data directory
- * under `__data/`, and with `live` the live preview under `__live/`. A live
- * build that fails stops the command. Font vendoring works on the copy of the
- * data and never fails the build.
+ * under `__data/`, whose manifest names the project by an id, and with `live`
+ * the live preview under `__live/`. A live build that fails stops the command.
+ * Font vendoring works on the copy of the data and never fails the build.
  */
 export async function runBuild(data: string, out: string, options: RunBuildOptions): Promise<void> {
   process.env.DESCRIBE_ME_DIR = resolve(data)
@@ -33,6 +34,9 @@ export async function runBuild(data: string, out: string, options: RunBuildOptio
     configFile: resolve(root, 'vite.config.ts'),
     build: { outDir: resolve(out), emptyOutDir: true },
   })
+
+  // The live preview reads the source data, which keeps the absolute root.
+  writeProjectId(join(resolve(out), '__data'))
 
   // After the viewer, whose build empties `out` and so removes an old `__live/` and `__live.json`.
   if (options.live) {

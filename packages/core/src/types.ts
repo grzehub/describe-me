@@ -153,6 +153,10 @@ export interface ManifestTest {
   tags?: string[]
   state: TestState
   duration?: number
+  /**
+   * The errors of a failed test. A path under the root or a folder above it is
+   * relative to the root, unless that folder sits right under `/`.
+   */
   errors?: { message: string; stack?: string }[]
   component?: ComponentInfo
   frames: ManifestFrame[]
@@ -206,6 +210,10 @@ export interface Manifest {
   /** The package and version that wrote the manifest. Absent in manifests written before 0.5.1. */
   generator?: ManifestGenerator
   generatedAt: string
+  /**
+   * The Vitest root of the run, as an absolute path. In the copy that
+   * `describe-me build` writes into a site, it is an id of the project.
+   */
   root: string
   /**
    * The Vitest config file of the run, relative to `root`, with `/` separators.
@@ -218,8 +226,10 @@ export interface Manifest {
   /**
    * Asset URLs the snapshots, the preview head or copied CSS files point at
    * that could not be found in the project, as root-relative paths
-   * (`/lib/images/logo.svg`). Paths outside the root use the `/@fs/` form.
-   * They will not load in the viewer. Absent in manifests written before 0.4.
+   * (`/lib/images/logo.svg`). A path outside the root starts at its last
+   * `node_modules/` (`node_modules/pkg/logo.svg`) or else is relative to the
+   * root (`../shared/logo.svg`). They will not load in the viewer. Absent in
+   * manifests written before 0.4.
    */
   assetsMissing?: string[]
   /**
@@ -272,7 +282,10 @@ export interface ManifestDiagnostics {
   anonymous: { testId: string; fullName: string }[]
   /** Named components without a props doc, with how many tests rendered each. */
   undocumented: { name: string; tests: number }[]
-  /** Asset paths that will not load in the viewer, root-relative or in the `/@fs/` form. */
+  /**
+   * Asset paths that will not load in the viewer: root-relative inside the
+   * root, and `node_modules/…` or `../…` outside it.
+   */
   assetsMissing: string[]
   /** Font families that frames use but nothing loads. */
   fontsMissing: FontMissing[]
