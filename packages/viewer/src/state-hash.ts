@@ -2,7 +2,7 @@ import type { State } from './state.js'
 
 /**
  * The link of a view, without the `#`: the selection, the frame, the viewport
- * size, Live and the tag filter.
+ * size, the stage background, Live and the tag filter.
  */
 export function stateHash(state: State): string {
   const params = new URLSearchParams()
@@ -24,6 +24,10 @@ export function stateHash(state: State): string {
 
   if (state.viewport.height !== null) {
     params.set('h', String(state.viewport.height))
+  }
+
+  if (state.background !== 'auto') {
+    params.set('bg', state.background)
   }
 
   if (state.live) {

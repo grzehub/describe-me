@@ -1,6 +1,8 @@
 import type { Manifest, ManifestTest } from '@describe-me/core/types'
 import type { LivePreviewInfo } from '../cli/live-preview-info.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
+import type { StageBackground } from './parse-stage-background.js'
+import { parseStageBackground } from './parse-stage-background.js'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
 import { stateHash } from './state-hash.js'
@@ -17,6 +19,11 @@ export interface State {
   preview: LivePreviewInfo
   /** The replayed page's size in CSS pixels. `null` fits the stage's width or the content's height. */
   viewport: { width: number | null; height: number | null }
+  /**
+   * The stage's canvas and the frames' color scheme. `bg=` in the link, except
+   * for `auto`. Not stored.
+   */
+  background: StageBackground
   /** Kept here so repaints rebuild the issues panel as it was. */
   issuesOpen: boolean
   /** The stage's zoom, below 1 when the viewport is wider than the stage. */
@@ -35,6 +42,7 @@ export const state: State = {
   live: false,
   preview: { status: 'off' },
   viewport: { width: null, height: null },
+  background: 'auto',
   issuesOpen: false,
   scale: 1,
   query: '',
@@ -52,6 +60,8 @@ export function readHash(): void {
     width: parseViewportSize(params.get('w')),
     height: parseViewportSize(params.get('h'), MIN_FRAME_HEIGHT),
   }
+
+  state.background = parseStageBackground(params.get('bg'))
 }
 
 /**

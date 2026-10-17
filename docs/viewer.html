@@ -241,9 +241,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
           <li>
             <strong>Stage.</strong> The test's path and the
-            <a href="#viewport">viewport toolbar</a> with the <a href="#live">Live</a> toggle, above
-            the replayed frame or the test in Live. A note under a replayed frame names the fonts
-            and stylesheets that did not load in your browser.
+            <a href="#viewport">viewport toolbar</a> with the <a href="#live">Live</a> toggle, the
+            sizes and the background swatches, above the replayed frame or the test in Live. A note
+            under a replayed frame names the fonts and stylesheets that did not load in your
+            browser.
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
@@ -366,13 +367,14 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         </p>
 
         <h2 id="viewport">
-          Viewport size <a class="anchor" href="#viewport" aria-label="Link to this section">#</a>
+          Viewport size and background
+          <a class="anchor" href="#viewport" aria-label="Link to this section">#</a>
         </h2>
 
         <p>
-          The toolbar above the stage sets the size of the replayed page in CSS pixels. The presets
-          are <code>100%</code>, <code>768px</code> and <code>375px</code>. The W and H fields take
-          any width and height.
+          The toolbar above the stage sets the size of the replayed page in CSS pixels, and what the
+          frame stands on. The presets are <code>100%</code>, <code>768px</code> and
+          <code>375px</code>. The W and H fields take any width and height.
         </p>
         <ul>
           <li>
@@ -391,6 +393,36 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             such as <code>52%</code>.
           </li>
         </ul>
+
+        <h3 id="viewport-background">Background</h3>
+        <p>
+          Frames have no card. A frame shows only what its page's CSS paints, on the stage's canvas.
+          The swatches after the presets pick the canvas:
+        </p>
+        <ul>
+          <li>
+            <code>light</code> and <code>dark</code> set the canvas and the frame's color scheme.
+            Under <code>dark</code>, <code>prefers-color-scheme: dark</code> matches inside the
+            frame, so the component shows its own dark rules.
+          </li>
+          <li><code>transparent</code> is a checkerboard, with a light color scheme.</li>
+          <li>
+            <code>auto</code>, the default, is light unless the recorded page declares a dark scheme
+            on its root or paints its <code>html</code> or <code>body</code> dark. It never follows
+            the viewer or your system.
+          </li>
+          <li>A page that sets its own <code>color-scheme</code> keeps it.</li>
+          <li>
+            The overview's thumbnails follow the choice. It is part of the
+            <a href="#links">link</a> as <code>bg</code> and is not stored.
+          </li>
+        </ul>
+        <p>
+          Both examples paint their page white, so their frames show as a white sheet on the dark
+          and transparent canvases, as in this
+          <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;bg=dark">Disclosure test</a> of the
+          jsdom example.
+        </p>
 
         <h2 id="live">
           Live <a class="anchor" href="#live" aria-label="Link to this section">#</a>
@@ -457,10 +489,14 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
 
         <h3>Size and focus</h3>
         <ul>
-          <li>An accent ring sets the frame apart from a recorded one.</li>
+          <li>A Live label above the frame sets it apart from a recorded one.</li>
           <li>
-            The toolbar's presets, W and H apply without reloading the frame, so the component keeps
-            its state.
+            The toolbar's presets, W, H and the background apply without reloading the frame, so the
+            component keeps its state.
+          </li>
+          <li>
+            Under <code>auto</code>, Live keeps the canvas of the last recorded frame the stage
+            showed, because the viewer does not read the live page.
           </li>
           <li>
             The auto height follows the height of the content, but stops at the visible height of
@@ -546,6 +582,11 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <a href="#overview">overview</a>.
           </li>
           <li>
+            <code>bg</code> is the <a href="#viewport-background">background</a>:
+            <code>light</code>, <code>dark</code> or <code>transparent</code>. The link leaves out
+            <code>auto</code>.
+          </li>
+          <li>
             <code>live=1</code> opens the test in <a href="#live">Live</a>, so it needs
             <code>test</code>. Until the live preview is ready, the recorded frame shows.
           </li>
@@ -557,7 +598,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             Opening a test or an overview adds a history entry, so Back and Forward move between
             them. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd>, turning Live on or
-            off and changing the size replace the current entry.
+            off and changing the size or the background replace the current entry.
           </li>
           <li>
             A test id stays the same on other machines and when other tests are added, removed or
@@ -714,7 +755,7 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
           <li><a href="#layout">Finding your way</a></li>
           <li><a href="#search">Search and collapsing</a></li>
           <li><a href="#keyboard">Keyboard</a></li>
-          <li><a href="#viewport">Viewport size</a></li>
+          <li><a href="#viewport">Viewport size and background</a></li>
           <li><a href="#live">Live</a></li>
           <li><a href="#links">Links</a></li>
           <li><a href="#overview">Component overview</a></li>
