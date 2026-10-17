@@ -32,6 +32,8 @@ export interface State {
   query: string
   /** The tag the sidebar is narrowed to. `tag=` in the link, so a filtered list can be shared. */
   tag: string | null
+  /** Props tables unfolded with Show N more, by `component:<name>` or `test:<id>`. Neither in the link nor stored. */
+  expandedProps: Set<string>
 }
 
 export const state: State = {
@@ -47,6 +49,7 @@ export const state: State = {
   scale: 1,
   query: '',
   tag: null,
+  expandedProps: new Set(),
 }
 
 export function readHash(): void {

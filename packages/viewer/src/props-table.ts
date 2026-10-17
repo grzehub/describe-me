@@ -1,3 +1,4 @@
+import { collapseProps } from './collapse-props.js'
 import type { CoverageEntry, PropCoverage } from './coverage.js'
 import { el } from './el.js'
 
@@ -45,28 +46,31 @@ function coveredCell(coverage: PropCoverage): HTMLElement {
   return cell
 }
 
-/** The props of one component as a table: name, type, and which values the tests covered. */
-export function renderPropsTable(coverage: PropCoverage[]): HTMLElement {
+/**
+ * The props of one component as a table: name, type, and which values the tests
+ * covered. A long table folds, and `key` keeps it unfolded across repaints.
+ */
+export function renderPropsTable(coverage: PropCoverage[], key: string): HTMLElement[] {
   const table = el('table', { class: 'kv props' })
   table.append(el('tr', {}, el('th', {}, 'prop'), el('th', {}, 'type'), el('th', {}, 'covered')))
-
-  for (const item of coverage) {
-    table.append(
-      el(
-        'tr',
-        {},
-        nameCell(item),
-        el('td', { class: 'prop-type' }, item.prop.type),
-        coveredCell(item),
-      ),
-    )
-  }
 
   if (!coverage.length) {
     table.append(
       el('tr', {}, el('td', { colspan: '3' }, el('span', { class: 'hint' }, 'no props'))),
     )
+
+    return [table]
   }
 
-  return table
+  const rows = coverage.map((item) =>
+    el(
+      'tr',
+      {},
+      nameCell(item),
+      el('td', { class: 'prop-type' }, item.prop.type),
+      coveredCell(item),
+    ),
+  )
+
+  return collapseProps(table, rows, key)
 }

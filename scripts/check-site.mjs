@@ -19,8 +19,11 @@
  * sets the chrome's colors and survives a reload, the stored theme is set
  * before `<body>`, a repaint keeps a focused theme button focused, the switch
  * works without storage until a reload, and no theme changes a frame's pixels,
- * canvas, color scheme or media query, in replay and in Live. No request to
- * the site may fail and the page may throw no error. Remote requests are answered locally,
+ * canvas, color scheme or media query, in replay and in Live. With the
+ * react-browser manifest padded in memory, a long props table folds in the
+ * overview and in the inspector, and stays unfolded through a frame step and a
+ * visit to another test until the page reloads. No request to the site may
+ * fail and the page may throw no error. Remote requests are answered locally,
  * so remote fonts never decide the result. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
@@ -84,6 +87,19 @@ const LIVE_TESTS = {
 
 /** The example whose tests carry a tag of the project's own, and that tag. */
 const TAGGED = { name: 'react-browser', tag: 'forms' }
+
+/** The react-browser Button and two of its tests, padded in memory to more props than any example has. */
+const LONG_PROPS = {
+  name: 'react-browser',
+  component: 'Button',
+  suite: 'src/Button.test.tsx::Button',
+  padded: { fullName: 'Button > sizes > renders small and large', props: 20 },
+  short: { fullName: 'Button > variants > renders secondary', props: 12 },
+  componentProps: 13,
+}
+
+// SHOWN_ROWS in packages/viewer/src/collapse-props.ts.
+const SHOWN_ROWS = 10
 
 function errorMessage(error) {
   return error instanceof Error ? error.message.split('\n')[0] : String(error)
@@ -302,6 +318,255 @@ function testIdOf(name, fullName) {
   }
 
   return test.id
+}
+
+/** `props` with `extraN: 'value'` keys until it has `count` of them. */
+function padProps(props, count) {
+  for (let index = 1; Object.keys(props).length < count; index++) {
+    props[`extra${index}`] = 'value'
+  }
+}
+
+function padManifest(manifest, ids) {
+  const { component, padded, short, componentProps } = LONG_PROPS
+  const doc = manifest.components[component]
+
+  for (let index = 1; doc.props.length < componentProps; index++) {
+    doc.props.push({ name: `extra${index}`, type: 'string', required: false, kind: 'string' })
+  }
+
+  const counts = { [ids.padded]: padded.props, [ids.short]: short.props }
+
+  for (const test of manifest.modules.flatMap((module) => module.tests)) {
+    const count = counts[test.id]
+
+    if (count === undefined) {
+      continue
+    }
+
+    padProps(test.component.props, count)
+
+    for (const frame of test.frames) {
+      if (frame.meta?.props) {
+        padProps(frame.meta.props, count)
+      }
+    }
+  }
+}
+
+/** Whether `selector` settles on `count` matches. The viewer repaints after the event that changed it. */
+async function settlesOn(page, selector, count) {
+  return page
+    .waitForFunction(
+      ([target, rows]) => document.querySelectorAll(target).length === rows,
+      [selector, count],
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false)
+}
+
+/** A problem when the table in `where` does not show `count` rows and a button reading `label`, or no button for `null`. */
+async function foldProblem(page, where, count, label, expanded) {
+  const rows = `${where.table} tr:not([hidden])${where.cells}`
+  const settled = await settlesOn(page, rows, count)
+  const button = page.locator(`${where.scope} .props-more`)
+  const shown = await page.locator(rows).count()
+
+  if (label === null) {
+    const buttons = await button.count()
+
+    return settled && buttons === 0
+      ? null
+      : `${where.label} shows ${shown} rows and ${buttons} buttons, expected ${count} and none`
+  }
+
+  const text = await button.textContent({ timeout: 5_000 }).catch(() => null)
+  const aria = await button.getAttribute('aria-expanded', { timeout: 5_000 }).catch(() => null)
+
+  if (!settled || text !== label || aria !== String(expanded)) {
+    return `${where.label} shows ${shown} rows, "${text}" and aria-expanded=${aria}, expected ${count}, "${label}" and ${expanded}`
+  }
+
+  return null
+}
+
+const OVERVIEW = {
+  label: 'the overview',
+  scope: '.overview',
+  table: '.overview table.props',
+  cells: ':has(td)',
+}
+
+const INSPECTOR = {
+  label: 'the inspector',
+  scope: '.inspector',
+  table: '.inspector table.kv',
+  cells: '',
+}
+
+/** Enter on the focused button unfolds and folds the overview, and focus stays on it. */
+async function overviewKeySteps(page, more) {
+  const button = page.locator('.overview .props-more')
+
+  await button.focus()
+  await page.keyboard.press('Enter')
+
+  const unfolded = await foldProblem(page, OVERVIEW, LONG_PROPS.componentProps, 'Show fewer', true)
+
+  if (unfolded) {
+    return `after Enter, ${unfolded}`
+  }
+
+  if (!(await button.evaluate((node) => node === document.activeElement))) {
+    return 'Enter on the button moved the focus away from it'
+  }
+
+  await page.keyboard.press('Enter')
+
+  const folded = await foldProblem(page, OVERVIEW, SHOWN_ROWS, more, false)
+
+  if (folded) {
+    return `after a second Enter, ${folded}`
+  }
+
+  await page.keyboard.press('Enter')
+
+  return null
+}
+
+/** The first cells of the inspector's visible rows, against the first keys of frame 1. */
+async function inspectorOrderProblem(page, keys) {
+  const names = await page
+    .locator(`${INSPECTOR.table} tr:not([hidden]) td:first-child`)
+    .allTextContents()
+
+  const expected = keys.slice(0, SHOWN_ROWS)
+
+  return names.join() === expected.join()
+    ? null
+    : `the inspector shows ${names.join(', ')}, expected ${expected.join(', ')}`
+}
+
+/** The steps of the long props check, each returning a problem or `null`. */
+async function longPropsSteps(page, base, ids, keys) {
+  const { suite, padded, short, componentProps } = LONG_PROPS
+  const more = `Show ${componentProps - SHOWN_ROWS} more`
+  const suiteUrl = `${base}#suite=${encodeURIComponent(suite)}`
+
+  await page.goto(suiteUrl)
+
+  const steps = [
+    () => foldProblem(page, OVERVIEW, SHOWN_ROWS, more, false),
+    () => overviewKeySteps(page, more),
+    async () => {
+      await page.goto(`${base}#test=${ids.padded}`)
+
+      return (
+        (await foldProblem(
+          page,
+          INSPECTOR,
+          SHOWN_ROWS,
+          `Show ${padded.props - SHOWN_ROWS} more`,
+          false,
+        )) ?? (await inspectorOrderProblem(page, keys))
+      )
+    },
+    async () => {
+      await page.locator('.inspector .props-more').click()
+
+      return foldProblem(page, INSPECTOR, padded.props, 'Show fewer', true)
+    },
+    async () => {
+      await page.keyboard.press('ArrowRight')
+      await page.locator('.inspector h3', { hasText: 'frame 2 / 2' }).waitFor({ timeout: 5_000 })
+
+      return foldProblem(page, INSPECTOR, padded.props, 'Show fewer', true)
+    },
+    async () => {
+      await page.goto(`${base}#test=${ids.short}`)
+
+      return foldProblem(page, INSPECTOR, short.props, null)
+    },
+    async () => {
+      await page.goto(`${base}#test=${ids.padded}`)
+
+      return foldProblem(page, INSPECTOR, padded.props, 'Show fewer', true)
+    },
+    async () => {
+      await page.goto(suiteUrl)
+
+      return foldProblem(page, OVERVIEW, componentProps, 'Show fewer', true)
+    },
+    async () => {
+      await page.reload()
+
+      return foldProblem(page, OVERVIEW, SHOWN_ROWS, more, false)
+    },
+  ]
+
+  for (const [index, step] of steps.entries()) {
+    const problem = await step()
+
+    if (problem) {
+      return `step ${index + 1}: ${problem}`
+    }
+  }
+
+  return null
+}
+
+async function checkLongProps(context, url) {
+  const { name, component, padded, short, componentProps } = LONG_PROPS
+  const manifest = readSiteManifest(name)
+  const own = manifest.components?.[component]?.props.length
+
+  if (own === undefined || own >= componentProps) {
+    return [
+      `examples/${name}/ long props: ${component} has ${own ?? 'no'} props in the manifest, expected fewer than ${componentProps}`,
+    ]
+  }
+
+  const ids = { padded: testIdOf(name, padded.fullName), short: testIdOf(name, short.fullName) }
+
+  padManifest(manifest, ids)
+
+  const keys = Object.keys(
+    manifest.modules.flatMap((module) => module.tests).find((test) => test.id === ids.padded)
+      .frames[0].meta.props,
+  )
+
+  const page = await context.newPage()
+  const failures = []
+
+  page.on('pageerror', (error) => failures.push(errorMessage(error)))
+
+  // Only this page sees the padded manifest. The other scenarios share the context.
+  await page.route(`**/examples/${name}/__data/manifest.json`, async (route) => {
+    const response = await route.fetch()
+    const json = await response.json()
+
+    padManifest(json, ids)
+
+    return route.fulfill({ response, json })
+  })
+
+  try {
+    const problem = await longPropsSteps(page, `${url}examples/${name}/`, ids, keys)
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `examples/${name}/ long props: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ folds long props tables (${SHOWN_ROWS} of ${componentProps} in the overview, ${SHOWN_ROWS} of ${padded.props} in the inspector, ${short.props} in full)`,
+    )
+
+    return []
+  } finally {
+    await page.close()
+  }
 }
 
 /**
@@ -1328,6 +1593,7 @@ try {
   }
 
   problems.push(...(await checkTags(context, url)))
+  problems.push(...(await checkLongProps(context, url)))
 
   for (const name of exampleNames) {
     problems.push(...(await checkLive(browser, url, name)))
@@ -1359,5 +1625,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, mount one in Live, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, mount one in Live, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )

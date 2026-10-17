@@ -259,7 +259,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <strong>Inspector.</strong> The test's status and duration, the component with its
             props, the current frame as "frame 2 / 3" with its label, and the errors of a failed
-            test. In <a href="#live">Live</a>, a Live section takes the place of the frame.
+            test. In <a href="#live">Live</a>, a Live section takes the place of the frame. Up to 12
+            props show in full. With more, the table shows the first 10 and
+            <strong>Show N more</strong>, and <strong>Show fewer</strong> folds it again. It stays
+            unfolded for that test, across frames and Live, until you reload the page.
           </li>
         </ul>
 
@@ -662,6 +665,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           >
           in the browser-mode example.
           <a href="writing-stories.html#props">Writing stories</a> explains how coverage is counted.
+          A long props table folds as in the <a href="#layout">inspector</a> and stays unfolded for
+          that component until you reload the page.
         </p>
 
         <h2 id="issues">
