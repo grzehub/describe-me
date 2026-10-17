@@ -54,8 +54,8 @@ function showTest(center: HTMLElement): void {
 
 /** Repaint every region from `state`: the overview when a suite is selected, else one test. */
 export function renderAll(): void {
-  const { header, banner, center, inspector } = regions()
-  header.replaceChildren(...renderHeader())
+  const { headerInfo, banner, center, inspector } = regions()
+  headerInfo.replaceChildren(...renderHeader())
 
   const text = versionBanner(state.manifest)
   banner.textContent = text ?? ''

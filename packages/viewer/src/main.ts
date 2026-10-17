@@ -49,8 +49,8 @@ wireSearchField(regions().search)
 wireSidebarHandle(regions().sidebarHandle)
 
 loadManifest().catch((err) => {
-  const { header, center } = regions()
-  header.replaceChildren(...renderHeader())
+  const { headerInfo, center } = regions()
+  headerInfo.replaceChildren(...renderHeader())
   center.replaceChildren(
     el('div', { class: 'empty' }, `no manifest yet — run vitest first (${String(err)})`),
   )

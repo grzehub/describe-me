@@ -6,17 +6,23 @@ const DOCS_CSS = 'docs/docs.css'
 const COMMENT = /\/\*[\s\S]*?\*\//g
 const LIGHT = /:root\s*\{([^}]*)\}/
 const DARK = /@media\s*\(\s*prefers-color-scheme:\s*dark\s*\)\s*\{\s*:root\s*\{([^}]*)\}/
+const DARK_THEME = /:root\[data-theme=['"]dark['"]\]\s*\{([^}]*)\}/
+const DARK_SYSTEM =
+  /@media\s*\(\s*prefers-color-scheme:\s*dark\s*\)\s*\{\s*:root:not\(\[data-theme=['"]light['"]\]\)\s*\{([^}]*)\}/
+
 const DECLARATION = /(--[\w-]+)\s*:\s*([^;]+);/g
 
 /**
- * The tokens at the top of docs/docs.css equal those of the viewer, in the
- * light and the dark scheme, so the docs and the viewer look like one product.
- * Tokens only the docs need live in a block of their own further down.
+ * The viewer's two dark blocks, for the dark theme and for `system` on a dark
+ * system, hold the same tokens. The tokens at the top of docs/docs.css equal
+ * those of the viewer, in the light and the dark scheme, so the docs and the
+ * viewer look like one product. Tokens only the docs need live in a block of
+ * their own further down.
  */
 export default function tokens(context) {
-  const viewer = tokenBlocks(readFileSync(join(context.root, VIEWER_CSS), 'utf8'))
-  const docs = tokenBlocks(readFileSync(join(context.root, DOCS_CSS), 'utf8'))
-  const problems = []
+  const viewer = viewerBlocks(readFileSync(join(context.root, VIEWER_CSS), 'utf8'))
+  const docs = docsBlocks(readFileSync(join(context.root, DOCS_CSS), 'utf8'))
+  const problems = [...viewer.problems]
 
   for (const scheme of ['light', 'dark']) {
     if (!viewer[scheme] || !docs[scheme]) {
@@ -31,10 +37,51 @@ export default function tokens(context) {
   return problems
 }
 
-function tokenBlocks(css) {
+function docsBlocks(css) {
   const text = css.replace(COMMENT, '')
 
   return { light: declarations(text.match(LIGHT)), dark: declarations(text.match(DARK)) }
+}
+
+/** The light block and the dark theme's block, with problems where the two dark blocks differ. */
+function viewerBlocks(css) {
+  const text = css.replace(COMMENT, '')
+  const theme = declarations(text.match(DARK_THEME))
+  const system = declarations(text.match(DARK_SYSTEM))
+  const problems = []
+
+  if (!theme) {
+    problems.push(`${VIEWER_CSS}: cannot find the :root[data-theme='dark'] tokens`)
+  }
+
+  if (!system) {
+    problems.push(
+      `${VIEWER_CSS}: cannot find the :root:not([data-theme='light']) tokens in @media (prefers-color-scheme: dark)`,
+    )
+  }
+
+  if (theme && system) {
+    problems.push(...compareDark(theme, system))
+  }
+
+  return { light: declarations(text.match(LIGHT)), dark: theme, problems }
+}
+
+function compareDark(theme, system) {
+  const problems = []
+
+  for (const name of new Set([...theme.keys(), ...system.keys()])) {
+    const themeValue = theme.get(name) ?? 'nothing'
+    const systemValue = system.get(name) ?? 'nothing'
+
+    if (themeValue !== systemValue) {
+      problems.push(
+        `${VIEWER_CSS}: ${name} is ${themeValue} in :root[data-theme='dark'] and ${systemValue} in :root:not([data-theme='light']) of the dark media query`,
+      )
+    }
+  }
+
+  return problems
 }
 
 function declarations(block) {

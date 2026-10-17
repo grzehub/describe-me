@@ -1,8 +1,10 @@
 import { el } from './el.js'
 import { SidebarWidth } from './sidebar-width.js'
+import { renderThemeSwitch } from './theme-switch.js'
 
 export interface Regions {
-  header: HTMLElement
+  /** The wordmark, counts, issues and run time in the header, which repaints fill. */
+  headerInfo: HTMLElement
   /** The version warning under the header, hidden unless the data comes from another release line. */
   banner: HTMLElement
   sidebar: HTMLElement
@@ -31,7 +33,8 @@ export function regions(): Regions {
     return built
   }
 
-  const header = el('header', { class: 'header' })
+  const headerInfo = el('div', { class: 'header-info' })
+  const header = el('header', { class: 'header' }, headerInfo, renderThemeSwitch())
   const banner = el('div', { class: 'version-banner', role: 'status', hidden: true })
   const search = el('input', {
     class: 'sidebar-search',
@@ -61,7 +64,7 @@ export function regions(): Regions {
   document.getElementById('app')!.replaceChildren(header, banner, columns)
 
   built = {
-    header,
+    headerInfo,
     banner,
     sidebar,
     search,
