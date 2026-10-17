@@ -42,11 +42,12 @@ function renderComponent(
   }
 
   section.append(el('h3', {}, 'props'))
+  const key = `component:${name}`
   if (doc) {
-    section.append(renderPropsTable(computeCoverage(doc, tests)))
+    section.append(...renderPropsTable(computeCoverage(doc, tests), key))
   } else {
     const hint = 'no type information (rerun tests with the latest reporter)'
-    section.append(renderPropsTable([]), el('div', { class: 'hint' }, hint))
+    section.append(...renderPropsTable([], key), el('div', { class: 'hint' }, hint))
   }
 
   section.append(

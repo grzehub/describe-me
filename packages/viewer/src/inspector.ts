@@ -1,3 +1,5 @@
+import type { ManifestTest } from '@describe-me/core/types'
+import { collapseProps } from './collapse-props.js'
 import { el } from './el.js'
 import { liveSection } from './live-section.js'
 import { liveShown } from './live-shown.js'
@@ -24,6 +26,32 @@ function keyHint(): HTMLElement {
   }
 
   return hint
+}
+
+/** The props the component got, folded when there are many. Frames and Live of a test share the fold. */
+function propsSection(
+  test: ManifestTest,
+  name: string,
+  props: Record<string, unknown>,
+): HTMLElement {
+  const section = el('section', {}, el('h3', {}, `component · ${name}`))
+  const table = el('table', { class: 'kv' })
+  const entries = Object.entries(props)
+
+  if (!entries.length) {
+    table.append(el('tr', {}, el('td', {}, el('span', { class: 'hint' }, 'no props'))))
+    section.append(table)
+
+    return section
+  }
+
+  const rows = entries.map(([key, value]) =>
+    el('tr', {}, el('td', {}, key), el('td', {}, valueCell(value))),
+  )
+
+  section.append(...collapseProps(table, rows, `test:${test.id}`))
+
+  return section
 }
 
 /**
@@ -65,16 +93,7 @@ export function renderInspector(): HTMLElement[] {
   sections.push(status)
 
   if (test.component) {
-    const table = el('table', { class: 'kv' })
-    for (const [key, value] of Object.entries(props)) {
-      table.append(el('tr', {}, el('td', {}, key), el('td', {}, valueCell(value))))
-    }
-
-    if (!Object.keys(props).length) {
-      table.append(el('tr', {}, el('td', {}, el('span', { class: 'hint' }, 'no props'))))
-    }
-
-    sections.push(el('section', {}, el('h3', {}, `component · ${test.component.name}`), table))
+    sections.push(propsSection(test, test.component.name, props))
   }
 
   if (live) {

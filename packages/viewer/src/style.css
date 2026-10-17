@@ -1048,6 +1048,17 @@ button.tag.active {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+/* Under the props tables of the inspector and the overview. */
+.props-more {
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  color: var(--accent);
+  font-size: 12px;
+}
+.props-more:hover {
+  background: var(--hover);
+}
 .val-string {
   color: #b0501f;
 }
