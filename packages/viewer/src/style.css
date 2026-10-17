@@ -41,8 +41,42 @@
 
   color-scheme: light dark;
 }
+/*
+ * The dark tokens appear twice, for the dark theme and for `system` on a dark
+ * system. `pnpm check-docs` keeps them equal.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #111316;
+  --panel: #171a1f;
+  --raised: #1c2026;
+
+  --ink: #e2e6ea;
+  --ink-2: #b0b9c5;
+  --ink-3: #8a939f;
+
+  --line: #252a31;
+  --line-soft: #1e2228;
+  --hover: #21262d;
+
+  --accent: #8ea2ff;
+  --pass: #4fbb7d;
+  --fail: #e8756f;
+  --warn: #d3a24a;
+  --skip: #5c646f;
+
+  --tint: color-mix(in srgb, var(--accent) 10%, transparent);
+  --tint-strong: color-mix(in srgb, var(--accent) 18%, transparent);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.6);
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #111316;
     --panel: #171a1f;
     --raised: #1c2026;
@@ -218,6 +252,48 @@ a {
   margin-left: auto;
   color: var(--ink-3);
   font-size: 12px;
+}
+.header-info {
+  display: contents;
+}
+/* Icons only, so the header still fits at 390 px. */
+.theme-switch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--hover);
+}
+.theme-switch button {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 5px;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+}
+.theme-switch button:hover {
+  color: var(--ink);
+}
+.theme-switch button.on {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.theme-switch button::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  mask: var(--icon) center / contain no-repeat;
+}
+.theme-switch [data-option='system'] {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='12' rx='2'/%3E%3Cpath d='M8 20h8M12 16v4'/%3E%3C/svg%3E");
+}
+.theme-switch [data-option='light'] {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/%3E%3C/svg%3E");
+}
+.theme-switch [data-option='dark'] {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z'/%3E%3C/svg%3E");
 }
 .live {
   display: inline-flex;
@@ -983,8 +1059,11 @@ button.tag.active {
   color: var(--ink-3);
   font-style: italic;
 }
+:root[data-theme='dark'] .val-string {
+  color: #d98a5f;
+}
 @media (prefers-color-scheme: dark) {
-  .val-string {
+  :root:not([data-theme='light']) .val-string {
     color: #d98a5f;
   }
 }

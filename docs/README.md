@@ -315,7 +315,9 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
   ids and anchors, the "On this page" list, the ids of `sections.mjs` and
   unique ids.
 - `tokens.mjs`: the tokens at the top of `docs.css` equal those of
-  `packages/viewer/src/style.css`, light and dark.
+  `packages/viewer/src/style.css`, light and dark, and the viewer's two dark
+  blocks, for the dark theme and for `system` on a dark system, equal each
+  other.
 - `versions.mjs`: `installation.html` has a `version-*` row with every version
   range the published packages ask for.
 

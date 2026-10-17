@@ -229,7 +229,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <ul>
           <li>
             <strong>Header.</strong> The number of tests, how many passed and failed, the
-            <a href="#issues">issues chip</a> and the time of the last run.
+            <a href="#issues">issues chip</a>, the time of the last run and the
+            <a href="#layout-theme">theme switch</a>.
           </li>
           <li>
             <strong>Sidebar.</strong> The search field, then one block per test file with its
@@ -266,6 +267,20 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           The <a href="examples/react-browser/#test=66477549da04&amp;frame=2">Counter increments</a>
           test in the browser-mode example has three frames. Step through them with
           <kbd>←</kbd> and <kbd>→</kbd>.
+        </p>
+
+        <h3 id="layout-theme">Theme</h3>
+        <p>
+          The three buttons at the right end of the header set the viewer's own colors.
+          <code>system</code>, the default, follows your system. <code>light</code> and
+          <code>dark</code> override it. The choice is the same for every project. The browser keeps
+          it in <code>localStorage</code>, and it is not part of the <a href="#links">link</a>.
+          Without storage the switch still works until you reload.
+        </p>
+        <p>
+          The theme never reaches a frame. A frame's canvas and color scheme come from the
+          <a href="#viewport-background">background switch</a> alone, so a component looks the same
+          in either theme.
         </p>
 
         <h2 id="search">
@@ -423,7 +438,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <code>auto</code>, the default, is light unless the recorded page declares a dark scheme
             on its root or paints its <code>html</code> or <code>body</code> dark. It never follows
-            the viewer or your system.
+            the <a href="#layout-theme">viewer's theme</a> or your system.
           </li>
           <li>A page that sets its own <code>color-scheme</code> keeps it.</li>
           <li>

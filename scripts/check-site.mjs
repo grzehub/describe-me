@@ -15,8 +15,12 @@
  * overview's thumbnails, and no frame paints an opaque backdrop. The sidebar's
  * edge sets its width with ← → and by dragging, a double-click sets it back,
  * frames ignore the pointer during a drag and the stage refits after it, and
- * each viewer keeps its own width after a reload. No request to the site may
- * fail and the page may throw no error. Remote requests are answered locally,
+ * each viewer keeps its own width after a reload. The viewer's theme switch
+ * sets the chrome's colors and survives a reload, the stored theme is set
+ * before `<body>`, a repaint keeps a focused theme button focused, the switch
+ * works without storage until a reload, and no theme changes a frame's pixels,
+ * canvas, color scheme or media query, in replay and in Live. No request to
+ * the site may fail and the page may throw no error. Remote requests are answered locally,
  * so remote fonts never decide the result. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
@@ -30,8 +34,10 @@ import { serveStatic } from './docs/serve-static.mjs'
 import { shownTests } from './docs/shown-tests.mjs'
 
 const SITE = join(repoRoot, 'site')
-// --bg of the light :root block in docs/docs.css.
+// --bg of the light :root block in docs/docs.css, which tokens.mjs keeps equal to the viewer's.
 const LIGHT_BACKGROUND = 'rgb(245, 246, 248)'
+// --bg of the dark blocks in packages/viewer/src/style.css.
+const DARK_BACKGROUND = 'rgb(17, 19, 22)'
 const VIEWER_TIMEOUT = 20_000
 const LIVE_TIMEOUT = 30_000
 const LIVE_READY = JSON.stringify({ status: 'ready', base: '__live/' })
@@ -958,6 +964,344 @@ async function checkSidebarWidth(browser, url) {
   }
 }
 
+/** What each viewer theme shows. Under `system` the background depends on the machine. */
+const THEMES = {
+  system: { attribute: null, scheme: 'light dark', stored: null },
+  light: { attribute: 'light', scheme: 'light', stored: 'light', background: LIGHT_BACKGROUND },
+  dark: { attribute: 'dark', scheme: 'dark', stored: 'dark', background: DARK_BACKGROUND },
+}
+
+/**
+ * The viewer theme, read in the page. With `expected`, whether the page shows
+ * it, for `waitForFunction()`.
+ */
+function themeState({ expected }) {
+  const root = document.documentElement
+  const pressed = document.querySelector(
+    '[role="group"][aria-label="Viewer theme"] [aria-pressed="true"]',
+  )
+
+  let stored
+
+  try {
+    stored = localStorage.getItem('describe-me:theme')
+  } catch {
+    stored = 'blocked'
+  }
+
+  const seen = {
+    attribute: root.getAttribute('data-theme'),
+    scheme: getComputedStyle(root).colorScheme,
+    background: getComputedStyle(document.body).backgroundColor,
+    stored,
+    pressed: pressed?.getAttribute('aria-label') ?? null,
+  }
+
+  if (expected === undefined) {
+    return seen
+  }
+
+  return Object.entries(expected).every(([key, value]) => seen[key] === value)
+}
+
+/** Waits until the page shows `theme`, with `overrides` on top. Returns a problem or `null`. */
+async function showsTheme(page, theme, overrides = {}) {
+  const expected = { ...THEMES[theme], pressed: theme, ...overrides }
+  const shown = await page
+    .waitForFunction(themeState, { expected }, { timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (shown) {
+    return null
+  }
+
+  const seen = await page.evaluate(themeState, {})
+
+  return `under the ${theme} theme the viewer shows ${JSON.stringify(seen)}, expected ${JSON.stringify(expected)}`
+}
+
+function themeButton(page, theme) {
+  return page
+    .getByRole('group', { name: 'Viewer theme' })
+    .getByRole('button', { name: theme, exact: true })
+}
+
+async function pickTheme(page, theme) {
+  await themeButton(page, theme).click()
+}
+
+async function stageShot(page) {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  )
+
+  return page.locator('.stage').screenshot()
+}
+
+/** Remembers whether `data-theme` first changed while the parser had not reached `<body>`. */
+function watchThemeAttribute() {
+  const observer = new MutationObserver(() => {
+    window.themeBeforeBody = document.body === null
+    observer.disconnect()
+  })
+
+  observer.observe(document, { subtree: true, attributeFilter: ['data-theme'] })
+}
+
+/** Under `system`, then the dark theme, then across a reload: the replayed frame stays the same. */
+async function replayThemeSteps(page, url, name, id) {
+  await page.goto(`${url}examples/${name}/#test=${id}`)
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const before =
+    (await showsTheme(page, 'system')) ?? (await showsBackground(page, RECORDED_IFRAME, 'auto'))
+
+  if (before) {
+    return before
+  }
+
+  const shot = await stageShot(page)
+  const link = page.url()
+
+  await pickTheme(page, 'dark')
+
+  const after =
+    (await showsTheme(page, 'dark')) ?? (await showsBackground(page, RECORDED_IFRAME, 'auto'))
+
+  if (after) {
+    return after
+  }
+
+  if (page.url() !== link) {
+    return `the dark theme changed the link from ${link} to ${page.url()}`
+  }
+
+  if (!(await stageShot(page)).equals(shot)) {
+    return 'the dark theme changed the pixels of the stage'
+  }
+
+  await page.reload()
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  if ((await page.evaluate(() => window.themeBeforeBody)) !== true) {
+    return 'after a reload data-theme was not set before <body>'
+  }
+
+  const reloaded = await showsTheme(page, 'dark')
+
+  if (reloaded) {
+    return `after a reload: ${reloaded}`
+  }
+
+  await seeThrough(page, RECORDED_IFRAME)
+
+  const problem = await eachBackground(page, RECORDED_IFRAME)
+
+  if (problem) {
+    return `under the dark theme: ${problem}`
+  }
+
+  await pickBackground(page, 'auto')
+
+  return null
+}
+
+function linkTest() {
+  return new URLSearchParams(location.hash.slice(1)).get('test')
+}
+
+/** ↓ with a theme button focused selects the next test, and the repaint keeps the focus. */
+async function focusThemeSteps(page) {
+  await page.locator('.tree .test').first().click()
+
+  const first = await page.evaluate(linkTest)
+  const button = themeButton(page, 'dark')
+
+  await button.focus()
+  await page.keyboard.press('ArrowDown')
+
+  const moved = await page
+    .waitForFunction(
+      (test) => new URLSearchParams(location.hash.slice(1)).get('test') !== test,
+      first,
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false)
+
+  if (!moved) {
+    return `↓ with the dark theme button focused kept the test ${first}`
+  }
+
+  const focused = await button.evaluate((element) => document.activeElement === element)
+
+  return focused
+    ? null
+    : `↓ to the test ${await page.evaluate(linkTest)} took the focus off the dark theme button`
+}
+
+/** Each theme in Live: the frame keeps its background and does not reload. */
+async function liveThemeSteps(page, url, name, id) {
+  await page.goto(`${url}examples/${name}/#test=${id}`)
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page.keyboard.press('l')
+  await page
+    .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
+    .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
+
+  await page.locator(LIVE_IFRAME).evaluate((iframe) => {
+    iframe.contentWindow.viewerThemeMarker = true
+  })
+
+  for (const theme of ['light', 'system', 'dark']) {
+    await pickTheme(page, theme)
+
+    const problem =
+      (await showsTheme(page, theme)) ?? (await showsBackground(page, LIVE_IFRAME, 'auto'))
+
+    if (problem) {
+      return `Live: ${problem}`
+    }
+
+    const kept = await page
+      .locator(LIVE_IFRAME)
+      .evaluate((iframe) => iframe.contentWindow.viewerThemeMarker === true)
+
+    if (!kept) {
+      return `Live: under the ${theme} theme the live frame reloaded`
+    }
+  }
+
+  await pickTheme(page, 'system')
+
+  return showsTheme(page, 'system')
+}
+
+/** Every frame assertion of the theme, with the emulation off so frames take their own scheme. */
+async function frameThemeSteps(browser, url, name) {
+  const { context, page, failures } = await openLivePage(browser, url, null)
+  const id = testIdOf(name, LIVE_TESTS[name].fullName)
+
+  try {
+    await page.addInitScript(watchThemeAttribute)
+
+    const problem =
+      (await replayThemeSteps(page, url, name, id)) ??
+      (await focusThemeSteps(page)) ??
+      (await liveThemeSteps(page, url, name, id))
+
+    return [problem, ...failures].filter((entry) => entry !== null)
+  } finally {
+    await context.close()
+  }
+}
+
+async function showsTree(page) {
+  await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
+}
+
+/**
+ * On a dark system, `system` is dark and a stored `light` survives a reload.
+ * The emulation forces the scheme into every frame, so only the chrome counts.
+ */
+async function darkSystemThemeSteps(browser, url, name) {
+  const { context, page, failures } = await openLivePage(browser, url, 'dark')
+
+  try {
+    await page.goto(`${url}examples/${name}/`)
+    await showsTree(page)
+
+    let problem = await showsTheme(page, 'system', { background: DARK_BACKGROUND })
+
+    if (!problem) {
+      await pickTheme(page, 'light')
+      problem = await showsTheme(page, 'light')
+    }
+
+    if (!problem) {
+      await page.reload()
+      await showsTree(page)
+      problem = await showsTheme(page, 'light')
+    }
+
+    return [problem, ...failures]
+      .filter((entry) => entry !== null)
+      .map((entry) => `on a dark system: ${entry}`)
+  } finally {
+    await context.close()
+  }
+}
+
+/** The getter Chromium has when site data is blocked. */
+function blockStorage() {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    get() {
+      throw new DOMException('Access is denied for this document.', 'SecurityError')
+    },
+  })
+}
+
+/** Without storage the switch works until a reload, with no page error. */
+async function blockedThemeSteps(browser, url, name) {
+  const { context, page, failures } = await openLivePage(browser, url, null)
+  const blocked = { stored: 'blocked' }
+
+  try {
+    await page.addInitScript(blockStorage)
+    await page.goto(`${url}examples/${name}/`)
+    await showsTree(page)
+
+    let problem = await showsTheme(page, 'system', blocked)
+
+    if (!problem) {
+      await pickTheme(page, 'dark')
+      problem = await showsTheme(page, 'dark', blocked)
+    }
+
+    if (!problem) {
+      await page.reload()
+      await showsTree(page)
+      problem = await showsTheme(page, 'system', blocked)
+    }
+
+    return [problem, ...failures]
+      .filter((entry) => entry !== null)
+      .map((entry) => `without storage: ${entry}`)
+  } finally {
+    await context.close()
+  }
+}
+
+/** The viewer's own theme: stored, set before the body, and never seen by a frame. */
+async function checkViewerTheme(browser, url, name) {
+  const label = `examples/${name}/ viewer theme`
+
+  try {
+    const problems = [
+      ...(await frameThemeSteps(browser, url, name)),
+      ...(await darkSystemThemeSteps(browser, url, name)),
+      ...(await blockedThemeSteps(browser, url, name)),
+    ]
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ viewer theme survives a reload, is set before the body, keeps the focus, works without storage and leaves the frames alone, in replay and in Live`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${errorMessage(error)}`]
+  }
+}
+
 const missing = [
   'index.html',
   ...exampleNames.map((name) => join('examples', name, 'index.html')),
@@ -994,6 +1338,10 @@ try {
   }
 
   problems.push(...(await checkSidebarWidth(browser, url)))
+
+  for (const name of exampleNames) {
+    problems.push(...(await checkViewerTheme(browser, url, name)))
+  }
 } catch (error) {
   problems = [...problems, errorMessage(error)]
 } finally {
@@ -1011,5 +1359,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, mount one in Live, set the stage background and keep a resized sidebar per project`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, mount one in Live, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )
