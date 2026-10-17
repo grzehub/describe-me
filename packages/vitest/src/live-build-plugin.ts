@@ -5,6 +5,7 @@ import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import { livePluginProtocol } from './live-plugin-protocol.js'
 import { liveStringLiteral } from './live-string-literal.js'
 import { liveTestFilesSource } from './live-test-files-source.js'
+import { ProjectPaths } from './project-paths.js'
 
 /** What the plugin of a live build takes from `buildLive()`. */
 export interface LiveBuildPluginOptions {
@@ -43,11 +44,13 @@ function isShimmedStandIn(log: Vite.Rollup.RollupLog): boolean {
  * files, and stands in for each import of a project file that does not load
  * in the browser, such as `node:fs`. A stand-in throws when it runs, so only
  * the test files and setup files that import it fail, and the build goes on.
+ * Paths in the bundled code are written relative to the root.
  */
 export function liveBuildPlugin(options: LiveBuildPluginOptions): Vite.Plugin {
   const reasons = new Map<string, string>()
   const warned = new Set<string>()
   let root = ''
+  let paths: ProjectPaths | null = null
   let logger: Vite.Logger | null = null
 
   function warnOnce(importer: string, specifier: string, reason: string): void {
@@ -71,6 +74,7 @@ export function liveBuildPlugin(options: LiveBuildPluginOptions): Vite.Plugin {
       options.onProtocol(livePluginProtocol(config.plugins, options.configName))
       checkLiveEnabled(config.plugins, options.configName)
       root = config.root
+      paths = new ProjectPaths(config.root)
       logger = config.logger
     },
 
@@ -115,6 +119,13 @@ export function liveBuildPlugin(options: LiveBuildPluginOptions): Vite.Plugin {
       const message = `${id.slice(UNLOADABLE.length)} does not load in the browser: ${reason}`
 
       return { code: `throw new Error(${liveStringLiteral(message)})\n`, moduleSideEffects: true }
+    },
+
+    // React's development JSX keeps the file of each element, and a stand-in's message may name one.
+    renderChunk(code) {
+      const cleaned = paths?.inText(code) ?? code
+
+      return cleaned === code ? null : { code: cleaned, map: null }
     },
 
     onLog(level, log) {

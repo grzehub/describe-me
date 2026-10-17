@@ -41,10 +41,11 @@
  * styled-components, so every jsdom run uses its browser build.
  * The static site is built twice. The default build vendors fonts, which
  * proves that the packed CLI loads the vendoring code and its
- * `@describe-me/core` imports. The browser data links no remote font, so its
- * copied manifest must stay byte for byte. The DOM data is built with
+ * `@describe-me/core` imports. The DOM data is built with
  * `--no-vendor-fonts`, and its head must still link Google Fonts. Neither
- * build touches the network.
+ * build touches the network. The browser data links no remote font and the
+ * DOM build does not vendor, so neither copied manifest may differ from its
+ * source but in `root`, which must be a 16-hex project id.
  * Both manifests must name the config file of their run, and `live.mjs`
  * starts `createLiveServer()` on each of the two configs. The live page of the
  * test `Hello > greets and counts waves` must mount in both, and a click on its
@@ -57,6 +58,8 @@
  * its `__live/` and count a click. `buildLive()` must also finish with a test
  * file that imports `node:fs`, whose page reports `import-failed`. The two
  * sites built without `--live` must hold neither `__live.json` nor `__live/`.
+ * No file of the four sites and of that `buildLive()` output may name the
+ * temp directory of the smoke projects, the repository or the home directory.
  * The version guard is checked three ways: the packed packages peer on each
  * other at this release, both manifests name `@describe-me/vitest` and its
  * version as their `generator`, and a jsdom run whose setup file plants a
@@ -91,6 +94,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual, parseArgs } from 'node:util'
+import { machinePathsIn } from './docs/machine-paths-in.mjs'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -155,6 +159,8 @@ const work = mkdtempSync(join(tmpdir(), 'describe-me-smoke-'))
 const tarballs = join(work, 'tarballs')
 const app = join(work, 'app')
 const withoutUserEvent = join(work, 'app-without-user-event')
+// What `describe-me build` and `buildLive()` write into the app, by the end of the run.
+const BUILT_DIRS = ['site', 'site-dom', 'site-live', 'site-dom-live', 'live-node-only']
 
 /** Run a command in the given directory; `quiet` swallows its output unless it fails. */
 function run(command, cwd, quiet = false, env = {}) {
@@ -2142,7 +2148,8 @@ function verifyWithoutUserEvent() {
 
 /**
  * Both static sites: the default build with font vendoring, and the DOM build
- * without. Neither was built with `--live`, so neither has Live.
+ * without. Neither was built with `--live`, so neither has Live. Then every
+ * built directory, the live ones included, is searched for machine paths.
  */
 function verifyBuilds() {
   const built = ['site/index.html', 'site/__data/manifest.json', 'site-dom/__data/manifest.json']
@@ -2160,16 +2167,50 @@ function verifyBuilds() {
     assert(!existsSync(join(app, path)), `a build without --live wrote ${path}`)
   }
 
-  const copied = readFileSync(join(app, 'site', '__data', 'manifest.json'))
-  assert(
-    copied.equals(readFileSync(join(app, '.describe-me', 'manifest.json'))),
-    'the default build changed a manifest that links no remote font',
-  )
+  for (const [data, out] of [
+    ['.describe-me', 'site'],
+    ['.describe-me-dom', 'site-dom'],
+  ]) {
+    const copied = readJson(join(app, out, '__data', 'manifest.json'))
+    const source = readJson(join(app, data, 'manifest.json'))
+
+    assert(
+      /^[0-9a-f]{16}$/.test(copied.root),
+      `${out}/__data/manifest.json has root ${copied.root}, expected an id`,
+    )
+
+    assert(
+      isDeepStrictEqual({ ...copied, root: source.root }, source),
+      `${out}/__data/manifest.json differs from ${data}/manifest.json beyond its root`,
+    )
+  }
 
   const head = readJson(join(app, 'site-dom', '__data', 'manifest.json')).head
   assert(
     headHosts(head).some((host) => host === 'fonts.googleapis.com'),
     `the --no-vendor-fonts build did not keep the Google Fonts link: ${head}`,
+  )
+
+  verifyNoMachinePaths()
+}
+
+/** No built directory names the smoke projects' temp directory, the repository or the home directory. */
+function verifyNoMachinePaths() {
+  const places = { 'the smoke directory': work, 'the repository': root }
+  let files = 0
+
+  for (const dir of BUILT_DIRS) {
+    const scanned = machinePathsIn(join(app, dir), places)
+    files += scanned.files
+
+    assert(
+      scanned.problems.length === 0,
+      `machine paths in ${dir}/: ${scanned.problems.join(', ')}`,
+    )
+  }
+
+  console.log(
+    `\nno machine path in ${BUILT_DIRS.join(', ')} (${files} files): neither the smoke directory, the repository nor the home directory`,
   )
 }
 

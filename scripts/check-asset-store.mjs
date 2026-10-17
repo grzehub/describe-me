@@ -2,8 +2,11 @@
  * Checks how project files reach `assets/`, on the built output: the CSS
  * reference scanner of @describe-me/core, CSS files copied with their `url()`
  * and `@import` targets, the preview head, and garbage collection through CSS
- * assets. Every case builds its own project in a temporary directory. Run
- * after `pnpm build`.
+ * assets. Then the machine paths in recorded data: how `ProjectPaths` writes
+ * paths in error texts relative to the root, how `cleanSnapshot` drops
+ * `<script>` elements and rewrites `data-vite-dev-id`, and how `missing()`
+ * lists files outside the root. Every case builds its own project in a
+ * temporary directory. Run after `pnpm build`.
  *
  * Usage: `node scripts/check-asset-store.mjs`
  */
@@ -14,13 +17,17 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { cssReferences } from '../packages/core/dist/css-references.js'
 import { AssetStore } from '../packages/vitest/dist/asset-store.js'
+import { cleanSnapshot } from '../packages/vitest/dist/clean-snapshot.js'
+import { ProjectPaths } from '../packages/vitest/dist/project-paths.js'
 
 const ASSET_URL = /describe-me-asset:([0-9a-f]{16}(?:\.[a-z0-9]+)?)/
 const ASSET_NAME = /^[0-9a-f]{16}(?:\.[a-z0-9]+)?$/
@@ -76,15 +83,66 @@ const HEAD_PROJECT = {
   'logo.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
 }
 
+/**
+ * How `inText` writes each line of an error, with `<repo>` a temporary
+ * directory and `<root>` its `examples/web`. Each output must come back
+ * unchanged from a second pass.
+ */
+const IN_TEXT_ROWS = [
+  ['at <root>/src/Button.test.tsx:9:52', 'at src/Button.test.tsx:9:52'],
+  [
+    'at file://<repo>/node_modules/.pnpm/vitest@5.0.1/node_modules/vitest/dist/run.js:1628:35',
+    'at node_modules/vitest/dist/run.js:1628:35',
+  ],
+  [
+    'at runWithCancel (file://<repo>/node_modules/.pnpm/vitest@5.0.1/node_modules/vitest/dist/run.js:3314:10)',
+    'at runWithCancel (node_modules/vitest/dist/run.js:3314:10)',
+  ],
+  [
+    'at http://localhost:63315<root>/src/Button.test.tsx?import&browserv=1:13:60',
+    'at src/Button.test.tsx?import&browserv=1:13:60',
+  ],
+  [
+    'at http://localhost:63315/@fs<repo>/packages/ui/src/Card.tsx:3:1',
+    'at ../../packages/ui/src/Card.tsx:3:1',
+  ],
+  ['test@http://localhost:63315<root>/src/Button.test.tsx:4:2', 'test@src/Button.test.tsx:4:2'],
+  [
+    'Failed to load /@fs<repo>/packages/ui/src/Card.tsx',
+    'Failed to load ../../packages/ui/src/Card.tsx',
+  ],
+  ['at <repo>/examples/web-old/src/a.ts:1:1', 'at ../web-old/src/a.ts:1:1'],
+  [
+    'at async http://localhost:63315/node_modules/.vite/deps/react.js?v=1:10:2',
+    'at async http://localhost:63315/node_modules/.vite/deps/react.js?v=1:10:2',
+  ],
+  ["expected '/about' to be '/home'", "expected '/about' to be '/home'"],
+  ['var _jsxFileName = "<root>/src/Badge.test.tsx"', 'var _jsxFileName = "src/Badge.test.tsx"'],
+  ['not found in <root>', 'not found in .'],
+]
+
 const directories = []
 let checks = 0
 let failures = 0
 
-function tempDir() {
-  const dir = mkdtempSync(join(tmpdir(), 'describe-me-'))
+function tempDir(prefix = 'describe-me-') {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
   directories.push(dir)
 
   return dir
+}
+
+/** `<repo>` and its `<root>`, in their real paths, as Vite names files. */
+function machineProject(prefix) {
+  const repo = realpathSync(tempDir(prefix))
+  const root = join(repo, 'examples', 'web')
+  mkdirSync(root, { recursive: true })
+
+  return { repo, root }
+}
+
+function withPlaces(text, { repo, root }) {
+  return text.replaceAll('<root>', root).replaceAll('<repo>', repo)
 }
 
 function errorMessage(error) {
@@ -449,12 +507,215 @@ function checkGarbageCollection() {
   )
 }
 
+function checkInText() {
+  const project = machineProject('describe-me-')
+  const paths = new ProjectPaths(project.root)
+
+  for (const [input, expected] of IN_TEXT_ROWS) {
+    check(`inText: ${input} → ${expected}, and again unchanged`, () => {
+      const once = paths.inText(withPlaces(input, project))
+      const twice = paths.inText(once)
+
+      return { passed: once === expected && twice === once, detail: once }
+    })
+  }
+
+  check('inText through a symlink to <root> and through <root> itself', () => {
+    const link = join(project.repo, 'link')
+    symlinkSync(project.root, link)
+    const linked = new ProjectPaths(link)
+    const shown = [link, project.root].map((dir) =>
+      linked.inText(`at ${dir}/src/Button.test.tsx:9:52`),
+    )
+
+    return {
+      passed: shown.every((line) => line === 'at src/Button.test.tsx:9:52'),
+      detail: shown.join(' | '),
+    }
+  })
+
+  check('inText with a space in the name of <repo>', () => {
+    const spaced = machineProject('describe me-')
+    const shown = new ProjectPaths(spaced.root).inText(`at ${spaced.root}/src/Button.test.tsx:9:52`)
+
+    return { passed: shown === 'at src/Button.test.tsx:9:52', detail: shown }
+  })
+}
+
+function element(id, tagName, attributes = {}, childNodes = []) {
+  return { type: 2, tagName, attributes, childNodes, id }
+}
+
+function styleWith(id, devId) {
+  return element(id, 'style', { type: 'text/css', 'data-vite-dev-id': devId, _cssText: '.a {}' })
+}
+
+/** A document with scripts in the head, the body, an SVG, a shadow root and an iframe document. */
+function machineSnapshot({ repo, root }) {
+  const fontsource = `${repo}/node_modules/.pnpm/@fontsource+roboto@5.2.0/node_modules/@fontsource/roboto/400.css`
+  const head = element(3, 'head', {}, [
+    styleWith(4, `${root}/src/styles.css`),
+    styleWith(5, fontsource),
+    styleWith(6, `${root}/src/a.css?inline`),
+    styleWith(7, `${repo}/packages/ui/src/card.css`),
+    styleWith(8, 'src/styles.css'),
+    styleWith(9, 'virtual:x.css'),
+    element(10, 'script', { type: 'module', src: `http://localhost:63315/@fs${repo}/x.js` }),
+  ])
+
+  const shadowHost = element(14, 'div', {}, [{ ...element(15, 'script'), isShadow: true }])
+  shadowHost.isShadowHost = true
+
+  const frameDocument = {
+    type: 0,
+    childNodes: [element(18, 'html', {}, [element(19, 'head', {}, [element(20, 'SCRIPT')])])],
+    id: 17,
+  }
+
+  const body = element(11, 'body', {}, [
+    element(12, 'svg', {}, [element(13, 'script')]),
+    shadowHost,
+    element(16, 'iframe', {}, [frameDocument]),
+    element(21, 'script', {}, [{ type: 3, textContent: 'SCRIPT_PLACEHOLDER', id: 22 }]),
+  ])
+
+  return { type: 0, childNodes: [element(2, 'html', {}, [head, body])], id: 1 }
+}
+
+function isScript(node) {
+  return node.type === 2 && node.tagName.toLowerCase() === 'script'
+}
+
+/** The node and everything below it, leaving out each subtree that `skip` picks. */
+function nodesOf(node, skip = () => false) {
+  if (skip(node)) {
+    return []
+  }
+
+  return [node, ...(node.childNodes ?? []).flatMap((child) => nodesOf(child, skip))]
+}
+
+function devIdOf(tree, id) {
+  return nodesOf(tree).find((node) => node.id === id)?.attributes['data-vite-dev-id']
+}
+
+function checkCleanSnapshot() {
+  const project = machineProject('describe-me-')
+  const paths = new ProjectPaths(project.root)
+  const snapshot = machineSnapshot(project)
+  const cleaned = cleanSnapshot(JSON.stringify(snapshot), paths)
+  const tree = JSON.parse(cleaned)
+
+  const devIds = [
+    [4, '<root>/src/styles.css', 'src/styles.css'],
+    [
+      5,
+      '<repo>/node_modules/.pnpm/@fontsource+roboto@5.2.0/node_modules/@fontsource/roboto/400.css',
+      'node_modules/@fontsource/roboto/400.css',
+    ],
+    [6, '<root>/src/a.css?inline', 'src/a.css?inline'],
+    [8, 'src/styles.css', 'src/styles.css'],
+    [9, 'virtual:x.css', 'virtual:x.css'],
+  ]
+
+  for (const [id, before, after] of devIds) {
+    check(`cleanSnapshot: data-vite-dev-id ${before} → ${after}`, () => {
+      const shown = devIdOf(tree, id)
+
+      return { passed: shown === after, detail: shown }
+    })
+  }
+
+  check('cleanSnapshot: data-vite-dev-id <repo>/packages/ui/src/card.css is left out', () => {
+    const attributes = nodesOf(tree).find((node) => node.id === 7)?.attributes ?? {}
+
+    return {
+      passed: !Object.hasOwn(attributes, 'data-vite-dev-id'),
+      detail: Object.keys(attributes).join(', '),
+    }
+  })
+
+  check(
+    'cleanSnapshot: scripts in the head, the body, an SVG, a shadow root and an iframe document are gone, other ids unchanged',
+    () => {
+      const kept = nodesOf(snapshot, isScript).map((node) => node.id)
+      const left = nodesOf(tree).map((node) => node.id)
+
+      return {
+        passed: !nodesOf(tree).some(isScript) && sameList(left, kept),
+        detail: `${left.length} nodes kept`,
+      }
+    },
+  )
+
+  check('cleanSnapshot: a second run gives the same text', () => {
+    return cleanSnapshot(cleaned, paths) === cleaned
+  })
+
+  check(
+    'cleanSnapshot: a snapshot with no script and no dev id comes back as the same string',
+    () => {
+      const json = '{ "type": 0, "childNodes": [], "id": 1 }'
+
+      return cleanSnapshot(json, paths) === json
+    },
+  )
+}
+
+function checkMissingOutsideRoot() {
+  const project = machineProject('describe-me-')
+  const outDir = tempDir()
+  writeFiles(project.repo, { 'shared/card.css': '.card { background: url(./gone.woff2) }' })
+  const store = new AssetStore(outDir, project.root)
+  const origin = 'http://localhost:63315'
+  const urls = [
+    `/@fs${project.repo}/shared/missing.svg`,
+    `/@fs${project.repo}/node_modules/pkg/missing.svg`,
+    `/@fs${project.repo}/shared/card.css`,
+    `/@fs${project.root}/src/gone.png`,
+  ]
+
+  store.rewrite(JSON.stringify(urls.map((url) => ({ src: `${origin}${url}` }))), origin)
+  const missing = store.missing()
+
+  const cases = [
+    [
+      'a missing /@fs<repo>/shared/missing.svg is listed as ../../shared/missing.svg',
+      '../../shared/missing.svg',
+    ],
+    [
+      'a missing /@fs<repo>/node_modules/pkg/missing.svg is listed as node_modules/pkg/missing.svg',
+      'node_modules/pkg/missing.svg',
+    ],
+    [
+      'url(./gone.woff2) of a copied CSS file outside the root is listed as ../../shared/gone.woff2',
+      '../../shared/gone.woff2',
+    ],
+    ['a missing /@fs<root>/src/gone.png is listed as /src/gone.png', '/src/gone.png'],
+  ]
+
+  for (const [name, path] of cases) {
+    check(`missing(): ${name}`, () => ({
+      passed: missing.includes(path),
+      detail: missing.join(', '),
+    }))
+  }
+
+  check('missing(): no entry starts with /@fs/', () => ({
+    passed: missing.length === cases.length && !missing.some((path) => path.startsWith('/@fs/')),
+    detail: missing.join(', '),
+  }))
+}
+
 try {
   checkCssReferences()
   checkCssCopy()
   checkSnapshotPath()
   checkRewriteHead()
   checkGarbageCollection()
+  checkInText()
+  checkCleanSnapshot()
+  checkMissingOutsideRoot()
 } finally {
   for (const dir of directories) {
     rmSync(dir, { recursive: true, force: true })

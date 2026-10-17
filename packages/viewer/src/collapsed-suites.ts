@@ -2,7 +2,7 @@ const instances = new Map<string, CollapsedSuites>()
 
 /**
  * The sidebar's collapsed modules and suites, by `suiteKey()`, kept in
- * `localStorage` per project root because several projects share
+ * `localStorage` per project because several projects share
  * `localhost:6006`. Without storage it still works for the page's lifetime.
  */
 export class CollapsedSuites {
@@ -14,7 +14,7 @@ export class CollapsedSuites {
     this.keys = new Set(this.load())
   }
 
-  /** The one instance for a project root. */
+  /** The one instance for a project. */
   static for(root: string): CollapsedSuites {
     let collapsed = instances.get(root)
     if (!collapsed) {

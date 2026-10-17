@@ -29,8 +29,9 @@
  * both viewers the overview of a module with several components paints the
  * thumbnails of each component's gallery. No
  * request to the site may fail and the page may throw no error. Remote
- * requests are answered locally, so remote fonts never decide the result. Run
- * after `pnpm site:build`.
+ * requests are answered locally, so remote fonts never decide the result.
+ * Before Chromium starts, every file of site/ is read as bytes, and none may
+ * name the checkout or the home directory. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -38,6 +39,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { exampleNames } from './docs/example-names.mjs'
 import { launchChromium } from './docs/launch-chromium.mjs'
+import { machinePathsIn } from './docs/machine-paths-in.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
 import { serveStatic } from './docs/serve-static.mjs'
 import { shownTests } from './docs/shown-tests.mjs'
@@ -2078,9 +2080,17 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
+const scanned = machinePathsIn(SITE, { 'the checkout': repoRoot })
+
+if (scanned.problems.length === 0) {
+  console.log(
+    `check-site: no file of site/ names the checkout or the home directory (${scanned.files} files)`,
+  )
+}
+
 const { server, url } = await serveStatic(SITE)
 let browser = null
-let problems = []
+let problems = [...scanned.problems]
 
 try {
   browser = await launchChromium()
@@ -2135,5 +2145,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, show Live loading, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, show Live loading, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )

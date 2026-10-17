@@ -187,8 +187,9 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                   <a href="how-it-works.html#manifest-configFile"><code>configFile</code></a> of the
                   manifest. With it, the preview uses that directory and the config file Vitest
                   picks there, the first <code>vitest.config.*</code>, then
-                  <code>vite.config.*</code>. Use it before the first test run, or when the manifest
-                  comes from another machine.
+                  <code>vite.config.*</code>. Use it before the first test run, when the manifest
+                  comes from another machine, or on the <code>__data/</code> of a built site, whose
+                  manifest names the project by an id.
                 </td>
               </tr>
               <tr id="flag-no-vendor-fonts">
@@ -742,6 +743,16 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
           <li>
             <strong>No rewrites.</strong> The view lives in the part after <code>#</code>, so the
             server only ever serves <code>index.html</code> and files.
+          </li>
+          <li>
+            <strong>No paths of your machine.</strong> In the copy of the manifest,
+            <code>root</code> is an id of the project, not a path. Snapshots, test errors and the
+            live build name files relative to the project root, such as <code>src/Button.tsx</code>,
+            and a package outside the root from its <code>node_modules/</code> folder.
+            <a href="how-it-works.html#snapshot">How it works</a> has the details. Values that your
+            tests put into a frame, such as props and the text they render, stay as they are. The
+            manifest in <code>.describe-me/</code> keeps the absolute root, which
+            <code>describe-me dev</code> and <code>build --live</code> read.
           </li>
           <li>
             <strong>Not from disk.</strong> The viewer is a module script that fetches its data,

@@ -12,6 +12,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path'
 import { ASSET_URL_PREFIX } from '@describe-me/core/types'
 import { collectableFiles } from './collectable-files.js'
 import { cssAssetReferences } from './css-asset-references.js'
+import { ProjectPaths } from './project-paths.js'
 import { rewriteCssReferences } from './rewrite-css-references.js'
 import { rewriteHeadReferences } from './rewrite-head-references.js'
 
@@ -188,6 +189,7 @@ export class AssetStore {
   private readonly outDir: string
   private readonly dir: string
   private readonly root: string
+  private readonly paths: ProjectPaths
   /** Stored name per URL pathname in this run, or null when it is not a project file. */
   private readonly names = new Map<string, string | null>()
   private readonly notFound = new Set<string>()
@@ -207,6 +209,7 @@ export class AssetStore {
     this.outDir = outDir
     this.dir = join(outDir, 'assets')
     this.root = resolve(root)
+    this.paths = new ProjectPaths(root)
     mkdirSync(this.dir, { recursive: true })
   }
 
@@ -271,11 +274,14 @@ export class AssetStore {
 
   /**
    * Paths that snapshots, the preview head or copied CSS files in this run
-   * pointed at but that do not exist: root-relative inside the project root,
-   * `/@fs/<absolute path>` outside it.
+   * pointed at but that do not exist: root-relative inside the project root
+   * (`/fonts/gone.woff2`), and outside it from the last `node_modules/`
+   * (`node_modules/pkg/gone.svg`) or relative to the root (`../shared/gone.woff2`).
    */
   missing(): string[] {
-    return Array.from(this.notFound).sort()
+    const paths = Array.from(this.notFound, (path) => this.reportedPath(path))
+
+    return [...new Set(paths)].sort()
   }
 
   /**
@@ -510,13 +516,33 @@ export class AssetStore {
     return file
   }
 
-  /** How Vite serves a file: root-relative inside the project root, `/@fs/<absolute path>` outside it. */
+  /**
+   * How Vite serves a file: root-relative inside the project root,
+   * `/@fs/<absolute path>` outside it. `missing()` names the second form
+   * without the absolute path.
+   */
   private servedPath(file: string): string {
     const path = file.startsWith(this.root + sep)
       ? file.slice(this.root.length)
       : `/@fs/${file.replace(/^[\\/]/, '')}`
 
     return path.split(sep).join('/')
+  }
+
+  /** A path of `notFound` as `missing()` lists it, which never names the machine. */
+  private reportedPath(path: string): string {
+    if (!path.startsWith('/@fs/')) {
+      return path
+    }
+
+    const file = fsPathFromUrl(path)
+    const fromRoot = this.paths.fromRoot(file)
+
+    if (fromRoot !== '..' && !fromRoot.startsWith('../')) {
+      return `/${fromRoot}`
+    }
+
+    return this.paths.of(file) ?? fromRoot
   }
 
   /** Where Vite serves a URL pathname from: `/@fs/`, the project root, or its `public/` folder. */
