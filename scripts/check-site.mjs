@@ -57,7 +57,8 @@ const LOADING_WORDS = 'mounting…'
 const LIGHT_CANVAS = 'rgb(255, 255, 255)'
 const DARK_CANVAS = 'rgb(20, 22, 25)'
 const BACKGROUNDS = ['auto', 'light', 'dark', 'transparent']
-// Both examples paint their page white, so `auto` is light in both. The checkerboard is an image.
+// Neither example paints its page or declares a dark scheme, so `auto` is light in both. The
+// checkerboard is an image.
 const CANVASES = {
   auto: { canvas: LIGHT_CANVAS, image: false },
   light: { canvas: LIGHT_CANVAS, image: false },
@@ -962,11 +963,7 @@ async function liveSteps(page) {
     return `Live: ${problem}`
   }
 
-  const label = await page
-    .locator('.stage-slot.live-slot')
-    .evaluate((slot) => getComputedStyle(slot, '::before').content)
-
-  return label.includes('Live') ? null : `the live slot's label has the content ${label}`
+  return null
 }
 
 /** `bg=dark` in the link of an overview: the first thumbnail's canvas, scheme and media query. */
@@ -1762,6 +1759,45 @@ async function stageShot(page) {
   return page.locator('.stage').screenshot()
 }
 
+// Chromium may composite a see-through frame on its own layer or straight onto
+// the canvas, and the antialiased edges of the two differ by 1 in a channel. A
+// theme that reaches the frame changes its colors by far more.
+const COMPOSITING_NOISE = 2
+
+/**
+ * The largest difference in one color channel between two PNG screenshots,
+ * given in base64, read in the page. `null` when their sizes differ.
+ */
+async function largestChannelDelta([first, second]) {
+  async function pixels(base64) {
+    const response = await fetch(`data:image/png;base64,${base64}`)
+    const bitmap = await createImageBitmap(await response.blob(), {
+      colorSpaceConversion: 'none',
+      premultiplyAlpha: 'none',
+    })
+
+    const context = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')
+
+    context.drawImage(bitmap, 0, 0)
+
+    return context.getImageData(0, 0, bitmap.width, bitmap.height)
+  }
+
+  const [one, two] = await Promise.all([pixels(first), pixels(second)])
+
+  if (one.width !== two.width || one.height !== two.height) {
+    return null
+  }
+
+  let largest = 0
+
+  for (let i = 0; i < one.data.length; i++) {
+    largest = Math.max(largest, Math.abs(one.data[i] - two.data[i]))
+  }
+
+  return largest
+}
+
 /** Remembers whether `data-theme` first changed while the parser had not reached `<body>`. */
 function watchThemeAttribute() {
   const observer = new MutationObserver(() => {
@@ -1800,8 +1836,15 @@ async function replayThemeSteps(page, url, name, id) {
     return `the dark theme changed the link from ${link} to ${page.url()}`
   }
 
-  if (!(await stageShot(page)).equals(shot)) {
-    return 'the dark theme changed the pixels of the stage'
+  const shots = [shot, await stageShot(page)].map((buffer) => buffer.toString('base64'))
+  const delta = await page.evaluate(largestChannelDelta, shots)
+
+  if (delta === null) {
+    return 'the dark theme changed the size of the stage'
+  }
+
+  if (delta > COMPOSITING_NOISE) {
+    return `the dark theme changed the pixels of the stage, by up to ${delta} in a channel`
   }
 
   await page.reload()

@@ -44,8 +44,9 @@ const Root = styled.button<{ $variant: 'primary' | 'secondary'; $size: 'small' |
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  color: ${({ $variant, theme }) => ($variant === 'primary' ? 'white' : theme.colors.ink)};
-  background: ${({ $variant, theme }) => ($variant === 'primary' ? theme.colors.ink : 'white')};
+  color: ${({ $variant, theme }) => ($variant === 'primary' ? theme.colors.paper : theme.colors.ink)};
+  background: ${({ $variant, theme }) =>
+    $variant === 'primary' ? theme.colors.ink : theme.colors.paper};
 `
 
 /**

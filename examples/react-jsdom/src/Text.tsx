@@ -25,5 +25,5 @@ export const Text = styled.p.withConfig({
 })<TextProps>`
   margin: 0;
   font-size: ${({ size = 'medium' }) => FONT_SIZES[size]};
-  color: ${({ muted, theme }) => (muted ? 'rgb(107, 107, 107)' : theme.colors.ink)};
+  color: ${({ muted, theme }) => (muted ? theme.colors.muted : theme.colors.ink)};
 `
