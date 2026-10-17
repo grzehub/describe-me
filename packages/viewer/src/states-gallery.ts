@@ -8,12 +8,14 @@ import { fontsSettled } from './fonts-settled.js'
 import { replaySnapshot } from './replay-snapshot.js'
 import { select, state } from './state.js'
 
-/** Bumped on every gallery render, so snapshots that arrive late are dropped. */
-let galleryToken = 0
-
-async function paintThumb(thumb: HTMLElement, frame: ManifestFrame, token: number): Promise<void> {
+/*
+ * An overview has a gallery per component, so a newer gallery does not make an
+ * older one stale. A repaint replaces the whole overview, and a thumb that left
+ * the page drops its snapshot.
+ */
+async function paintThumb(thumb: HTMLElement, frame: ManifestFrame): Promise<void> {
   const node = await loadSnapshot(frame.snapshot)
-  if (token !== galleryToken || !thumb.isConnected) {
+  if (!thumb.isConnected) {
     return
   }
 
@@ -32,7 +34,7 @@ async function paintThumb(thumb: HTMLElement, frame: ManifestFrame, token: numbe
 
   // Web fonts arrive later and change the text's size.
   await fonts
-  if (token === galleryToken && thumb.isConnected) {
+  if (thumb.isConnected) {
     fitThumb(thumb, iframe)
   }
 }
@@ -80,10 +82,9 @@ function scrollRoot(node: HTMLElement): HTMLElement | null {
 
 /** Build each thumbnail once its tile comes near the visible part of the column. */
 function paintWhenVisible(gallery: HTMLElement, pending: Map<Element, ManifestFrame>): void {
-  const token = galleryToken
   const observer = new IntersectionObserver(
     (entries) => {
-      if (token !== galleryToken) {
+      if (!gallery.isConnected) {
         observer.disconnect()
         return
       }
@@ -93,7 +94,7 @@ function paintWhenVisible(gallery: HTMLElement, pending: Map<Element, ManifestFr
         if (entry.isIntersecting && frame) {
           pending.delete(entry.target)
           observer.unobserve(entry.target)
-          void paintThumb(entry.target as HTMLElement, frame, token)
+          void paintThumb(entry.target as HTMLElement, frame)
         }
       }
     },
@@ -107,7 +108,6 @@ function paintWhenVisible(gallery: HTMLElement, pending: Map<Element, ManifestFr
 
 /** One scaled-down tile per test, showing its last frame and leading to it. */
 export function renderStatesGallery(tests: ManifestTest[]): HTMLElement {
-  const token = ++galleryToken
   const gallery = el('div', { class: 'gallery' })
   const pending = new Map<Element, ManifestFrame>()
 
@@ -147,7 +147,7 @@ export function renderStatesGallery(tests: ManifestTest[]): HTMLElement {
 
   // The scroll container only exists once the caller has put the gallery on screen.
   requestAnimationFrame(() => {
-    if (token === galleryToken && gallery.isConnected) {
+    if (gallery.isConnected) {
       paintWhenVisible(gallery, pending)
     }
   })

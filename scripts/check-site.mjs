@@ -25,7 +25,9 @@
  * theme changes a frame's pixels, canvas, color scheme or media query, in
  * replay and in Live. With the react-browser manifest padded in memory, a long
  * props table folds in the overview and in the inspector, and stays unfolded
- * through a frame step and a visit to another test until the page reloads. No
+ * through a frame step and a visit to another test until the page reloads. In
+ * both viewers the overview of a module with several components paints the
+ * thumbnails of each component's gallery. No
  * request to the site may fail and the page may throw no error. Remote
  * requests are answered locally, so remote fonts never decide the result. Run
  * after `pnpm site:build`.
@@ -566,6 +568,80 @@ async function checkLongProps(context, url) {
 
     console.log(
       `check-site: examples/${name}/ folds long props tables (${SHOWN_ROWS} of ${componentProps} in the overview, ${SHOWN_ROWS} of ${padded.props} in the inspector, ${short.props} in full)`,
+    )
+
+    return []
+  } finally {
+    await page.close()
+  }
+}
+
+/** The first module of an example whose tests render more than one component. */
+function moduleWithComponents(name) {
+  return readSiteManifest(name).modules.find(
+    (module) => new Set(module.tests.map((test) => test.component?.name).filter(Boolean)).size > 1,
+  )
+}
+
+/** Whether every thumbnail of the gallery at `index` holds its frame, read in the page. */
+function galleryPainted(index) {
+  const gallery = document.querySelectorAll('.overview .gallery')[index]
+  const thumbs = Array.from(gallery.querySelectorAll('.thumb:not(:has(.hint))'))
+
+  return thumbs.length > 0 && thumbs.every((thumb) => thumb.querySelector('iframe') !== null)
+}
+
+/** Each gallery of the overview, scrolled into view, paints all its thumbnails. */
+async function galleriesSteps(page, url, name, moduleId) {
+  await page.goto(`${url}examples/${name}/#suite=${encodeURIComponent(moduleId)}`)
+  await page.locator('.overview .gallery').first().waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const count = await page.locator('.overview .gallery').count()
+
+  if (count < 2) {
+    return `the overview of ${moduleId} shows ${count} galleries, expected one per component`
+  }
+
+  for (let index = 0; index < count; index++) {
+    await page.locator('.overview .gallery').nth(index).scrollIntoViewIfNeeded()
+
+    const painted = await page
+      .waitForFunction(galleryPainted, index, { timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false)
+
+    if (!painted) {
+      return `gallery ${index + 1} of ${count} in the overview of ${moduleId} has thumbnails without a frame`
+    }
+  }
+
+  return null
+}
+
+/** An overview with several components paints the thumbnails of every gallery, not only the last. */
+async function checkGalleries(context, url, name) {
+  const label = `examples/${name}/ galleries`
+  const found = moduleWithComponents(name)
+
+  if (!found) {
+    return [`${label}: no module of the manifest renders more than one component`]
+  }
+
+  const page = await context.newPage()
+  const failures = []
+
+  page.on('pageerror', (error) => failures.push(errorMessage(error)))
+
+  try {
+    const problem = await galleriesSteps(page, url, name, found.id)
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ paints the thumbnails of every gallery in the overview of ${found.id}`,
     )
 
     return []
@@ -1978,6 +2054,10 @@ try {
   problems.push(...(await checkLongProps(context, url)))
 
   for (const name of exampleNames) {
+    problems.push(...(await checkGalleries(context, url, name)))
+  }
+
+  for (const name of exampleNames) {
     problems.push(...(await checkLive(browser, url, name)))
   }
 
@@ -2012,5 +2092,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, mount one in Live, show Live loading, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, show Live loading, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )
