@@ -1,5 +1,22 @@
 # @describe-me/vitest
 
+## 0.8.0
+
+### Minor Changes
+
+- [#82](https://github.com/grzehub/describe-me/pull/82) [`5c922ee`](https://github.com/grzehub/describe-me/commit/5c922ee5b09a50b36ca85a4c2dace19cc4e29567) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Frames stand on the stage without a card. The slot and its iframe have no background, rounded corners, ring or shadow, so a frame shows only what the page's own CSS paints. A live frame loses its accent ring too, and only the Live toggle in the toolbar shows that Live is on.
+
+  A background switch next to the viewport presets picks the canvas: `auto` (default), `light`, `dark` or `transparent` (a checkerboard). It also sets the frame's `color-scheme`, so `prefers-color-scheme` inside the frame follows the switch, not the system. `auto` is light unless the recorded page declares a dark scheme on its root or paints its `html` or `body` dark. The overview's thumbnails follow the switch. The link keeps it as `bg=light|dark|transparent`.
+
+  - Behaviour change: on a system in dark mode, frames used to show the component's `prefers-color-scheme: dark` rules on a white card. `auto` now shows them light, unless the page declares a dark scheme. Pick `dark` to see them.
+  - Every replayed frame and the live page start their `<head>` with `:where(:root) { color-scheme: light dark }`, so the frame follows the switch. A page that sets its own `color-scheme` keeps it.
+
+### Patch Changes
+
+- Updated dependencies [[`b9a39f3`](https://github.com/grzehub/describe-me/commit/b9a39f30d68f14aec5a1228a5e37b29a445d5404), [`bcf267d`](https://github.com/grzehub/describe-me/commit/bcf267dc678cd5f12edb347cafb477bc44ecd85f), [`d8dec54`](https://github.com/grzehub/describe-me/commit/d8dec54a1af9c70631248145a626767d5e75ab55), [`a80497a`](https://github.com/grzehub/describe-me/commit/a80497ab75fd9a5e47aa7456282eb093d349a386), [`5c922ee`](https://github.com/grzehub/describe-me/commit/5c922ee5b09a50b36ca85a4c2dace19cc4e29567), [`2f5371f`](https://github.com/grzehub/describe-me/commit/2f5371fc1c1445b83c290c880cbb91525259f5f3)]:
+  - describe-me@0.8.0
+  - @describe-me/core@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes
