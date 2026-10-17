@@ -14,7 +14,21 @@
     'Segoe UI',
     sans-serif;
   color: var(--ink);
-  background: var(--paper);
+}
+/*
+ * The page paints no background, so its frames stand on the viewer's canvas.
+ * The dark canvas turns on these tokens.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ededed;
+    --paper: #1a1a1a;
+    --muted: #a0a0a0;
+    --line: #333333;
+    --hover: #262626;
+    --accent: #7c9bff;
+    --danger: #ff6b6b;
+  }
 }
 body {
   margin: 0;

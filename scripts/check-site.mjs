@@ -57,7 +57,8 @@ const LOADING_WORDS = 'mounting…'
 const LIGHT_CANVAS = 'rgb(255, 255, 255)'
 const DARK_CANVAS = 'rgb(20, 22, 25)'
 const BACKGROUNDS = ['auto', 'light', 'dark', 'transparent']
-// Both examples paint their page white, so `auto` is light in both. The checkerboard is an image.
+// Neither example paints its page or declares a dark scheme, so `auto` is light in both. The
+// checkerboard is an image.
 const CANVASES = {
   auto: { canvas: LIGHT_CANVAS, image: false },
   light: { canvas: LIGHT_CANVAS, image: false },
@@ -962,11 +963,7 @@ async function liveSteps(page) {
     return `Live: ${problem}`
   }
 
-  const label = await page
-    .locator('.stage-slot.live-slot')
-    .evaluate((slot) => getComputedStyle(slot, '::before').content)
-
-  return label.includes('Live') ? null : `the live slot's label has the content ${label}`
+  return null
 }
 
 /** `bg=dark` in the link of an overview: the first thumbnail's canvas, scheme and media query. */

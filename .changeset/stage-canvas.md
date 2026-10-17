@@ -3,7 +3,7 @@
 '@describe-me/vitest': minor
 ---
 
-Frames stand on the stage without a card. The slot and its iframe have no background, rounded corners, ring or shadow, so a frame shows only what the page's own CSS paints. A Live label above the frame marks Live instead of the accent ring.
+Frames stand on the stage without a card. The slot and its iframe have no background, rounded corners, ring or shadow, so a frame shows only what the page's own CSS paints. A live frame loses its accent ring too, and only the Live toggle in the toolbar shows that Live is on.
 
 A background switch next to the viewport presets picks the canvas: `auto` (default), `light`, `dark` or `transparent` (a checkerboard). It also sets the frame's `color-scheme`, so `prefers-color-scheme` inside the frame follows the switch, not the system. `auto` is light unless the recorded page declares a dark scheme on its root or paints its `html` or `body` dark. The overview's thumbnails follow the switch. The link keeps it as `bg=light|dark|transparent`.
 

@@ -909,10 +909,7 @@ button.tag.active {
 .stage[data-canvas='transparent'] {
   background: var(--canvas-transparent);
 }
-/*
- * No card: a frame shows only what its page paints. The slot clips the scaled
- * iframe, and it is no containing block, so the Live label above it stays whole.
- */
+/* No card: a frame shows only what its page paints. The slot clips the scaled iframe. */
 .stage-slot {
   overflow: hidden;
 }
@@ -1331,29 +1328,10 @@ kbd {
   color: var(--ink-3);
 }
 /*
- * Tells a live frame from a recorded one, above the slot's top-left corner in
- * the stage's padding. Fixed colors, so it reads on every canvas and in both
- * schemes. Assistive tech skips it, because the iframe's title says live.
- */
-.stage-slot.live-slot::before {
-  content: 'Live' / '';
-  position: absolute;
-  translate: 0 calc(-100% - 6px);
-  padding: 1px 7px;
-  border-radius: var(--r-pill);
-  background: #4a63d8;
-  color: #ffffff;
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 16px;
-  pointer-events: none;
-}
-/*
  * While the live page loads, its frame is see-through and a band sweeps the
  * slot's own background, over the empty canvas or through the dimmed
  * underlay. Fixed colors, because the canvas does not follow the viewer's
- * scheme. No `position`, `transform`, `filter`, `contain` or `will-change` on
- * the slot: it would become a containing block and clip the Live label.
+ * scheme.
  */
 .stage-slot.live-slot.loading {
   background-image: linear-gradient(

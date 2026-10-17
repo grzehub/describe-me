@@ -16,7 +16,7 @@ import {
   waitForMessage,
 } from './live-frame.mjs'
 
-// `ink` of examples/react-jsdom/src/theme.ts.
+// The light `ink` of examples/react-jsdom/src/theme.ts. Playwright's pages are light.
 const THEME_INK = 'rgb(17, 17, 17)'
 
 async function selectsRename({ page, frame }) {

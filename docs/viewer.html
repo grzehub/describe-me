@@ -450,8 +450,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
         </ul>
         <p>
-          Both examples paint their page white, so their frames show as a white sheet on the dark
-          and transparent canvases, as in this
+          Neither example paints its page, so their components stand right on the canvas. Both have
+          dark tokens under <code>prefers-color-scheme: dark</code>, which the dark canvas turns on,
+          as in this
           <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;bg=dark">Disclosure test</a> of the
           jsdom example.
         </p>
@@ -486,7 +487,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <ul>
           <li>
             Until the live page reports a status, the recorded frame stays under the live frame,
-            dimmed, with a shimmer. The Live label shows from the start.
+            dimmed, with a shimmer.
           </li>
           <li>
             With no recorded frame of the test on the stage, the shimmer runs on the empty canvas.
@@ -544,7 +545,6 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
 
         <h3>Size and focus</h3>
         <ul>
-          <li>A Live label above the frame sets it apart from a recorded one.</li>
           <li>
             The toolbar's presets, W, H and the background apply without reloading the frame, so the
             component keeps its state.
