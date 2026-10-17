@@ -237,7 +237,12 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <code>describe</code> shows its name over the file path. Each test shows its status, its
             <a href="#search">tags</a> and its number of frames. A click on a file or
             <code>describe</code> row opens its <a href="#overview">overview</a>. The arrow in front
-            of it collapses it.
+            of it collapses it. Drag the sidebar's right edge to make it narrower or wider, between
+            216 px and half the window. A window narrower than 592 px allows up to 296 px. A
+            double-click on the edge sets it back to 296 px. <kbd>Tab</kbd> and <kbd>←</kbd>
+            <kbd>→</kbd> work too, as the <a href="#keyboard">keyboard table</a> says. The browser
+            keeps the width per project, like the <a href="#search">collapsed rows</a>. It is not
+            part of the link. Without storage it lasts until you reload.
           </li>
           <li>
             <strong>Stage.</strong> The test's path and the
@@ -356,14 +361,23 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td>the search field</td>
                 <td>Opens the first match and leaves the field, so the arrow keys work again.</td>
               </tr>
+              <tr>
+                <td class="nowrap"><kbd>←</kbd> <kbd>→</kbd></td>
+                <td>the sidebar's edge</td>
+                <td>
+                  Narrows or widens the sidebar by 16 px. <kbd>Tab</kbd> reaches the edge after the
+                  sidebar's rows.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
 
         <p>
           Shortcuts are off while you type in an input, a textarea, a select or an editable element,
-          and until the manifest has loaded. While the frame of a test in Live has focus, keys go to
-          the component, as <a href="#live">Live</a> explains.
+          and until the manifest has loaded. They are also off while the sidebar's edge has focus.
+          While the frame of a test in Live has focus, keys go to the component, as
+          <a href="#live">Live</a> explains.
         </p>
 
         <h2 id="viewport">

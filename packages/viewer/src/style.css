@@ -132,10 +132,11 @@ a {
   grid-template-rows: 52px auto 1fr;
 }
 /* A hidden banner leaves the grid. Without a fixed row the body would drop into the `auto` row. */
+/* The sidebar's handle sits in the 0-width track, so it takes no space from the panels. */
 .body {
   grid-row: 3;
   display: grid;
-  grid-template-columns: 296px 1fr 320px;
+  grid-template-columns: var(--sidebar-width, 296px) 0 1fr 320px;
   min-height: 0;
 }
 
@@ -351,6 +352,43 @@ a {
   background: var(--panel);
   /* The stuck search field and its halo, so a revealed row never lands under it. */
   scroll-padding-top: 58px;
+}
+
+/* Straddles the sidebar's border. Its line covers that border, so only the border shows at rest. */
+.sidebar-handle {
+  position: relative;
+  z-index: 2;
+  width: 8px;
+  margin-inline: -4px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.sidebar-handle::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background-color 0.12s;
+}
+.sidebar-handle:focus-visible {
+  outline: none;
+}
+.sidebar-handle:hover::after,
+.sidebar-handle:focus-visible::after,
+:root.sidebar-resizing .sidebar-handle::after {
+  background: var(--accent);
+}
+/* Some cursor rules outrank this selector, hence `!important`. */
+:root.sidebar-resizing,
+:root.sidebar-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+/* A stage or Live frame under the pointer would take its moves away from the page. */
+:root.sidebar-resizing iframe {
+  pointer-events: none;
 }
 
 /*

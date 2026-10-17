@@ -12,10 +12,12 @@
  * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
  * test again. In both viewers `bg` and the background switch set the stage's
  * canvas and the frame's color scheme, in a replayed frame, in Live and in the
- * overview's thumbnails, and no frame paints an opaque backdrop. No request to
- * the site may fail and the page may throw no error. Remote requests are
- * answered locally, so remote fonts never decide the result. Run after
- * `pnpm site:build`.
+ * overview's thumbnails, and no frame paints an opaque backdrop. The sidebar's
+ * edge sets its width with ← → and by dragging, a double-click sets it back,
+ * frames ignore the pointer during a drag and the stage refits after it, and
+ * each viewer keeps its own width after a reload. No request to the site may
+ * fail and the page may throw no error. Remote requests are answered locally,
+ * so remote fonts never decide the result. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -47,6 +49,9 @@ const CANVASES = {
   transparent: { image: true },
 }
 
+// SidebarWidth in packages/viewer/src/sidebar-width.ts, and the most at the 1280 px of openLivePage().
+const SIDEBAR = { default: 296, min: 216, step: 16, max: 640 }
+const SIDEBAR_TIMEOUT = 5_000
 const RECORDED_IFRAME = '.stage-slot[data-frame]:not(.incoming) iframe'
 const LIVE_IFRAME = '.stage-slot.live-slot iframe'
 // The page paints nothing, so only a backdrop under it can differ from the bare canvas.
@@ -659,6 +664,300 @@ async function checkStageBackground(browser, url, name) {
   }
 }
 
+/** Whether the sidebar settles at `width` px, in its box and in the handle, once the tree has rows. */
+async function showsWidth(page, width) {
+  return page
+    .waitForFunction(
+      (expected) => {
+        const sidebar = document.querySelector('.sidebar')
+        const handle = document.querySelector('.sidebar-handle')
+
+        if (document.querySelector('.tree .test') === null || !sidebar || !handle) {
+          return false
+        }
+
+        const shown = Math.round(sidebar.getBoundingClientRect().width)
+
+        return shown === expected && handle.getAttribute('aria-valuenow') === String(expected)
+      },
+      width,
+      { timeout: SIDEBAR_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+}
+
+/** The width the sidebar shows, for a problem's message. */
+async function shownWidth(page) {
+  return page.evaluate(() => {
+    const width = document.querySelector('.sidebar')?.getBoundingClientRect().width
+    const now = document.querySelector('.sidebar-handle')?.getAttribute('aria-valuenow')
+
+    return `${width === undefined ? 'no' : Math.round(width)} px (aria-valuenow ${now ?? 'missing'})`
+  })
+}
+
+/** Whether `localStorage` settles on `value` for `key`. `null` waits for the key to go. */
+async function storesWidth(page, key, value) {
+  return page
+    .waitForFunction(
+      ([storageKey, expected]) => localStorage.getItem(storageKey) === expected,
+      [key, value],
+      { timeout: SIDEBAR_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+}
+
+/** Each key press, then the width it should give. */
+async function pressesTo(page, keys, width) {
+  for (const key of keys) {
+    await page.keyboard.press(key)
+  }
+
+  if (!(await showsWidth(page, width))) {
+    return `${keys.join(' ')} gives ${await shownWidth(page)}, expected ${width} px`
+  }
+
+  return null
+}
+
+/** A drag from the handle's centre by `distance` px, with `whileDragging` before the release. */
+async function dragHandle(page, distance, whileDragging = async () => null) {
+  const box = await page.locator('.sidebar-handle').boundingBox()
+  const centreX = box.x + box.width / 2
+  const centreY = box.y + box.height / 2
+
+  await page.mouse.move(centreX, centreY)
+  await page.mouse.down()
+  await page.mouse.move(centreX + distance, centreY, { steps: 5 })
+
+  const problem = await whileDragging()
+
+  await page.mouse.up()
+
+  return problem
+}
+
+/** Frames ignore the pointer and the stage shows `col-resize` while the edge is dragged. */
+async function duringDrag(page) {
+  const ignored = await page
+    .waitForFunction(
+      (selector) => {
+        const iframe = document.querySelector(selector)
+        const stage = document.querySelector('.stage')
+
+        return (
+          iframe !== null &&
+          stage !== null &&
+          getComputedStyle(iframe).pointerEvents === 'none' &&
+          getComputedStyle(stage).cursor === 'col-resize'
+        )
+      },
+      RECORDED_IFRAME,
+      { timeout: SIDEBAR_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+
+  return ignored
+    ? null
+    : 'while dragging, the stage frame takes the pointer or .stage is not col-resize'
+}
+
+/** After the drag, the frame takes the pointer again and its slot fills the narrower stage. */
+async function afterDrag(page) {
+  const settled = await page
+    .waitForFunction(
+      (selector) => {
+        const iframe = document.querySelector(selector)
+        const stage = document.querySelector('.stage')
+
+        if (
+          iframe === null ||
+          stage === null ||
+          getComputedStyle(iframe).pointerEvents !== 'auto'
+        ) {
+          return false
+        }
+
+        const padding = getComputedStyle(stage)
+        const available =
+          stage.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
+
+        return Math.abs(iframe.parentElement.getBoundingClientRect().width - available) <= 1
+      },
+      RECORDED_IFRAME,
+      { timeout: SIDEBAR_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+
+  return settled
+    ? null
+    : 'after the drag, the stage frame ignores the pointer or its slot did not refit'
+}
+
+/** The handle's role and limits at 1280 px, before any change. */
+async function handleAttributes(page) {
+  const expected = {
+    role: 'separator',
+    'aria-orientation': 'vertical',
+    'aria-valuemin': String(SIDEBAR.min),
+    'aria-valuemax': String(SIDEBAR.max),
+  }
+
+  const handle = page.locator('.sidebar-handle')
+
+  for (const [name, value] of Object.entries(expected)) {
+    const actual = await handle.getAttribute(name)
+
+    if (actual !== value) {
+      return `the handle has ${name}="${actual}", expected "${value}"`
+    }
+  }
+
+  return null
+}
+
+/** The keyboard part: ← → set the width, ↑ ↓ and both change neither the link nor the focus. */
+async function sidebarKeySteps(page, key) {
+  const handle = page.locator('.sidebar-handle')
+
+  await handle.focus()
+
+  const before = page.url()
+  const problem =
+    (await pressesTo(page, ['ArrowRight', 'ArrowRight', 'ArrowRight'], 344)) ??
+    (await pressesTo(page, ['ArrowLeft'], 328)) ??
+    (await pressesTo(page, ['ArrowUp', 'ArrowDown'], 328))
+
+  if (problem) {
+    return problem
+  }
+
+  const focused = await handle.evaluate((element) => document.activeElement === element)
+
+  if (page.url() !== before || !focused) {
+    return `after the six keys the link is ${page.url()} (was ${before}) and the handle ${focused ? 'has' : 'lost'} focus`
+  }
+
+  if (!(await storesWidth(page, key, '328'))) {
+    return `localStorage holds ${await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)} for ${key}, expected 328`
+  }
+
+  await page.reload()
+
+  return (await showsWidth(page, 328))
+    ? null
+    : `after a reload the sidebar is ${await shownWidth(page)}, expected 328 px`
+}
+
+/** The pointer part: a drag, a double-click, then both limits. */
+async function sidebarDragSteps(page, key) {
+  const dragged = await dragHandle(page, 100, () => duringDrag(page))
+
+  if (dragged) {
+    return dragged
+  }
+
+  if (!(await showsWidth(page, 428)) || !(await storesWidth(page, key, '428'))) {
+    return `a drag of 100 px gives ${await shownWidth(page)}, expected 428 px, stored too`
+  }
+
+  const refit = await afterDrag(page)
+
+  if (refit) {
+    return refit
+  }
+
+  await page.locator('.sidebar-handle').dblclick()
+
+  if (!(await showsWidth(page, SIDEBAR.default)) || !(await storesWidth(page, key, null))) {
+    return `a double-click gives ${await shownWidth(page)}, expected ${SIDEBAR.default} px and no stored width`
+  }
+
+  await page.locator('.sidebar-handle').focus()
+
+  const narrowest = await pressesTo(page, Array(10).fill('ArrowLeft'), SIDEBAR.min)
+
+  if (narrowest) {
+    return narrowest
+  }
+
+  await dragHandle(page, 1000)
+
+  return (await showsWidth(page, SIDEBAR.max))
+    ? null
+    : `a drag of 1000 px gives ${await shownWidth(page)}, expected ${SIDEBAR.max} px`
+}
+
+/** The other viewer starts at the default, because the width belongs to a project. */
+async function sidebarOtherProject(page, url) {
+  await page.goto(`${url}examples/react-jsdom/`)
+
+  if (!(await showsWidth(page, SIDEBAR.default))) {
+    return `examples/react-jsdom/ starts at ${await shownWidth(page)}, expected ${SIDEBAR.default} px`
+  }
+
+  await page.locator('.sidebar-handle').focus()
+
+  const wider = SIDEBAR.default + SIDEBAR.step
+  const problem = await pressesTo(page, ['ArrowRight'], wider)
+
+  if (problem) {
+    return `examples/react-jsdom/: ${problem}`
+  }
+
+  await page.reload()
+
+  return (await showsWidth(page, wider))
+    ? null
+    : `examples/react-jsdom/ after a reload is ${await shownWidth(page)}, expected ${wider} px`
+}
+
+/** The sidebar's edge in react-browser, then in react-jsdom, in a context of its own so the widths stay there. */
+async function checkSidebarWidth(browser, url) {
+  const label = 'sidebar'
+  const { context, page, failures } = await openLivePage(browser, url)
+  const key = `describe-me:sidebar:${readSiteManifest('react-browser').root}`
+
+  try {
+    await page.goto(
+      `${url}examples/react-browser/#test=${testIdOf('react-browser', 'Counter > increments')}&frame=1`,
+    )
+
+    await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
+    await page.locator(RECORDED_IFRAME).waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+    const atStart = (await showsWidth(page, SIDEBAR.default))
+      ? await handleAttributes(page)
+      : `the sidebar starts at ${await shownWidth(page)}, expected ${SIDEBAR.default} px`
+
+    const problem =
+      atStart ??
+      (await sidebarKeySteps(page, key)) ??
+      (await sidebarDragSteps(page, key)) ??
+      (await sidebarOtherProject(page, url))
+
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      "check-site: the sidebar's edge sets 344, 328, 428, 296, 216 and 640 px in examples/react-browser/ and keeps 328 after a reload, and examples/react-jsdom/ starts at 296 and keeps 312",
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${errorMessage(error)}`, ...failures.map((entry) => `${label}: ${entry}`)]
+  } finally {
+    await context.close()
+  }
+}
+
 const missing = [
   'index.html',
   ...exampleNames.map((name) => join('examples', name, 'index.html')),
@@ -693,6 +992,8 @@ try {
   for (const name of exampleNames) {
     problems.push(...(await checkStageBackground(browser, url, name)))
   }
+
+  problems.push(...(await checkSidebarWidth(browser, url)))
 } catch (error) {
   problems = [...problems, errorMessage(error)]
 } finally {
@@ -710,5 +1011,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, mount one in Live and set the stage background`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, mount one in Live, set the stage background and keep a resized sidebar per project`,
 )

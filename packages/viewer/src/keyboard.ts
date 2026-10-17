@@ -107,6 +107,11 @@ export function onKey(event: KeyboardEvent): void {
     return
   }
 
+  // The handle takes ← → for its width, and no other shortcut fits while it has focus.
+  if (event.target === regions().sidebarHandle) {
+    return
+  }
+
   if (isSearchKey(event)) {
     const { search } = regions()
     search.focus()
