@@ -10,6 +10,7 @@ import { renderAll } from './render-all.js'
 import { renderFrame } from './render-frame.js'
 import { setRerender } from './rerender.js'
 import { wireSearchField } from './search-field.js'
+import { wireSidebarHandle } from './sidebar-handle.js'
 import { stateHash } from './state-hash.js'
 import { readHash, state } from './state.js'
 import { syncSelection } from './sync-selection.js'
@@ -45,6 +46,7 @@ window.addEventListener('popstate', onLocationChange)
 window.addEventListener('hashchange', onLocationChange)
 listenToLive()
 wireSearchField(regions().search)
+wireSidebarHandle(regions().sidebarHandle)
 
 loadManifest().catch((err) => {
   const { header, center } = regions()

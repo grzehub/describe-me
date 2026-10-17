@@ -5,6 +5,7 @@ import { renderOverviewInspector } from './overview-inspector.js'
 import { regions } from './regions.js'
 import { renderFrame } from './render-frame.js'
 import { renderTree } from './render-tree.js'
+import { showSidebarWidth } from './show-sidebar-width.js'
 import { state } from './state.js'
 import { testView } from './test-view.js'
 import { versionBanner } from './version-banner.js'
@@ -60,6 +61,7 @@ export function renderAll(): void {
   banner.textContent = text ?? ''
   banner.hidden = text === null
 
+  showSidebarWidth()
   renderTree()
 
   if (state.suiteKey) {
