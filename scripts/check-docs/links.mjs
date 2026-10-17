@@ -4,7 +4,8 @@ const VIEWER_LINK = /^examples\/([^/]+)\/(?:index\.html)?$/
 const BARE_VIEWER_LINK = /^examples\/([^/]+)$/
 const URL_REFERENCE = /url\(\s*#([^)\s]+)\s*\)/g
 const ID_LISTS = ['aria-labelledby', 'aria-describedby']
-const DEEP_LINK_PARAMS = ['test', 'suite', 'frame', 'w', 'h', 'live']
+const DEEP_LINK_PARAMS = ['test', 'suite', 'frame', 'w', 'h', 'bg', 'live']
+const BACKGROUNDS = ['light', 'dark', 'transparent']
 const MAX_SIZE = 10_000
 // A copy of MIN_FRAME_HEIGHT in packages/viewer/src/min-frame-height.ts.
 const MIN_HEIGHT = 120
@@ -14,8 +15,9 @@ const MIN_HEIGHT = 120
  * of the example viewers, and every fragment at an id of its target. SVG
  * references (`url(#…)`, `aria-labelledby`, `aria-describedby`) stay on their
  * page. A deep link into an example names a test, frame and suite of its
- * manifest and a viewport size the viewer accepts. `live` takes only `1`, the
- * one value the viewer reads, and needs a test.
+ * manifest and a viewport size the viewer accepts. `bg` takes only `light`,
+ * `dark` or `transparent`, because the link leaves out `auto`. `live` takes
+ * only `1`, the one value the viewer reads, and needs a test.
  */
 export default function links(context) {
   const targets = targetsOf(context)
@@ -167,6 +169,7 @@ function checkDeepLink(page, value, example, fragment, context) {
     ...checkSuite(where, example, params, tests),
     ...checkSize(where, params, 'w', 1),
     ...checkSize(where, params, 'h', MIN_HEIGHT),
+    ...checkBackground(where, params),
     ...checkLive(where, params),
   )
 
@@ -244,6 +247,18 @@ function checkSize(where, params, key, minimum) {
   }
 
   return []
+}
+
+function checkBackground(where, params) {
+  const background = params.get('bg')
+
+  if (background === null || BACKGROUNDS.includes(background)) {
+    return []
+  }
+
+  return [
+    `${where}: bg must be ${BACKGROUNDS.join(', ')}, not "${background}". Leave bg out for auto`,
+  ]
 }
 
 function checkLive(where, params) {

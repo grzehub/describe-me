@@ -1,4 +1,6 @@
 import type { ManifestFrame, ManifestTest } from '@describe-me/core/types'
+import { autoCanvas } from './auto-canvas.js'
+import { canvasOf } from './canvas-of.js'
 import { contentBox } from './content-box.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
@@ -18,8 +20,15 @@ async function paintThumb(thumb: HTMLElement, frame: ManifestFrame, token: numbe
   const iframe = replaySnapshot(thumb, node, frame.label)
   const fonts = fontsSettled(iframe)
 
-  // Styles are in place after a frame; only then do the boxes have their final size.
-  requestAnimationFrame(() => fitThumb(thumb, iframe))
+  // Styles are in place after a frame. Only then do the boxes have their final
+  // size and the page its colors. This runs before that frame paints, so a
+  // thumb never shows the wrong scheme.
+  requestAnimationFrame(() => {
+    const canvas = canvasOf(autoCanvas(iframe))
+    thumb.dataset.canvas = canvas
+    iframe.style.colorScheme = canvas === 'dark' ? 'dark' : 'light'
+    fitThumb(thumb, iframe)
+  })
 
   // Web fonts arrive later and change the text's size.
   await fonts
@@ -106,6 +115,7 @@ export function renderStatesGallery(tests: ManifestTest[]): HTMLElement {
     const lastIndex = Math.max(0, test.frames.length - 1)
     const last = test.frames[lastIndex]
     const thumb = el('div', { class: 'thumb' })
+    thumb.dataset.canvas = canvasOf('light')
     if (last) {
       pending.set(thumb, last)
     } else {

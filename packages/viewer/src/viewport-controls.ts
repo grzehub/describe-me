@@ -1,6 +1,7 @@
 import { el } from './el.js'
 import { liveShown } from './live-shown.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
+import type { StageBackground } from './parse-stage-background.js'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
 import { state, writeHash } from './state.js'
@@ -12,10 +13,19 @@ const PRESETS: { label: string; width: number | null }[] = [
   { label: '375px', width: 375 },
 ]
 
+/** Swatches, not words, so the breadcrumb path keeps its room. */
+const BACKGROUNDS: { value: StageBackground; title: string }[] = [
+  { value: 'auto', title: 'Stage background: auto, follows the page' },
+  { value: 'light', title: 'Stage background: light' },
+  { value: 'dark', title: 'Stage background: dark' },
+  { value: 'transparent', title: 'Stage background: transparent' },
+]
+
 interface Controls {
   tools: HTMLElement
   live: HTMLElement
   presets: Map<number | null, HTMLElement>
+  backgrounds: Map<StageBackground, HTMLElement>
   width: HTMLInputElement
   height: HTMLInputElement
   zoom: HTMLElement
@@ -25,6 +35,12 @@ let controls: Controls | null = null
 
 function setViewport(width: number | null, height: number | null): void {
   state.viewport = { width, height }
+  writeHash('replace')
+  rerender('frame')
+}
+
+function setBackground(background: StageBackground): void {
+  state.background = background
   writeHash('replace')
   rerender('frame')
 }
@@ -71,6 +87,24 @@ function build(): Controls {
     tools.append(button)
   }
 
+  const backgrounds = new Map<StageBackground, HTMLElement>()
+  const group = el('div', { class: 'backgrounds', role: 'group', 'aria-label': 'Stage background' })
+
+  for (const background of BACKGROUNDS) {
+    const button = el('button', {
+      type: 'button',
+      'data-bg': background.value,
+      'aria-label': background.value,
+      title: background.title,
+      click: () => setBackground(background.value),
+    })
+
+    backgrounds.set(background.value, button)
+    group.append(button)
+  }
+
+  tools.append(group)
+
   const width = sizeInput('viewport width', 1, (size) => setViewport(size, state.viewport.height))
   const height = sizeInput('viewport height', MIN_FRAME_HEIGHT, (size) =>
     setViewport(state.viewport.width, size),
@@ -84,7 +118,7 @@ function build(): Controls {
     zoom,
   )
 
-  return { tools, live, presets, width, height, zoom }
+  return { tools, live, presets, backgrounds, width, height, zoom }
 }
 
 /**
@@ -122,9 +156,9 @@ function mirror(input: HTMLInputElement, size: number | null): void {
 }
 
 /**
- * The viewport toolbar: the Live toggle, width presets, width and height
- * fields and the zoom. Built once and synced in place on every call, so a
- * focused field keeps its focus.
+ * The viewport toolbar: the Live toggle, width presets, the stage background
+ * switch, width and height fields and the zoom. Built once and synced in place
+ * on every call, so a focused field keeps its focus.
  */
 export function renderViewportControls(): HTMLElement {
   controls ??= build()
@@ -132,6 +166,12 @@ export function renderViewportControls(): HTMLElement {
 
   for (const [width, button] of controls.presets) {
     button.classList.toggle('on', width === state.viewport.width)
+  }
+
+  for (const [background, button] of controls.backgrounds) {
+    const on = background === state.background
+    button.classList.toggle('on', on)
+    button.setAttribute('aria-pressed', String(on))
   }
 
   mirror(controls.width, state.viewport.width)

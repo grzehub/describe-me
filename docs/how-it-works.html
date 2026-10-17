@@ -839,8 +839,11 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           </li>
           <li>
             Has rrweb rebuild the DOM into a fresh iframe, sandboxed with
-            <code>allow-same-origin</code> only, so no script ever runs. The preview head goes first
-            in its <code>&lt;head&gt;</code>, so the captured styles win ties.
+            <code>allow-same-origin</code> only, so no script ever runs. A
+            <code>:where(:root) { color-scheme: light dark }</code> rule goes first in its
+            <code>&lt;head&gt;</code>, then the preview head, so the captured styles win ties. The
+            rule gives the page the iframe's color scheme, which comes from the
+            <a href="viewer.html#viewport-background">background switch</a>.
           </li>
           <li>
             Builds the new frame in a hidden slot next to the visible one, and swaps it in once its

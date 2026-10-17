@@ -10,9 +10,12 @@
  * inspector. In react-browser the tag `forms` shows on its tests, the search
  * finds them by it, `#tag=forms` and a click on the tag in the inspector narrow
  * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
- * test again. No request to the site may fail and the page may throw no error.
- * Remote requests are answered locally, so remote fonts never decide the
- * result. Run after `pnpm site:build`.
+ * test again. In both viewers `bg` and the background switch set the stage's
+ * canvas and the frame's color scheme, in a replayed frame, in Live and in the
+ * overview's thumbnails, and no frame paints an opaque backdrop. No request to
+ * the site may fail and the page may throw no error. Remote requests are
+ * answered locally, so remote fonts never decide the result. Run after
+ * `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -32,6 +35,23 @@ const LIVE_TIMEOUT = 30_000
 const LIVE_READY = JSON.stringify({ status: 'ready', base: '__live/' })
 // `mounted` in packages/viewer/src/live-status-words.ts.
 const MOUNTED_WORDS = 'mounted as the test arranged it'
+// --canvas-light and --canvas-dark in packages/viewer/src/style.css.
+const LIGHT_CANVAS = 'rgb(255, 255, 255)'
+const DARK_CANVAS = 'rgb(20, 22, 25)'
+const BACKGROUNDS = ['auto', 'light', 'dark', 'transparent']
+// Both examples paint their page white, so `auto` is light in both. The checkerboard is an image.
+const CANVASES = {
+  auto: { canvas: LIGHT_CANVAS, image: false },
+  light: { canvas: LIGHT_CANVAS, image: false },
+  dark: { canvas: DARK_CANVAS, image: false },
+  transparent: { image: true },
+}
+
+const RECORDED_IFRAME = '.stage-slot[data-frame]:not(.incoming) iframe'
+const LIVE_IFRAME = '.stage-slot.live-slot iframe'
+// The page paints nothing, so only a backdrop under it can differ from the bare canvas.
+const SEE_THROUGH =
+  '<style>html, body { background: transparent !important; overflow: hidden !important } body * { visibility: hidden !important }</style>'
 
 async function selectsRename(page) {
   const frame = page.frameLocator('.stage-slot.live-slot iframe')
@@ -273,10 +293,13 @@ function testIdOf(name, fullName) {
   return test.id
 }
 
-/** A page that answers remote requests locally and keeps failed site requests and page errors. */
-async function openLivePage(browser, url) {
+/**
+ * A page that answers remote requests locally and keeps failed site requests
+ * and page errors. `colorScheme: null` turns the emulation off.
+ */
+async function openLivePage(browser, url, colorScheme = 'light') {
   const context = await browser.newContext({
-    colorScheme: 'light',
+    colorScheme,
     viewport: { width: 1280, height: 800 },
   })
 
@@ -388,6 +411,254 @@ async function checkLive(browser, url, name) {
   }
 }
 
+/**
+ * What the stage and the frame at `selector` show, read in the page. With
+ * `expected`, whether they show it, for `waitForFunction()`.
+ */
+function stageBackground({ selector, expected }) {
+  const stage = getComputedStyle(document.querySelector('.stage'))
+  const iframe = document.querySelector(selector)
+  const pressed = document.querySelectorAll('.backgrounds [aria-pressed="true"]')
+  const seen = {
+    canvas: stage.backgroundColor,
+    image: stage.backgroundImage !== 'none',
+    scheme: iframe ? getComputedStyle(iframe).colorScheme : 'no frame',
+    dark: iframe?.contentWindow?.matchMedia('(prefers-color-scheme: dark)').matches ?? null,
+    pressed: Array.from(pressed, (button) => button.getAttribute('aria-label')).join(' '),
+  }
+
+  if (expected === undefined) {
+    return seen
+  }
+
+  return Object.entries(expected).every(([key, value]) => seen[key] === value)
+}
+
+/** Waits until the stage and the frame at `selector` show `value`. Returns a problem or `null`. */
+async function showsBackground(page, selector, value) {
+  const expected = {
+    ...CANVASES[value],
+    scheme: value === 'dark' ? 'dark' : 'light',
+    dark: value === 'dark',
+    pressed: value,
+  }
+
+  const shown = await page
+    .waitForFunction(stageBackground, { selector, expected }, { timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (shown) {
+    return null
+  }
+
+  const seen = await page.evaluate(stageBackground, { selector })
+
+  return `with ${value} the stage and frame show ${JSON.stringify(seen)}, expected ${JSON.stringify(expected)}`
+}
+
+async function pickBackground(page, value) {
+  await page
+    .getByRole('group', { name: 'Stage background' })
+    .getByRole('button', { name: value, exact: true })
+    .click()
+}
+
+function linkBackground(page) {
+  return new URLSearchParams(new URL(page.url()).hash.slice(1)).get('bg')
+}
+
+async function seeThrough(page, selector) {
+  await page
+    .locator(selector)
+    .evaluate(
+      (iframe, style) => iframe.contentDocument.head.insertAdjacentHTML('beforeend', style),
+      SEE_THROUGH,
+    )
+}
+
+/**
+ * Whether the see-through frame at `selector` changes a pixel of its slot.
+ * Its page paints nothing, so only Chromium's opaque backdrop can.
+ */
+async function paintsBackdrop(page, selector) {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  )
+
+  const iframe = page.locator(selector)
+  const clip = await iframe.locator('xpath=..').boundingBox()
+  const shown = await page.screenshot({ clip })
+
+  await iframe.evaluate((element) => {
+    element.style.visibility = 'hidden'
+  })
+
+  const hidden = await page.screenshot({ clip })
+
+  await iframe.evaluate((element) => {
+    element.style.visibility = ''
+  })
+
+  return !shown.equals(hidden)
+}
+
+/** Each value of the switch on the frame at `selector`: canvas, scheme, media query and no backdrop. */
+async function eachBackground(page, selector, check = async () => null) {
+  for (const value of BACKGROUNDS) {
+    await pickBackground(page, value)
+
+    const problem = (await showsBackground(page, selector, value)) ?? (await check(value))
+
+    if (problem) {
+      return problem
+    }
+
+    if (await paintsBackdrop(page, selector)) {
+      return `with ${value} the frame paints a backdrop over the canvas`
+    }
+  }
+
+  return null
+}
+
+/** `bg=dark` in the link, then the switch, in a replayed frame. */
+async function replaySteps(page, url, name, id) {
+  await page.goto(`${url}examples/${name}/#test=${id}&bg=dark`)
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const linked = await showsBackground(page, RECORDED_IFRAME, 'dark')
+
+  if (linked) {
+    return `#bg=dark: ${linked}`
+  }
+
+  for (const [value, expected] of [
+    ['light', 'light'],
+    ['transparent', 'transparent'],
+    ['auto', null],
+  ]) {
+    await pickBackground(page, value)
+
+    const problem = await showsBackground(page, RECORDED_IFRAME, value)
+
+    if (problem) {
+      return problem
+    }
+
+    const linked = linkBackground(page)
+
+    if (linked !== expected) {
+      return `with ${value} the link has bg=${linked}, expected ${expected}`
+    }
+  }
+
+  await seeThrough(page, RECORDED_IFRAME)
+
+  return eachBackground(page, RECORDED_IFRAME)
+}
+
+/** The switch in Live, which must not reload the live frame. */
+async function liveSteps(page) {
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page.keyboard.press('l')
+  await page
+    .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
+    .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
+
+  await page.locator(LIVE_IFRAME).evaluate((iframe) => {
+    iframe.contentWindow.stageBackgroundMarker = true
+  })
+
+  await seeThrough(page, LIVE_IFRAME)
+
+  const problem = await eachBackground(page, LIVE_IFRAME, async (value) => {
+    const kept = await page
+      .locator(LIVE_IFRAME)
+      .evaluate((iframe) => iframe.contentWindow.stageBackgroundMarker === true)
+
+    return kept ? null : `with ${value} the live frame reloaded`
+  })
+
+  if (problem) {
+    return `Live: ${problem}`
+  }
+
+  const label = await page
+    .locator('.stage-slot.live-slot')
+    .evaluate((slot) => getComputedStyle(slot, '::before').content)
+
+  return label.includes('Live') ? null : `the live slot's label has the content ${label}`
+}
+
+/** `bg=dark` in the link of an overview: the first thumbnail's canvas, scheme and media query. */
+async function overviewSteps(page, url, name, id) {
+  const moduleId = readSiteManifest(name).modules.find((candidate) =>
+    candidate.tests.some((test) => test.id === id),
+  ).id
+
+  await page.goto(`${url}examples/${name}/#suite=${encodeURIComponent(moduleId)}&bg=dark`)
+
+  const iframe = page.locator('.thumb iframe').first()
+
+  await iframe.waitFor({ state: 'attached', timeout: VIEWER_TIMEOUT })
+
+  const dark = await page
+    .waitForFunction(
+      () => getComputedStyle(document.querySelector('.thumb iframe')).colorScheme === 'dark',
+      undefined,
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false)
+
+  const seen = await iframe.evaluate((element) => ({
+    media: element.contentWindow.matchMedia('(prefers-color-scheme: dark)').matches,
+    canvas: getComputedStyle(element.closest('.thumb')).backgroundColor,
+  }))
+
+  if (!dark || !seen.media || seen.canvas !== DARK_CANVAS) {
+    return `the first thumbnail of #suite=…&bg=dark shows ${JSON.stringify({ dark, ...seen })}`
+  }
+
+  return null
+}
+
+/** The stage background: `bg` in the link, the switch, Live and the overview. */
+async function checkStageBackground(browser, url, name) {
+  const label = `examples/${name}/ stage background`
+  // Emulating a scheme forces `prefers-color-scheme` in every frame and hides
+  // the one each frame takes from its iframe, so the emulation is off here.
+  const { context, page, failures } = await openLivePage(browser, url, null)
+  const id = testIdOf(name, LIVE_TESTS[name].fullName)
+
+  try {
+    const problem =
+      (await replaySteps(page, url, name, id)) ??
+      (await liveSteps(page)) ??
+      (await overviewSteps(page, url, name, id))
+
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ bg sets the canvas and the frames' color scheme, in replay, in Live and in the overview, with no backdrop`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${[errorMessage(error), ...failures].join(', ')}`]
+  } finally {
+    await context.close()
+  }
+}
+
 const missing = [
   'index.html',
   ...exampleNames.map((name) => join('examples', name, 'index.html')),
@@ -418,6 +689,10 @@ try {
   for (const name of exampleNames) {
     problems.push(...(await checkLive(browser, url, name)))
   }
+
+  for (const name of exampleNames) {
+    problems.push(...(await checkStageBackground(browser, url, name)))
+  }
 } catch (error) {
   problems = [...problems, errorMessage(error)]
 } finally {
@@ -435,5 +710,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag and mount one in Live`,
+  `check-site: ok — docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, mount one in Live and set the stage background`,
 )

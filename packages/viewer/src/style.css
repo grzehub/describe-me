@@ -12,8 +12,6 @@
   --bg: #f5f6f8;
   --panel: #ffffff;
   --raised: #ffffff;
-  --stage-bg: #eef0f3;
-  --stage: #ffffff;
 
   --ink: #1c2024;
   --ink-2: #4f5762;
@@ -48,8 +46,6 @@
     --bg: #111316;
     --panel: #171a1f;
     --raised: #1c2026;
-    --stage-bg: #0b0d10;
-    --stage: #ffffff;
 
     --ink: #e2e6ea;
     --ink-2: #b0b9c5;
@@ -71,6 +67,13 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.6);
   }
+}
+
+/* What frames stand on. Neither the system's scheme nor the viewer's theme changes it. */
+:root {
+  --canvas-light: #ffffff;
+  --canvas-dark: #141619;
+  --canvas-transparent: repeating-conic-gradient(#e9ebee 0 25%, #ffffff 0 50%) 0 0 / 16px 16px;
 }
 
 /* ----------------------------------------------------------------- base -- */
@@ -720,6 +723,48 @@ button.tag.active {
 .crumbs .tools .zoom:empty {
   display: none;
 }
+/* Set apart from the presets by the rule the Live toggle uses. */
+.crumbs .tools .backgrounds {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  margin-left: 7px;
+}
+.crumbs .tools .backgrounds::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: -5px;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+.crumbs .tools .backgrounds button {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 5px;
+}
+/* The inset ring keeps the light swatch visible on a light toolbar, the dark one on a dark one. */
+.crumbs .tools .backgrounds button::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-3) 55%, transparent);
+}
+.crumbs .tools .backgrounds [data-bg='auto']::before {
+  background: linear-gradient(135deg, var(--canvas-light) 50%, var(--canvas-dark) 50%);
+}
+.crumbs .tools .backgrounds [data-bg='light']::before {
+  background: var(--canvas-light);
+}
+.crumbs .tools .backgrounds [data-bg='dark']::before {
+  background: var(--canvas-dark);
+}
+.crumbs .tools .backgrounds [data-bg='transparent']::before {
+  background: var(--canvas-transparent);
+  background-size: 6px 6px;
+}
 
 /*
  * No transitions on the frames or their slots: heights are measured right
@@ -731,7 +776,7 @@ button.tag.active {
   grid-template-columns: minmax(0, 1fr);
   overflow: auto;
   padding: 28px;
-  background: var(--stage-bg);
+  background: var(--canvas-light);
   /* A scrollbar that comes and goes would change the width the frame is fitted to. */
   scrollbar-gutter: stable;
 }
@@ -744,14 +789,18 @@ button.tag.active {
 .stage-frames > * {
   grid-area: 1 / 1;
 }
-/* The ring is a shadow, so it takes no space and the scaled iframe fills the slot exactly. */
+.stage[data-canvas='dark'] {
+  background: var(--canvas-dark);
+}
+.stage[data-canvas='transparent'] {
+  background: var(--canvas-transparent);
+}
+/*
+ * No card: a frame shows only what its page paints. The slot clips the scaled
+ * iframe, and it is no containing block, so the Live label above it stays whole.
+ */
 .stage-slot {
   overflow: hidden;
-  border-radius: var(--r-lg);
-  background: var(--stage);
-  box-shadow:
-    0 0 0 1px var(--line),
-    var(--shadow-md);
 }
 /* Not `display: none`: the next frame must lay out to be measured. */
 .stage-slot.incoming {
@@ -762,11 +811,14 @@ button.tag.active {
   width: 100%;
   height: 180px;
   border: 0;
-  background: var(--stage);
 }
+/* Fixed colors, because the canvas does not follow the viewer's scheme. */
 .stage .empty {
   align-self: center;
-  color: var(--ink-3);
+  color: #6b7381;
+}
+.stage[data-canvas='dark'] .empty {
+  color: #8a939f;
 }
 
 .timeline {
@@ -1072,8 +1124,14 @@ kbd {
 .thumb {
   height: 150px;
   overflow: hidden;
-  background: var(--stage);
+  background: var(--canvas-light);
   border-bottom: 1px solid var(--line);
+}
+.thumb[data-canvas='dark'] {
+  background: var(--canvas-dark);
+}
+.thumb[data-canvas='transparent'] {
+  background: var(--canvas-transparent);
 }
 .thumb iframe {
   width: 800px;
@@ -1144,11 +1202,23 @@ kbd {
 .crumbs .tools .live-toggle[aria-disabled='true']:hover {
   color: var(--ink-3);
 }
-/* The accent ring tells a live frame from a recorded one. */
-.stage-slot.live-slot {
-  box-shadow:
-    0 0 0 2px var(--ring),
-    var(--shadow-md);
+/*
+ * Tells a live frame from a recorded one, above the slot's top-left corner in
+ * the stage's padding. Fixed colors, so it reads on every canvas and in both
+ * schemes. Assistive tech skips it, because the iframe's title says live.
+ */
+.stage-slot.live-slot::before {
+  content: 'Live' / '';
+  position: absolute;
+  translate: 0 calc(-100% - 6px);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: #4a63d8;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+  pointer-events: none;
 }
 .live-section h4 {
   margin: 14px 0 6px;

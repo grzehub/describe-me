@@ -1,6 +1,7 @@
 /**
- * The live page before Vite's HTML transforms: the preview head, when it is
- * not blank, and the generated entry at `entrySrc`, which runs the test.
+ * The live page before Vite's HTML transforms: a rule that gives the document
+ * its iframe's color scheme, the preview head, when it is not blank, and the
+ * generated entry at `entrySrc`, which runs the test.
  */
 export function livePageHtml(previewHead: string | undefined, entrySrc: string): string {
   const head = previewHead?.trim() ? [`    ${previewHead.trim()}`] : []
@@ -10,6 +11,10 @@ export function livePageHtml(previewHead: string | undefined, entrySrc: string):
     '<html lang="en">',
     '  <head>',
     '    <meta charset="utf-8">',
+    // Gives the document its iframe's scheme. The two match, so Chromium paints
+    // no opaque backdrop under the page. A copy of the rule in
+    // packages/viewer/src/replay-snapshot.ts.
+    '    <style>:where(:root) { color-scheme: light dark }</style>',
     ...head,
     '    <title>describe-me live preview</title>',
     '  </head>',
