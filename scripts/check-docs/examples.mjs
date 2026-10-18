@@ -4,10 +4,10 @@ const PAGE = 'examples.html'
 const OPEN = 'open'
 
 /**
- * examples.html opens both example viewers from viewer cards in #open, and
+ * examples.html opens every example viewer from viewer cards in #open, and
  * each example's section names every component of that example's manifest in
  * a `<code>` element, so the walk through an example cannot leave a component
- * out. Needs both examples' manifests, so run their tests first.
+ * out. Needs every example's manifest, so run their tests first.
  */
 export default function examples(context) {
   const html = context.html.get(PAGE)

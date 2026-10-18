@@ -8,10 +8,9 @@ plan and the code.
 ## Looking at it
 
 - `open docs/index.html` shows the pages straight from disk.
-- `pnpm site` builds `site/` (the pages plus the viewers of both example
-  projects under `examples/react-browser/` and `examples/react-jsdom/`) and
-  serves it at `http://localhost:6060/`. It needs `pnpm build` and both
-  examples' tests. The viewers fetch their data, so they only work over HTTP.
+- `pnpm site` builds `site/` (the pages plus the viewer of every example
+  project under `examples/<name>/`) and serves it at
+  `http://localhost:6060/`. It needs `pnpm build` and every example's tests. The viewers fetch their data, so they only work over HTTP.
 - `.github/workflows/docs.yml` publishes `site/` at
   `https://grzehub.github.io/describe-me/` on every push to `main`.
 
@@ -250,11 +249,11 @@ with `--live`, so a page can link them with `live=1`. In HTML, write `&` as
 prints the link for a test by its full name, plain and with `&amp;`. Without an
 exact match it lists names that contain the text.
 
-`pnpm check-docs` reads both examples' manifests and checks that the test
+`pnpm check-docs` reads every example's manifest and checks that the test
 exists and the viewer shows it, that the frame exists, that the suite names a
 module and a suite of it, that `w` is 1 to 10000 and `h` 120 to 10000, that
 `bg` is `light`, `dark` or `transparent`, that `live` is `1` next to a `test`,
-and that there are no other parameters. Run both examples' tests first.
+and that there are no other parameters. Run every example's tests first.
 Test ids are stable across machines, so a link
 breaks only when its test is renamed or moved. Link to a viewer with the trailing slash: `examples/react-jsdom/`.
 
@@ -285,7 +284,7 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
 - `diagnostics.mjs`: `troubleshooting.html` has a `diag-*` element for every
   key of `ManifestDiagnostics`, and every row of `limitations.html#summary`
   carries an environment badge, one status badge and a link.
-- `examples.mjs`: `examples.html` opens both example viewers from cards, and
+- `examples.mjs`: `examples.html` opens every example viewer from cards, and
   names every component of each example's manifest.
 - `interactions.mjs`: `writing-stories.html#frames` names every call that
   records a frame.
@@ -302,7 +301,7 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
   of `describeMe()` and an `env-*` row for every environment variable, and
   nothing else.
 - `package-readmes.mjs`: every package README has the docs link in its first
-  lines, links both example viewers, lists all four packages under
+  lines, links the react-browser and react-jsdom viewers, lists all four packages under
   `## Which package do I need`, shares one `## Quick start` and stays at 80
   lines or fewer.
 - `readme-links.mjs`: the docs links of the root `README.md` and the package

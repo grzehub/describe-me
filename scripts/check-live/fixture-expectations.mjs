@@ -1,5 +1,5 @@
 /**
- * What each test of both examples' `live-fixtures/` must do in the live
+ * What each test of the `live-fixtures/` of react-browser and react-jsdom must do in the live
  * preview, by example and full test name: its status, the case it covers
  * and, for some, a behaviour to check once it shows.
  */
@@ -99,7 +99,7 @@ async function servesTheBrowserData({ frame, page }) {
 
 const NAMES = 'each and for names with %s %d %i %f %j %o %# %$ %%, $key and $0'
 
-/** The names of names.test.tsx, the same in both examples, with the rules of Vitest 5. */
+/** The names of names.test.tsx, the same in react-browser and react-jsdom, with the rules of Vitest 5. */
 const NAME_EXPECTATIONS = {
   [`Names > each Ada 36 7 -0.5 {"tier":"gold"} [ 'a', 'b' ], row 0 of 1, 100% done`]: {
     status: 'mounted',

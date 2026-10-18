@@ -18,7 +18,7 @@
  * - Every relative link points at a page, a file of docs/ or an example
  *   viewer, and every fragment at an id of its target. Deep links into the
  *   examples name a test, frame and suite of that example's manifest, so run
- *   both examples' tests first.
+ *   every example's tests first.
  * - Code samples import only entry points the packages export, in every form
  *   of import, and only names those entry points export. `describe-me` is the
  *   CLI and exports nothing, so any import of it fails. A quoted

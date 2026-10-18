@@ -3,14 +3,15 @@
  * would serve it: docs.css applies to the pages (the light `--bg` token is the
  * body background), and each example viewer loads its data and shows as many
  * tests as its manifest has tests with a frame besides the closing one. Then
- * Live, which `pnpm site:build` builds into both viewers: `__live.json` says
+ * Live, which `pnpm site:build` builds into every viewer: `__live.json` says
  * `ready` with the base `__live/`, and `L` mounts a test in a live frame
  * without a sandbox, on the site's own origin. In react-browser a click on
  * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
- * inspector. In react-browser the tag `forms` shows on its tests, the search
+ * inspector. In shadcn an email typed into the frame and a click on Request
+ * access show `onSubmit("ada@example.com")`. In react-browser the tag `forms` shows on its tests, the search
  * finds them by it, `#tag=forms` and a click on the tag in the inspector narrow
  * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
- * test again. In both viewers `bg` and the background switch set the stage's
+ * test again. In every viewer `bg` and the background switch set the stage's
  * canvas and the frame's color scheme, in a replayed frame, in Live and in the
  * overview's thumbnails, and no frame paints an opaque backdrop. With the live
  * page held back, the dimmed recorded frame stays under the live frame until
@@ -26,7 +27,7 @@
  * replay and in Live. With the react-browser manifest padded in memory, a long
  * props table folds in the overview and in the inspector, and stays unfolded
  * through a frame step and a visit to another test until the page reloads. In
- * both viewers the overview of a module with several components paints the
+ * every viewer the overview of a module with several components paints the
  * thumbnails of each component's gallery. No
  * request to the site may fail and the page may throw no error. Remote
  * requests are answered locally, so remote fonts never decide the result.
@@ -59,8 +60,8 @@ const LOADING_WORDS = 'mounting…'
 const LIGHT_CANVAS = 'rgb(255, 255, 255)'
 const DARK_CANVAS = 'rgb(20, 22, 25)'
 const BACKGROUNDS = ['auto', 'light', 'dark', 'transparent']
-// Neither example paints its page or declares a dark scheme, so `auto` is light in both. The
-// checkerboard is an image.
+// No example declares a dark scheme or paints its page dark in the tests check-site uses, so
+// `auto` is light in all of them. The checkerboard is an image.
 const CANVASES = {
   auto: { canvas: LIGHT_CANVAS, image: false },
   light: { canvas: LIGHT_CANVAS, image: false },
@@ -73,9 +74,11 @@ const SIDEBAR = { default: 296, min: 216, step: 16, max: 640 }
 const SIDEBAR_TIMEOUT = 5_000
 const RECORDED_IFRAME = '.stage-slot[data-frame]:not(.incoming) iframe'
 const LIVE_IFRAME = '.stage-slot.live-slot iframe'
-// The page paints nothing, so only a backdrop under it can differ from the bare canvas.
+// The style makes the page paint nothing, even where the example paints a background, so only a
+// backdrop under it can differ from the bare canvas. `transition-all` in shadcn/ui would keep an
+// element visible while its `visibility` transitions, so transitions are off.
 const SEE_THROUGH =
-  '<style>html, body { background: transparent !important; overflow: hidden !important } body * { visibility: hidden !important }</style>'
+  '<style>html, body { background: transparent !important; overflow: hidden !important } body * { visibility: hidden !important; transition: none !important }</style>'
 
 async function selectsRename(page) {
   const frame = page.frameLocator('.stage-slot.live-slot iframe')
@@ -89,10 +92,24 @@ async function selectsRename(page) {
   return ', and Rename shows onSelect("Rename") in the inspector'
 }
 
+async function submitsTheEmail(page) {
+  const frame = page.frameLocator(LIVE_IFRAME)
+
+  await frame.getByRole('textbox', { name: 'Email' }).fill('ada@example.com')
+  await frame.getByRole('button', { name: 'Request access' }).click()
+  await page
+    .locator('.live-actions li', { hasText: 'onSubmit("ada@example.com")' })
+    .waitFor({ state: 'visible', timeout: 5_000 })
+
+  return ', and Request access shows onSubmit("ada@example.com") in the inspector'
+}
+
 /** The test each viewer mounts in Live, and what to do in it once mounted. */
 const LIVE_TESTS = {
   'react-browser': { fullName: 'Menu > selects an item and reports it', act: selectsRename },
   'react-jsdom': { fullName: 'Heading > takes its colour from the theme' },
+  shadcn: { fullName: 'SignupCard > submits the email', act: submitsTheEmail },
+  mui: { fullName: 'PlanCard > marks the popular plan' },
 }
 
 /** The example whose tests carry a tag of the project's own, and that tag. */
@@ -841,7 +858,8 @@ async function seeThrough(page, selector) {
 
 /**
  * Whether the see-through frame at `selector` changes a pixel of its slot.
- * Its page paints nothing, so only Chromium's opaque backdrop can.
+ * SEE_THROUGH makes its page paint nothing, the background of the shadcn and
+ * Material UI examples included, so only Chromium's opaque backdrop can.
  */
 async function paintsBackdrop(page, selector) {
   await page.evaluate(

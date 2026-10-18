@@ -6,8 +6,8 @@
  * would, which proves the relative base. Against that URL it runs the checks
  * of the dev part: every test of the manifest mounts, with its behaviours,
  * and every page of the status table reports its status. Then the live
- * fixtures of both examples, which the fixture part already ran under
- * Vitest, are built with `LIVE_FIXTURES=1` and held to the same expectation
+ * fixtures of react-browser and react-jsdom, which the fixture part already
+ * ran under Vitest, are built with `LIVE_FIXTURES=1` and held to the same expectation
  * table, so the Node-only test reports `import-failed` with `node:fs`.
  * react-jsdom without `live.setupFiles` must report `setup-failed` for
  * server.node.ts, and with `live: false` `buildLive()` must reject with its
@@ -24,6 +24,7 @@ import {
   checkFixtureTests,
   checkSetupFailedAt,
   FIXTURE_ENV,
+  FIXTURE_EXAMPLES,
   FIXTURES_DIR,
   LIVE_OFF,
   SETUP_EXAMPLE,
@@ -202,7 +203,7 @@ async function checkLiveOff(site) {
 async function checkAllFixtures(browser, host, site) {
   const result = { problems: [], counts: [], behaviours: 0 }
 
-  for (const name of exampleNames) {
+  for (const name of FIXTURE_EXAMPLES) {
     try {
       const fixtures = await checkExampleFixtures(browser, host, site, name)
 

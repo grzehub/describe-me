@@ -5,7 +5,7 @@
  * `Button > variants > renders primary by default`. `frame` counts from 0.
  * Needs that example's manifest, so run its tests first.
  *
- * Usage: `node scripts/docs-link.mjs <react-browser|react-jsdom> "<full test name>" [frame]`
+ * Usage: `node scripts/docs-link.mjs <example> "<full test name>" [frame]`
  */
 import { exampleManifests } from './docs/example-manifests.mjs'
 import { exampleNames } from './docs/example-names.mjs'

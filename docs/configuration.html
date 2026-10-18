@@ -824,8 +824,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks.
           <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code>,
           <code>STORIES</code> and the values <code>no-live-setup</code> and <code>off</code> of
-          <code>LIVE_FIXTURES</code> work only in <code>examples/react-jsdom</code>. Set them inline
-          for one run. There is no <code>.env</code>.
+          <code>LIVE_FIXTURES</code> work only in <code>examples/react-jsdom</code>, and
+          <code>MUI_CSS_VARS</code> only in <code>examples/mui</code>. Set them inline for one run.
+          There is no <code>.env</code>.
         </p>
 
         <div class="scroll">
@@ -849,7 +850,7 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
               </tr>
               <tr id="env-DESCRIBE_ME">
                 <td><code>DESCRIBE_ME</code></td>
-                <td>both examples</td>
+                <td><code>examples/react-browser</code> and <code>examples/react-jsdom</code></td>
                 <td>
                   <code>off</code> runs the same tests with <code>enabled: false</code>.
                   <code>idle</code> runs them with <code>exclude: '**'</code>, writing to
@@ -858,7 +859,7 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
               </tr>
               <tr id="env-BENCH_OUT">
                 <td><code>BENCH_OUT</code></td>
-                <td>both examples</td>
+                <td><code>examples/react-browser</code> and <code>examples/react-jsdom</code></td>
                 <td>
                   A file name. Replaces the console reporter with JSON per-test durations in that
                   file.
@@ -866,7 +867,7 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
               </tr>
               <tr id="env-BENCH_MICRO">
                 <td><code>BENCH_MICRO</code></td>
-                <td>both examples</td>
+                <td><code>examples/react-browser</code> and <code>examples/react-jsdom</code></td>
                 <td>Runs <code>bench/</code> instead of <code>src/</code>.</td>
               </tr>
               <tr id="env-BENCH_SKIP">
@@ -890,7 +891,7 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
               </tr>
               <tr id="env-LIVE_FIXTURES">
                 <td><code>LIVE_FIXTURES</code></td>
-                <td>both examples</td>
+                <td><code>examples/react-browser</code> and <code>examples/react-jsdom</code></td>
                 <td>
                   <code>1</code> runs <code>live-fixtures/</code> instead of <code>src/</code>, with
                   their own setup files, writing to
@@ -920,6 +921,15 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>src/</code>, with that <code>stories</code> option, writing to
                   <code>node_modules/.describe-me-stories</code>. <code>pnpm check-stories</code>
                   sets it.
+                </td>
+              </tr>
+              <tr id="env-MUI_CSS_VARS">
+                <td><code>MUI_CSS_VARS</code></td>
+                <td class="nowrap"><code>examples/mui</code></td>
+                <td>
+                  <code>1</code> builds the theme with <code>cssVariables: true</code> and writes to
+                  <code>node_modules/.describe-me-css-vars</code>, so <code>.describe-me/</code>
+                  keeps the default run.
                 </td>
               </tr>
             </tbody>

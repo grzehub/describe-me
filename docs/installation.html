@@ -183,11 +183,13 @@
           Playwright. They sit inside the ranges, but nothing checks them.
         </p>
         <p>
-          Both examples run React 19.3, Vite 8.3.0 and Vitest 5.0.1. The browser example adds
-          <code>vitest-browser-react</code> 2.3.0 and Playwright 1.63.0. The jsdom example adds
-          jsdom 26.1.0, <code>@testing-library/react</code> 16.3.3,
-          <code>@testing-library/dom</code> 10.4.2 and <code>@testing-library/user-event</code>
-          14.6.7. How describe-me tells the two environments apart is on
+          Every example runs React 19.3, Vite 8.3.0 and Vitest 5.0.1. The browser-mode examples,
+          react-browser and shadcn, add <code>vitest-browser-react</code> 2.3.0 and Playwright
+          1.63.0, and shadcn adds Tailwind 4.3.3. The jsdom examples, react-jsdom and mui, add jsdom
+          26.1.0, <code>@testing-library/react</code> 16.3.3,
+          <code>@testing-library/dom</code> 10.4.2 and
+          <code>@testing-library/user-event</code> 14.6.7, and mui adds Material UI 9.5.0. How
+          describe-me tells the two environments apart is on
           <a href="environments.html#detection">Environments</a>.
         </p>
 
@@ -465,7 +467,7 @@ describe-me-dist/</code></pre>
 
         <p>
           This workflow runs your tests, builds the static site and publishes it to GitHub Pages.
-          This project's own workflow does the same for both examples and the docs pages.
+          This project's own workflow does the same for every example and the docs pages.
         </p>
 
         <p class="file">.github/workflows/docs.yml</p>
