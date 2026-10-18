@@ -621,8 +621,8 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           root-like selector or with <code>@font-face</code>, the project CSS files the frames load,
           the Tailwind 4 theme and the tokens of the
           <a href="configuration.html#option-foundations">theme module</a>. A stored sheet keeps its
-          <code>describe-me-style:</code> reference. The file is absent when the run found no token
-          and no problem, and with <code>foundations: false</code>.
+          <code>describe-me-style:</code> reference. The file is absent when the run found no token,
+          no problem and no Material UI, and with <code>foundations: false</code>.
           <code>describe-me build</code> copies it and keeps its chunk references in step when it
           vendors fonts. The viewer fetches it only when <a href="foundations.html">Foundations</a>
           opens.
@@ -788,7 +788,7 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                   design systems, how many distinct token names the token sheets, the Tailwind theme
                   and the theme module have together, and the problems while collecting, one
                   sentence each. Also absent with <code>foundations: false</code> and when the run
-                  found no token and no problem.
+                  found no token, no problem and no Material UI.
                 </td>
               </tr>
             </tbody>

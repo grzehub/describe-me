@@ -1,5 +1,6 @@
 import type { Manifest, ManifestTest } from '@describe-me/core/types'
 import { filterActive } from './filter-active.js'
+import { hasFoundations } from './has-foundations.js'
 import { resolveTestId } from './resolve-test-id.js'
 import { stateHash } from './state-hash.js'
 import { allTests, currentTest, state, writeHash } from './state.js'
@@ -18,7 +19,8 @@ function firstTest(manifest: Manifest): ManifestTest | undefined {
 /**
  * Point the selection at a test the manifest holds, falling back to the first
  * one the search and the tag leave, and clamp the frame. Foundations closes
- * when the manifest has no tokens, and an open Foundations drops the suite.
+ * when the manifest has neither tokens nor Material UI, and an open
+ * Foundations drops the suite.
  * The link is corrected in place, without a history entry. Does not repaint.
  */
 export function syncSelection(): void {
@@ -26,7 +28,7 @@ export function syncSelection(): void {
     return
   }
 
-  if (!state.manifest.foundations?.tokens) {
+  if (!hasFoundations(state.manifest.foundations)) {
     state.foundations = null
   }
 

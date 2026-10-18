@@ -114,10 +114,15 @@ function setupHint(model: FoundationsModel | null): HTMLElement | null {
     { class: 'foundations-setup' },
     'To show the Material UI theme here, name its module in ',
     el('code', {}, "foundations: { theme: 'src/theme.ts' }"),
-    ' or create the theme with ',
+    ", which also marks Material UI's defaults, or create the theme with ",
     el('code', {}, 'cssVariables: true'),
     '.',
   )
+}
+
+/** A Material UI page without a section has nothing to filter, switch or show but the hint. */
+function hintOnly(model: FoundationsModel | null): boolean {
+  return model !== null && model.muiSetup && model.sections.length === 0
 }
 
 function shownSection(shown: Panel): FoundationSection | undefined {
@@ -206,21 +211,25 @@ function buildPanel(generatedAt: string, load: FoundationsLoad): Panel {
 
   sections.append(...buttons.values())
 
-  const main = el(
-    'main',
-    { class: 'foundations' },
-    el(
-      'div',
-      { class: 'overview-head foundations-head' },
-      el('h1', {}, 'Foundations'),
-      el('div', { class: 'overview-meta' }, metaText(load)),
-    ),
-    el('div', { class: 'foundations-toolbar' }, sections, filter.element, backgrounds.element),
-    setupHint(model),
-    hint,
-    incompleteNote(load),
-    canvas,
+  const head = el(
+    'div',
+    { class: 'overview-head foundations-head' },
+    el('h1', {}, 'Foundations'),
+    el('div', { class: 'overview-meta' }, metaText(load)),
   )
+
+  // Without the filter on the page, `/` falls back to the sidebar search.
+  const parts = hintOnly(model)
+    ? [setupHint(model)]
+    : [
+        el('div', { class: 'foundations-toolbar' }, sections, filter.element, backgrounds.element),
+        setupHint(model),
+        hint,
+        incompleteNote(load),
+        canvas,
+      ]
+
+  const main = el('main', { class: 'foundations' }, head, ...parts)
 
   const built: Panel = {
     generatedAt,
@@ -335,8 +344,9 @@ function currentPanel(): Panel {
 /**
  * Show Foundations in the center: the systems, a button per section with its
  * count, the token filter, the stage background switch and one specimen frame
- * for the open section. A panel already in the center is never appended
- * again, because a moved iframe reloads blank.
+ * for the open section, or only the setup hint on a Material UI page without
+ * tokens. A panel already in the center is never appended again, because a
+ * moved iframe reloads blank.
  */
 export function showFoundations(center: HTMLElement): void {
   const shown = currentPanel()

@@ -12,7 +12,10 @@ export interface Regions {
   search: HTMLInputElement
   /** The tag the tree is narrowed to, under the search. Hidden without one. */
   tagFilter: HTMLElement
-  /** The Foundations entry, above the tree. Hidden unless the manifest has tokens. */
+  /**
+   * The Foundations entry, above the tree. Hidden unless the manifest has
+   * tokens or names Material UI.
+   */
   foundationsNav: HTMLElement
   /** The sidebar's module blocks go here. */
   tree: HTMLElement

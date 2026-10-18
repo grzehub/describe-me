@@ -102,7 +102,8 @@
           </li>
           <li>
             <strong>A theme module.</strong> The tokens of a JS theme, such as a Material UI theme
-            or a plain object, when <code>foundations.theme</code> names one.
+            or a plain object, when <code>foundations.theme</code> names one. A Material UI theme is
+            compared with Material UI's defaults.
           </li>
         </ul>
         <p>
@@ -144,11 +145,11 @@
         </h2>
 
         <p>
-          A Foundations entry sits in the sidebar of the viewer, above the test files. It shows only
-          when the run found tokens, as
+          A Foundations entry sits in the sidebar of the viewer, above the test files. It shows when
+          the run found tokens, as
           <a href="how-it-works.html#manifest-foundations"><code>foundations</code></a> in the
-          manifest counts them. It names the design systems, such as
-          <code>Tailwind · shadcn/ui</code>, <code>Material UI · Emotion</code> or
+          manifest counts them, or when the project uses Material UI. It names the design systems,
+          such as <code>Tailwind · shadcn/ui</code>, <code>Material UI · Emotion</code> or
           <code>styled-components</code>, and <code>custom properties</code> when there is none.
         </p>
         <p>
@@ -184,9 +185,11 @@
           <li>The tokens of the Tailwind theme, with Tailwind's default palette last.</li>
         </ol>
         <p>
-          Tailwind's defaults carry a <code>default</code> badge next to their name, so the
-          project's own tokens stand out. The compact grid of Tailwind's default colors carries one
-          badge on its title instead.
+          A framework default carries a <code>default</code> badge next to its name, so the
+          project's own tokens stand out. The defaults come from two sources: Tailwind's defaults,
+          and the tokens of a Material UI theme module that equal Material UI's own, as
+          <a href="#presets">Design systems</a> describes. The compact grid of Tailwind's default
+          colors carries one badge on its title instead.
         </p>
 
         <h3>Specimens</h3>
@@ -463,12 +466,26 @@
           blocks show only with a theme module.
         </p>
         <p>
+          With a theme module, the reporter also builds Material UI's defaults with the project's
+          own <code>createTheme()</code>, from the same <code>light</code> and
+          <code>dark</code> color schemes and <code>cssVariables</code> as the theme and nothing
+          else. Each token with the same value carries the <code>default</code> badge. A typography
+          variant counts only when every part matches. When only the light or only the dark value
+          matches, the badge shows only while that mode is on screen, as the stage background picks
+          it. A derived value such as <code>contrastText</code> counts when it comes out the same.
+          Only a theme module marks defaults, never the <code>--mui-*</code> custom properties. When
+          <code>@mui/material/styles</code> does not import, every token stays the project's own and
+          the <a href="troubleshooting.html#diag-foundationsErrors">diagnostics</a> get one
+          sentence. See the <a href="examples/mui/#foundations=colors">palette</a> of the Material
+          UI example, where only Primary and Secondary are its own, and its
+          <a href="examples/mui/#foundations=typography">typography</a>.
+        </p>
+        <p>
           When Foundations opens for a project that uses Material UI without a theme module or
-          <code>--mui-*</code>, it says in one sentence what to set: name the theme's module in
-          <code>foundations: { theme: 'src/theme.ts' }</code> or create the theme with
-          <code>cssVariables: true</code>. See the
-          <a href="examples/mui/#foundations=colors">palette</a> and the
-          <a href="examples/mui/#foundations=typography">typography</a> of the Material UI example.
+          <code>--mui-*</code>, it says what to set: “To show the Material UI theme here, name its
+          module in <code>foundations: { theme: 'src/theme.ts' }</code>, which also marks Material
+          UI's defaults, or create the theme with <code>cssVariables: true</code>.” Without any
+          token, the page holds only the heading and that sentence.
         </p>
 
         <h3>Other design systems</h3>
@@ -520,8 +537,8 @@
           <code>light</code> and <code>auto</code> show the light variant.
           <code>transparent</code> shows it on the checkerboard. Under <code>dark</code>, when the
           project has no dark variant and no theme modes, the view shows the hint
-          <code>no dark variant found</code>. The inspector's dark variant row names the one the
-          project declares.
+          <code>no dark variant found</code>, except on a page that holds only the Material UI setup
+          hint. The inspector's dark variant row names the one the project declares.
         </p>
         <p>
           The <a href="viewer.html#layout-theme">viewer theme</a>, the switch in the header, never

@@ -14,7 +14,7 @@ export function renderRamp(build: SpecimenBuild, items: FoundationItem[]): HTMLE
     const element = build.tokenElement(item, 'div', 'fd-ramp-step')
     const chip = build.painted('div', 'fd-ramp-chip', { 'background-color': build.paintOf(item) })
     const step = build.make('span', 'fd-step', LAST_SEGMENT.exec(item.name)?.[1] ?? item.name)
-    const badge = item.origin === 'default' ? [build.badge()] : []
+    const badge = build.isDefault(item) ? [build.badge()] : []
     element.title = item.name
     element.append(chip, step, ...badge, build.value(item))
     ramp.append(element)

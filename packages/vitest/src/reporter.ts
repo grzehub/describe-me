@@ -342,7 +342,8 @@ export default class DescribeMeReporter implements Reporter {
   /**
    * Write `foundations.json` from every kept snapshot, those of skipped tests
    * included, and return what the manifest says about it. A run without
-   * tokens and problems, or with the option off, removes a stale file.
+   * tokens, problems and Material UI, or with the option off, removes a stale
+   * file. Material UI keeps it at 0 tokens, so Foundations can say what to set.
    */
   private async writeFoundations(
     snapshotFiles: string[],
@@ -373,7 +374,7 @@ export default class DescribeMeReporter implements Reporter {
 
     const { foundations, summary } = collected
 
-    if (summary.tokens === 0 && summary.errors === undefined) {
+    if (summary.tokens === 0 && summary.errors === undefined && !summary.systems.includes('mui')) {
       rmSync(file, { force: true })
       return undefined
     }

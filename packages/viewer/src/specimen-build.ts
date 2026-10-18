@@ -43,13 +43,21 @@ export class SpecimenBuild {
     return this.dark ? item.raw.dark : item.raw.light
   }
 
+  /** Whether the item is a framework default in the color scheme on screen. */
+  isDefault(item: FoundationItem): boolean {
+    const scheme = this.dark ? 'dark' : 'light'
+    const origin = item.modeOrigins?.[scheme] ?? item.origin
+
+    return origin === 'default'
+  }
+
   /** The token's element, which every check and test finds by its name. */
   tokenElement(item: FoundationItem, tag: string, className: string): HTMLElement {
     const element = this.make(tag, className)
     element.dataset.token = item.name
 
-    if (item.origin === 'default') {
-      element.dataset.origin = 'default'
+    if (this.isDefault(item)) {
+      element.setAttribute('data-origin', 'default')
     }
 
     return element
@@ -73,7 +81,7 @@ export class SpecimenBuild {
   /** The name, a badge on a framework default, and the value. */
   labels(item: FoundationItem): HTMLElement[] {
     const name = this.make('span', 'fd-name', item.name)
-    const badge = item.origin === 'default' ? [this.badge()] : []
+    const badge = this.isDefault(item) ? [this.badge()] : []
 
     return [name, ...badge, this.value(item)]
   }

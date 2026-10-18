@@ -1,6 +1,7 @@
 import { el } from './el.js'
 import { foundationsRetry } from './foundations-retry.js'
 import { foundationsShown } from './foundations-shown.js'
+import { hasFoundations } from './has-foundations.js'
 import { openFoundations, state } from './state.js'
 import { systemName } from './system-name.js'
 
@@ -29,12 +30,12 @@ function build(nav: HTMLElement): { button: HTMLElement; systems: HTMLElement } 
 
 /**
  * Fill the sidebar's Foundations entry, which names the design systems and is
- * hidden unless the manifest has tokens. Built once and synced in place, so a
- * focused entry keeps its focus.
+ * hidden unless the manifest has tokens or names Material UI. Built once and
+ * synced in place, so a focused entry keeps its focus.
  */
 export function renderFoundationsEntry(nav: HTMLElement): void {
   const summary = state.manifest?.foundations
-  nav.hidden = !summary || summary.tokens <= 0
+  nav.hidden = !hasFoundations(summary)
 
   if (!summary || nav.hidden) {
     return

@@ -256,7 +256,7 @@ export interface Manifest {
   /**
    * What `foundations.json` next to the manifest holds. Absent in manifests
    * written before 0.9, with `foundations: false`, and when the run found no
-   * token and no problem.
+   * token, no problem and no Material UI.
    */
   foundations?: ManifestFoundations
 }
@@ -344,8 +344,17 @@ export interface FoundationToken {
   value: string
   /** The value per color scheme, when the token has both. */
   modes?: { light: string; dark: string }
-  /** `default` for a framework default (Tailwind's `DEFAULT` flag), `project` otherwise. */
+  /**
+   * `default` for a framework default: Tailwind's `DEFAULT` flag, or a Material
+   * UI value that equals Material UI's own default in every mode and every
+   * part. `project` otherwise.
+   */
   origin: 'project' | 'default'
+  /**
+   * The origin per color scheme, present only when the token has modes and
+   * exactly one of them equals the framework default. `origin` is then `project`.
+   */
+  modeOrigins?: { light: 'project' | 'default'; dark: 'project' | 'default' }
   source: 'tailwind' | 'theme'
   /** The parts of a composite token, such as `{ fontSize, lineHeight }`, keyed by camelCase CSS property. */
   parts?: Record<string, string>

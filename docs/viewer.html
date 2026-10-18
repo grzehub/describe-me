@@ -245,8 +245,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             double-click on the edge sets it back to 296 px. <kbd>Tab</kbd> and <kbd>←</kbd>
             <kbd>→</kbd> work too, as the <a href="#keyboard">keyboard table</a> says. The browser
             keeps the width per project, like the <a href="#search">collapsed rows</a>. It is not
-            part of the link. Without storage it lasts until you reload. When the run found tokens,
-            a Foundations entry above the test files opens
+            part of the link. Without storage it lasts until you reload. When the run found tokens
+            or the project uses Material UI, a Foundations entry above the test files opens
             <a href="foundations.html">Foundations</a>.
           </li>
           <li>
@@ -371,8 +371,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td>
                   Focuses the search and selects its text. In
                   <a href="foundations.html#view">Foundations</a>, it focuses the token filter
-                  instead. Not with <kbd>Ctrl</kbd>, <kbd>Meta</kbd> or <kbd>Alt</kbd> held, which
-                  leaves the key to the browser.
+                  instead when the page has one. Not with <kbd>Ctrl</kbd>, <kbd>Meta</kbd> or
+                  <kbd>Alt</kbd> held, which leaves the key to the browser.
                 </td>
               </tr>
               <tr>
@@ -402,7 +402,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           and until the manifest has loaded. They are also off while the sidebar's edge has focus.
           While the frame of a test in Live has focus, keys go to the component, as
           <a href="#live">Live</a> explains. In <a href="foundations.html">Foundations</a>, only
-          <kbd>/</kbd> works, and it focuses the token filter.
+          <kbd>/</kbd> works, and it focuses the token filter when the page has one.
         </p>
 
         <h2 id="viewport">
@@ -656,7 +656,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <code>suite</code> does, and the selected test stays in the link, so going back leads to
             it. It goes with <code>bg</code>, whose <code>dark</code> shows the
             <a href="foundations.html#dark-variant">dark variant</a>. An unknown or empty section
-            shows the first one with tokens, and a manifest without tokens drops the parameter.
+            shows the first one with tokens, and a manifest without tokens drops the parameter
+            unless it names Material UI.
           </li>
           <li>
             <code>bg</code> is the <a href="#viewport-background">background</a>:
