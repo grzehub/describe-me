@@ -92,7 +92,7 @@ Start
   and what you get.
 - [Getting started](https://grzehub.github.io/describe-me/getting-started.html):
   the first run, in browser mode and in jsdom.
-- [Examples](https://grzehub.github.io/describe-me/examples.html): the two
+- [Examples](https://grzehub.github.io/describe-me/examples.html): the four
   example projects and their viewers.
 - [Why describe-me](https://grzehub.github.io/describe-me/why.html): tests as
   stories, compared with writing stories by hand.

@@ -2,7 +2,7 @@
  * Builds the docs site into site/: the pages of docs/ with docs.css and
  * favicon.svg, and the static viewer of each example under
  * site/examples/<name>/, built with `--live` so it shows Live. Needs
- * `pnpm build` and both examples' tests. `--no-vendor-fonts` goes to
+ * `pnpm build` and every example's tests. `--no-vendor-fonts` goes to
  * `describe-me build`, which then downloads no web fonts.
  *
  * Usage: `node scripts/build-site.mjs [--no-vendor-fonts]`

@@ -1,0 +1,35 @@
+{
+  "name": "mui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "vitest & describe-me dev --data .describe-me; wait",
+    "docs:dev": "describe-me dev --data .describe-me",
+    "docs:build": "describe-me build --data .describe-me --out docs-dist"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.3.0",
+    "@mui/material": "^9.5.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@describe-me/core": "workspace:*",
+    "@describe-me/react": "workspace:*",
+    "@describe-me/vitest": "workspace:*",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "describe-me": "workspace:*",
+    "jsdom": "^26.1.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}

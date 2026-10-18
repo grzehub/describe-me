@@ -1,5 +1,5 @@
 /**
- * Checks the live preview of both examples in headless Chromium. For each
+ * Checks the live preview of every example in headless Chromium. For each
  * example it starts `createLiveServer()` from `@describe-me/vitest/live` on
  * the config file its manifest names, frames the live page from a host page
  * on another origin, and shows every test of the manifest: each one must
@@ -18,17 +18,17 @@
  * preset keeps the state without a reload, a notice and an error from the
  * frame show while the same message from the viewer page does not, Restart
  * starts fresh and ← leaves Live for a recorded frame. A link with `live=1`
- * opens Live in both examples, which proves that the CLI finds the project
- * from the jsdom manifest too. `describe-me dev --no-live` answers off and
+ * opens Live in every example, which proves that the CLI finds the project
+ * from a jsdom manifest too. `describe-me dev --no-live` answers off and
  * shows no toggle. The viewer pages log no error. Last, the live fixtures of
- * both examples run under Vitest and in the live preview, with setup files,
+ * react-browser and react-jsdom run under Vitest and in the live preview, with setup files,
  * fixtures, around hooks, `each` and `for` names, module mocks, a Node-only
  * import, `setup-failed` and `live: false` (scripts/check-live/check-fixtures.mjs).
  * Then the static part builds the same with `buildLive()`, serves each build
  * under a nested path and runs the same tests, statuses and fixtures against
  * it (scripts/check-live/check-static.mjs). Remote requests are answered
  * locally, so remote fonts never decide the result. Run after `pnpm build`
- * and both examples' tests.
+ * and every example's tests.
  *
  * Usage: `node scripts/check-live.mjs`
  */
@@ -69,6 +69,8 @@ const MOUNTED_WORDS = 'mounted as the test arranged it'
 const VIEWER_TESTS = {
   'react-browser': 'Menu > selects an item and reports it',
   'react-jsdom': 'Heading > takes its colour from the theme',
+  shadcn: 'SignupCard > submits the email',
+  mui: 'PlanCard > marks the popular plan',
 }
 
 /** The server's contract: its base URL, its protocol, and the flag gone again. */
@@ -467,7 +469,7 @@ async function checkNoLive(browser) {
   }
 }
 
-/** Live in both examples' viewers, then `--no-live`. A viewer that does not start fails alone. */
+/** Live in every example's viewer, then `--no-live`. A viewer that does not start fails alone. */
 async function checkViewers(browser) {
   const checks = [
     ...exampleNames.map((name) => () => checkViewer(browser, name)),

@@ -29,8 +29,8 @@
  * that the head and the reachable CSS assets point only at stored assets or
  * outside the project. The head is read without its comments, `<script>`
  * and `<style>` elements, split as the reporter splits it. `--require-fonts`
- * adds what this repository's examples promise: the head links Google Fonts,
- * and a stored `.woff2` is reachable.
+ * adds what react-browser and react-jsdom promise: the head links Google
+ * Fonts, and a stored `.woff2` is reachable.
  *
  * The full check also holds a test to its name. A test named
  * `names Badge tone=danger …` must be documented under the registered
@@ -694,7 +694,7 @@ function hostOf(url) {
   return URL.canParse(url, HEAD_BASE_URL) ? new URL(url, HEAD_BASE_URL).hostname : ''
 }
 
-/** `--require-fonts`: both examples load Inter from Google Fonts and Lora from a local file. */
+/** `--require-fonts`: react-browser and react-jsdom load Inter from Google Fonts and Lora from a local file. */
 function fontProblemsIn(manifest, reached) {
   const problems = []
 

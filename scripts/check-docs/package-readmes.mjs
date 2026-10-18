@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { exampleNames } from '../docs/example-names.mjs'
 
 const SITE = 'https://grzehub.github.io/describe-me/'
 const DOCS_LINK = `**[Read the docs](${SITE})**`
@@ -10,10 +9,12 @@ const DOCS_LINK_WITHIN = 12
 const MAX_LINES = 80
 const PACKAGE_TABLE = '## Which package do I need'
 const QUICK_START = '## Quick start'
+// The package READMEs link one viewer per environment, not every example.
+const README_VIEWERS = ['react-browser', 'react-jsdom']
 
 /**
  * The package READMEs are what npm shows, so they share one shape: the docs
- * link near the top, links to both example viewers, a table of all four
+ * link near the top, links to the react-browser and react-jsdom viewers, a table of all four
  * packages, the same quick start, and no more than a short page. Details live
  * in the docs, where they have one home.
  */
@@ -55,7 +56,7 @@ function shapeProblems(file, text, lines, context) {
     problems.push(`${file}: ${DOCS_LINK} must be within the first ${DOCS_LINK_WITHIN} lines`)
   }
 
-  for (const name of exampleNames) {
+  for (const name of README_VIEWERS) {
     if (!text.includes(`${SITE}examples/${name}/`)) {
       problems.push(`${file}: does not link the ${name} example viewer`)
     }

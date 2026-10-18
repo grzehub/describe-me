@@ -1,4 +1,4 @@
-# Runs both example suites and publishes the docs pages at the root of GitHub
+# Runs every example suite and publishes the docs pages at the root of GitHub
 # Pages, with each example viewer under examples/<name>/.
 # Enable Pages with source "GitHub Actions" in the repository settings once.
 name: docs
@@ -32,6 +32,8 @@ jobs:
       - run: pnpm --filter react-browser exec playwright install --with-deps chromium
       - run: pnpm --filter react-browser test
       - run: pnpm --filter react-jsdom test
+      - run: pnpm --filter shadcn test
+      - run: pnpm --filter mui test
       - run: pnpm check-manifest
       - run: pnpm check-docs
       # Unlike ci.yml, vendor the web fonts, so the published viewers carry them.

@@ -14,7 +14,7 @@ export const sections = {
     'publish',
     'next',
   ],
-  'examples.html': ['open', 'react-browser', 'react-jsdom', 'compare', 'locally'],
+  'examples.html': ['open', 'react-browser', 'react-jsdom', 'compare', 'shadcn', 'mui', 'locally'],
   'why.html': ['benefits', 'storybook', 'costs', 'when-not'],
   'installation.html': [
     'versions',

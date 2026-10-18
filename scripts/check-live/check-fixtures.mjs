@@ -1,6 +1,6 @@
 /**
- * The fixture part of `check-live`. For each example it runs the tests in
- * `live-fixtures/` under Vitest with `LIVE_FIXTURES=1`, starts the live
+ * The fixture part of `check-live`. For each example with live fixtures it
+ * runs the tests in `live-fixtures/` under Vitest with `LIVE_FIXTURES=1`, starts the live
  * preview on the same config, and shows every test of the fixtures manifest:
  * each one must reach the status of the expectation table, and each mounted
  * one must send a size, load once and log no error. Then react-jsdom without
@@ -14,7 +14,6 @@ import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { liveOptimizeDeps } from '../../packages/vitest/dist/live-optimize-deps.js'
-import { exampleNames } from '../docs/example-names.mjs'
 import { repoRoot } from '../docs/repo-root.mjs'
 import { checkLiveOffViewer, startDev, stopDev } from './dev-server.mjs'
 import { FIXTURE_EXPECTATIONS } from './fixture-expectations.mjs'
@@ -37,6 +36,9 @@ export const FIXTURE_ENV = 'LIVE_FIXTURES'
 export const FIXTURES_DIR = join('node_modules', '.describe-me-live-fixtures')
 export const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
 export const SETUP_EXAMPLE = 'react-jsdom'
+
+/** The examples with a `live-fixtures/` directory: react-browser and react-jsdom. */
+export const FIXTURE_EXAMPLES = Object.keys(FIXTURE_EXPECTATIONS)
 
 const CONFIG_FILE = 'vitest.config.ts'
 const NODE_SETUP_FILE = 'live-fixtures/server.node.ts'
@@ -288,7 +290,7 @@ export async function checkFixtures(browser, host) {
   const counts = []
   let behaviours = 0
 
-  for (const name of exampleNames) {
+  for (const name of FIXTURE_EXAMPLES) {
     try {
       const result = await checkExampleFixtures(browser, host, name)
 

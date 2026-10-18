@@ -30,6 +30,8 @@ jobs:
       - run: pnpm --filter react-browser exec playwright install --with-deps chromium
       - run: pnpm --filter react-browser test
       - run: pnpm --filter react-jsdom test
+      - run: pnpm --filter shadcn test
+      - run: pnpm --filter mui test
       - run: pnpm --filter react-jsdom check-styles
       - run: pnpm check-manifest
       - run: pnpm check-docs
