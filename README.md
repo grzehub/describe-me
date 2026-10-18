@@ -112,6 +112,8 @@ Use
   frames, `step()`, component names, props and what Live runs.
 - [Styles and fonts](https://grzehub.github.io/describe-me/styles-and-fonts.html):
   global styles, web fonts and assets.
+- [Foundations](https://grzehub.github.io/describe-me/foundations.html): the
+  tokens of your design system, from what the tests load.
 - [Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html):
   `describe-me dev` and `build`, Live, and what the viewer does.
 - [Troubleshooting](https://grzehub.github.io/describe-me/troubleshooting.html):

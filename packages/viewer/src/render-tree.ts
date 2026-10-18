@@ -1,10 +1,12 @@
 import type { ManifestTest } from '@describe-me/core/types'
 import { CollapsedSuites } from './collapsed-suites.js'
+import { renderFoundationsEntry } from './foundations-entry.js'
 import { regions } from './regions.js'
 import { renderSidebar } from './sidebar.js'
 import { currentTest, state } from './state.js'
 import { suiteKey } from './suite-key.js'
 import { tagFilterBar } from './tag-filter-bar.js'
+import { testShown } from './test-shown.js'
 
 let revealed: string | null = null
 
@@ -21,13 +23,14 @@ function expandPathTo(test: ManifestTest): void {
 }
 
 /**
- * Fill the sidebar's tree and the tag filter above it. A test selected since
- * the last reveal gets its module and suites opened and its row scrolled into
- * view. A refresh that keeps the test leaves the sidebar's scroll alone.
+ * Fill the sidebar's tree, and above it the tag filter and the Foundations
+ * entry, which no filter hides. A test selected since the last reveal gets its
+ * module and suites opened and its row scrolled into view. A refresh that
+ * keeps the test leaves the sidebar's scroll alone.
  */
 export function renderTree(): void {
-  const { tagFilter, tree } = regions()
-  const test = state.suiteKey ? null : currentTest()
+  const { tagFilter, foundationsNav, tree } = regions()
+  const test = testShown() ? currentTest() : null
   const reveal = test !== null && test.id !== revealed
 
   // The overview may collapse the test's suites, so coming back to it counts as a new selection.
@@ -42,6 +45,7 @@ export function renderTree(): void {
 
   tagFilter.replaceChildren(...tagFilterBar())
   tagFilter.hidden = state.tag === null
+  renderFoundationsEntry(foundationsNav)
   tree.replaceChildren(...renderSidebar(renderTree))
 
   if (reveal) {

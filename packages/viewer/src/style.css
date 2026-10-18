@@ -149,6 +149,7 @@ a {
 .sidebar,
 .inspector,
 .overview,
+.foundations,
 .stage,
 .timeline {
   scrollbar-width: thin;
@@ -520,6 +521,57 @@ a {
   background: var(--hover);
   color: var(--ink);
 }
+/* Above the tree and outside it, so no filter hides it and no count of test rows includes it. */
+.foundations-nav {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.foundations-nav[hidden] {
+  display: none;
+}
+.foundations-entry {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  text-align: left;
+}
+.foundations-entry:hover {
+  background: var(--hover);
+}
+.foundations-title {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.foundations-systems {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.foundations-entry.active {
+  background: var(--tint);
+}
+.foundations-entry.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
 
 .tree > .empty {
   padding: 4px 9px;
@@ -837,11 +889,54 @@ button.tag.active {
 .crumbs .tools .zoom:empty {
   display: none;
 }
+/*
+ * The stage background switch, in the viewport toolbar and in Foundations.
+ * `[data-bg]` matches the weight of `.crumbs .tools button`, and coming later
+ * it wins, so the swatches look the same in both places.
+ */
+.backgrounds {
+  display: flex;
+  gap: 2px;
+}
+.backgrounds button[data-bg] {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 5px;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+}
+.backgrounds button[data-bg]:hover {
+  color: var(--ink);
+}
+.backgrounds button[data-bg].on {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+/* The inset ring keeps the light swatch visible on a light toolbar, the dark one on a dark one. */
+.backgrounds button[data-bg]::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-3) 55%, transparent);
+}
+.backgrounds [data-bg='auto']::before {
+  background: linear-gradient(135deg, var(--canvas-light) 50%, var(--canvas-dark) 50%);
+}
+.backgrounds [data-bg='light']::before {
+  background: var(--canvas-light);
+}
+.backgrounds [data-bg='dark']::before {
+  background: var(--canvas-dark);
+}
+.backgrounds [data-bg='transparent']::before {
+  background: var(--canvas-transparent);
+  background-size: 6px 6px;
+}
 /* Set apart from the presets by the rule the Live toggle uses. */
 .crumbs .tools .backgrounds {
   position: relative;
-  display: flex;
-  gap: 2px;
   margin-left: 7px;
 }
 .crumbs .tools .backgrounds::before {
@@ -852,32 +947,6 @@ button.tag.active {
   left: -5px;
   width: 1px;
   background: color-mix(in srgb, var(--ink-3) 30%, transparent);
-}
-.crumbs .tools .backgrounds button {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 5px;
-}
-/* The inset ring keeps the light swatch visible on a light toolbar, the dark one on a dark one. */
-.crumbs .tools .backgrounds button::before {
-  content: '';
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-3) 55%, transparent);
-}
-.crumbs .tools .backgrounds [data-bg='auto']::before {
-  background: linear-gradient(135deg, var(--canvas-light) 50%, var(--canvas-dark) 50%);
-}
-.crumbs .tools .backgrounds [data-bg='light']::before {
-  background: var(--canvas-light);
-}
-.crumbs .tools .backgrounds [data-bg='dark']::before {
-  background: var(--canvas-dark);
-}
-.crumbs .tools .backgrounds [data-bg='transparent']::before {
-  background: var(--canvas-transparent);
-  background-size: 6px 6px;
 }
 
 /*
@@ -1172,6 +1241,106 @@ kbd {
   color: var(--ink-3);
   font-weight: 400;
   text-transform: none;
+}
+
+/* ---------------------------------------------------------- foundations -- */
+
+/* The chrome follows the viewer theme. The canvas and the specimens on it do not. */
+.foundations {
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 24px 28px 56px;
+  background: var(--bg);
+}
+.foundations-head {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.foundations-head .overview-meta {
+  overflow-wrap: anywhere;
+}
+.foundations-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 16px 0 14px;
+}
+.foundations-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--hover);
+}
+.foundations-sections button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.foundations-sections button:hover {
+  color: var(--ink);
+}
+.foundations-sections button[aria-pressed='true'] {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.foundations-sections .count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.foundations .backgrounds {
+  margin-left: auto;
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--hover);
+}
+.foundations-hint,
+.foundations-note {
+  margin: -4px 0 12px;
+  font-size: 12px;
+}
+.foundations-hint {
+  color: var(--ink-3);
+}
+.foundations-hint[hidden] {
+  display: none;
+}
+.foundations-note {
+  color: var(--warn);
+}
+.foundations-canvas {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--canvas-light);
+}
+.foundations-canvas[data-canvas='dark'] {
+  background: var(--canvas-dark);
+}
+.foundations-canvas[data-canvas='transparent'] {
+  background: var(--canvas-transparent);
+}
+.foundations-canvas iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+/* Fixed colors, because the canvas does not follow the viewer's scheme. */
+.foundations-canvas .empty {
+  color: #6b7381;
+}
+.foundations-canvas[data-canvas='dark'] .empty {
+  color: #8a939f;
 }
 
 .props th {

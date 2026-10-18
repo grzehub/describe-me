@@ -10,8 +10,10 @@ export interface Regions {
   sidebar: HTMLElement
   /** The sidebar's search field, above the tree. */
   search: HTMLInputElement
-  /** The tag the tree is narrowed to, between the search and the tree. Hidden without one. */
+  /** The tag the tree is narrowed to, under the search. Hidden without one. */
   tagFilter: HTMLElement
+  /** The Foundations entry, above the tree. Hidden unless the manifest has tokens. */
+  foundationsNav: HTMLElement
   /** The sidebar's module blocks go here. */
   tree: HTMLElement
   /** The separator on the sidebar's right edge that sets its width. */
@@ -44,8 +46,14 @@ export function regions(): Regions {
   })
 
   const tagFilter = el('div', { class: 'tag-filter', role: 'status', hidden: true })
+  const foundationsNav = el('nav', {
+    class: 'foundations-nav',
+    'aria-label': 'Foundations',
+    hidden: true,
+  })
+
   const tree = el('div', { class: 'tree' })
-  const sidebar = el('aside', { class: 'sidebar' }, search, tagFilter, tree)
+  const sidebar = el('aside', { class: 'sidebar' }, search, tagFilter, foundationsNav, tree)
   // Outside the sidebar, which scrolls, so the handle stays put while the tree moves.
   const sidebarHandle = el('div', {
     class: 'sidebar-handle',
@@ -69,6 +77,7 @@ export function regions(): Regions {
     sidebar,
     search,
     tagFilter,
+    foundationsNav,
     tree,
     sidebarHandle,
     center,

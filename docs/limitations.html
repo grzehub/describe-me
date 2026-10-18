@@ -47,6 +47,7 @@
         <ul>
           <li><a href="writing-stories.html">Writing stories</a></li>
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
+          <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
@@ -518,6 +519,50 @@
                 <td>Update the links after a rename.</td>
                 <td><span class="badge status-by-design">by design</span></td>
               </tr>
+              <tr id="limit-foundations-tailwind-unstable">
+                <td>
+                  The Tailwind 4 theme comes from <code>__unstable__loadDesignSystem</code> of
+                  <code>@tailwindcss/node</code>, an unstable API. When it fails,
+                  <code>foundationsErrors</code> says so, and Foundations keeps the recorded custom
+                  properties. See <a href="foundations.html#limits">Foundations</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>None.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-foundations-tailwind-3">
+                <td>
+                  Foundations does not read the <code>tailwind.config.js</code> of Tailwind 3. See
+                  <a href="foundations.html#limits">Foundations</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Declare the tokens as custom properties in a stylesheet the tests load.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-foundations-presets">
+                <td>
+                  Chakra UI, Mantine and Radix Themes show in the generic sections of Foundations
+                  only. See <a href="foundations.html#limits">Foundations</a>.
+                </td>
+                <td><span class="badge env">viewer</span></td>
+                <td>None.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-foundations-loaded-css">
+                <td>
+                  Only CSS that the tests load counts for Foundations, so a token stylesheet that
+                  only the app entry imports is missing. See
+                  <a href="foundations.html#limits">Foundations</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  Import the token stylesheet in a test setup file or in the custom
+                  <code>render</code> wrapper (<a href="styles-and-fonts.html#global-styles"
+                    >global styles</a
+                  >).
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
               <tr id="limit-react-only">
                 <td>Only React has an adapter. See <a href="#scope">Frameworks and tools</a>.</td>
                 <td><span class="badge env">both</span></td>
@@ -609,8 +654,13 @@
           <a href="#limit-live-dev-server">no dev server for plugins</a>. A built site
           <a href="#limit-site-from-disk">needs HTTP</a>. A
           <a href="#limit-old-viewer">0.4 viewer</a> cannot read 0.5 data, and links to a test
-          <a href="#limit-test-id-rename">break when it is renamed</a>.
-          <a href="viewer.html#hosting">Viewer and CLI</a> has the details.
+          <a href="#limit-test-id-rename">break when it is renamed</a>. Foundations reads
+          <a href="#limit-foundations-loaded-css">only the CSS that the tests load</a>, the Tailwind
+          4 theme through <a href="#limit-foundations-tailwind-unstable">an unstable API</a> and
+          <a href="#limit-foundations-tailwind-3">not the config of Tailwind 3</a>, and shows
+          <a href="#limit-foundations-presets">Chakra UI, Mantine and Radix Themes</a> in its
+          generic sections only. <a href="viewer.html#hosting">Viewer and CLI</a> and
+          <a href="foundations.html#limits">Foundations</a> have the details.
         </p>
 
         <h2 id="scope">

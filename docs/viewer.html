@@ -47,6 +47,7 @@
         <ul>
           <li><a href="writing-stories.html">Writing stories</a></li>
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
+          <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html" aria-current="page">Viewer and CLI</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
@@ -244,7 +245,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             double-click on the edge sets it back to 296 px. <kbd>Tab</kbd> and <kbd>←</kbd>
             <kbd>→</kbd> work too, as the <a href="#keyboard">keyboard table</a> says. The browser
             keeps the width per project, like the <a href="#search">collapsed rows</a>. It is not
-            part of the link. Without storage it lasts until you reload.
+            part of the link. Without storage it lasts until you reload. When the run found tokens,
+            a Foundations entry above the test files opens
+            <a href="foundations.html">Foundations</a>.
           </li>
           <li>
             <strong>Stage.</strong> The test's path and the
@@ -396,7 +399,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           Shortcuts are off while you type in an input, a textarea, a select or an editable element,
           and until the manifest has loaded. They are also off while the sidebar's edge has focus.
           While the frame of a test in Live has focus, keys go to the component, as
-          <a href="#live">Live</a> explains.
+          <a href="#live">Live</a> explains. In <a href="foundations.html">Foundations</a>, only
+          <kbd>/</kbd> works.
         </p>
 
         <h2 id="viewport">
@@ -448,6 +452,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             The overview's thumbnails follow the choice. It is part of the
             <a href="#links">link</a> as <code>bg</code> and is not stored.
+          </li>
+          <li>
+            <a href="foundations.html#dark-variant">Foundations</a> has the same switch, at the top
+            of its view.
           </li>
         </ul>
         <p>
@@ -639,6 +647,16 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <a href="#overview">overview</a>.
           </li>
           <li>
+            <code>foundations</code> opens <a href="foundations.html">Foundations</a> at one of its
+            sections: <code>colors</code>, <code>typography</code>, <code>spacing</code>,
+            <code>radius</code>, <code>shadows</code>, <code>breakpoints</code>,
+            <code>motion</code> or <code>other</code>. It takes the place of <code>test</code>, as
+            <code>suite</code> does, and the selected test stays in the link, so going back leads to
+            it. It goes with <code>bg</code>, whose <code>dark</code> shows the
+            <a href="foundations.html#dark-variant">dark variant</a>. An unknown or empty section
+            shows the first one with tokens, and a manifest without tokens drops the parameter.
+          </li>
+          <li>
             <code>bg</code> is the <a href="#viewport-background">background</a>:
             <code>light</code>, <code>dark</code> or <code>transparent</code>. The link leaves out
             <code>auto</code>.
@@ -654,8 +672,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
           <li>
             Opening a test or an overview adds a history entry, so Back and Forward move between
-            them. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd>, turning Live on or
-            off and changing the size or the background replace the current entry.
+            them. Opening Foundations from the sidebar adds one too, and switching its sections
+            replaces it. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd>, turning
+            Live on or off and changing the size or the background replace the current entry.
           </li>
           <li>
             A test id stays the same on other machines and when other tests are added, removed or
@@ -806,7 +825,7 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
         </ul>
 
         <nav class="pager" aria-label="Pages">
-          <a class="prev" href="styles-and-fonts.html"><span>Previous</span>Styles and fonts</a>
+          <a class="prev" href="foundations.html"><span>Previous</span>Foundations</a>
           <a class="next" href="troubleshooting.html"><span>Next</span>Troubleshooting</a>
         </nav>
 

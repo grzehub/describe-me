@@ -18,8 +18,13 @@
  * plain theme object and react-browser with its custom properties only. Every
  * chunk that `foundations.json` names must exist, no file may name the
  * checkout or the home directory, and no manifest may carry foundations
- * errors. It prints how long collecting took per output. Run after
- * `pnpm build` and every example's tests. Exits 1 on any failure.
+ * errors. Then `check-foundations/check-view.mjs` opens a static build of
+ * the viewer for every output in Chromium and checks the Foundations view:
+ * the entry, the sections and counts, resolved values, the dark variant,
+ * fonts, the inspector, the frame's height, the viewer theme, the link and
+ * narrow widths, and a copy of react-browser's output without foundations.
+ * It prints how long collecting took per output. Run after `pnpm build` and
+ * every example's tests. Exits 1 on any failure.
  *
  * Usage: node scripts/check-foundations.mjs
  */
@@ -49,6 +54,7 @@ import DescribeMeReporter from '../packages/vitest/dist/reporter.js'
 import { rootCustomProperties } from '../packages/vitest/dist/root-custom-properties.js'
 import { splitLightDark } from '../packages/vitest/dist/split-light-dark.js'
 import { validateFoundations } from '../packages/vitest/dist/validate-foundations.js'
+import { checkView } from './check-foundations/check-view.mjs'
 import { machinePathsIn } from './docs/machine-paths-in.mjs'
 
 // A pnpm bin shim puts the workspace's packages on NODE_PATH, where the
@@ -1185,6 +1191,8 @@ async function checkExamples() {
     await perOutput[label](output)
     await checkEveryOutput(label, output)
   }
+
+  await checkView({ check, tempDir, outputs })
 
   console.log('\nCollecting time per output:')
 

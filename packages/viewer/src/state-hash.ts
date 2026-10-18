@@ -1,11 +1,16 @@
 import type { State } from './state.js'
 
 /**
- * The link of a view, without the `#`: the selection, the frame, the viewport
- * size, the stage background, Live and the tag filter.
+ * The link of a view, without the `#`: the Foundations section, the
+ * selection, the frame, the viewport size, the stage background, Live and the
+ * tag filter.
  */
 export function stateHash(state: State): string {
   const params = new URLSearchParams()
+  if (state.foundations !== null) {
+    params.set('foundations', state.foundations)
+  }
+
   if (state.suiteKey) {
     params.set('suite', state.suiteKey)
   }

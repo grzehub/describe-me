@@ -100,7 +100,7 @@ function onFrameKey(test: ManifestTest, step: 1 | -1): void {
 
 /**
  * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
- * toggles Live, `/` focuses the search.
+ * toggles Live, `/` focuses the search. In Foundations only `/` works.
  */
 export function onKey(event: KeyboardEvent): void {
   if (!state.manifest || isTyping(event.target)) {
@@ -117,6 +117,10 @@ export function onKey(event: KeyboardEvent): void {
     search.focus()
     search.select()
     event.preventDefault()
+    return
+  }
+
+  if (state.foundations !== null) {
     return
   }
 
