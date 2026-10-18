@@ -4,10 +4,11 @@
  * `dark-variant` request puts its class and attribute on `<html>`, `null`
  * takes back only what the page applied, and the page ignores another source,
  * an unknown type, an `on*` attribute, its own status attribute and a class
- * with a space. A request that comes before the status waits for it, so a
- * class the arrange phase sets stays the test's. Each page loads once and logs
- * no error. Last, a page whose URL names another origin ignores a valid
- * request.
+ * with a space: a MutationObserver sees no change of `<html>` but the valid
+ * request after each, and the page throws nothing. A request that comes
+ * before the status waits for it, so a class the arrange phase sets stays the
+ * test's. Each page loads once and logs no error. Last, a page whose URL names
+ * another origin ignores a valid request.
  */
 import { checkQuiet, delay, pageUrl, show, STATUS_TIMEOUT } from './live-frame.mjs'
 
@@ -129,7 +130,9 @@ async function keepsTheTests(context) {
 /**
  * Messages the page must ignore. Each is followed by a valid request, and
  * messages from one window arrive in order, so once the valid one shows the
- * ignored one has been read.
+ * ignored one has been read. The valid one takes back whatever the page
+ * applied before it, so the root is watched from before the post, not read
+ * after.
  */
 const IGNORED = [
   ['another source', { ...request({ className: 'from-elsewhere' }), source: 'describe-me-live' }],
@@ -148,20 +151,45 @@ const IGNORED = [
   ['a class with a space', request({ className: 'dark extra' })],
 ]
 
-/** The root without `data-check`, which the valid request after each ignored one sets. */
-async function rootWithoutCheck(context) {
-  const root = await readRoot(context)
+/**
+ * Records every attribute change of the live page's `<html>` and every error
+ * in the page, from now until `takeWatch()`. A class with a space would make
+ * `classList.add()` throw rather than change the root.
+ */
+function watchRoot(context) {
+  return context.frame.locator('html').evaluate((root) => {
+    const watch = { changes: [], errors: [] }
 
-  delete root.attributes['data-check']
+    watch.observer = new MutationObserver((records) => {
+      watch.changes.push(...records.map((record) => record.attributeName))
+    })
 
-  return JSON.stringify(root)
+    watch.observer.observe(root, { attributes: true })
+    watch.onError = (event) => watch.errors.push(event.message)
+    window.addEventListener('error', watch.onError)
+    window.viewerMessageWatch = watch
+  })
+}
+
+/** The attribute names that changed and the errors since `watchRoot()`, which stops watching. */
+function takeWatch(context) {
+  return context.frame.locator('html').evaluate(() => {
+    const watch = window.viewerMessageWatch
+    const pending = watch.observer.takeRecords().map((record) => record.attributeName)
+
+    watch.observer.disconnect()
+    window.removeEventListener('error', watch.onError)
+    delete window.viewerMessageWatch
+
+    return { changes: [...watch.changes, ...pending], errors: watch.errors }
+  })
 }
 
 function ignores(message, index) {
   return async (context) => {
     const marker = String(index)
-    const before = await rootWithoutCheck(context)
 
+    await watchRoot(context)
     await post(context, message)
     await post(context, request({ attribute: { name: 'data-check', value: marker } }))
 
@@ -171,13 +199,14 @@ function ignores(message, index) {
       `data-check="${marker}" from the valid request after it`,
     )
 
-    if (shown) {
-      return shown
+    const { changes, errors } = await takeWatch(context)
+    const foreign = [...new Set(changes.filter((name) => name !== 'data-check'))]
+
+    if (foreign.length > 0 || errors.length > 0) {
+      return `the page took it: it changed ${JSON.stringify(foreign)} on <html> and threw ${JSON.stringify(errors)}`
     }
 
-    const after = await rootWithoutCheck(context)
-
-    return after === before ? null : `the page took it: the root went from ${before} to ${after}`
+    return shown
   }
 }
 
@@ -309,10 +338,14 @@ export async function checkViewerMessages(context) {
       ['a request puts both', putsBoth],
       ['null removes both', nullRemovesBoth],
       ["the test's own class and attribute stay", keepsTheTests],
-      ...ignored,
     ],
     result,
   )
+
+  // Each valid request takes back the one before, so one that fails leaves the next on a clean root.
+  for (const entry of mounted ? ignored : []) {
+    await runCases(context, [entry], result)
+  }
 
   const quiet = [...(await checkQuiet(context, label))]
 

@@ -13,9 +13,10 @@
  * past a test's last one. In react-browser the host page then posts the
  * viewer's messages to the live page: a `dark-variant` request puts its class
  * and attribute on `<html>`, `null` takes back only what the page applied,
- * five malformed or foreign messages change nothing, a request before the
- * status waits for it, and a page whose URL names another origin ignores a
- * valid one (scripts/check-live/viewer-messages.mjs). Then each example's
+ * five malformed or foreign messages change nothing on `<html>`, which a
+ * MutationObserver watches, and throw nothing, a request before the status
+ * waits for it, and a page whose URL names another origin ignores a valid one
+ * (scripts/check-live/viewer-messages.mjs). Then each example's
  * viewer runs through `describe-me dev`, one at a time, because two viewers
  * race on the viewer's Vite cache. `__live.json` must say `ready` with the
  * preview's base. In react-browser, `L` mounts `Menu > selects an item and
