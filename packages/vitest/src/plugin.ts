@@ -88,6 +88,13 @@ export interface DescribeMeOptions {
    * preview off. Test runs ignore it. Default: on, with `test.setupFiles`.
    */
   live?: false | { setupFiles?: string | string[] }
+  /**
+   * The design-system foundations the reporter writes to `foundations.json`.
+   * `theme` names a theme module relative to the root: `'src/theme.ts'` reads
+   * its export `theme`, else `default`, and `'src/theme.ts#name'` reads `name`.
+   * `false` switches them off. Default: on, without a theme module.
+   */
+  foundations?: false | { theme?: string }
 }
 
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
@@ -158,6 +165,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
         stories: runtimeOptions.stories,
         previewHead: options.previewHead,
         setupWarnings,
+        foundations: options.foundations,
       })
 
       // Vite concatenates our list with the user's. Any list replaces the

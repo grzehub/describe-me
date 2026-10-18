@@ -32,16 +32,25 @@ function pick(testId: string): void {
 
 /**
  * A header chip that opens the list of what this manifest could not document:
- * problems in the test setup, anonymous components, components without props
- * docs, assets that will not load, font families that nothing loads and hosts
- * that frames load stylesheets from. Absent when there is nothing to report.
+ * problems in the test setup, problems reading the design-system foundations,
+ * anonymous components, components without props docs, assets that will not
+ * load, font families that nothing loads and hosts that frames load
+ * stylesheets from. Absent when there is nothing to report.
  */
 export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
-  const { setupWarnings, anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets } =
-    manifestDiagnostics(manifest)
+  const {
+    setupWarnings,
+    foundationsErrors,
+    anonymous,
+    undocumented,
+    assetsMissing,
+    fontsMissing,
+    remoteStylesheets,
+  } = manifestDiagnostics(manifest)
 
   const count =
     setupWarnings.length +
+    foundationsErrors.length +
     anonymous.length +
     undocumented.length +
     assetsMissing.length +
@@ -61,6 +70,18 @@ export function renderDiagnosticsMenu(manifest: Manifest): HTMLElement | null {
       section(
         'Setup',
         'The plugin found a problem in the test setup that can make tests fail.',
+        items,
+      ),
+    )
+  }
+
+  if (foundationsErrors.length > 0) {
+    const items = foundationsErrors.map((error) => el('li', {}, error))
+
+    sections.push(
+      section(
+        'Foundations',
+        'The reporter could not read part of the design-system foundations. The rest was still collected.',
         items,
       ),
     )

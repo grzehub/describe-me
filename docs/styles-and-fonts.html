@@ -397,7 +397,8 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           <code>describe-me build</code> copies the data into the site, then downloads the web fonts
           that the copy loads from known font hosts. It scans the preview head, the snapshots, the
           style chunks and the CSS assets of the copy, so a link that a font loader added during a
-          test is covered too, and so is data written by 0.4. The data directory itself never
+          test is covered too, and so is data written by 0.4. Vendoring also points the copy's
+          <code>foundations.json</code> at the chunks it moves. The data directory itself never
           changes. <code>describe-me dev</code> never downloads fonts.
         </p>
 

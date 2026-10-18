@@ -253,6 +253,12 @@ export interface Manifest {
    * counts as empty.
    */
   setupWarnings?: string[]
+  /**
+   * What `foundations.json` next to the manifest holds. Absent in manifests
+   * written before 0.9, with `foundations: false`, and when the run found no
+   * token and no problem.
+   */
+  foundations?: ManifestFoundations
 }
 
 /** A font family that the captured CSS uses but no `@font-face`, font stylesheet or preview head loads. */
@@ -293,6 +299,106 @@ export interface ManifestDiagnostics {
   remoteStylesheets: RemoteStylesheet[]
   /** Problems in the project's setup that can make tests fail. */
   setupWarnings: string[]
+  /** Problems reading the design-system foundations. */
+  foundationsErrors: string[]
+}
+
+// ---------- foundations ----------
+
+/** A design system the reporter can name. */
+export type DesignSystemId =
+  | 'tailwind'
+  | 'shadcn'
+  | 'mui'
+  | 'chakra'
+  | 'mantine'
+  | 'radix-themes'
+  | 'styled-components'
+  | 'emotion'
+  | 'antd'
+
+/** The section of the Foundations view a token belongs to. */
+export type FoundationGroup =
+  'colors' | 'typography' | 'spacing' | 'radius' | 'shadows' | 'breakpoints' | 'motion' | 'other'
+
+/** What a token's value is, named after the `$type` values of the DTCG format. */
+export type FoundationTokenType =
+  | 'color'
+  | 'dimension'
+  | 'fontFamily'
+  | 'fontWeight'
+  | 'number'
+  | 'duration'
+  | 'cubicBezier'
+  | 'shadow'
+  | 'typography'
+
+/** One token from the Tailwind theme or from the JS theme module. */
+export interface FoundationToken {
+  /** `--color-brand-500` for Tailwind, a dotted path such as `palette.primary.main` for a JS theme. */
+  name: string
+  group: FoundationGroup
+  /** Absent when the value fits no type. */
+  type?: FoundationTokenType
+  /** The value as CSS text, in the light mode when the token has modes. */
+  value: string
+  /** The value per color scheme, when the token has both. */
+  modes?: { light: string; dark: string }
+  /** `default` for a framework default (Tailwind's `DEFAULT` flag), `project` otherwise. */
+  origin: 'project' | 'default'
+  source: 'tailwind' | 'theme'
+  /** The parts of a composite token, such as `{ fontSize, lineHeight }`, keyed by camelCase CSS property. */
+  parts?: Record<string, string>
+}
+
+/** A recorded stylesheet, as the snapshots keep it. */
+export interface FoundationsSheet {
+  /** `describe-me-style:<hash>+<hash>…` for a stored sheet, or the CSS text of one short enough to stay inline. */
+  cssText: string
+  /** Its `data-vite-dev-id`, relative to the root or starting at `node_modules/`, when Vite inserted it. */
+  source?: string
+}
+
+/** A design system the project uses. */
+export interface FoundationsSystem {
+  id: DesignSystemId
+  /** The npm package it was found by. Absent for shadcn, which `components.json` names. */
+  package?: string
+  /** The installed version. Absent when it cannot be read. */
+  version?: string
+}
+
+/** The contents of `foundations.json`, which the reporter writes next to `manifest.json`. */
+export interface Foundations {
+  version: 1
+  systems: FoundationsSystem[]
+  /** From `components.json`, when the project has one. */
+  shadcn?: { style?: string; baseColor?: string; css?: string }
+  /** Sheets that declare custom properties on a root-like selector, in first-appearance order. */
+  tokenSheets: FoundationsSheet[]
+  /** Sheets with `@font-face`, in first-appearance order. A sheet may be in both lists. */
+  fontSheets: FoundationsSheet[]
+  /** Project CSS files the frames load, relative to the root, none under `node_modules/`. */
+  cssSources: string[]
+  /** The Tailwind 4 entry file, relative to the root, when one was found. */
+  tailwind?: { entry: string }
+  /** The theme module of `foundations.theme`, when it loaded. */
+  theme?: { module: string; export: string; adapter: 'mui' | 'object' }
+  /** Tokens of the Tailwind theme, then of the JS theme. The viewer reads custom properties from the sheets. */
+  tokens: FoundationToken[]
+  /** Problems while collecting, one sentence each. */
+  errors: string[]
+  /** How long collecting took, in whole ms. */
+  duration: number
+}
+
+/** What the manifest says about `foundations.json`. */
+export interface ManifestFoundations {
+  systems: DesignSystemId[]
+  /** Distinct token names across the token sheets, the Tailwind theme and the JS theme. */
+  tokens: number
+  /** Problems while collecting, one sentence each. Absent when there are none. */
+  errors?: string[]
 }
 
 // ---------- live preview (posted by the live page, read by the viewer) ----------

@@ -13,7 +13,10 @@ if (cssVariables && process.env.MUI_CSS_VARS !== '1') {
 export default defineConfig({
   plugins: [
     react(),
-    describeMe(cssVariables ? { outDir: 'node_modules/.describe-me-css-vars' } : {}),
+    describeMe({
+      foundations: { theme: 'src/theme.ts' },
+      ...(cssVariables ? { outDir: 'node_modules/.describe-me-css-vars' } : {}),
+    }),
   ],
   // Live runs src/theme.ts in the browser, where `process` does not exist.
   define: { 'process.env.MUI_CSS_VARS': JSON.stringify(cssVariables ? '1' : '') },

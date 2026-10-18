@@ -1,13 +1,15 @@
 /**
  * Node-side Vitest reporter. Collects frames from task.meta and writes
- * `.describe-me/`: `manifest.json`, `snapshots/`, `styles/` and `assets/`.
+ * `.describe-me/`: `manifest.json`, `foundations.json`, `snapshots/`,
+ * `styles/` and `assets/`.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import type { Reporter, TestCase, TestModule, Vitest } from 'vitest/node'
 import {
   META_KEY,
   type Manifest,
+  type ManifestFoundations,
   type ManifestFrame,
   type ManifestGenerator,
   type ManifestModule,
@@ -18,21 +20,26 @@ import {
 import { AssetStore } from './asset-store.js'
 import { cleanSnapshot } from './clean-snapshot.js'
 import { collectComponentDocsSafely } from './collect-component-docs-safely.js'
+import { collectFoundations, type CollectedFoundations } from './collect-foundations.js'
 import { compileGlobs } from './compile-globs.js'
 import { compileInclude } from './compile-include.js'
 import { componentEntries } from './component-entries.js'
 import { fileFilter } from './file-filter.js'
+import { firstLineOf } from './first-line-of.js'
 import { FontAudit } from './font-audit.js'
+import type { ImportModule } from './import-theme.js'
 import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
 import { ProjectPaths } from './project-paths.js'
 import { readGenerator } from './read-generator.js'
+import { RecordedSheets } from './recorded-sheets.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
 import type { StoriesMode } from './stories-mode.js'
 import { StyleStore } from './style-store.js'
 import { tagFilter } from './tag-filter.js'
 import { testPath } from './test-path.js'
+import { validateFoundations, type FoundationsOption } from './validate-foundations.js'
 
 export interface DescribeMeReporterOptions {
   /** Output directory, relative to the Vitest root. Default: `.describe-me` */
@@ -61,12 +68,45 @@ export interface DescribeMeReporterOptions {
   previewHead?: string
   /** Problems in the project's setup, filled by the plugin. Default: none. */
   setupWarnings?: string[]
+  /**
+   * The design-system foundations the reporter writes to `foundations.json`.
+   * `theme` names a theme module relative to the root: `'src/theme.ts'` reads
+   * its export `theme`, else `default`, and `'src/theme.ts#name'` reads `name`.
+   * `false` switches them off. Default: on, without a theme module.
+   */
+  foundations?: false | { theme?: string }
 }
 
 type ManifestError = NonNullable<ManifestTest['errors']>[number]
 
 function toPosix(moduleId: string): string {
   return moduleId.split(sep).join('/')
+}
+
+/**
+ * Vitest's own module runner for project files, when this Vitest has one. A
+ * script that calls the reporter directly passes only `config.root`.
+ */
+function importModuleOf(vitest: Vitest | undefined): ImportModule | undefined {
+  let project: unknown
+
+  try {
+    project = vitest?.getRootProject()
+  } catch {
+    return undefined
+  }
+
+  if (typeof project !== 'object' || project === null) {
+    return undefined
+  }
+
+  const { import: importFile } = project as { import?: unknown }
+
+  if (typeof importFile !== 'function') {
+    return undefined
+  }
+
+  return (file) => (importFile as (file: string) => Promise<unknown>).call(project, file)
 }
 
 function recordOf(tc: TestCase): TestRecord | undefined {
@@ -89,6 +129,7 @@ export default class DescribeMeReporter implements Reporter {
   private readonly previewHead: string | undefined
   private readonly generator: ManifestGenerator | undefined
   private readonly setupWarnings: string[]
+  private readonly foundations: FoundationsOption
   private root = process.cwd()
   private configFile: string | undefined
   private outDir = ''
@@ -97,6 +138,9 @@ export default class DescribeMeReporter implements Reporter {
   private assets!: AssetStore
   private styles!: StyleStore
   private fonts!: FontAudit
+  private sheets!: RecordedSheets
+  private vitest: Vitest | undefined
+  private readonly tailwindModules = new Map<string, Promise<unknown>>()
   private modules = new Map<string, ManifestModule>()
 
   constructor(options: DescribeMeReporterOptions = {}) {
@@ -110,6 +154,8 @@ export default class DescribeMeReporter implements Reporter {
     this.previewHead = options.previewHead?.trim() ? options.previewHead : undefined
     this.generator = readGenerator()
     this.setupWarnings = options.setupWarnings ?? []
+    // Here too, because the reporter also runs without the plugin.
+    this.foundations = validateFoundations(options.foundations)
   }
 
   onInit(vitest: Vitest): void {
@@ -122,6 +168,8 @@ export default class DescribeMeReporter implements Reporter {
     this.assets = new AssetStore(this.outDir, this.root)
     this.styles = new StyleStore(this.outDir)
     this.fonts = new FontAudit(this.outDir)
+    this.sheets = new RecordedSheets(this.outDir)
+    this.vitest = vitest
     this.seedFromPreviousRun()
 
     if (this.previewHead !== undefined && /<script\b/i.test(this.previewHead)) {
@@ -278,8 +326,79 @@ export default class DescribeMeReporter implements Reporter {
       manifest.setupWarnings = this.setupWarnings.map((warning) => this.paths.inText(warning))
     }
 
+    // After the garbage collection, so every snapshot and chunk it reads exists.
+    // Before the manifest, because the dev viewer reloads on a manifest change
+    // and must then find the matching foundations.
+    const foundations = await this.writeFoundations([...new Set(snapshotFiles)])
+
+    if (foundations !== undefined) {
+      manifest.foundations = foundations
+    }
+
     writeFileSync(join(this.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
     printDiagnostics(manifest)
+  }
+
+  /**
+   * Write `foundations.json` from every kept snapshot, those of skipped tests
+   * included, and return what the manifest says about it. A run without
+   * tokens and problems, or with the option off, removes a stale file.
+   */
+  private async writeFoundations(
+    snapshotFiles: string[],
+  ): Promise<ManifestFoundations | undefined> {
+    const file = join(this.outDir, 'foundations.json')
+
+    if (!this.foundations.enabled) {
+      rmSync(file, { force: true })
+      return undefined
+    }
+
+    let collected: CollectedFoundations
+
+    // A diagnostic must never break the manifest.
+    try {
+      collected = await collectFoundations({
+        root: this.root,
+        snapshotFiles,
+        option: this.foundations,
+        importModule: importModuleOf(this.vitest),
+        paths: this.paths,
+        sheets: this.sheets,
+        tailwindModules: this.tailwindModules,
+      })
+    } catch (error) {
+      collected = this.failedFoundations(error)
+    }
+
+    const { foundations, summary } = collected
+
+    if (summary.tokens === 0 && summary.errors === undefined) {
+      rmSync(file, { force: true })
+      return undefined
+    }
+
+    writeFileSync(file, JSON.stringify(foundations, null, 2))
+
+    return summary
+  }
+
+  private failedFoundations(error: unknown): CollectedFoundations {
+    const errors = [this.paths.inText(`foundations: collecting failed: ${firstLineOf(error)}`)]
+
+    return {
+      foundations: {
+        version: 1,
+        systems: [],
+        tokenSheets: [],
+        fontSheets: [],
+        cssSources: [],
+        tokens: [],
+        errors,
+        duration: 0,
+      },
+      summary: { systems: [], tokens: 0, errors },
+    }
   }
 
   /** A diagnostic must never break the manifest, so a failing audit writes empty lists. */

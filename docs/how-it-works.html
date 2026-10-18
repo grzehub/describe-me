@@ -387,7 +387,8 @@
             <strong>In Node</strong> When a test file ends, the reporter's
             <code>onTestModuleEnd</code> builds the entry of each recorded test and writes its
             snapshots. When the run ends, <code>onTestRunEnd</code> reads the props of the
-            components, deletes the files no frame needs and writes <code>manifest.json</code>.
+            components, deletes the files no frame needs, writes <code>foundations.json</code> and
+            then <code>manifest.json</code>.
           </li>
         </ol>
 
@@ -565,14 +566,15 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         <pre>
 .describe-me/
   manifest.json
+  foundations.json
   snapshots/&lt;hash&gt;.json
   styles/&lt;hash&gt;.css
   assets/&lt;hash&gt;.&lt;ext&gt;</pre>
 
         <p>
-          Every file but the manifest is named after the first 16 hex characters of a SHA-1 of its
-          content. Identical content is written once, however many frames, tests and runs produce
-          it.
+          Every file but <code>manifest.json</code> and <code>foundations.json</code> is named after
+          the first 16 hex characters of a SHA-1 of its content. Identical content is written once,
+          however many frames, tests and runs produce it.
         </p>
 
         <p>For every frame, in this order, the reporter:</p>
@@ -609,6 +611,19 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           style chunks no kept snapshot refers to, then the assets that nothing kept refers to: no
           snapshot, chunk, preview head or kept CSS file. Folders inside the three directories are
           left alone.
+        </p>
+
+        <p>
+          Then the reporter writes <code>foundations.json</code> from every kept snapshot, those of
+          skipped tests included. It holds the design systems that <code>package.json</code> and
+          <code>components.json</code> name, the recorded stylesheets with custom properties on a
+          root-like selector or with <code>@font-face</code>, the project CSS files the frames load,
+          the Tailwind 4 theme and the tokens of the
+          <a href="configuration.html#option-foundations">theme module</a>. A stored sheet keeps its
+          <code>describe-me-style:</code> reference. The file is absent when the run found no token
+          and no problem, and with <code>foundations: false</code>.
+          <code>describe-me build</code> copies it and keeps its chunk references in step when it
+          vendors fonts.
         </p>
 
         <p>
@@ -760,6 +775,18 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                   Problems the plugin found in the project's setup, one sentence each. They come
                   from this run only, never from the previous manifest. Absent when there are none,
                   which counts as empty.
+                </td>
+              </tr>
+              <tr id="manifest-foundations">
+                <td><code>foundations</code></td>
+                <td class="nowrap"><code>ManifestFoundations</code></td>
+                <td class="nowrap">before 0.9</td>
+                <td>
+                  What <code>foundations.json</code> next to the manifest holds: the ids of the
+                  design systems, how many distinct token names the token sheets, the Tailwind theme
+                  and the theme module have together, and the problems while collecting, one
+                  sentence each. Also absent with <code>foundations: false</code> and when the run
+                  found no token and no problem.
                 </td>
               </tr>
             </tbody>

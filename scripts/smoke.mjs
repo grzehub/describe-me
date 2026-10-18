@@ -46,6 +46,14 @@
  * build touches the network. The browser data links no remote font and the
  * DOM build does not vendor, so neither copied manifest may differ from its
  * source but in `root`, which must be a 16-hex project id.
+ * The browser config names a theme module with
+ * `foundations: { theme: 'src/theme.ts#tokens' }`, and its test imports a
+ * token sheet with a dark variant. Its `foundations.json` must hold the
+ * module's tokens, `colors.ink` in light and dark, and the sheet, without
+ * errors. Its manifest must count 3 tokens and name styled-components, which
+ * the project installs. The DOM run finds no token, so it writes neither
+ * `foundations.json` nor `manifest.foundations`, and the default site copies
+ * the file unchanged.
  * Both manifests must name the config file of their run, and `live.mjs`
  * starts `createLiveServer()` on each of the two configs. The live page of the
  * test `Hello > greets and counts waves` must mount in both, and a click on its
@@ -408,6 +416,25 @@ describe('FireEvent', () => {
 })
 `
 
+/** The theme module that `foundations.theme` names, with a named export instead of `theme`. */
+const THEME_SOURCE = `export const tokens = {
+  colors: { ink: 'light-dark(#111111, #eeeeee)' },
+  space: { sm: '4px' },
+}
+`
+
+/** A token sheet that the browser test imports, with a dark variant. */
+const TOKENS_CSS = `:root {
+  --smoke-ink: #111111;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --smoke-ink: #eeeeee;
+  }
+}
+`
+
 function scaffold() {
   mkdirSync(join(app, 'src'), { recursive: true })
 
@@ -442,7 +469,13 @@ import { playwright } from '@vitest/browser-playwright'
 import { describeMe } from '@describe-me/vitest/plugin'
 
 export default defineConfig({
-  plugins: [react(), describeMe({ exclude: ['src/Excluded.test.tsx'] })],
+  plugins: [
+    react(),
+    describeMe({
+      exclude: ['src/Excluded.test.tsx'],
+      foundations: { theme: 'src/theme.ts#tokens' },
+    }),
+  ],
   test: {
     include: ['src/**/*.test.tsx'],
     browser: {
@@ -603,12 +636,15 @@ describe('Excluded', () => {
   )
 
   writeFileSync(join(app, 'src', 'Hello.tsx'), HELLO_SOURCE)
+  writeFileSync(join(app, 'src', 'theme.ts'), THEME_SOURCE)
+  writeFileSync(join(app, 'src', 'tokens.css'), TOKENS_CSS)
 
   writeFileSync(
     join(app, 'src', 'Hello.test.tsx'),
     `import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { Hello } from './Hello'
+import './tokens.css'
 
 describe('Hello', () => {
   it('greets and counts waves', async () => {
@@ -2000,6 +2036,62 @@ function verify(outDir, environment) {
   console.log('props of Hello:', hello.props.map((prop) => `${prop.name}: ${prop.type}`).join(', '))
 }
 
+/**
+ * The browser run reads its theme module through Vitest's module runner and
+ * the token sheet from the snapshots. The DOM run finds no token, so it
+ * writes no foundations, and the static site copies the file unchanged.
+ */
+function verifyFoundations() {
+  const foundations = readJson(join(app, '.describe-me', 'foundations.json'))
+  const manifest = readJson(join(app, '.describe-me', 'manifest.json'))
+  const ink = foundations.tokens.find((token) => token.name === 'colors.ink')
+  const theme = { module: 'src/theme.ts', export: 'tokens', adapter: 'object' }
+
+  assert(
+    isDeepStrictEqual(foundations.theme, theme),
+    `expected foundations.theme ${JSON.stringify(theme)}, got ${JSON.stringify(foundations.theme)}`,
+  )
+
+  assert(
+    isDeepStrictEqual(ink?.modes, { light: '#111111', dark: '#eeeeee' }),
+    `expected colors.ink in light and dark, got ${JSON.stringify(ink)}`,
+  )
+
+  assert(
+    foundations.tokenSheets.some((sheet) => sheet.source === 'src/tokens.css'),
+    `no token sheet from src/tokens.css: ${JSON.stringify(foundations.tokenSheets)}`,
+  )
+
+  assert(
+    foundations.errors.length === 0,
+    `foundations.json has errors: ${foundations.errors.join(' | ')}`,
+  )
+
+  assert(
+    manifest.foundations?.tokens === 3 &&
+      manifest.foundations.systems.includes('styled-components'),
+    `expected 3 tokens and styled-components in manifest.foundations, got ${JSON.stringify(manifest.foundations)}`,
+  )
+
+  const dom = readJson(join(app, '.describe-me-dom', 'manifest.json'))
+
+  assert(
+    !existsSync(join(app, '.describe-me-dom', 'foundations.json')) && !('foundations' in dom),
+    'the DOM run, which found no token, wrote foundations',
+  )
+
+  assert(
+    readFileSync(join(app, 'site', '__data', 'foundations.json'), 'utf8') ===
+      readFileSync(join(app, '.describe-me', 'foundations.json'), 'utf8'),
+    'site/__data/foundations.json differs from .describe-me/foundations.json',
+  )
+
+  console.log(
+    `
+foundations: ${manifest.foundations.tokens} tokens, ${foundations.duration} ms, theme ${foundations.theme.module}#${foundations.theme.export}`,
+  )
+}
+
 const WAVES = 'render:<Greeting name="Ada" /> | action:click(button "wave")'
 const ENDS = 'render:<Greeting name="Bea" />'
 
@@ -2383,6 +2475,7 @@ try {
   run('pnpm exec describe-me build --data .describe-me-dom --out site-dom --no-vendor-fonts', app)
   verify('.describe-me', 'browser')
   verify('.describe-me-dom', 'dom')
+  verifyFoundations()
   run('node live.mjs', app)
   verifyStyled(STYLED)
 

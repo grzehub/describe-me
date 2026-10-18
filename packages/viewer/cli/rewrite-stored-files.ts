@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { CssReference } from '@describe-me/core/css-references'
 import { cssReferences } from '@describe-me/core/css-references'
@@ -235,6 +235,34 @@ function rewriteSnapshots(
   return changed
 }
 
+/**
+ * `foundations.json` copies the `_cssText` of snapshots, so it gets the same
+ * rewrites, or it would name chunks that are removed afterwards.
+ */
+function rewriteFoundations(
+  dataDir: string,
+  input: StoredFilesInput,
+  assetRenames: Map<string, string>,
+  chunkRenames: Map<string, string>,
+): void {
+  const path = join(dataDir, 'foundations.json')
+
+  if (!existsSync(path)) {
+    return
+  }
+
+  const json = readFileSync(path, 'utf8')
+  const vendored = replaceRemoteUrls(json, 'json', ASSET_URL_PREFIX, input.names)
+  const rewritten = replaceChunkHashes(
+    replaceAssetNames(vendored, assetRenames),
+    hashRenames(chunkRenames),
+  )
+
+  if (rewritten !== json) {
+    writeFileSync(path, rewritten)
+  }
+}
+
 /** The old files that no new name reuses. */
 function replacedPaths(dir: string, renames: Map<string, string>, vendored: Set<string>): string[] {
   const finalNames = new Set(renames.values())
@@ -245,10 +273,10 @@ function replacedPaths(dir: string, renames: Map<string, string>, vendored: Set<
 }
 
 /**
- * Point the CSS assets, style chunks and snapshots of a data directory at the
- * vendored files, in that order. A changed CSS asset or chunk moves to the
- * hash of its new text before anything that names it changes. The files it
- * replaces stay until the caller removes them.
+ * Point the CSS assets, style chunks, snapshots and `foundations.json` of a
+ * data directory at the vendored files, in that order. A changed CSS asset or
+ * chunk moves to the hash of its new text before anything that names it
+ * changes. The files it replaces stay until the caller removes them.
  */
 export function rewriteStoredFiles(dataDir: string, input: StoredFilesInput): RewrittenFiles {
   if (input.names.size === 0) {
@@ -258,6 +286,8 @@ export function rewriteStoredFiles(dataDir: string, input: StoredFilesInput): Re
   const assets = rewriteCssAssets(dataDir, input)
   const chunks = rewriteChunks(dataDir, input, assets.renames)
   const snapshotsChanged = rewriteSnapshots(dataDir, input, assets.renames, chunks.renames)
+  // Not part of `changed`, which recounts remote stylesheets from the snapshots only.
+  rewriteFoundations(dataDir, input, assets.renames, chunks.renames)
 
   return {
     assetRenames: assets.renames,

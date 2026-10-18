@@ -4,7 +4,9 @@
  * snapshots, style chunks and CSS assets, the move of rewritten chunks and CSS
  * assets to the hash of their new text, the recount of `remoteStylesheets`
  * against `FontAudit`, the allowlist, all-or-nothing stylesheets, redirects,
- * the cache, offline and repeated runs, and 0.4 data.
+ * the cache, offline and repeated runs, 0.4 data, and `foundations.json`,
+ * whose stored sheets must name the moved chunks and whose inline sheets the
+ * vendored fonts.
  * A fake fetch serves in-memory fixtures and the global fetch throws. Every
  * run works on its own copy of a fixture data directory. Run after
  * `pnpm build`.
@@ -447,6 +449,36 @@ function legacyFixture() {
   })
 
   return { dir, cssText, manifest }
+}
+
+/** A data directory whose `foundations.json` lists a stored and an inline font sheet. */
+function foundationsFixture() {
+  const dir = tempDir()
+  const stored = `describe-me-style:${CHUNK_NAME.slice(0, 16)}`
+  const foundations = {
+    version: 1,
+    systems: [],
+    tokenSheets: [],
+    fontSheets: [{ cssText: stored, source: 'src/fonts.css' }, { cssText: INLINED_CSS }],
+    cssSources: ['src/fonts.css'],
+    tokens: [],
+    errors: [],
+    duration: 1,
+  }
+
+  writeFiles(dir, {
+    'manifest.json': JSON.stringify(LEGACY_MANIFEST, null, 2),
+    'snapshots/a.json': JSON.stringify(
+      documentOf([
+        element('style', { _cssText: stored, 'data-vite-dev-id': 'src/fonts.css' }),
+        element('style', { _cssText: INLINED_CSS }),
+      ]),
+    ),
+    'foundations.json': JSON.stringify(foundations, null, 2),
+    [`styles/${CHUNK_NAME}`]: CHUNK_CSS,
+  })
+
+  return dir
 }
 
 function errorMessage(error) {
@@ -1145,6 +1177,43 @@ async function checkLegacy(cacheDir) {
   )
 }
 
+async function checkFoundations(cacheDir) {
+  const dir = foundationsFixture()
+  await vendorFonts(dir, { cacheDir, fetch: fakeFetch([]) })
+  const foundations = JSON.parse(readText(dir, 'foundations.json'))
+  const [storedSheet, inlineSheet] = foundations.fontSheets
+  const [storedStyle, inlineStyle] = snapshotHead(dir, 'snapshots/a.json')
+
+  await check(
+    'foundations.json: every chunk it names exists and matches the snapshot’s reference',
+    () => {
+      const hashes = styleHashesIn(readText(dir, 'foundations.json'))
+
+      return {
+        passed:
+          hashes.length === 1 &&
+          !hashes.includes(CHUNK_NAME.slice(0, 16)) &&
+          hashes.every((hash) => existsSync(join(dir, 'styles', `${hash}.css`))) &&
+          storedSheet.cssText === storedStyle.attributes._cssText,
+        detail: `${storedSheet.cssText} in foundations.json, ${storedStyle.attributes._cssText} in the snapshot`,
+      }
+    },
+  )
+
+  await check('foundations.json: the inline font sheet names a describe-me-asset: URL', () => {
+    const names = assetNamesIn(inlineSheet.cssText)
+
+    return {
+      passed:
+        names.length === 1 &&
+        isFontAsset(dir, names[0]) &&
+        inlineSheet.cssText === inlineStyle.attributes._cssText &&
+        hostsIn(inlineSheet.cssText, 'css').length === 0,
+      detail: inlineSheet.cssText,
+    }
+  })
+}
+
 try {
   await checkParseArgs()
   await checkFindRemoteUrls()
@@ -1169,6 +1238,7 @@ try {
   await checkRefresh(requests, cacheDir, later)
   await checkOffline()
   await checkLegacy(cacheDir)
+  await checkFoundations(cacheDir)
 } finally {
   for (const dir of directories) {
     rmSync(dir, { recursive: true, force: true })
