@@ -240,7 +240,7 @@ of a test), `frame` (from 0), `suite` (`<module>::<suite path joined with
 which opens the test in Live and needs `test`, and `foundations` (one of the
 section ids `colors`, `typography`, `spacing`, `radius`, `shadows`,
 `breakpoints`, `motion` and `other`), which opens the Foundations view instead,
-needs tokens in the example's manifest and goes only with `bg`. The example
+needs tokens or Material UI in the example's manifest and goes only with `bg`. The example
 viewers are built with `--live`, so a page can link them with `live=1`. In
 HTML, write `&` as `&amp;`:
 
@@ -257,8 +257,8 @@ exists and the viewer shows it, that the frame exists, that the suite names a
 module and a suite of it, that `w` is 1 to 10000 and `h` 120 to 10000, that
 `bg` is `light`, `dark` or `transparent`, that `live` is `1` next to a `test`,
 that `foundations` names one of the eight sections of an example whose
-manifest has `foundations.tokens` and has only `bg` beside it, and that there
-are no other parameters. Run every example's tests first.
+manifest has `foundations.tokens` or `mui` in `foundations.systems` and has
+only `bg` beside it, and that there are no other parameters. Run every example's tests first.
 Test ids are stable across machines, so a link
 breaks only when its test is renamed or moved. Link to a viewer with the trailing slash: `examples/react-jsdom/`.
 
@@ -298,8 +298,9 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
   their page, and deep links at tests, frames and suites of the manifests. A
   deep link has `bg` only as `light`, `dark` or `transparent`, and `live` only
   as `live=1`, and only with a `test`. `foundations` names one of the eight
-  sections of the Foundations view, needs `foundations.tokens` in the
-  example's manifest and goes only with `bg`.
+  sections of the Foundations view, needs `foundations.tokens` or `mui` in
+  `foundations.systems` in the example's manifest, as the viewer's
+  `has-foundations.ts` does, and goes only with `bg`.
 - `live-statuses.mjs`: `troubleshooting.html#live` has a `live-*` element for
   every member of `LiveStatus`, and every `live-` id on the page names one.
 - `manifest-fields.mjs`: `how-it-works.html#manifest` has a `manifest-*` row

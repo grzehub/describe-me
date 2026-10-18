@@ -308,9 +308,12 @@ function checkFoundations(where, example, params, manifest) {
     )
   }
 
-  if (!(manifest.foundations?.tokens > 0)) {
+  // The rule of hasFoundations() in packages/viewer/src/has-foundations.ts.
+  const summary = manifest.foundations
+
+  if (!(summary?.tokens > 0 || summary?.systems?.includes('mui'))) {
     problems.push(
-      `${where}: examples/${example} has no foundation tokens in its manifest, so the viewer drops foundations`,
+      `${where}: examples/${example} has neither foundation tokens nor Material UI in its manifest, so the viewer drops foundations (packages/viewer/src/has-foundations.ts)`,
     )
   }
 

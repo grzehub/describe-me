@@ -27,6 +27,8 @@ export interface FoundationItem {
   type?: FoundationTokenType
   /** The token's origin. Custom properties have none. */
   origin?: 'project' | 'default'
+  /** The token's origin per color scheme, when only one of its modes is a framework default. */
+  modeOrigins?: FoundationToken['modeOrigins']
   /** The CSS value that paints its specimen. */
   paint: Schemed
   /** The value printed next to it. */
@@ -202,6 +204,7 @@ function tokenItem(token: FoundationToken, declared: ReadonlySet<string>): Place
       name: token.name,
       ...(token.type === undefined ? {} : { type: token.type }),
       origin: token.origin,
+      ...(token.modeOrigins === undefined ? {} : { modeOrigins: token.modeOrigins }),
       paint: painted ? { light: reference, dark: reference } : own,
       raw: painted ? { light: token.value, dark: token.value } : own,
       ...(token.parts === undefined ? {} : { parts: token.parts }),

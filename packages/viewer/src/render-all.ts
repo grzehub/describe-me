@@ -77,8 +77,9 @@ function showTest(center: HTMLElement): void {
 
 /**
  * Repaint every region from `state`: Foundations when a section is open and
- * the manifest has tokens, the overview when a suite is selected, else one
- * test. The branches follow `testShown()`, which `renderFrame()` checks.
+ * the manifest has tokens or names Material UI, the overview when a suite is
+ * selected, else one test. The branches follow `testShown()`, which
+ * `renderFrame()` checks.
  */
 export function renderAll(): void {
   const { headerInfo, banner, center, inspector } = regions()

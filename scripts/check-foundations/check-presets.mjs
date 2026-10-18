@@ -1,12 +1,20 @@
 /**
  * The preset cases of check-foundations, in Chromium on the static builds
  * that check-view.mjs serves: the blocks of each design system with their
- * ids, readable titles, prefixes and counts, the `default` badge, pair tiles
- * with their WCAG contrast, the spacing scales, drop and text shadows, the
- * token filter and `/`, the Material UI setup hint, and the synthetic copies
- * of copies.mjs. Every page opens through `openViewer()`.
+ * ids, readable titles, prefixes and counts, the `default` badge of Tailwind
+ * and of Material UI per section and per background, pair tiles with their
+ * WCAG contrast, the spacing scales, drop and text shadows, the token filter
+ * and `/`, the Material UI setup hint, and the synthetic copies of
+ * copies.mjs. The MUI output without its theme module has no specimen frame,
+ * so check-view.mjs covers it. Every page opens through `openViewer()`.
  */
-import { CHAKRA_COPY, COPIES, MUI_VARIABLES_ONLY, MUI_WITHOUT_THEME } from './copies.mjs'
+import {
+  CHAKRA_COPY,
+  COPIES,
+  MUI_DEFAULT_DARK_PRIMARY,
+  MUI_VARIABLES_ONLY,
+  MUI_WITHOUT_THEME,
+} from './copies.mjs'
 import {
   gotoViewer,
   openViewer,
@@ -15,6 +23,7 @@ import {
   waitForFonts,
   waitForFrame,
 } from './view-page.mjs'
+import { HINT_ONLY } from './viewers.mjs'
 
 // A copy of FOUNDATION_SECTIONS in packages/viewer/src/foundation-sections.ts.
 const SECTIONS = [
@@ -34,8 +43,9 @@ const PIXEL_TOLERANCE = 0.5
 const UPDATE_TIMEOUT = 5_000
 const BACKGROUNDS = ['light', 'dark']
 
-const SETUP_SENTENCE =
-  "To show the Material UI theme here, name its module in foundations: { theme: 'src/theme.ts' } or create the theme with cssVariables: true."
+/** A copy of the setup hint in packages/viewer/src/foundations-view.ts. */
+export const SETUP_SENTENCE =
+  "To show the Material UI theme here, name its module in foundations: { theme: 'src/theme.ts' }, which also marks Material UI's defaults, or create the theme with cssVariables: true."
 
 /** Ratio and level under `bg=light`, then `bg=dark`. `null` where no pin applies. */
 const SHADCN_CONTRAST = {
@@ -103,6 +113,27 @@ const MUI_VARIABLE_SECTIONS = [
   ['Shadows', 26],
   ['Other', 42],
 ]
+
+/** The `[data-origin="default"]` of each section in both MUI outputs, the same under `bg=light` and `bg=dark`. */
+const MUI_DEFAULTS = [
+  ['Colors', 47],
+  ['Typography', 16],
+  ['Spacing', 13],
+  ['Radius', 0],
+  ['Shadows', 25],
+  ['Breakpoints', 5],
+  ['Motion', 11],
+  ['Other', 8],
+]
+
+/** How many badges each token shows itself, not counting a foreground nested in its tile. */
+const MUI_BADGES = {
+  'palette.primary.main': 0,
+  'typography.h1': 0,
+  'shape.borderRadius': 0,
+  'palette.error.main': 1,
+  'typography.h2': 1,
+}
 
 const CHAKRA_SECTIONS = [
   ['Colors', 7],
@@ -696,6 +727,35 @@ function setupShown(page) {
   return page.evaluate(() => document.querySelector('.foundations .foundations-setup') !== null)
 }
 
+/** How many badges each named token shows itself, so a foreground nested in a pair tile does not count. */
+function ownBadges(page, names) {
+  return page.evaluate((wanted) => {
+    const doc = globalThis.specimenFrame().contentDocument
+    const counts = {}
+
+    for (const element of doc.querySelectorAll('[data-token]')) {
+      if (wanted.includes(element.dataset.token)) {
+        const badges = Array.from(element.querySelectorAll('.fd-badge'))
+        counts[element.dataset.token] = badges.filter(
+          (badge) => badge.closest('[data-token]') === element,
+        ).length
+      }
+    }
+
+    return counts
+  }, names)
+}
+
+function originOf(page, name) {
+  return page.evaluate(
+    (wanted) =>
+      Array.from(globalThis.specimenFrame().contentDocument.querySelectorAll('[data-token]'))
+        .find((token) => token.dataset.token === wanted)
+        ?.getAttribute('data-origin') ?? null,
+    name,
+  )
+}
+
 function variantSizes(page, names) {
   return page.evaluate((wanted) => {
     const doc = globalThis.specimenFrame().contentDocument
@@ -772,27 +832,77 @@ async function checkMuiTheme(check, label, page) {
     muiPins((intent) => `palette.${intent}.contrastText`),
   )
 
-  await check(`${label}: no default badge in any section and no setup hint`, async () => {
-    const badges = Object.values(blocks)
+  await check(
+    `${label}: [data-origin="default"] per section reads ${MUI_DEFAULTS.map(([title, count]) => `${title} ${count}`).join(', ')} under bg=light and bg=dark`,
+    async () => {
+      const problems = []
+
+      for (const bg of BACKGROUNDS) {
+        const counts = []
+
+        for (const [title] of MUI_DEFAULTS) {
+          await showSection(page, idOf(title), bg)
+          counts.push([title, await count(page, '[data-origin="default"]')])
+        }
+
+        if (JSON.stringify(counts) !== JSON.stringify(MUI_DEFAULTS)) {
+          problems.push(`bg=${bg}: ${JSON.stringify(counts)}`)
+        }
+      }
+
+      return outcome(problems)
+    },
+  )
+
+  await check(
+    `${label}: palette.primary.main, typography.h1 and shape.borderRadius have no badge, palette.error.main and typography.h2 one each`,
+    async () => {
+      const names = Object.keys(MUI_BADGES)
+      const found = {}
+
+      for (const section of ['colors', 'typography', 'radius']) {
+        await showSection(page, section)
+        Object.assign(found, await ownBadges(page, names))
+      }
+
+      return same(Object.fromEntries(names.map((name) => [name, found[name] ?? null])), MUI_BADGES)
+    },
+  )
+
+  await check(`${label}: no block title has a badge, and no setup hint`, async () => {
+    const titled = Object.values(blocks)
       .flat()
-      .filter((block) => block.badge !== null).length
+      .filter((block) => block.badge !== null)
+      .map((block) => block.id)
 
-    const marked = []
-
-    for (const [title] of await sectionButtons(page)) {
-      await showSection(page, idOf(title))
-      marked.push(await count(page, '.fd-badge'))
-    }
-
-    return same(
-      {
-        badges,
-        marked: marked.reduce((sum, count) => sum + count, 0),
-        setup: await setupShown(page),
-      },
-      { badges: 0, marked: 0, setup: false },
-    )
+    return same({ titled, setup: await setupShown(page) }, { titled: [], setup: false })
   })
+}
+
+/** Only the dark mode of the copy's primary is Material UI's default, so only `bg=dark` marks it. */
+async function checkDefaultDarkPrimary(check, page) {
+  const name = 'palette.primary.main'
+
+  await check(
+    `${MUI_DEFAULT_DARK_PRIMARY}: ${name} has no data-origin or badge under bg=light, and data-origin="default", one badge and rgb(144, 202, 249) under bg=dark`,
+    async () => {
+      const readings = []
+
+      for (const bg of BACKGROUNDS) {
+        await showSection(page, 'colors', bg)
+        readings.push({
+          origin: await originOf(page, name),
+          badges: (await ownBadges(page, [name]))[name] ?? null,
+          paint: await swatchColor(page, name),
+        })
+      }
+
+      return same(readings, [
+        { origin: null, badges: 0, paint: 'rgb(91, 75, 219)' },
+        { origin: 'default', badges: 1, paint: 'rgb(144, 202, 249)' },
+      ])
+    },
+  )
 }
 
 async function checkMuiVariables(check, page) {
@@ -1007,6 +1117,7 @@ const CASES = {
   'mui, MUI_CSS_VARS=1': (check, page) => checkMuiTheme(check, 'mui, MUI_CSS_VARS=1', page),
   [MUI_VARIABLES_ONLY]: (check, page) => checkMuiVariables(check, page),
   [MUI_WITHOUT_THEME]: (check, page) => checkMuiWithoutTheme(check, page),
+  [MUI_DEFAULT_DARK_PRIMARY]: (check, page) => checkDefaultDarkPrimary(check, page),
   [CHAKRA_COPY]: (check, page) => checkChakra(check, page),
   'react-jsdom': (check, page) =>
     checkPlain(check, 'react-jsdom', page, [
@@ -1062,10 +1173,13 @@ async function checkLabel(check, browser, label, url, output) {
 
 /**
  * Run the preset cases on every output and synthetic copy that `urls` names,
- * with check-foundations' `check()` and an open Chromium.
+ * but the one without a specimen frame, with check-foundations' `check()` and
+ * an open Chromium.
  */
 export async function checkPresets({ check, browser, urls, outputs }) {
-  const labels = [...Object.keys(outputs), ...Object.keys(COPIES)].filter((label) => urls[label])
+  const labels = [...Object.keys(outputs), ...Object.keys(COPIES)].filter(
+    (label) => urls[label] && label !== HINT_ONLY,
+  )
 
   for (const label of labels) {
     await checkLabel(check, browser, label, urls[label], outputs[label])

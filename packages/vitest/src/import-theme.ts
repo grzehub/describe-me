@@ -2,12 +2,16 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Foundations, FoundationToken } from '@describe-me/core/types'
 import { firstLineOf } from './first-line-of.js'
+import { markMuiDefaults } from './mark-mui-defaults.js'
 import { muiThemeTokens } from './mui-theme-tokens.js'
 import { objectThemeTokens } from './object-theme-tokens.js'
 import type { ProjectPaths } from './project-paths.js'
 import type { FoundationsOption } from './validate-foundations.js'
 
-/** Imports a project module the way Vitest runs it, from an absolute path. */
+/**
+ * Imports a module the way Vitest runs it, from an absolute path or a package
+ * id that resolves from the root.
+ */
 export type ImportModule = (file: string) => Promise<unknown>
 
 /** What the theme module gave: its description and tokens, or the one sentence that says why not. */
@@ -100,7 +104,9 @@ export async function importTheme(
   const theme = { module, export: picked.name }
 
   if (isMuiTheme(picked.value)) {
-    return { theme: { ...theme, adapter: 'mui' }, tokens: muiThemeTokens(picked.value), errors: [] }
+    const marked = await markMuiDefaults(picked.value, muiThemeTokens(picked.value), importModule)
+
+    return { theme: { ...theme, adapter: 'mui' }, ...marked }
   }
 
   const { tokens, truncated } = objectThemeTokens(picked.value)

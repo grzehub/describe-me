@@ -5,15 +5,18 @@
  * sections and their counts, resolved values, the dark variant by class, media
  * query and theme modes, fonts, the inspector, the frame's height, the viewer
  * theme and narrow widths. On react-browser it checks the link, and a copy of
- * its output without foundations must show no entry and fetch nothing. Then
- * check-presets.mjs checks the design-system blocks, contrast, the token
- * filter and the setup hint on every output and on the synthetic copies.
+ * its output without foundations must show no entry and fetch nothing. The
+ * MUI output without its theme module has no specimen frame, so it gets a
+ * case of its own: the entry, a page that holds only the heading and the
+ * setup hint, `/` and a link with `bg=dark`. Then check-presets.mjs checks the
+ * design-system blocks, the `default` badges, contrast, the token filter and
+ * the setup hint on every other output and on the synthetic copies.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rootCustomProperties } from '../../packages/vitest/dist/root-custom-properties.js'
 import { launchChromium } from '../docs/launch-chromium.mjs'
-import { checkPresets } from './check-presets.mjs'
+import { checkPresets, SETUP_SENTENCE } from './check-presets.mjs'
 import {
   gotoViewer,
   hashParams,
@@ -23,7 +26,7 @@ import {
   waitForFonts,
   waitForFrame,
 } from './view-page.mjs'
-import { serveViewers, WITHOUT_FOUNDATIONS } from './viewers.mjs'
+import { HINT_ONLY, serveViewers, WITHOUT_FOUNDATIONS } from './viewers.mjs'
 
 // A copy of FOUNDATION_SECTIONS in packages/viewer/src/foundation-sections.ts.
 const SECTIONS = [
@@ -781,6 +784,132 @@ async function checkWithout(check, url, browser) {
   return [...plain.failures, ...linked.failures]
 }
 
+/** What the page around the setup hint holds, inside `.foundations` unless it says otherwise. */
+function hintPage(page) {
+  return page.evaluate(() => {
+    const main = document.querySelector('.foundations')
+
+    return {
+      setup: main?.querySelector('.foundations-setup')?.textContent ?? null,
+      children: Array.from(main?.children ?? [], (child) => child.className),
+      sections: main?.querySelectorAll('.foundations-sections button').length ?? null,
+      filter: main?.querySelector('.foundations-filter') !== null,
+      backgrounds: main?.querySelector('.backgrounds') !== null,
+      iframe: main?.querySelector('iframe') !== null,
+      noTokens: document.body.textContent.includes('no tokens to show'),
+    }
+  })
+}
+
+/** Once the file is in, the panel is rebuilt with the hint alone. */
+async function waitForHint(page) {
+  await page.locator('.foundations .foundations-setup').waitFor({ timeout: 15_000 })
+}
+
+/**
+ * The MUI output without `foundations.theme`: an entry with no token behind
+ * it, and a page with the heading and the setup hint, and nothing else.
+ */
+async function checkHintOnly(check, url, browser) {
+  const label = HINT_ONLY
+  const viewer = await openViewer(browser, url)
+  const { page } = viewer
+
+  try {
+    await gotoViewer(viewer, url)
+
+    await check(
+      `${label}: the sidebar entry reads Foundations, Material UI · Emotion, and nothing fetched foundations.json`,
+      async () => {
+        const entry = await page.evaluate(() => ({
+          title:
+            document.querySelector('.foundations-entry .foundations-title')?.textContent ?? null,
+          systems:
+            document.querySelector('.foundations-entry .foundations-systems')?.textContent ?? null,
+        }))
+
+        return same(
+          { ...entry, requests: viewer.foundationsRequests() },
+          { title: 'Foundations', systems: 'Material UI · Emotion', requests: 0 },
+        )
+      },
+    )
+
+    await check(
+      `${label}: the entry opens foundations=colors with one request for foundations.json`,
+      async () => {
+        await page.locator('.foundations-entry').click()
+        await waitForHint(page)
+
+        return same(
+          {
+            foundations: (await hashParams(page)).foundations,
+            requests: viewer.foundationsRequests(),
+          },
+          { foundations: 'colors', requests: 1 },
+        )
+      },
+    )
+
+    await check(
+      `${label}: the page holds the heading and the setup hint, without sections, filter, background switch, frame or "no tokens to show"`,
+      async () =>
+        same(await hintPage(page), {
+          setup: SETUP_SENTENCE,
+          children: ['overview-head foundations-head', 'foundations-setup'],
+          sections: 0,
+          filter: false,
+          backgrounds: false,
+          iframe: false,
+          noTokens: false,
+        }),
+    )
+
+    await check(`${label}: / focuses the sidebar search`, async () => {
+      await page.locator('.foundations h1').click()
+      await page.keyboard.press('/')
+
+      return same(
+        await page.evaluate(() => document.activeElement?.matches('.sidebar-search') ?? false),
+        true,
+      )
+    })
+  } finally {
+    await viewer.close()
+  }
+
+  const dark = await openViewer(browser, url)
+
+  try {
+    await check(
+      `${label}: a fresh load of #foundations=colors&bg=dark keeps that page and shows no "no dark variant found"`,
+      async () => {
+        await gotoViewer(dark, url, '#foundations=colors&bg=dark')
+        await waitForHint(dark.page)
+
+        const params = await hashParams(dark.page)
+        const hinted = await dark.page.evaluate(() =>
+          document.body.textContent.includes('no dark variant found'),
+        )
+
+        return same(
+          { foundations: params.foundations, bg: params.bg, hinted },
+          { foundations: 'colors', bg: 'dark', hinted: false },
+        )
+      },
+    )
+  } finally {
+    await dark.close()
+  }
+
+  const failures = [...viewer.failures, ...dark.failures]
+
+  await check(`${label}: no page error, console error or failed request in the view`, () => ({
+    passed: failures.length === 0,
+    detail: [...new Set(failures)].join('; '),
+  }))
+}
+
 async function checkOutput(check, label, url, output, browser) {
   const failures = [
     ...(await checkMain(check, label, url, output, browser)),
@@ -816,7 +945,12 @@ export async function checkView({ check, tempDir, outputs }) {
 
   try {
     for (const [label, output] of Object.entries(outputs)) {
-      await checkOutput(check, label, served.urls[label], output, browser)
+      // Every case of checkOutput() waits for a specimen frame, which this page never has.
+      if (label === HINT_ONLY) {
+        await checkHintOnly(check, served.urls[label], browser)
+      } else {
+        await checkOutput(check, label, served.urls[label], output, browser)
+      }
     }
 
     if (served.urls['react-browser']) {

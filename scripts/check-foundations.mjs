@@ -2,32 +2,41 @@
  * Checks the design-system foundations that the reporter writes to
  * `foundations.json`, on the built packages. Unit cases cover the
  * `foundations` option, the scan for root custom properties (with a 1 MB
- * adversarial input), `light-dark()` splitting, the plain-object adapter and
- * `manifestDiagnostics`. `collectFoundations` runs on temp roots with an
- * injected module import: a missing theme file, a module without the export,
- * a throwing import whose message names the temp root, and Tailwind 4 without
- * `@tailwindcss/node` must each give exactly one sentence without a machine
- * path, and the other sources must still be collected. The reporter, driven
- * without a real Vitest, must remove a stale file with `foundations: false`,
- * write nothing for a run without tokens and problems, and say that it cannot
- * import a theme module without Vitest's module runner.
+ * adversarial input), `light-dark()` splitting, the plain-object adapter,
+ * `manifestDiagnostics`, and `muiDefaultOptions` with the real `createTheme()`
+ * of examples/mui. `collectFoundations` runs on temp roots with an injected
+ * module import: a missing theme file, a module without the export, a
+ * throwing import whose message names the temp root, Tailwind 4 without
+ * `@tailwindcss/node`, and a `@mui/material/styles` that throws on import,
+ * has no `createTheme` or has one that throws must each give exactly one
+ * sentence without a machine path, and the other sources must still be
+ * collected. A Material UI theme whose dark primary is Material UI's default
+ * must give that token `modeOrigins`. The reporter, driven without a real
+ * Vitest, must remove a stale file with `foundations: false`, write nothing
+ * for a run without tokens, problems and Material UI, write the file and a
+ * summary at 0 tokens for a Material UI project without tokens, and say that
+ * it cannot import a theme module without Vitest's module runner.
  *
- * Then it runs `examples/mui` with `MUI_CSS_VARS=1` and checks the output of
- * every example: shadcn with its Tailwind 4 theme and components.json, MUI
- * with its theme module with and without CSS variables, react-jsdom with its
- * plain theme object and react-browser with its custom properties only. Every
- * chunk that `foundations.json` names must exist, no file may name the
- * checkout or the home directory, and no manifest may carry foundations
- * errors. Then `check-foundations/check-view.mjs` opens a static build of
- * the viewer for every output in Chromium and checks the Foundations view:
- * the entry, the sections and counts, resolved values, the dark variant,
- * fonts, the inspector, the frame's height, the viewer theme, the link and
- * narrow widths, and a copy of react-browser's output without foundations.
+ * Then it runs `examples/mui` with `MUI_CSS_VARS=1` and with `MUI_THEME=off`,
+ * and checks the output of every example: shadcn with its Tailwind 4 theme
+ * and components.json, MUI with its theme module and Material UI's defaults
+ * with and without CSS variables, MUI without its theme module, react-jsdom
+ * with its plain theme object and react-browser with its custom properties
+ * only. Every chunk that `foundations.json` names must exist, no file may name
+ * the checkout or the home directory, and no manifest may carry foundations
+ * errors. Then `check-foundations/check-view.mjs` opens a static build of the
+ * viewer for every output in Chromium and checks the Foundations view: the
+ * entry, the sections and counts, resolved values, the dark variant, fonts,
+ * the inspector, the frame's height, the viewer theme, the link and narrow
+ * widths, a copy of react-browser's output without foundations, and the MUI
+ * output without its theme module, whose page holds only the setup hint.
  * `check-foundations/check-presets.mjs` adds the design-system blocks of every
- * output, the WCAG contrast of pair tiles, the token filter and `/`, and
+ * output, the `default` badges of Material UI per section under both
+ * backgrounds, the WCAG contrast of pair tiles, the token filter and `/`, and
  * synthetic copies: a Chakra UI project, a Material UI project without a
- * theme module, which shows the setup hint, and the `MUI_CSS_VARS=1` output
- * without its theme module. It prints how long collecting took per output. Run after `pnpm build` and
+ * theme module, which shows the setup hint, the `MUI_CSS_VARS=1` output
+ * without its theme module, and MUI's output with a default dark primary. It
+ * prints how long collecting took per output. Run after `pnpm build` and
  * every example's tests. Exits 1 on any failure.
  *
  * Usage: node scripts/check-foundations.mjs
@@ -44,13 +53,15 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 import { manifestDiagnostics } from '../packages/core/dist/manifest-diagnostics.js'
 import { collectFoundations } from '../packages/vitest/dist/collect-foundations.js'
 import { objectThemeTokens } from '../packages/vitest/dist/object-theme-tokens.js'
+import { muiDefaultOptions } from '../packages/vitest/dist/mui-default-options.js'
 import { describeMe } from '../packages/vitest/dist/plugin.js'
 import { ProjectPaths } from '../packages/vitest/dist/project-paths.js'
 import { RecordedSheets } from '../packages/vitest/dist/recorded-sheets.js'
@@ -72,6 +83,7 @@ if (process.env.NODE_PATH) {
 
 const REPO = fileURLToPath(new URL('..', import.meta.url))
 const EXAMPLES = join(REPO, 'examples')
+const MUI_STYLES = '@mui/material/styles'
 const STYLE_REFERENCE = /^describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)$/
 const STYLE_HASHES = /describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)/g
 const ADVERSARIAL_MS = 200
@@ -84,6 +96,28 @@ const OUTPUTS = {
   shadcn: 'shadcn/.describe-me',
   mui: 'mui/.describe-me',
   'mui, MUI_CSS_VARS=1': 'mui/node_modules/.describe-me-css-vars',
+  'mui, MUI_THEME=off': 'mui/node_modules/.describe-me-no-theme',
+}
+
+/** The tokens of examples/mui/src/theme.ts that differ from Material UI's defaults, in file order. */
+const MUI_PROJECT_TOKENS = [
+  'palette.primary.main',
+  'palette.primary.light',
+  'palette.primary.dark',
+  'palette.secondary.main',
+  'palette.secondary.light',
+  'palette.secondary.dark',
+  'typography.h1',
+  'typography.button',
+  'shape.borderRadius',
+]
+
+const MUI_DEFAULT_COUNT = 125
+
+/** The options that give Material UI's defaults with the example's light and dark schemes. */
+const MUI_EXAMPLE_OPTIONS = {
+  colorSchemes: { light: true, dark: true },
+  defaultColorScheme: 'light',
 }
 
 const directories = []
@@ -494,6 +528,87 @@ async function checkObjectAdapter() {
   )
 }
 
+// ---------- Material UI's defaults ----------
+
+/** The real `@mui/material/styles` of examples/mui. */
+function muiStyles() {
+  return createRequire(join(EXAMPLES, 'mui', 'package.json'))(MUI_STYLES)
+}
+
+function restoreEnv(name, value) {
+  if (value === undefined) {
+    delete process.env[name]
+  } else {
+    process.env[name] = value
+  }
+}
+
+/**
+ * The theme that examples/mui/src/theme.ts exports, imported through Vitest's
+ * module runner as the reporter imports it, with `MUI_CSS_VARS` at `value`.
+ */
+async function exampleTheme(value) {
+  const mui = join(EXAMPLES, 'mui')
+  const vitestNode = createRequire(join(mui, 'package.json')).resolve('vitest/node')
+  const { createVitest } = await import(pathToFileURL(vitestNode).href)
+  const inherited = process.env.MUI_CSS_VARS
+
+  // Without the example's config nothing defines the variable, so theme.ts reads it from the process.
+  process.env.MUI_CSS_VARS = value
+
+  const vitest = await createVitest('test', { config: false, root: mui, watch: false })
+
+  try {
+    const { theme } = await vitest.getRootProject().import(join(mui, 'src/theme.ts'))
+
+    return theme
+  } finally {
+    await vitest.close()
+    restoreEnv('MUI_CSS_VARS', inherited)
+  }
+}
+
+async function checkMuiDefaultOptions() {
+  const { createTheme } = muiStyles()
+
+  await check(
+    'muiDefaultOptions of the theme in examples/mui/src/theme.ts is its light and dark schemes and defaultColorScheme light',
+    async () => same(muiDefaultOptions(await exampleTheme('')), MUI_EXAMPLE_OPTIONS),
+  )
+
+  await check(
+    'muiDefaultOptions of the same theme with MUI_CSS_VARS=1 adds cssVariables with prefix mui, selector media and root :root',
+    async () =>
+      same(muiDefaultOptions(await exampleTheme('1')), {
+        ...MUI_EXAMPLE_OPTIONS,
+        cssVariables: { cssVarPrefix: 'mui', colorSchemeSelector: 'media', rootSelector: ':root' },
+      }),
+  )
+
+  await check(
+    "muiDefaultOptions of createTheme({ palette: { mode: 'dark' } }) is { palette: { mode: 'dark' } }",
+    () =>
+      same(muiDefaultOptions(createTheme({ palette: { mode: 'dark' } })), {
+        palette: { mode: 'dark' },
+      }),
+  )
+
+  await check(
+    'muiDefaultOptions leaves out a third color scheme, and createTheme() of the result does not throw',
+    () => {
+      // A partial palette makes createTheme() itself throw here.
+      const contrast = { palette: { ...createTheme().palette, mode: 'light' } }
+      const options = muiDefaultOptions(
+        createTheme({ cssVariables: true, colorSchemes: { light: true, dark: true, contrast } }),
+      )
+
+      createTheme(options)
+
+      return same(options.colorSchemes, { light: true, dark: true })
+    },
+  )
+}
+
 // ---------- collectFoundations on temp roots ----------
 
 /**
@@ -545,6 +660,123 @@ function oneSentence(root, collected, expected) {
       summary.tokens >= 1,
     detail: JSON.stringify(foundations.errors),
   }
+}
+
+/** `{ theme }` for the theme file, and `styles()` for Material UI's styles, the real ones by default. */
+function muiImport(theme, styles = muiStyles) {
+  return async (id) => (id === MUI_STYLES ? styles() : { theme })
+}
+
+/** Every token of the theme stays `project`, and the adapter stays `mui`. */
+function allProject(foundations) {
+  return (
+    foundations.theme?.adapter === 'mui' &&
+    foundations.tokens.length > 0 &&
+    foundations.tokens.every((token) => token.origin === 'project' && !token.modeOrigins)
+  )
+}
+
+/** Material UI's defaults on a theme whose dark primary is the default, then the three failures. */
+async function checkMuiCollected(themeOption) {
+  const theme = muiStyles().createTheme({
+    colorSchemes: { light: { palette: { primary: { main: '#5b4bdb' } } }, dark: true },
+  })
+
+  const files = { 'src/theme.ts': 'export const theme = {}' }
+
+  await check(
+    'collectFoundations: a theme with only a light primary gives palette.primary.main a default dark mode',
+    async () => {
+      const { foundations } = await collect(projectRoot(files), themeOption, muiImport(theme))
+      const primary = tokenNamed(foundations, 'palette.primary.main')
+      const error = tokenNamed(foundations, 'palette.error.main')
+
+      return same(
+        {
+          primary: [primary?.origin, primary?.modes, primary?.modeOrigins],
+          error: [error?.origin, 'modeOrigins' in (error ?? {})],
+          errors: foundations.errors,
+        },
+        {
+          primary: [
+            'project',
+            { light: '#5b4bdb', dark: '#90caf9' },
+            { light: 'project', dark: 'default' },
+          ],
+          error: ['default', false],
+          errors: [],
+        },
+      )
+    },
+  )
+
+  await check(
+    'collectFoundations: a throwing import of @mui/material/styles is one sentence without the temp root, and every token stays project',
+    async () => {
+      const root = projectRoot(files)
+      const throwing = () => {
+        throw new Error(
+          `Cannot find package '@mui/material' imported from ${join(root, 'src/theme.ts')}\n    at ${root}/x.js:1:1`,
+        )
+      }
+
+      const collected = await collect(root, themeOption, muiImport(theme, throwing))
+      const outcome = oneSentence(
+        root,
+        collected,
+        "foundations.theme: importing @mui/material/styles for Material UI's defaults failed: Cannot find package '@mui/material' imported from src/theme.ts",
+      )
+
+      return {
+        passed: outcome.passed && allProject(collected.foundations),
+        detail: `${outcome.detail}, ${JSON.stringify(collected.foundations.theme)}`,
+      }
+    },
+  )
+
+  await check(
+    'collectFoundations: @mui/material/styles without createTheme is exactly the sentence that says so',
+    async () => {
+      const { foundations } = await collect(
+        projectRoot(files),
+        themeOption,
+        muiImport(theme, () => ({})),
+      )
+
+      return {
+        passed:
+          isDeepStrictEqual(foundations.errors, [
+            'foundations.theme: @mui/material/styles has no createTheme, so no Material UI token is marked default',
+          ]) && allProject(foundations),
+        detail: JSON.stringify(foundations.errors),
+      }
+    },
+  )
+
+  await check(
+    'collectFoundations: a throwing createTheme() is one sentence without the temp root',
+    async () => {
+      const root = projectRoot(files)
+      const file = join(realpathSync(root), 'src/theme.ts')
+      const styles = () => ({
+        createTheme: () => {
+          throw new Error(`palette failed in ${file}`)
+        },
+      })
+
+      const collected = await collect(root, themeOption, muiImport(theme, styles))
+      const outcome = oneSentence(
+        root,
+        collected,
+        "foundations.theme: createTheme() of @mui/material/styles failed for Material UI's defaults: palette failed in src/theme.ts",
+      )
+
+      return {
+        passed: outcome.passed && allProject(collected.foundations),
+        detail: outcome.detail,
+      }
+    },
+  )
 }
 
 async function checkCollector() {
@@ -705,6 +937,8 @@ async function checkCollector() {
       },
     )
   })
+
+  await checkMuiCollected(themeOption)
 }
 
 // ---------- the reporter ----------
@@ -773,6 +1007,28 @@ async function checkReporter() {
   )
 
   await check(
+    'a run with Material UI and no token writes a fresh foundations.json and { systems: [mui], tokens: 0 }',
+    async () => {
+      const root = tempDir()
+      writeFiles(root, {
+        'package.json': { name: 'app', dependencies: { '@mui/material': '^9' } },
+        ...stale,
+      })
+
+      const { manifest, foundations } = await reporterRun(root, {})
+
+      return same(
+        {
+          summary: manifest.foundations,
+          stale: 'stale' in (foundations ?? { stale: true }),
+          tokens: foundations?.tokens,
+        },
+        { summary: { systems: ['mui'], tokens: 0 }, stale: false, tokens: [] },
+      )
+    },
+  )
+
+  await check(
     'a theme without Vitest’s module runner gives one sentence in the file, the manifest and the terminal',
     async () => {
       const root = projectRoot({ 'src/theme.ts': 'export const theme = {}' })
@@ -798,17 +1054,29 @@ async function checkReporter() {
 
 // ---------- the examples ----------
 
-function runCssVariables() {
+/** Runs examples/mui with `name=value`, without the other switch, which does not combine with it. */
+function runMui(name, value, other) {
+  const env = { ...process.env, [name]: value }
+  delete env[other]
+
   const result = spawnSync('pnpm', ['exec', 'vitest', 'run'], {
     cwd: join(EXAMPLES, 'mui'),
-    env: { ...process.env, MUI_CSS_VARS: '1' },
+    env,
     encoding: 'utf8',
   })
 
-  return check('examples/mui with MUI_CSS_VARS=1 passes', () => ({
+  return check(`examples/mui with ${name}=${value} passes`, () => ({
     passed: result.status === 0,
     detail: `exit ${result.status}\n${result.stdout}\n${result.stderr}`,
   }))
+}
+
+function runCssVariables() {
+  return runMui('MUI_CSS_VARS', '1', 'MUI_THEME')
+}
+
+function runWithoutTheme() {
+  return runMui('MUI_THEME', 'off', 'MUI_CSS_VARS')
 }
 
 /** A sheet's CSS: its stored chunks joined in order, or the inline text. */
@@ -1000,6 +1268,42 @@ async function checkShadcn({ outDir, foundations, manifest }) {
   }))
 }
 
+/** Material UI's defaults, which both outputs with the theme module share. */
+async function checkMuiDefaults(label, foundations) {
+  const origins = (origin) => foundations.tokens.filter((token) => token.origin === origin)
+
+  await check(
+    `${label}: ${MUI_DEFAULT_COUNT} tokens are default, and the ${MUI_PROJECT_TOKENS.length} project ones are those src/theme.ts sets`,
+    () =>
+      same(
+        {
+          defaults: origins('default').length,
+          project: origins('project').map(({ name }) => name),
+        },
+        { defaults: MUI_DEFAULT_COUNT, project: MUI_PROJECT_TOKENS },
+      ),
+  )
+
+  await check(
+    `${label}: palette.primary.main is project, palette.error.main default with modes #d32f2f and #f44336`,
+    () => {
+      const error = tokenNamed(foundations, 'palette.error.main')
+
+      return same(
+        [tokenNamed(foundations, 'palette.primary.main')?.origin, error?.origin, error?.modes],
+        ['project', 'default', { light: '#d32f2f', dark: '#f44336' }],
+      )
+    },
+  )
+
+  await check(`${label}: no token has modeOrigins`, () =>
+    same(
+      foundations.tokens.filter((token) => 'modeOrigins' in token).map(({ name }) => name),
+      [],
+    ),
+  )
+}
+
 async function checkMui({ foundations }) {
   const variants = foundations.tokens.filter(
     (token) => token.name.startsWith('typography.') && token.type === 'typography',
@@ -1050,6 +1354,8 @@ async function checkMui({ foundations }) {
       { cssSources: [], systems: ['mui', 'emotion'] },
     ),
   )
+
+  await checkMuiDefaults('mui', foundations)
 }
 
 async function checkMuiCssVariables({ outDir, foundations }) {
@@ -1074,6 +1380,45 @@ async function checkMuiCssVariables({ outDir, foundations }) {
       foundations.tokens.filter((token) => token.name.endsWith('Channel')).map(({ name }) => name),
       [],
     ),
+  )
+
+  await checkMuiDefaults('mui, MUI_CSS_VARS=1', foundations)
+
+  await check('mui, MUI_CSS_VARS=1: spacing(1) is default', () =>
+    same(tokenNamed(foundations, 'spacing(1)')?.origin, 'default'),
+  )
+}
+
+async function checkMuiWithoutTheme({ foundations, manifest }) {
+  const label = 'mui, MUI_THEME=off'
+
+  await check(
+    `${label}: systems mui and emotion, no theme, no tokens or token sheets, the 3 Roboto font sheets and no errors`,
+    () =>
+      same(
+        {
+          systems: foundations.systems.map(({ id }) => id),
+          theme: 'theme' in foundations,
+          tokens: foundations.tokens,
+          tokenSheets: foundations.tokenSheets,
+          fontSheets: foundations.fontSheets.map((sheet) => sheet.source),
+          errors: foundations.errors,
+        },
+        {
+          systems: ['mui', 'emotion'],
+          theme: false,
+          tokens: [],
+          tokenSheets: [],
+          fontSheets: ['400', '500', '700'].map(
+            (weight) => `node_modules/@fontsource/roboto/${weight}.css`,
+          ),
+          errors: [],
+        },
+      ),
+  )
+
+  await check(`${label}: manifest.foundations is { systems: [mui, emotion], tokens: 0 }`, () =>
+    same(manifest.foundations, { systems: ['mui', 'emotion'], tokens: 0 }),
   )
 }
 
@@ -1181,6 +1526,7 @@ async function checkEveryOutput(label, { outDir, manifest }) {
 
 async function checkExamples() {
   await runCssVariables()
+  await runWithoutTheme()
 
   const outputs = await readOutputs()
   const perOutput = {
@@ -1189,6 +1535,7 @@ async function checkExamples() {
     shadcn: checkShadcn,
     mui: checkMui,
     'mui, MUI_CSS_VARS=1': checkMuiCssVariables,
+    'mui, MUI_THEME=off': checkMuiWithoutTheme,
   }
 
   for (const [label, output] of Object.entries(outputs)) {
@@ -1211,6 +1558,7 @@ try {
   await checkRootCustomProperties()
   await checkSplitLightDark()
   await checkObjectAdapter()
+  await checkMuiDefaultOptions()
   await checkCollector()
   await checkReporter()
   await checkExamples()

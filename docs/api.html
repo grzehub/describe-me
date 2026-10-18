@@ -1193,12 +1193,19 @@
               <tr>
                 <td><code>FoundationToken</code></td>
                 <td>
-                  <code>{ name, group, type?, value, modes?, origin, source, parts? }</code>
+                  <code
+                    >{ name, group, type?, value, modes?, origin, modeOrigins?, source, parts?
+                    }</code
+                  >
                 </td>
                 <td>
                   One token from the Tailwind theme or the theme module. <code>value</code> is CSS
                   text, the light one when <code>modes</code> holds light and dark.
-                  <code>origin</code> is <code>default</code> for a framework default.
+                  <code>origin</code> is <code>default</code> for a framework default: Tailwind's
+                  <code>DEFAULT</code> flag, or a Material UI value that equals Material UI's own
+                  default in every mode and every part. <code>modeOrigins</code> holds the origin
+                  per color scheme when exactly one mode equals the default, and
+                  <code>origin</code> is then <code>project</code>.
                 </td>
               </tr>
               <tr>

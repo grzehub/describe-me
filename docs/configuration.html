@@ -358,7 +358,10 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                   relative to the root, a Material UI theme or a plain object.
                   <code>'src/theme.ts'</code> reads its export <code>theme</code>, else
                   <code>default</code>, and <code>'src/theme.ts#name'</code> reads
-                  <code>name</code>. A <code>light-dark()</code> value is read as light and dark.
+                  <code>name</code>. A <code>light-dark()</code> value is read as light and dark. A
+                  Material UI theme module also marks the tokens that equal Material UI's defaults.
+                  A project that uses Material UI without <code>theme</code> still gets
+                  <code>foundations.json</code>, so Foundations can say what to set.
                   <code>false</code> switches it off (<a
                     href="how-it-works.html#manifest-foundations"
                     >foundations in the manifest</a
@@ -852,8 +855,8 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code>,
           <code>STORIES</code> and the values <code>no-live-setup</code> and <code>off</code> of
           <code>LIVE_FIXTURES</code> work only in <code>examples/react-jsdom</code>, and
-          <code>MUI_CSS_VARS</code> only in <code>examples/mui</code>. Set them inline for one run.
-          There is no <code>.env</code>.
+          <code>MUI_CSS_VARS</code> and <code>MUI_THEME</code> only in <code>examples/mui</code>.
+          Set them inline for one run. There is no <code>.env</code>.
         </p>
 
         <div class="scroll">
@@ -960,6 +963,16 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>node_modules/.describe-me-css-vars</code>, so
                   <code>.describe-me/</code> keeps the default run.
                   <code>pnpm check-foundations</code> sets it.
+                </td>
+              </tr>
+              <tr id="env-MUI_THEME">
+                <td><code>MUI_THEME</code></td>
+                <td class="nowrap"><code>examples/mui</code></td>
+                <td>
+                  <code>off</code> leaves out <code>foundations.theme</code>, as a plain Material UI
+                  project does, and writes to <code>node_modules/.describe-me-no-theme</code>, where
+                  Foundations shows only the setup hint. It does not combine with
+                  <code>MUI_CSS_VARS=1</code>. <code>pnpm check-foundations</code> sets it.
                 </td>
               </tr>
             </tbody>

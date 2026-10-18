@@ -16,6 +16,9 @@ const CLI = join(repoRoot, 'packages', 'viewer', 'bin', 'describe-me.js')
 /** The label of the copy whose manifest has no `foundations` and which has no `foundations.json`. */
 export const WITHOUT_FOUNDATIONS = 'react-browser without foundations'
 
+/** The label of the MUI output without `foundations.theme`, whose page holds only the setup hint. */
+export const HINT_ONLY = 'mui, MUI_THEME=off'
+
 function slugOf(label) {
   return label
     .toLowerCase()
