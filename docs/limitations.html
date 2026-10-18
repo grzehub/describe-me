@@ -472,6 +472,23 @@
                 </td>
                 <td><span class="badge status-open">open</span></td>
               </tr>
+              <tr id="limit-live-dev-server">
+                <td>
+                  A static site has no dev server, so a plugin whose <code>apply</code> is
+                  <code>'serve'</code> runs in a build without one. What it does through the server
+                  (middleware, HMR, a websocket) or adds to the page in
+                  <code>transformIndexHtml</code> is missing. One that needs the server in a
+                  transform stops <code>describe-me build --live</code>. See
+                  <a href="how-it-works.html#live-static">The static live preview</a>.
+                </td>
+                <td><span class="badge env">build</span></td>
+                <td>
+                  Leave the plugin out while <code>DESCRIBE_ME_LIVE</code> is set, as in
+                  <code>...(process.env.DESCRIBE_ME_LIVE ? [] : [devTool()])</code>. Live under
+                  <code>describe-me dev</code> then runs without it too.
+                </td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
               <tr id="limit-site-from-disk">
                 <td>
                   A built site opened from disk does not load, because the viewer fetches its data.
@@ -587,8 +604,9 @@
           with <code>describe-me build --live</code>, mounts one test for real, but it runs
           <a href="#limit-live-arrange-only">only the arrange phase</a>,
           <a href="#limit-live-node-only">no code that needs Node</a>,
-          <a href="#limit-live-module-mocks">no module mocks</a> and
-          <a href="#limit-live-projects">only the root config</a>. A built site
+          <a href="#limit-live-module-mocks">no module mocks</a>,
+          <a href="#limit-live-projects">only the root config</a> and, on a static site,
+          <a href="#limit-live-dev-server">no dev server for plugins</a>. A built site
           <a href="#limit-site-from-disk">needs HTTP</a>. A
           <a href="#limit-old-viewer">0.4 viewer</a> cannot read 0.5 data, and links to a test
           <a href="#limit-test-id-rename">break when it is renamed</a>.

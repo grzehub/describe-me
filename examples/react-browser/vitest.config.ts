@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { playwright } from '@vitest/browser-playwright'
 import { describeMe } from '@describe-me/vitest/plugin'
+import { splitCssPlugin } from './live-fixtures/split-css-plugin.js'
 
 // DESCRIBE_ME=off runs the same tests without the plugin, DESCRIBE_ME=idle with
 // the plugin but without recording. Used for benchmarking. The idle run writes
@@ -16,7 +17,8 @@ if (process.env.BENCH_SKIP) {
 }
 
 // LIVE_FIXTURES=1 runs the fixtures of `pnpm check-live` in live-fixtures/,
-// with their own setup file and output directory.
+// with their own setup file and output directory, and a CSS plugin split in
+// two by `apply`, as @tailwindcss/vite is.
 const liveFixtures = Boolean(process.env.LIVE_FIXTURES)
 
 if (liveFixtures && process.env.LIVE_FIXTURES !== '1') {
@@ -52,6 +54,7 @@ const previewHead = `
 export default defineConfig({
   plugins: [
     react(),
+    ...(liveFixtures ? splitCssPlugin() : []),
     describeMe({
       enabled,
       previewHead,

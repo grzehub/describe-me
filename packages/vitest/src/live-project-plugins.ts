@@ -1,13 +1,27 @@
 import type { Vite } from 'vitest/node'
+import { LIVE_CONFIG_ENV } from './live-config-env.js'
+
+/** Whether the dev server runs a plugin that has an `apply`. */
+function keptByApply(plugin: Vite.Plugin, config: Vite.UserConfig): boolean {
+  const apply = plugin.apply
+
+  if (typeof apply === 'function') {
+    return Boolean(apply({ ...config, mode: LIVE_CONFIG_ENV.mode }, LIVE_CONFIG_ENV))
+  }
+
+  return apply === 'serve'
+}
 
 /**
- * The project's plugins for the live build, flattened the way Vite flattens
- * them: nested arrays and promises, without falsy entries. Those whose
- * `apply` is `'build'` are left out, because the dev server never runs them.
- * Vite itself drops those whose `apply` is `'serve'`.
+ * The project's plugins as the dev server applies them, flattened the way Vite
+ * flattens them, each without `apply`. So the build keeps the half of a split
+ * plugin that generates CSS on the dev server. A plugin kept by its `apply`
+ * runs without `transformIndexHtml`, which Vite calls without a server in a
+ * build.
  */
 export async function liveProjectPlugins(
   plugins: Vite.PluginOption[] | undefined,
+  config: Vite.UserConfig,
 ): Promise<Vite.PluginOption[]> {
   const flat: Vite.PluginOption[] = []
 
@@ -19,11 +33,19 @@ export async function liveProjectPlugins(
     }
 
     if (Array.isArray(plugin)) {
-      flat.push(...(await liveProjectPlugins(plugin)))
+      flat.push(...(await liveProjectPlugins(plugin, config)))
       continue
     }
 
-    if (!('apply' in plugin) || plugin.apply !== 'build') {
+    if (!('apply' in plugin) || !plugin.apply) {
+      flat.push(plugin)
+      continue
+    }
+
+    if (keptByApply(plugin, config)) {
+      // Not a copy: hooks may hold the plugin object, and every load of the config makes new ones.
+      delete plugin.apply
+      delete plugin.transformIndexHtml
       flat.push(plugin)
     }
   }

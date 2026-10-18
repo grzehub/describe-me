@@ -56,9 +56,12 @@
  * `describe-me build --live` builds each data directory into a site that a
  * static server serves under a sub-path, and the same test must mount from
  * its `__live/` and count a click. `buildLive()` must also finish with a test
- * file that imports `node:fs`, whose page reports `import-failed`. The two
- * sites built without `--live` must hold neither `__live.json` nor `__live/`.
- * No file of the four sites and of that `buildLive()` output may name the
+ * file that imports `node:fs`, whose page reports `import-failed`. With a
+ * config whose CSS plugin is split in two by `apply`, as `@tailwindcss/vite`
+ * is, `buildLive()` must run the serve half only, so the page of its test
+ * paints the serve half's colour. The two sites built without `--live` must
+ * hold neither `__live.json` nor `__live/`.
+ * No file of the four sites and of those `buildLive()` outputs may name the
  * temp directory of the smoke projects, the repository or the home directory.
  * The version guard is checked three ways: the packed packages peer on each
  * other at this release, both manifests name `@describe-me/vitest` and its
@@ -160,7 +163,14 @@ const tarballs = join(work, 'tarballs')
 const app = join(work, 'app')
 const withoutUserEvent = join(work, 'app-without-user-event')
 // What `describe-me build` and `buildLive()` write into the app, by the end of the run.
-const BUILT_DIRS = ['site', 'site-dom', 'site-live', 'site-dom-live', 'live-node-only']
+const BUILT_DIRS = [
+  'site',
+  'site-dom',
+  'site-live',
+  'site-dom-live',
+  'live-node-only',
+  'live-split-css',
+]
 
 /** Run a command in the given directory; `quiet` swallows its output unless it fails. */
 function run(command, cwd, quiet = false, env = {}) {
@@ -1310,6 +1320,63 @@ describe('NodeOnly', () => {
 })
 `
 
+// A CSS generator split in two by `apply`, as @tailwindcss/vite is. Vitest never runs this
+// config, only buildLive() in live.mjs loads it.
+const SPLIT_CSS_CONFIG = `import { defineConfig } from 'vitest/config'
+import type { Plugin } from 'vite'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+function appending(name: string, rule: string): Plugin {
+  return {
+    name,
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.split('?')[0].endsWith('/dom/swatch.css')) {
+        return null
+      }
+
+      return \`\${code}\\n\${rule}\\n\`
+    },
+  }
+}
+
+export default defineConfig({
+  plugins: [
+    react(),
+    {
+      ...appending('split-css:serve', '.swatch { background-color: rgb(0, 128, 0) }'),
+      apply: 'serve',
+      // Reads the server as the serve half of @vitejs/plugin-react-swc does.
+      transformIndexHtml(html, context) {
+        if (context.server === undefined) {
+          throw new Error('split-css: transformIndexHtml ran without a dev server')
+        }
+
+        return html
+      },
+    },
+    {
+      ...appending('split-css:build', '.swatch { background-color: rgb(255, 0, 0) }'),
+      apply: 'build',
+    },
+    describeMe(),
+  ],
+  test: { environment: 'jsdom' },
+})
+`
+
+const SWATCH_LIVE = `import { describe, it } from 'vitest'
+import { render } from '@testing-library/react'
+import './swatch.css'
+
+describe('Swatch', () => {
+  it('paints the generated colour', () => {
+    render(<p className="swatch">swatch</p>)
+  })
+})
+`
+
 /**
  * `live.mjs` mounts the Hello test of each environment through
  * `createLiveServer()` from the installed packages, opens its live page
@@ -1323,10 +1390,20 @@ describe('NodeOnly', () => {
  * and count a click. Last, `buildLive()` builds `dom/NodeOnly.live.tsx`,
  * which Vitest does not collect and which imports `node:fs`: the build must
  * finish, and the page of its test must report `import-failed` naming
- * `node:fs`. Under `--vite 6.4.3` this is the Rollup build.
+ * `node:fs`. Then `buildLive()` builds `dom/Swatch.live.tsx` with
+ * `vitest.split-css.config.ts`, whose CSS plugin is split in two by `apply`:
+ * its test must mount, and `.swatch` must paint the serve half's green, never
+ * the build half's red. Under `--vite 6.4.3` this is the Rollup build.
  */
 function scaffoldLive() {
   writeFileSync(join(app, 'dom', 'NodeOnly.live.tsx'), NODE_ONLY_LIVE)
+  writeFileSync(join(app, 'vitest.split-css.config.ts'), SPLIT_CSS_CONFIG)
+  writeFileSync(
+    join(app, 'dom', 'swatch.css'),
+    '/* The plugins of vitest.split-css.config.ts generate the rules of this file. */\n',
+  )
+
+  writeFileSync(join(app, 'dom', 'Swatch.live.tsx'), SWATCH_LIVE)
   writeFileSync(
     join(app, 'live.mjs'),
     `import { execFileSync, spawn } from 'node:child_process'
@@ -1545,6 +1622,55 @@ async function checkNodeOnly() {
   }
 }
 
+const SERVE_BACKGROUND = 'rgb(0, 128, 0)'
+const CAUSES = { 'rgb(255, 0, 0)': ', so the build half ran', 'rgba(0, 0, 0, 0)': ', so no half ran' }
+
+function swatchBackground() {
+  const swatch = document.querySelector('.swatch')
+
+  return swatch === null ? null : getComputedStyle(swatch).backgroundColor
+}
+
+/** A CSS plugin split by apply runs its serve half in buildLive(), and not its build half. */
+async function checkSplitCss() {
+  const outDir = 'live-split-css'
+
+  await buildLive({
+    root: process.cwd(),
+    configFile: 'vitest.split-css.config.ts',
+    outDir,
+    testFiles: ['dom/Swatch.live.tsx'],
+  })
+
+  const { server, url } = await serveUnderSubPath(outDir)
+
+  try {
+    const page = await browser.newPage()
+    const testPath = ['Swatch', 'paints the generated colour']
+    const shown = await liveStatus(page, url, 'dom/Swatch.live.tsx', testPath)
+
+    if (shown.status !== 'mounted') {
+      throw new Error(\`live: dom/Swatch.live.tsx reported \${shown.status}: \${shown.text}\`)
+    }
+
+    const painted = await page
+      .waitForFunction((expected) => {
+        const swatch = document.querySelector('.swatch')
+
+        return swatch !== null && getComputedStyle(swatch).backgroundColor === expected
+      }, SERVE_BACKGROUND, { timeout: 5_000 })
+      .then(() => true, () => false)
+
+    if (!painted) {
+      const background = await page.evaluate(swatchBackground)
+
+      throw new Error(\`live: .swatch of dom/Swatch.live.tsx paints \${background}\${CAUSES[background] ?? ''}, expected \${SERVE_BACKGROUND}\`)
+    }
+  } finally {
+    server.close()
+  }
+}
+
 try {
   for (const { configFile, file } of cases) {
     const server = await createLiveServer({ root: process.cwd(), configFile })
@@ -1577,6 +1703,8 @@ try {
 
   await checkNodeOnly()
   console.log('live: buildLive() finished with dom/NodeOnly.live.tsx, whose page reports import-failed naming node:fs')
+  await checkSplitCss()
+  console.log('live: buildLive() ran the serve half of a CSS plugin split by apply, and dom/Swatch.live.tsx paints rgb(0, 128, 0)')
 } finally {
   await browser.close()
 }

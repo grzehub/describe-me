@@ -1,4 +1,5 @@
 import type { Vite } from 'vitest/node'
+import { LIVE_CONFIG_ENV } from './live-config-env.js'
 import { LIVE_ENV } from './live-env.js'
 
 type LoadedConfig = NonNullable<Awaited<ReturnType<typeof Vite.loadConfigFromFile>>>
@@ -18,11 +19,7 @@ export async function loadLiveConfig(
   process.env[LIVE_ENV] = '1'
 
   try {
-    const loaded = await vite.loadConfigFromFile(
-      { command: 'serve', mode: 'test', isSsrBuild: false, isPreview: false },
-      configFile,
-      root,
-    )
+    const loaded = await vite.loadConfigFromFile(LIVE_CONFIG_ENV, configFile, root)
 
     if (loaded === null) {
       throw new Error(`describe-me: cannot load ${configFile}`)

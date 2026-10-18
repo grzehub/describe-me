@@ -125,10 +125,10 @@ export async function buildLive(options: LiveBuildOptions): Promise<LiveBuild> {
     clearScreen: false,
   })
 
-  // Dev never reads the project's build section, nor runs its build-only plugins.
+  // Dev never reads the project's build section, and the plugins run as on the dev server.
   config.build = liveBuildOptions(vite.version, root, options.outDir)
   config.plugins = [
-    ...(await liveProjectPlugins(loaded.config.plugins)),
+    ...(await liveProjectPlugins(loaded.config.plugins, loaded.config)),
     liveBuildPlugin({
       configName,
       testFiles,

@@ -8,7 +8,9 @@
  * and every page of the status table reports its status. Then the live
  * fixtures of react-browser and react-jsdom, which the fixture part already
  * ran under Vitest, are built with `LIVE_FIXTURES=1` and held to the same expectation
- * table, so the Node-only test reports `import-failed` with `node:fs`.
+ * table, so the Node-only test reports `import-failed` with `node:fs`, and
+ * the swatch of react-browser's CSS plugin split by `apply` paints with the
+ * CSS of its serve half, as on the dev server.
  * react-jsdom without `live.setupFiles` must report `setup-failed` for
  * server.node.ts, and with `live: false` `buildLive()` must reject with its
  * code and write nothing. After every build `DESCRIBE_ME_LIVE` is unset and

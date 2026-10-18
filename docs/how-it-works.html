@@ -1091,9 +1091,20 @@ const { protocol } = await buildLive({
             of <code>%s</code> rows, so the page would not find tests that dev mounts.
           </li>
           <li>
-            Your config's <code>build</code> section is not used, and plugins whose
-            <code>apply</code> is <code>'build'</code> or <code>'serve'</code> do not run. Dev never
-            reads the section, and an app or library build there would break the page.
+            Your config's <code>build</code> section is not used. Dev never reads it, and an app or
+            library build there would break the page.
+          </li>
+          <li>
+            Plugins run as on the dev server. <code>apply: 'serve'</code> runs,
+            <code>apply: 'build'</code> does not, and an <code>apply</code> function gets
+            <code>command: 'serve'</code>. So a plugin split in two by <code>apply</code>, such as
+            <code>@tailwindcss/vite</code>, generates the same CSS as in dev and in the tests, and
+            production-only plugins such as compression or legacy bundles stay out. Hooks still see
+            <code>command: 'build'</code>, so React's Fast Refresh stays off. A plugin kept by its
+            <code>apply</code> runs without <code>transformIndexHtml</code>, because Vite calls it
+            without a server in a build. That is how <code>@vitejs/plugin-react-swc</code> builds
+            without its refresh preamble. See
+            <a href="limitations.html#limit-live-dev-server">no dev server for plugins</a>.
           </li>
           <li>
             It builds with <code>NODE_ENV=development</code>, so React and
