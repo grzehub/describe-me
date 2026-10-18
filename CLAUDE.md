@@ -37,6 +37,7 @@ pnpm check-act-parity   # act warnings with and without recording in examples/re
 pnpm check-projects   # inline test.projects record and unmount, and one with extends: false keeps Testing Library's cleanup, on examples/react-jsdom with PROJECTS=1, after pnpm build and the jsdom example's tests
 pnpm check-stories   # stories: 'all' / 'tagged' and the docs / no-docs tags, on examples/react-jsdom/stories, after pnpm build
 pnpm check-live   # every test of all four examples mounted in the live preview and in a static build served under a sub-path, Live in every example's viewer through describe-me dev, and the live fixtures of react-browser and react-jsdom under Vitest, in the live preview and in the static build, in Chromium, after pnpm build and every example's tests
+pnpm check-foundations   # foundations.json of all four examples (shadcn, MUI with and without MUI_CSS_VARS=1, react-jsdom with its theme, react-browser), the option, the CSS scan, the adapters and the error paths, after pnpm build and every example's tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup

@@ -86,7 +86,8 @@
         <p>
           When a run ends, the reporter writes the manifest and prints what it could not document,
           one line per kind. Setup warnings come first, one line each, because they can explain
-          failing tests. A line names at most 5 items and sums up the rest as
+          failing tests. Problems reading the design-system foundations follow, also one line each.
+          A line names at most 5 items and sums up the rest as
           <code>(+n more)</code>. When everything is fine, it prints nothing.
         </p>
         <p>
@@ -191,6 +192,22 @@
                   Upgrade styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later.
                   See
                   <a href="styles-and-fonts.html#styled-components">styled-components</a>.
+                </td>
+              </tr>
+              <tr id="diag-foundationsErrors">
+                <td><code>foundationsErrors</code></td>
+                <td>
+                  <code
+                    >describe-me: foundations.theme: src/theme.ts has no export named theme or
+                    default</code
+                  >
+                </td>
+                <td>
+                  The reporter could not read part of the design-system foundations, and wrote the
+                  rest to <code>foundations.json</code>. For a theme module, check the path and the
+                  export in <code>foundations.theme</code>. For the Tailwind 4 theme, install
+                  <code>@tailwindcss/vite</code> or <code>@tailwindcss/postcss</code>. See
+                  <a href="configuration.html#option-foundations">foundations</a>.
                 </td>
               </tr>
             </tbody>

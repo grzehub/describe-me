@@ -223,7 +223,8 @@
                 </td>
                 <td>
                   The default export, a Vitest reporter. It writes <code>manifest.json</code>,
-                  <code>snapshots/</code>, <code>styles/</code> and <code>assets/</code>, as
+                  <code>foundations.json</code>, <code>snapshots/</code>, <code>styles/</code> and
+                  <code>assets/</code>, as
                   <a href="how-it-works.html#storage">How it works</a> explains.
                 </td>
               </tr>
@@ -232,7 +233,8 @@
                 <td>
                   <code
                     >{ outDir?: string; include?: string | string[]; exclude?: string | string[];
-                    previewHead?: string; setupWarnings?: string[] }</code
+                    stories?: 'all' | 'tagged'; previewHead?: string; setupWarnings?: string[];
+                    foundations?: false | { theme?: string } }</code
                   >
                 </td>
                 <td>
@@ -871,7 +873,7 @@
         </p>
 
         <p>
-          The root entry point also exports the 33 names of
+          The root entry point also exports the 41 names of
           <a href="#entry-core-types"><code>@describe-me/core/types</code></a
           >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
           <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
@@ -883,7 +885,11 @@
           <code>ManifestModule</code>, <code>PropKind</code>, <code>PropDoc</code>,
           <code>ComponentDoc</code>, <code>ManifestGenerator</code>, <code>Manifest</code>,
           <code>FontMissing</code>, <code>RemoteStylesheet</code>, <code>ANONYMOUS_COMPONENT</code>,
-          <code>ManifestDiagnostics</code>, <code>LiveStatus</code>,
+          <code>ManifestDiagnostics</code>, <code>DesignSystemId</code>,
+          <code>FoundationGroup</code>, <code>FoundationTokenType</code>,
+          <code>FoundationToken</code>, <code>FoundationsSheet</code>,
+          <code>FoundationsSystem</code>, <code>Foundations</code>,
+          <code>ManifestFoundations</code>, <code>LiveStatus</code>,
           <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>, <code>LiveReport</code> and
           <code>LiveMessage</code>.
         </p>
@@ -1112,7 +1118,8 @@
                 <td>
                   <code
                     >{ version, generator?, generatedAt, root, configFile?, modules, components,
-                    assetsMissing?, head?, fontsMissing?, remoteStylesheets?, setupWarnings? }</code
+                    assetsMissing?, head?, fontsMissing?, remoteStylesheets?, setupWarnings?,
+                    foundations? }</code
                   >
                 </td>
                 <td>
@@ -1143,13 +1150,90 @@
                 <td>
                   <code
                     >{ anonymous, undocumented, assetsMissing, fontsMissing, remoteStylesheets,
-                    setupWarnings }</code
+                    setupWarnings, foundationsErrors }</code
                   >
                 </td>
                 <td>
                   What keeps a manifest from documenting everything its tests rendered.
                   <code>manifestDiagnostics()</code> computes it, and
                   <a href="troubleshooting.html#diagnostics">Troubleshooting</a> explains each key.
+                </td>
+              </tr>
+              <tr>
+                <td><code>DesignSystemId</code></td>
+                <td>
+                  <code
+                    >'tailwind' | 'shadcn' | 'mui' | 'chakra' | 'mantine' | 'radix-themes' |
+                    'styled-components' | 'emotion' | 'antd'</code
+                  >
+                </td>
+                <td>A design system the reporter can name.</td>
+              </tr>
+              <tr>
+                <td><code>FoundationGroup</code></td>
+                <td>
+                  <code
+                    >'colors' | 'typography' | 'spacing' | 'radius' | 'shadows' | 'breakpoints' |
+                    'motion' | 'other'</code
+                  >
+                </td>
+                <td>The section of the Foundations view a token belongs to.</td>
+              </tr>
+              <tr>
+                <td><code>FoundationTokenType</code></td>
+                <td>
+                  <code
+                    >'color' | 'dimension' | 'fontFamily' | 'fontWeight' | 'number' | 'duration' |
+                    'cubicBezier' | 'shadow' | 'typography'</code
+                  >
+                </td>
+                <td>What a token's value is, named after the <code>$type</code> values of DTCG.</td>
+              </tr>
+              <tr>
+                <td><code>FoundationToken</code></td>
+                <td>
+                  <code>{ name, group, type?, value, modes?, origin, source, parts? }</code>
+                </td>
+                <td>
+                  One token from the Tailwind theme or the theme module. <code>value</code> is CSS
+                  text, the light one when <code>modes</code> holds light and dark.
+                  <code>origin</code> is <code>default</code> for a framework default.
+                </td>
+              </tr>
+              <tr>
+                <td><code>FoundationsSheet</code></td>
+                <td><code>{ cssText: string; source?: string }</code></td>
+                <td>
+                  A recorded stylesheet, as the snapshots keep it, with the
+                  <code>data-vite-dev-id</code> of its <code>&lt;style&gt;</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>FoundationsSystem</code></td>
+                <td><code>{ id: DesignSystemId; package?: string; version?: string }</code></td>
+                <td>A design system the project uses, and the installed version of its package.</td>
+              </tr>
+              <tr>
+                <td><code>Foundations</code></td>
+                <td>
+                  <code
+                    >{ version, systems, shadcn?, tokenSheets, fontSheets, cssSources, tailwind?,
+                    theme?, tokens, errors, duration }</code
+                  >
+                </td>
+                <td>
+                  The whole of <code>foundations.json</code>.
+                  <a href="how-it-works.html#storage">The output directory</a> says what it holds.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ManifestFoundations</code></td>
+                <td>
+                  <code>{ systems: DesignSystemId[]; tokens: number; errors?: string[] }</code>
+                </td>
+                <td>
+                  What the manifest says about <code>foundations.json</code>.
+                  <a href="how-it-works.html#manifest-foundations">The manifest</a> describes it.
                 </td>
               </tr>
               <tr>
@@ -1228,7 +1312,8 @@
                 </td>
                 <td>
                   Lists anonymous components, named ones without props, assets that will not load,
-                  fonts that nothing loads, hosts of remote stylesheets and setup warnings. The
+                  fonts that nothing loads, hosts of remote stylesheets, setup warnings and problems
+                  reading the design-system foundations (<code>foundationsErrors</code>). The
                   reporter prints the list after a run, and the viewer shows it in its header.
                 </td>
               </tr>

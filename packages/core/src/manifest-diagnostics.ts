@@ -8,7 +8,8 @@ function isHostElement(name: string): boolean {
 /**
  * List what the manifest could not document: anonymous components, named ones
  * without props, assets that will not load, font families that nothing loads,
- * hosts that frames load stylesheets from and problems in the project's setup.
+ * hosts that frames load stylesheets from, problems in the project's setup and
+ * problems reading the design-system foundations.
  * The reporter prints it after a run and the viewer shows it in the header, so
  * both agree on what is missing.
  */
@@ -44,5 +45,6 @@ export function manifestDiagnostics(manifest: Manifest): ManifestDiagnostics {
     fontsMissing: manifest.fontsMissing ?? [],
     remoteStylesheets: manifest.remoteStylesheets ?? [],
     setupWarnings: manifest.setupWarnings ?? [],
+    foundationsErrors: manifest.foundations?.errors ?? [],
   }
 }

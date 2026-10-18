@@ -346,6 +346,24 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                   >).
                 </td>
               </tr>
+              <tr id="option-foundations">
+                <td><code>foundations</code></td>
+                <td class="nowrap"><code>false |</code><br /><code>{ theme }</code></td>
+                <td>on, without a theme module</td>
+                <td>
+                  What the reporter writes to <code>foundations.json</code>: the design systems the
+                  project uses, the recorded stylesheets with tokens or <code>@font-face</code> and
+                  the Tailwind 4 theme. <code>theme</code> adds the tokens of a theme module,
+                  relative to the root, a Material UI theme or a plain object.
+                  <code>'src/theme.ts'</code> reads its export <code>theme</code>, else
+                  <code>default</code>, and <code>'src/theme.ts#name'</code> reads
+                  <code>name</code>. A <code>light-dark()</code> value is read as light and dark.
+                  <code>false</code> switches it off (<a
+                    href="how-it-works.html#manifest-foundations"
+                    >foundations in the manifest</a
+                  >).
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -770,6 +788,14 @@ export default defineConfig({
                 <td class="nowrap">none</td>
                 <td>Problems in the project's setup. The plugin fills it.</td>
               </tr>
+              <tr>
+                <td><code>foundations</code></td>
+                <td class="nowrap">on, without a theme module</td>
+                <td>
+                  What the reporter writes to <code>foundations.json</code>, as the plugin's
+                  <code>foundations</code>. <code>false</code> switches it off.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -930,8 +956,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                 <td class="nowrap"><code>examples/mui</code></td>
                 <td>
                   <code>1</code> builds the theme with <code>cssVariables: true</code> and writes to
-                  <code>node_modules/.describe-me-css-vars</code>, so <code>.describe-me/</code>
-                  keeps the default run.
+                  <code>node_modules/.describe-me-css-vars</code>, so
+                  <code>.describe-me/</code> keeps the default run.
+                  <code>pnpm check-foundations</code> sets it.
                 </td>
               </tr>
             </tbody>

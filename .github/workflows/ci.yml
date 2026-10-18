@@ -48,6 +48,7 @@ jobs:
       - run: pnpm check-projects
       - run: pnpm check-stories
       - run: pnpm check-live
+      - run: pnpm check-foundations
 
   smoke:
     name: smoke (${{ matrix.name }})

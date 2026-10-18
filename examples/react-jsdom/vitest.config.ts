@@ -229,6 +229,7 @@ export default defineConfig({
       enabled: process.env.DESCRIBE_ME !== 'off',
       previewHead,
       renderFrame: renderFrame(),
+      foundations: { theme: 'src/theme.ts' },
       ...benchOptions(),
       ...liveFixtureOptions(),
       ...projectOptions(),
