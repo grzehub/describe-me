@@ -774,9 +774,12 @@
           leaves no <code>__live/</code>. In its messages,
           <code>so describe-me build --live stopped</code> takes the place of
           <code>so the viewer runs without Live</code>, and an error of the build itself starts with
-          <code>the live build failed:</code>. It also stops without a manifest, which lists the
-          tests to build, and with <code>live: false</code> in the config, which
-          <code>--live</code> contradicts.
+          <code>the live build failed:</code>. When that error comes from a plugin whose
+          <code>apply</code> is <code>'serve'</code>, the plugin may need the dev server, which a
+          static site does not have. See
+          <a href="limitations.html#limit-live-dev-server">the limitation</a>. It also stops without
+          a manifest, which lists the tests to build, and with <code>live: false</code> in the
+          config, which <code>--live</code> contradicts.
         </p>
 
         <div class="scroll">

@@ -8,7 +8,9 @@
  * without a sandbox, on the site's own origin. In react-browser a click on
  * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
  * inspector. In shadcn an email typed into the frame and a click on Request
- * access show `onSubmit("ada@example.com")`. In react-browser the tag `forms` shows on its tests, the search
+ * access show `onSubmit("ada@example.com")`. Before the click, Request access
+ * paints the `--primary` of Tailwind's CSS, which proves that the static live
+ * build runs `@tailwindcss/vite`. In react-browser the tag `forms` shows on its tests, the search
  * finds them by it, `#tag=forms` and a click on the tag in the inspector narrow
  * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
  * test again. In every viewer `bg` and the background switch set the stage's
@@ -92,6 +94,51 @@ async function selectsRename(page) {
   return ', and Rename shows onSelect("Rename") in the inspector'
 }
 
+const NO_BACKGROUND = 'rgba(0, 0, 0, 0)'
+const PAINT_WAIT = 5_000
+const PAINT_POLL = 100
+
+/** The computed background of `button` and of a probe painted with `var(--primary)`, in its document. */
+function primaryBackgrounds(button) {
+  const probe = button.ownerDocument.createElement('div')
+
+  probe.style.backgroundColor = 'var(--primary)'
+  button.ownerDocument.body.append(probe)
+
+  const primary = getComputedStyle(probe).backgroundColor
+
+  probe.remove()
+
+  return { button: getComputedStyle(button).backgroundColor, primary }
+}
+
+/**
+ * Request access paints `--primary` from Tailwind's CSS. Comparing with a probe
+ * keeps Chromium's serialization of `oklch()` out of the check. It polls,
+ * because the button has `transition-all`.
+ */
+async function paintsThePrimaryButton(page) {
+  const button = page.frameLocator(LIVE_IFRAME).getByRole('button', { name: 'Request access' })
+  const deadline = Date.now() + PAINT_WAIT
+  let shown = null
+
+  while (Date.now() < deadline) {
+    shown = await button.evaluate(primaryBackgrounds)
+
+    if (shown.button === shown.primary && shown.button !== NO_BACKGROUND) {
+      return ', Request access paints --primary'
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, PAINT_POLL))
+  }
+
+  const transparent = shown?.button === NO_BACKGROUND ? ', which is transparent' : ''
+
+  throw new Error(
+    `Request access paints ${shown?.button}${transparent}, expected --primary, which computes to ${shown?.primary}`,
+  )
+}
+
 async function submitsTheEmail(page) {
   const frame = page.frameLocator(LIVE_IFRAME)
 
@@ -104,11 +151,19 @@ async function submitsTheEmail(page) {
   return ', and Request access shows onSubmit("ada@example.com") in the inspector'
 }
 
-/** The test each viewer mounts in Live, and what to do in it once mounted. */
+/**
+ * The test each viewer mounts in Live, what it must paint once mounted, and
+ * what to do in it after. The click of `act` leaves the pointer on a button,
+ * whose hover style would change what `paint` reads.
+ */
 const LIVE_TESTS = {
   'react-browser': { fullName: 'Menu > selects an item and reports it', act: selectsRename },
   'react-jsdom': { fullName: 'Heading > takes its colour from the theme' },
-  shadcn: { fullName: 'SignupCard > submits the email', act: submitsTheEmail },
+  shadcn: {
+    fullName: 'SignupCard > submits the email',
+    paint: paintsThePrimaryButton,
+    act: submitsTheEmail,
+  },
   mui: { fullName: 'PlanCard > marks the popular plan' },
 }
 
@@ -731,7 +786,7 @@ async function checkLiveIframe(page, expected) {
 }
 
 async function mountLive(page, url, name) {
-  const { fullName, act } = LIVE_TESTS[name]
+  const { fullName, paint, act } = LIVE_TESTS[name]
 
   await page.goto(`${url}examples/${name}/#test=${testIdOf(name, fullName)}`)
   await page
@@ -750,7 +805,10 @@ async function mountLive(page, url, name) {
     .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
     .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
 
-  return { problems: [], shown: act === undefined ? '' : await act(page) }
+  const painted = paint === undefined ? '' : await paint(page)
+  const acted = act === undefined ? '' : await act(page)
+
+  return { problems: [], shown: `${painted}${acted}` }
 }
 
 /** Live in the viewer of the site: `__live.json`, then one test mounted through `L`. */

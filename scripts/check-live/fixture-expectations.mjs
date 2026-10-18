@@ -3,7 +3,7 @@
  * preview, by example and full test name: its status, the case it covers
  * and, for some, a behaviour to check once it shows.
  */
-import { delay, expectVisible, liveMessages } from './live-frame.mjs'
+import { delay, expectVisible, liveMessages, POLL } from './live-frame.mjs'
 
 const TEARDOWN_WAIT = 1_000
 
@@ -97,6 +97,58 @@ async function servesTheBrowserData({ frame, page }) {
   ]
 }
 
+// The colours split-css-plugin.ts in react-browser's live-fixtures/ gives `.swatch`.
+const SERVE_BACKGROUND = 'rgb(0, 128, 0)'
+const BUILD_BACKGROUND = 'rgb(255, 0, 0)'
+const NO_BACKGROUND = 'rgba(0, 0, 0, 0)'
+const SERVE_COLOR = 'rgb(0, 0, 255)'
+const PAINT_WAIT = 5_000
+
+function swatchColors() {
+  const style = getComputedStyle(document.querySelector('.swatch'))
+
+  return { background: style.backgroundColor, color: style.color }
+}
+
+function unpaintedCause(background) {
+  if (background === BUILD_BACKGROUND) {
+    return ', so the build half ran'
+  }
+
+  if (background === NO_BACKGROUND) {
+    return ', so no half ran'
+  }
+
+  return ''
+}
+
+/** `.swatch` has the background of the plugin's serve half and the colour of its `apply` function. */
+async function paintsTheServeHalf({ frame }) {
+  const swatch = frame.locator('.swatch')
+  const deadline = Date.now() + PAINT_WAIT
+  let shown = null
+
+  while (Date.now() < deadline) {
+    if ((await swatch.count()) > 0) {
+      shown = await swatch.evaluate(swatchColors)
+
+      if (shown.background === SERVE_BACKGROUND && shown.color === SERVE_COLOR) {
+        return []
+      }
+    }
+
+    await delay(POLL)
+  }
+
+  if (shown === null) {
+    return [`.swatch did not show within ${PAINT_WAIT / 1000} s`]
+  }
+
+  return [
+    `.swatch has the background ${shown.background} and the colour ${shown.color}${unpaintedCause(shown.background)}, expected ${SERVE_BACKGROUND} and ${SERVE_COLOR}`,
+  ]
+}
+
 const NAMES = 'each and for names with %s %d %i %f %j %o %# %$ %%, $key and $0'
 
 /** The names of names.test.tsx, the same in react-browser and react-jsdom, with the rules of Vitest 5. */
@@ -161,6 +213,11 @@ export const FIXTURE_EXPECTATIONS = {
       status: 'mounted',
       covers: 'vi.mock and vi.doMock in a test file',
       check: keepsTheRealModules,
+    },
+    'Split CSS plugin > paints with the CSS of its serve half': {
+      status: 'mounted',
+      covers: 'a CSS plugin split by apply, as @tailwindcss/vite is',
+      check: paintsTheServeHalf,
     },
   },
   'react-jsdom': {

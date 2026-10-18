@@ -896,6 +896,8 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>1</code> runs <code>live-fixtures/</code> instead of <code>src/</code>, with
                   their own setup files, writing to
                   <code>node_modules/.describe-me-live-fixtures</code>. In
+                  <code>examples/react-browser</code> it also adds a CSS plugin split in two by
+                  <code>apply</code>, as <code>@tailwindcss/vite</code> is. In
                   <code>examples/react-jsdom</code>, <code>no-live-setup</code> leaves out
                   <code>live.setupFiles</code> and <code>off</code> sets <code>live: false</code>,
                   for the live preview of the same fixtures. <code>pnpm check-live</code> sets it.
