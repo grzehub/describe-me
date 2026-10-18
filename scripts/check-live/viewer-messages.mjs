@@ -275,24 +275,74 @@ async function waitsForTheStatus(context) {
   }
 }
 
+/** The `origin` parameter of a frame's URL. A frame that has not navigated yet has an empty one. */
+function originParam(url) {
+  try {
+    return new URL(url).searchParams.get('origin')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The frame once it holds the page whose URL names `origin`. A frame locator
+ * would still match the page before it, which has a status too.
+ */
+async function frameFor(page, origin) {
+  const deadline = Date.now() + STATUS_TIMEOUT
+
+  while (Date.now() < deadline) {
+    const frame = page.frames().find((candidate) => originParam(candidate.url()) === origin)
+
+    if (frame) {
+      return frame
+    }
+
+    await delay(ROOT_POLL)
+  }
+
+  return null
+}
+
 /** Its own posts go to the wrong origin, so it never reports to the host, and Chromium may log that. */
 async function ignoresAnotherViewer(context) {
-  const src = pageUrl(context.base, 'http://other.test', TEST)
+  const origin = 'http://other.test'
 
-  await context.page.evaluate((url) => {
-    document.getElementById('live').src = url
-  }, src)
+  await context.page.evaluate(
+    (url) => {
+      document.getElementById('live').src = url
+    },
+    pageUrl(context.base, origin, TEST),
+  )
 
-  await context.frame
-    .locator('html[data-describe-me-live]')
-    .waitFor({ state: 'attached', timeout: STATUS_TIMEOUT })
+  const frame = await frameFor(context.page, origin)
+
+  if (frame === null) {
+    return `the frame never showed the page for ${origin}`
+  }
+
+  // With a status the page applies a request at once, so one it took would show.
+  await frame.locator('html[data-describe-me-live]').waitFor({
+    state: 'attached',
+    timeout: STATUS_TIMEOUT,
+  })
 
   await post(context, request(BOTH))
   await delay(IGNORED_MS)
 
-  const root = await readRoot(context)
+  const root = await frame.locator('html').evaluate((element) => ({
+    origin: new URLSearchParams(location.search).get('origin'),
+    dark: element.classList.contains('dark'),
+    theme: element.getAttribute('data-theme'),
+  }))
 
-  return hasNeither(root) ? null : `the page took it: the root shows ${JSON.stringify(root)}`
+  if (root.origin !== origin) {
+    return `the frame left the page for ${origin} and shows one for ${root.origin}`
+  }
+
+  return root.dark || root.theme !== null
+    ? `the page took it: the root shows ${JSON.stringify(root)}`
+    : null
 }
 
 /** Runs the cases of one page in order, and stops at the first that fails. */
