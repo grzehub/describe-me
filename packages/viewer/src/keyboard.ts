@@ -1,5 +1,6 @@
 import type { ManifestTest } from '@describe-me/core/types'
 import { filterActive } from './filter-active.js'
+import { foundationsShown } from './foundations-shown.js'
 import { liveShown } from './live-shown.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
@@ -120,7 +121,7 @@ export function onKey(event: KeyboardEvent): void {
     return
   }
 
-  if (state.foundations !== null) {
+  if (foundationsShown()) {
     return
   }
 

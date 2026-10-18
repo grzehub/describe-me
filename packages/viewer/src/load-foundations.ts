@@ -1,5 +1,6 @@
 import type { Foundations } from '@describe-me/core/types'
 import { STYLE_URL_PREFIX } from '@describe-me/core/types'
+import { foundationsShown } from './foundations-shown.js'
 import { loadStyle } from './load-style.js'
 import { rerender } from './rerender.js'
 import { resolveAssetUrls } from './resolve-asset-urls.js'
@@ -129,7 +130,7 @@ export function loadFoundations(retry = false): FoundationsLoad {
 
       current.result = result
 
-      if (state.foundations !== null) {
+      if (foundationsShown()) {
         rerender()
       }
     })

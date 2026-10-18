@@ -633,11 +633,61 @@ async function checkCorrection(check, url, browser, hash) {
   return viewer.failures
 }
 
-/** Unknown and empty sections, Back after a test click, and the shortcuts that must do nothing. */
+/**
+ * The link changes while `manifest.json` is held back. Before a manifest is
+ * in, the test view and Foundations must agree on which one is shown, or the
+ * repaint calls itself until the stack overflows. Nothing may fetch
+ * `foundations.json` before the manifest says there are tokens.
+ */
+async function checkBeforeManifest(check, url, browser) {
+  const viewer = await openViewer(browser, url)
+  const { page } = viewer
+  let release = () => {}
+  const held = new Promise((resolve) => {
+    release = resolve
+  })
+
+  await page.route('**/__data/manifest.json', async (route) => {
+    await held
+    await route.continue()
+  })
+
+  try {
+    await check(
+      'react-browser: link changes before the manifest arrives repaint without a loop, and Foundations opens once it is in',
+      async () => {
+        await page.goto(url, { waitUntil: 'domcontentloaded' })
+        await setHash(page, 'foundations=colors')
+        await setHash(page, 'test=abc')
+        await page.goBack()
+        await page.waitForFunction(() => location.hash === '#foundations=colors')
+
+        const early = viewer.foundationsRequests()
+        release()
+        await waitForFrame(page, 'colors')
+
+        const errors = viewer.failures.filter((failure) => failure.startsWith('page error'))
+
+        return same({ early, errors }, { early: 0, errors: [] })
+      },
+    )
+  } finally {
+    release()
+    await viewer.close()
+  }
+
+  return viewer.failures
+}
+
+/**
+ * Unknown and empty sections, link changes before the manifest, Back after a
+ * test click, and the shortcuts that must do nothing.
+ */
 async function checkLink(check, url, browser) {
   const failures = [
     ...(await checkCorrection(check, url, browser, '#foundations=bogus')),
     ...(await checkCorrection(check, url, browser, '#foundations=motion')),
+    ...(await checkBeforeManifest(check, url, browser)),
   ]
 
   const viewer = await openViewer(browser, url)

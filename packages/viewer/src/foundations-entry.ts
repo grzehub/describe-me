@@ -1,5 +1,6 @@
 import { el } from './el.js'
 import { foundationsRetry } from './foundations-retry.js'
+import { foundationsShown } from './foundations-shown.js'
 import { openFoundations, state } from './state.js'
 import { systemName } from './system-name.js'
 
@@ -44,7 +45,7 @@ export function renderFoundationsEntry(nav: HTMLElement): void {
   const names = summary.systems.map((id) => systemName(id))
   built.systems.textContent = names.length > 0 ? names.join(' · ') : 'custom properties'
 
-  const open = state.foundations !== null
+  const open = foundationsShown()
   built.button.classList.toggle('active', open)
 
   if (open) {

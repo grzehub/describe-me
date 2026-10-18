@@ -1,4 +1,5 @@
 import { renderFoundationsInspector } from './foundations-inspector.js'
+import { foundationsShown } from './foundations-shown.js'
 import { showFoundations } from './foundations-view.js'
 import { renderHeader } from './header.js'
 import { renderMain } from './main-panel.js'
@@ -75,8 +76,9 @@ function showTest(center: HTMLElement): void {
 }
 
 /**
- * Repaint every region from `state`: Foundations when a section is open, the
- * overview when a suite is selected, else one test.
+ * Repaint every region from `state`: Foundations when a section is open and
+ * the manifest has tokens, the overview when a suite is selected, else one
+ * test. The branches follow `testShown()`, which `renderFrame()` checks.
  */
 export function renderAll(): void {
   const { headerInfo, banner, center, inspector } = regions()
@@ -89,9 +91,7 @@ export function renderAll(): void {
   showSidebarWidth()
   renderTree()
 
-  // `syncSelection()` drops the section for a manifest without tokens. Until a
-  // manifest is in, nothing may fetch `foundations.json`.
-  if (state.foundations !== null && state.manifest?.foundations?.tokens) {
+  if (foundationsShown()) {
     showFoundationsView(center, inspector)
   } else if (state.suiteKey) {
     showOverview(center, inspector, state.suiteKey)
