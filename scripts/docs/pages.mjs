@@ -12,6 +12,7 @@ export const pages = [
   { file: 'environments.html', title: 'Environments', group: 'Setup' },
   { file: 'writing-stories.html', title: 'Writing stories', group: 'Use' },
   { file: 'styles-and-fonts.html', title: 'Styles and fonts', group: 'Use' },
+  { file: 'foundations.html', title: 'Foundations', group: 'Use' },
   { file: 'viewer.html', title: 'Viewer and CLI', group: 'Use' },
   { file: 'troubleshooting.html', title: 'Troubleshooting', group: 'Use' },
   { file: 'api.html', title: 'API', group: 'Reference' },

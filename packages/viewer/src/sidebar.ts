@@ -7,6 +7,7 @@ import { shownTags } from './shown-tags.js'
 import { soleSuite } from './sole-suite.js'
 import { select, selectSuite, state } from './state.js'
 import { suiteKey } from './suite-key.js'
+import { testShown } from './test-shown.js'
 import { buildTree, type SuiteNode } from './tree.js'
 
 /** What every row of one repaint needs to know. `collapsed` is `null` while a filter is on. */
@@ -86,7 +87,7 @@ function testButton(test: ManifestTest): HTMLElement {
   return el(
     'button',
     {
-      class: `test${!state.suiteKey && test.id === state.testId ? ' active' : ''}`,
+      class: `test${testShown() && test.id === state.testId ? ' active' : ''}`,
       click: () => select(test.id),
       title: test.fullName,
     },

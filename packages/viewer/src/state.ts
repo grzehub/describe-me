@@ -1,6 +1,7 @@
-import type { Manifest, ManifestTest } from '@describe-me/core/types'
+import type { FoundationGroup, Manifest, ManifestTest } from '@describe-me/core/types'
 import type { LivePreviewInfo } from '../cli/live-preview-info.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
+import { parseFoundationsSection } from './parse-foundations-section.js'
 import type { StageBackground } from './parse-stage-background.js'
 import { parseStageBackground } from './parse-stage-background.js'
 import { parseViewportSize } from './parse-viewport-size.js'
@@ -12,6 +13,11 @@ export interface State {
   testId: string | null
   /** A sidebar suite or module selection; when set, the overview replaces the frame view. */
   suiteKey: string | null
+  /**
+   * The open section of Foundations, which replaces the frame view.
+   * `foundations=` in the link. The selected test is kept, as with an overview.
+   */
+  foundations: FoundationGroup | null
   frame: number
   /** The selected test mounted live instead of its frame. `live=1` in the link. */
   live: boolean
@@ -40,6 +46,7 @@ export const state: State = {
   manifest: null,
   testId: null,
   suiteKey: null,
+  foundations: null,
   frame: 0,
   live: false,
   preview: { status: 'off' },
@@ -56,6 +63,7 @@ export function readHash(): void {
   const params = new URLSearchParams(location.hash.slice(1))
   state.testId = params.get('test')
   state.suiteKey = params.get('suite')
+  state.foundations = parseFoundationsSection(params.get('foundations'))
   state.frame = Number(params.get('frame') ?? 0) || 0
   state.live = params.get('live') === '1'
   state.tag = params.get('tag') || null
@@ -93,12 +101,13 @@ export function currentTest(): ManifestTest | null {
 }
 
 /**
- * Show one test. Leaving the overview is the whole point, so the suite is
- * cleared. `mode` goes to `writeHash()`.
+ * Show one test. Leaving the overview or Foundations is the whole point, so
+ * both are cleared. `mode` goes to `writeHash()`.
  */
 export function select(testId: string, frame = 0, mode: 'push' | 'replace' = 'push'): void {
   state.testId = testId
   state.suiteKey = null
+  state.foundations = null
   state.frame = frame
   writeHash(mode)
   rerender()
@@ -114,6 +123,15 @@ export function filterByTag(tag: string | null): void {
 /** Show the overview of a suite or module. The selected test is kept, so going back works. */
 export function selectSuite(key: string): void {
   state.suiteKey = key
+  state.foundations = null
   writeHash('push')
+  rerender()
+}
+
+/** Show a section of Foundations. The selected test is kept, as with an overview. */
+export function openFoundations(section: FoundationGroup, mode: 'push' | 'replace'): void {
+  state.foundations = section
+  state.suiteKey = null
+  writeHash(mode)
   rerender()
 }

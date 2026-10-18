@@ -1,8 +1,8 @@
+import { BackgroundSwitch } from './background-switch.js'
 import { el } from './el.js'
 import { liveSession } from './live-session.js'
 import { liveShown } from './live-shown.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
-import type { StageBackground } from './parse-stage-background.js'
 import { parseViewportSize } from './parse-viewport-size.js'
 import { rerender } from './rerender.js'
 import { state, writeHash } from './state.js'
@@ -14,19 +14,11 @@ const PRESETS: { label: string; width: number | null }[] = [
   { label: '375px', width: 375 },
 ]
 
-/** Swatches, not words, so the breadcrumb path keeps its room. */
-const BACKGROUNDS: { value: StageBackground; title: string }[] = [
-  { value: 'auto', title: 'Stage background: auto, follows the page' },
-  { value: 'light', title: 'Stage background: light' },
-  { value: 'dark', title: 'Stage background: dark' },
-  { value: 'transparent', title: 'Stage background: transparent' },
-]
-
 interface Controls {
   tools: HTMLElement
   live: HTMLElement
   presets: Map<number | null, HTMLElement>
-  backgrounds: Map<StageBackground, HTMLElement>
+  backgrounds: BackgroundSwitch
   width: HTMLInputElement
   height: HTMLInputElement
   zoom: HTMLElement
@@ -36,12 +28,6 @@ let controls: Controls | null = null
 
 function setViewport(width: number | null, height: number | null): void {
   state.viewport = { width, height }
-  writeHash('replace')
-  rerender('frame')
-}
-
-function setBackground(background: StageBackground): void {
-  state.background = background
   writeHash('replace')
   rerender('frame')
 }
@@ -88,23 +74,8 @@ function build(): Controls {
     tools.append(button)
   }
 
-  const backgrounds = new Map<StageBackground, HTMLElement>()
-  const group = el('div', { class: 'backgrounds', role: 'group', 'aria-label': 'Stage background' })
-
-  for (const background of BACKGROUNDS) {
-    const button = el('button', {
-      type: 'button',
-      'data-bg': background.value,
-      'aria-label': background.value,
-      title: background.title,
-      click: () => setBackground(background.value),
-    })
-
-    backgrounds.set(background.value, button)
-    group.append(button)
-  }
-
-  tools.append(group)
+  const backgrounds = new BackgroundSwitch()
+  tools.append(backgrounds.element)
 
   const width = sizeInput('viewport width', 1, (size) => setViewport(size, state.viewport.height))
   const height = sizeInput('viewport height', MIN_FRAME_HEIGHT, (size) =>
@@ -170,12 +141,7 @@ export function renderViewportControls(): HTMLElement {
     button.classList.toggle('on', width === state.viewport.width)
   }
 
-  for (const [background, button] of controls.backgrounds) {
-    const on = background === state.background
-    button.classList.toggle('on', on)
-    button.setAttribute('aria-pressed', String(on))
-  }
-
+  controls.backgrounds.sync()
   mirror(controls.width, state.viewport.width)
   mirror(controls.height, state.viewport.height)
   controls.zoom.textContent = state.scale === 1 ? '' : `${Math.round(state.scale * 100)}%`

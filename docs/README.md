@@ -236,10 +236,13 @@ A link can open one test of an example viewer, at a frame and a viewport
 size. The view sits after `#` as URL parameters: `test` (the 12-character id
 of a test), `frame` (from 0), `suite` (`<module>::<suite path joined with
 ' > '>`, which opens the component overview instead), `w` and `h` in pixels,
-`bg` (`light`, `dark` or `transparent`, the stage background) and `live=1`,
-which opens the test in Live and needs `test`. The example viewers are built
-with `--live`, so a page can link them with `live=1`. In HTML, write `&` as
-`&amp;`:
+`bg` (`light`, `dark` or `transparent`, the stage background), `live=1`,
+which opens the test in Live and needs `test`, and `foundations` (one of the
+section ids `colors`, `typography`, `spacing`, `radius`, `shadows`,
+`breakpoints`, `motion` and `other`), which opens the Foundations view instead,
+needs tokens in the example's manifest and goes only with `bg`. The example
+viewers are built with `--live`, so a page can link them with `live=1`. In
+HTML, write `&` as `&amp;`:
 
 ```html
 <a href="examples/react-browser/#test=0123456789ab&amp;frame=1">the hover frame</a>
@@ -253,7 +256,9 @@ exact match it lists names that contain the text.
 exists and the viewer shows it, that the frame exists, that the suite names a
 module and a suite of it, that `w` is 1 to 10000 and `h` 120 to 10000, that
 `bg` is `light`, `dark` or `transparent`, that `live` is `1` next to a `test`,
-and that there are no other parameters. Run every example's tests first.
+that `foundations` names one of the eight sections of an example whose
+manifest has `foundations.tokens` and has only `bg` beside it, and that there
+are no other parameters. Run every example's tests first.
 Test ids are stable across machines, so a link
 breaks only when its test is renamed or moved. Link to a viewer with the trailing slash: `examples/react-jsdom/`.
 
@@ -292,7 +297,9 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
   example viewer, fragments at ids of their target, SVG references at ids of
   their page, and deep links at tests, frames and suites of the manifests. A
   deep link has `bg` only as `light`, `dark` or `transparent`, and `live` only
-  as `live=1`, and only with a `test`.
+  as `live=1`, and only with a `test`. `foundations` names one of the eight
+  sections of the Foundations view, needs `foundations.tokens` in the
+  example's manifest and goes only with `bg`.
 - `live-statuses.mjs`: `troubleshooting.html#live` has a `live-*` element for
   every member of `LiveStatus`, and every `live-` id on the page names one.
 - `manifest-fields.mjs`: `how-it-works.html#manifest` has a `manifest-*` row

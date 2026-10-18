@@ -17,12 +17,21 @@ function firstTest(manifest: Manifest): ManifestTest | undefined {
 
 /**
  * Point the selection at a test the manifest holds, falling back to the first
- * one the search and the tag leave, and clamp the frame. The link is corrected
- * in place, without a history entry. Does not repaint.
+ * one the search and the tag leave, and clamp the frame. Foundations closes
+ * when the manifest has no tokens, and an open Foundations drops the suite.
+ * The link is corrected in place, without a history entry. Does not repaint.
  */
 export function syncSelection(): void {
   if (!state.manifest) {
     return
+  }
+
+  if (!state.manifest.foundations?.tokens) {
+    state.foundations = null
+  }
+
+  if (state.foundations !== null) {
+    state.suiteKey = null
   }
 
   const resolved = resolveTestId(state.manifest, state.testId)

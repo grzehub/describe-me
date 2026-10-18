@@ -4,6 +4,7 @@ import { regions } from './regions.js'
 import { rerender } from './rerender.js'
 import { paintStage } from './stage.js'
 import { state } from './state.js'
+import { testShown } from './test-shown.js'
 import { testView } from './test-view.js'
 import { renderViewportControls } from './viewport-controls.js'
 
@@ -14,7 +15,7 @@ import { renderViewportControls } from './viewport-controls.js'
  */
 export function renderFrame(): void {
   const { main, timeline } = testView()
-  if (state.suiteKey || !main.isConnected || main.hidden) {
+  if (!testShown() || !main.isConnected || main.hidden) {
     rerender('all')
     return
   }

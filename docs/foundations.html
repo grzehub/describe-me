@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Foundations · describe-me docs</title>
+    <meta
+      name="description"
+      content="The Foundations view: the tokens of the project's design system, read from what the tests load, with their dark variant."
+    />
+    <link rel="icon" href="favicon.svg" />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="index.html"
+        >describe<span class="me">-me</span> <span class="muted">docs</span></a
+      >
+      <div class="facts">
+        <span class="badge prototype">prototype</span>
+        <span class="version">v0.8.0</span>
+        <span>browser mode · jsdom</span>
+      </div>
+      <div class="facts right">
+        <a href="examples.html">Examples</a>
+        <a href="https://www.npmjs.com/package/describe-me">npm</a>
+        <a href="https://github.com/grzehub/describe-me">GitHub</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" aria-label="Documentation">
+        <p class="group">Start</p>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="examples.html">Examples</a></li>
+          <li><a href="why.html">Why describe-me</a></li>
+        </ul>
+        <p class="group">Setup</p>
+        <ul>
+          <li><a href="installation.html">Installation</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="environments.html">Environments</a></li>
+        </ul>
+        <p class="group">Use</p>
+        <ul>
+          <li><a href="writing-stories.html">Writing stories</a></li>
+          <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
+          <li><a href="foundations.html" aria-current="page">Foundations</a></li>
+          <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+        </ul>
+        <p class="group">Reference</p>
+        <ul>
+          <li><a href="api.html">API</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="performance.html">Performance</a></li>
+          <li><a href="limitations.html">Limitations</a></li>
+        </ul>
+      </nav>
+
+      <main class="page">
+        <header class="page-head">
+          <h1>Foundations</h1>
+          <p class="page-meta">
+            packages/vitest/src/collect-foundations.ts · load-tailwind-theme.ts · import-theme.ts ·
+            packages/viewer/src/foundation-sections.ts
+          </p>
+        </header>
+
+        <p class="lead">
+          Foundations shows the tokens of the project's design system, read from what the tests
+          load, without stories or MDX. This page covers where the tokens come from, what the view
+          shows and how it shows the dark variant.
+        </p>
+
+        <h2 id="sources">
+          Where the tokens come from
+          <a class="anchor" href="#sources" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          After every run, the reporter writes <code>foundations.json</code> next to the manifest.
+          It reads four sources:
+        </p>
+        <ul>
+          <li>
+            <strong>Design systems.</strong> The ones that <code>package.json</code> and
+            <code>components.json</code> name, such as Tailwind, shadcn/ui, Material UI, Emotion and
+            styled-components.
+          </li>
+          <li>
+            <strong>Custom properties.</strong> The recorded stylesheets that declare custom
+            properties on a root-like selector, such as <code>:root</code>,
+            <code>html.dark</code> or <code>[data-theme="dark"]</code>, and those with
+            <code>@font-face</code>.
+          </li>
+          <li>
+            <strong>The Tailwind 4 theme.</strong> The tokens of the project's own
+            <code>@theme</code> and Tailwind's defaults, read from the CSS file that loads Tailwind.
+          </li>
+          <li>
+            <strong>A theme module.</strong> The tokens of a JS theme, such as a Material UI theme
+            or a plain object, when <code>foundations.theme</code> names one.
+          </li>
+        </ul>
+        <p>
+          <a href="configuration.html#option-foundations"><code>foundations</code></a> is the
+          option, and <a href="how-it-works.html#storage">the output directory</a> says how the file
+          is stored. Only CSS that the tests load counts. A token stylesheet that only the app entry
+          imports never reaches a frame, so its tokens are missing too.
+        </p>
+
+        <h3>When two sources name a token</h3>
+        <p>A token shows once. This decides which source it shows from:</p>
+        <ul>
+          <li>
+            <strong>A theme module beats <code>--mui-*</code>.</strong> With
+            <code>cssVariables: true</code>, Material UI also writes its theme as
+            <code>--mui-*</code> custom properties. The same values show once, from the theme
+            module.
+          </li>
+          <li>
+            <strong>The Tailwind theme beats the variables Tailwind writes.</strong> Tailwind writes
+            its theme into the CSS as custom properties, parts such as
+            <code>--text-xs--line-height</code> included. They show as tokens of the theme, not a
+            second time as custom properties.
+          </li>
+          <li>
+            <strong>Aliases give way.</strong> A color alias of <code>@theme inline</code>, such as
+            <code>--color-primary: var(--primary)</code>, gives way to the custom property it points
+            at. <code>--primary</code> shows instead, read from the CSS with its light and dark
+            values.
+          </li>
+          <li>
+            <strong>Missing from the CSS.</strong> Tailwind writes only the variables that utilities
+            use. A token of the Tailwind theme that the CSS lacks paints with its theme value.
+          </li>
+        </ul>
+
+        <h2 id="view">
+          The view <a class="anchor" href="#view" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          A Foundations entry sits in the sidebar of the viewer, above the test files. It shows only
+          when the run found tokens, as
+          <a href="how-it-works.html#manifest-foundations"><code>foundations</code></a> in the
+          manifest counts them. It names the design systems, such as
+          <code>Tailwind · shadcn/ui</code>, <code>Material UI · Emotion</code> or
+          <code>styled-components</code>, and <code>custom properties</code> when there is none.
+        </p>
+        <p>
+          The view has one section per token group, in this order: Colors, Typography, Spacing,
+          Radius, Shadows, Breakpoints, Motion and Other. Only the sections with tokens show, each
+          as a button with its count.
+        </p>
+        <p>
+          The specimens of the shown section render in one iframe, sandboxed with
+          <code>allow-same-origin</code> only, so no script runs, as in a
+          <a href="styles-and-fonts.html#captured">frame</a>. It loads the project's own token and
+          font stylesheets inside <code>@layer project</code>, so fonts and <code>var()</code> are
+          real. The view's own CSS sits outside any layer, so it wins where both set the same
+          property.
+        </p>
+
+        <h3>Blocks</h3>
+        <p>
+          Inside a section, the tokens fall into blocks, in this order. An empty block drops out.
+        </p>
+        <dl class="kv">
+          <dt><code>Theme · &lt;module&gt;</code></dt>
+          <dd>The tokens of the theme module, such as <code>Theme · src/theme.ts</code>.</dd>
+          <dt><code>Custom properties</code></dt>
+          <dd>The custom properties of the recorded stylesheets.</dd>
+          <dt><code>Tailwind theme</code></dt>
+          <dd>The tokens of the project's own <code>@theme</code>.</dd>
+          <dt><code>Tailwind defaults</code></dt>
+          <dd>The tokens Tailwind ships.</dd>
+        </dl>
+
+        <h3>Specimens</h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Specimen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Colors</td>
+                <td>a swatch grid</td>
+              </tr>
+              <tr>
+                <td>Typography</td>
+                <td>
+                  a sample line in the family, the weight or the size, or in the whole composite
+                  typography token
+                </td>
+              </tr>
+              <tr>
+                <td>Spacing</td>
+                <td>a bar of that length</td>
+              </tr>
+              <tr>
+                <td>Radius</td>
+                <td>a box with that border radius</td>
+              </tr>
+              <tr>
+                <td>Shadows</td>
+                <td>a card with that box shadow</td>
+              </tr>
+              <tr>
+                <td>Breakpoints</td>
+                <td>a bar each, scaled to the widest</td>
+              </tr>
+              <tr>
+                <td>Motion and Other</td>
+                <td>a list row each</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Each token shows its raw value. When the value refers to other tokens and resolves to
+          something else, it shows <code>raw → resolved</code>, such as
+          <code>var(--radius) → 0.625rem</code> or
+          <code>calc(var(--radius) - 4px) → calc(0.625rem - 4px)</code>.
+        </p>
+
+        <h3>The inspector</h3>
+        <p>
+          While Foundations is open, the inspector shows a <code>foundations</code> section. A row
+          that does not apply is left out.
+        </p>
+        <dl class="kv">
+          <dt>systems</dt>
+          <dd>
+            The design systems with their versions. shadcn/ui adds its style and base color from
+            <code>components.json</code>.
+          </dd>
+          <dt>Tailwind entry</dt>
+          <dd>The CSS file that loads Tailwind, such as <code>src/index.css</code>.</dd>
+          <dt>theme module</dt>
+          <dd>
+            The module and its export, such as <code>src/theme.ts#theme</code>, with its adapter.
+          </dd>
+          <dt>stylesheets</dt>
+          <dd>How many token and font sheets, such as <code>1 token sheet, 1 font sheet</code>.</dd>
+          <dt>dark variant</dt>
+          <dd>
+            What <code>dark</code> applies: <code>class .dark</code>,
+            <code>attribute [data-theme="dark"]</code>, <code>prefers-color-scheme</code>,
+            <code>theme modes</code> or <code>none</code> (<a href="#dark-variant"
+              >the dark variant</a
+            >).
+          </dd>
+          <dt>collected</dt>
+          <dd>How long the reporter took to collect the tokens, in milliseconds.</dd>
+        </dl>
+        <p>
+          An <code>errors</code> section lists the problems the reporter met while collecting.
+          <a href="troubleshooting.html#diag-foundationsErrors"><code>foundationsErrors</code></a>
+          says what to do about them.
+        </p>
+
+        <h3>Links and hosting</h3>
+        <p>
+          The link keeps the section as <code>foundations=&lt;section&gt;</code>, which
+          <a href="viewer.html#links">Links</a> describes with the rest of the address. Foundations
+          works on a static site from <code>describe-me build</code> and without Live. The viewer
+          fetches <code>foundations.json</code> only when the view opens.
+        </p>
+        <p>
+          See the <a href="examples/shadcn/#foundations=colors">colors</a> of the shadcn/ui example,
+          its <a href="examples/shadcn/#foundations=radius">radius</a>, where the project's own
+          tokens show <code>raw → resolved</code>, and the
+          <a href="examples/mui/#foundations=typography">typography</a> of the Material UI example.
+        </p>
+
+        <h2 id="dark-variant">
+          The dark variant
+          <a class="anchor" href="#dark-variant" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          The stage's background switch sits at the top of the view too, with the same four swatches
+          as the <a href="viewer.html#viewport-background">viewport toolbar</a>: <code>auto</code>,
+          <code>light</code>, <code>dark</code> and <code>transparent</code>. It is part of the link
+          as <code>bg</code>. <code>dark</code> applies the dark variant the project declares:
+        </p>
+        <ul>
+          <li><strong>A class.</strong> <code>.dark</code> on the root.</li>
+          <li>
+            <strong>An attribute.</strong> <code>[data-*="dark"]</code>, such as
+            <code>[data-theme="dark"]</code>.
+          </li>
+          <li>
+            <strong>A media query.</strong> Rules under <code>prefers-color-scheme: dark</code>. The
+            iframe of the specimens takes the dark color scheme, so they match.
+          </li>
+          <li>
+            <strong><code>light-dark()</code>.</strong> Values written with it show their dark
+            value.
+          </li>
+          <li>
+            <strong>Theme modes.</strong> A theme module with a light and a dark mode, such as the
+            <code>colorSchemes</code> of a Material UI theme, shows its dark values.
+          </li>
+        </ul>
+        <p>
+          <code>light</code> and <code>auto</code> show the light variant.
+          <code>transparent</code> shows it on the checkerboard. Under <code>dark</code>, when the
+          project has no dark variant and no theme modes, the view shows the hint
+          <code>no dark variant found</code>. The inspector's dark variant row names the one the
+          project declares.
+        </p>
+        <p>
+          The <a href="viewer.html#layout-theme">viewer theme</a>, the switch in the header, never
+          changes a specimen. It colors only the panel around them.
+        </p>
+        <p>
+          Compare the dark variant of the shadcn/ui example, a <code>.dark</code> class, in its
+          <a href="examples/shadcn/#foundations=colors&amp;bg=dark">colors</a>, that of the
+          browser-mode example, <code>prefers-color-scheme</code>, in
+          <a href="examples/react-browser/#foundations=colors&amp;bg=dark">its colors</a>, and the
+          theme modes of the Material UI example in
+          <a href="examples/mui/#foundations=colors&amp;bg=dark">its colors</a>.
+        </p>
+
+        <h2 id="limits">
+          Limits <a class="anchor" href="#limits" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          Foundations reads
+          <a href="limitations.html#limit-foundations-loaded-css"
+            >only the CSS that the tests load</a
+          >. The Tailwind 4 theme comes from
+          <a href="limitations.html#limit-foundations-tailwind-unstable">an unstable API</a>, the
+          config of <a href="limitations.html#limit-foundations-tailwind-3">Tailwind 3</a> is not
+          read, and
+          <a href="limitations.html#limit-foundations-presets"
+            >Chakra UI, Mantine and Radix Themes</a
+          >
+          show in the generic sections only.
+          <a href="limitations.html#summary">Limitations</a> lists the workarounds.
+        </p>
+
+        <nav class="pager" aria-label="Pages">
+          <a class="prev" href="styles-and-fonts.html"><span>Previous</span>Styles and fonts</a>
+          <a class="next" href="viewer.html"><span>Next</span>Viewer and CLI</a>
+        </nav>
+
+        <footer class="page-foot">
+          <a href="https://github.com/grzehub/describe-me/blob/main/docs/foundations.html"
+            >Edit this page on GitHub</a
+          >
+        </footer>
+      </main>
+
+      <aside class="toc" aria-label="On this page">
+        <p class="group">On this page</p>
+        <ul>
+          <li><a href="#sources">Where the tokens come from</a></li>
+          <li><a href="#view">The view</a></li>
+          <li><a href="#dark-variant">The dark variant</a></li>
+          <li><a href="#limits">Limits</a></li>
+        </ul>
+      </aside>
+    </div>
+  </body>
+</html>

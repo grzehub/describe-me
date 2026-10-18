@@ -1,3 +1,6 @@
+import { renderFoundationsInspector } from './foundations-inspector.js'
+import { foundationsShown } from './foundations-shown.js'
+import { showFoundations } from './foundations-view.js'
 import { renderHeader } from './header.js'
 import { renderMain } from './main-panel.js'
 import { renderOverview } from './overview.js'
@@ -10,12 +13,19 @@ import { state } from './state.js'
 import { testView } from './test-view.js'
 import { versionBanner } from './version-banner.js'
 
+/** Foundations leaves the DOM when it closes, so its iframe never lingers. */
+function removeFoundations(center: HTMLElement): void {
+  center.querySelector(':scope > .foundations')?.remove()
+}
+
 /** The overview takes the center, over the test view, which stays mounted but hidden. */
 function showOverview(center: HTMLElement, inspector: HTMLElement, key: string): void {
   const { main } = testView()
   if (main.isConnected) {
     main.hidden = true
   }
+
+  removeFoundations(center)
 
   const overview = renderOverview()
   overview.dataset.suite = key
@@ -38,6 +48,18 @@ function showOverview(center: HTMLElement, inspector: HTMLElement, key: string):
   inspector.replaceChildren(...renderOverviewInspector())
 }
 
+/** Foundations takes the center like the overview, over the hidden test view. */
+function showFoundationsView(center: HTMLElement, inspector: HTMLElement): void {
+  const { main } = testView()
+  if (main.isConnected) {
+    main.hidden = true
+  }
+
+  center.querySelector(':scope > .overview')?.remove()
+  showFoundations(center)
+  inspector.replaceChildren(...renderFoundationsInspector())
+}
+
 function showTest(center: HTMLElement): void {
   const { main } = testView()
   if (main.parentElement !== center) {
@@ -45,6 +67,7 @@ function showTest(center: HTMLElement): void {
     center.replaceChildren(main)
   } else {
     center.querySelector(':scope > .overview')?.remove()
+    removeFoundations(center)
     main.hidden = false
   }
 
@@ -52,7 +75,11 @@ function showTest(center: HTMLElement): void {
   renderFrame()
 }
 
-/** Repaint every region from `state`: the overview when a suite is selected, else one test. */
+/**
+ * Repaint every region from `state`: Foundations when a section is open and
+ * the manifest has tokens, the overview when a suite is selected, else one
+ * test. The branches follow `testShown()`, which `renderFrame()` checks.
+ */
 export function renderAll(): void {
   const { headerInfo, banner, center, inspector } = regions()
   headerInfo.replaceChildren(...renderHeader())
@@ -64,7 +91,9 @@ export function renderAll(): void {
   showSidebarWidth()
   renderTree()
 
-  if (state.suiteKey) {
+  if (foundationsShown()) {
+    showFoundationsView(center, inspector)
+  } else if (state.suiteKey) {
     showOverview(center, inspector, state.suiteKey)
   } else {
     showTest(center)

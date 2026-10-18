@@ -4,11 +4,26 @@ const VIEWER_LINK = /^examples\/([^/]+)\/(?:index\.html)?$/
 const BARE_VIEWER_LINK = /^examples\/([^/]+)$/
 const URL_REFERENCE = /url\(\s*#([^)\s]+)\s*\)/g
 const ID_LISTS = ['aria-labelledby', 'aria-describedby']
-const DEEP_LINK_PARAMS = ['test', 'suite', 'frame', 'w', 'h', 'bg', 'live']
+const DEEP_LINK_PARAMS = ['test', 'suite', 'frame', 'w', 'h', 'bg', 'live', 'foundations']
 const BACKGROUNDS = ['light', 'dark', 'transparent']
 const MAX_SIZE = 10_000
 // A copy of MIN_FRAME_HEIGHT in packages/viewer/src/min-frame-height.ts.
 const MIN_HEIGHT = 120
+// A copy of the ids of FOUNDATION_SECTIONS in packages/viewer/src/foundation-sections.ts.
+const FOUNDATION_SECTIONS = [
+  'colors',
+  'typography',
+  'spacing',
+  'radius',
+  'shadows',
+  'breakpoints',
+  'motion',
+  'other',
+]
+
+// Foundations takes the place of the test view and shows only the stage
+// background, so any other parameter would promise what the link does not open.
+const WITH_FOUNDATIONS = ['foundations', 'bg']
 
 /**
  * Every relative link and image points at a page, docs.css, favicon.svg or one
@@ -17,7 +32,9 @@ const MIN_HEIGHT = 120
  * page. A deep link into an example names a test, frame and suite of its
  * manifest and a viewport size the viewer accepts. `bg` takes only `light`,
  * `dark` or `transparent`, because the link leaves out `auto`. `live` takes
- * only `1`, the one value the viewer reads, and needs a test.
+ * only `1`, the one value the viewer reads, and needs a test. `foundations`
+ * names a section of the Foundations view, needs tokens in the example's
+ * manifest, because the viewer drops it without them, and goes only with `bg`.
  */
 export default function links(context) {
   const targets = targetsOf(context)
@@ -171,6 +188,7 @@ function checkDeepLink(page, value, example, fragment, context) {
     ...checkSize(where, params, 'h', MIN_HEIGHT),
     ...checkBackground(where, params),
     ...checkLive(where, params),
+    ...checkFoundations(where, example, params, manifest),
   )
 
   return problems
@@ -273,6 +291,36 @@ function checkLive(where, params) {
   }
 
   return params.get('test') === null ? [`${where}: live needs a test`] : []
+}
+
+function checkFoundations(where, example, params, manifest) {
+  const section = params.get('foundations')
+
+  if (section === null) {
+    return []
+  }
+
+  const problems = []
+
+  if (!FOUNDATION_SECTIONS.includes(section)) {
+    problems.push(
+      `${where}: foundations must be ${FOUNDATION_SECTIONS.join(', ')}, not "${section}"`,
+    )
+  }
+
+  if (!(manifest.foundations?.tokens > 0)) {
+    problems.push(
+      `${where}: examples/${example} has no foundation tokens in its manifest, so the viewer drops foundations`,
+    )
+  }
+
+  for (const key of new Set(params.keys())) {
+    if (!WITH_FOUNDATIONS.includes(key)) {
+      problems.push(`${where}: foundations goes only with bg, not with "${key}"`)
+    }
+  }
+
+  return problems
 }
 
 function safeDecode(text) {

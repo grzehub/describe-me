@@ -1,5 +1,6 @@
 import type { ManifestTest } from '@describe-me/core/types'
 import { filterActive } from './filter-active.js'
+import { foundationsShown } from './foundations-shown.js'
 import { liveShown } from './live-shown.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
@@ -100,7 +101,7 @@ function onFrameKey(test: ManifestTest, step: 1 | -1): void {
 
 /**
  * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
- * toggles Live, `/` focuses the search.
+ * toggles Live, `/` focuses the search. In Foundations only `/` works.
  */
 export function onKey(event: KeyboardEvent): void {
   if (!state.manifest || isTyping(event.target)) {
@@ -117,6 +118,10 @@ export function onKey(event: KeyboardEvent): void {
     search.focus()
     search.select()
     event.preventDefault()
+    return
+  }
+
+  if (foundationsShown()) {
     return
   }
 
