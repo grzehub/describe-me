@@ -10,17 +10,24 @@
  * must report their status: `no-render` for a hook, `import-failed` for a
  * missing file, and `not-found` for a missing test, a path out of the root,
  * three `file` values that would lead to another origin and an occurrence
- * past a test's last one. Then each example's viewer runs through
- * `describe-me dev`, one at a time, because two viewers race on the viewer's
- * Vite cache. `__live.json` must say `ready` with the preview's base. In
- * react-browser, `L` mounts `Menu > selects an item and reports it` in a live
- * frame without a sandbox, an action shows in the inspector, the 375px
- * preset keeps the state without a reload, a notice and an error from the
- * frame show while the same message from the viewer page does not, Restart
- * starts fresh and ← leaves Live for a recorded frame. A link with `live=1`
- * opens Live in every example, which proves that the CLI finds the project
- * from a jsdom manifest too. `describe-me dev --no-live` answers off and
- * shows no toggle. The viewer pages log no error. Last, the live fixtures of
+ * past a test's last one. In react-browser the host page then posts the
+ * viewer's messages to the live page: a `dark-variant` request puts its class
+ * and attribute on `<html>`, `null` takes back only what the page applied,
+ * five malformed or foreign messages change nothing, a request before the
+ * status waits for it, and a page whose URL names another origin ignores a
+ * valid one (scripts/check-live/viewer-messages.mjs). Then each example's
+ * viewer runs through `describe-me dev`, one at a time, because two viewers
+ * race on the viewer's Vite cache. `__live.json` must say `ready` with the
+ * preview's base. In react-browser, `L` mounts `Menu > selects an item and
+ * reports it` in a live frame without a sandbox, an action shows in the
+ * inspector, the 375px preset keeps the state without a reload, a notice and
+ * an error from the frame show while the same message from the viewer page
+ * does not, Restart starts fresh and ← leaves Live for a recorded frame. A
+ * link with `live=1` opens Live in every example, which proves that the CLI
+ * finds the project from a jsdom manifest too. In shadcn the link adds
+ * `bg=dark`, and the viewer's message across origins puts `dark` on the live
+ * page's `<html>`. `describe-me dev --no-live` answers off and shows no
+ * toggle. The viewer pages log no error. Last, the live fixtures of
  * react-browser and react-jsdom run under Vitest and in the live preview, with setup files,
  * fixtures, around hooks, `each` and `for` names, module mocks, a CSS plugin
  * split in two by `apply`, a Node-only import, `setup-failed` and `live: false`
@@ -59,12 +66,16 @@ import {
   STATUS_TIMEOUT,
   startHost,
 } from './check-live/live-frame.mjs'
+import { checkViewerMessages } from './check-live/viewer-messages.mjs'
 import { exampleNames } from './docs/example-names.mjs'
 import { launchChromium } from './docs/launch-chromium.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
 
 // `mounted` in packages/viewer/src/live-status-words.ts.
 const MOUNTED_WORDS = 'mounted as the test arranged it'
+
+/** The example whose live page gets the viewer's messages from the host page. */
+const VIEWER_MESSAGES_EXAMPLE = 'react-browser'
 
 /** The test each example's viewer mounts live. */
 const VIEWER_TESTS = {
@@ -115,12 +126,22 @@ async function checkExample(browser, host, name) {
   try {
     const tests = await checkTests(context, manifest)
     const statuses = await checkStatuses(context)
+    const messages =
+      name === VIEWER_MESSAGES_EXAMPLE
+        ? await checkViewerMessages(context)
+        : { problems: [], passed: 0 }
 
     return {
-      problems: [...checkServer(name, server), ...tests.problems, ...statuses.problems],
+      problems: [
+        ...checkServer(name, server),
+        ...tests.problems,
+        ...statuses.problems,
+        ...messages.problems,
+      ],
       summary: `${name} ${tests.mounted}/${total}`,
       behaviours: tests.behaviours,
       statuses: statuses.passed,
+      messages: messages.passed,
     }
   } finally {
     await context.close()
@@ -346,9 +367,30 @@ async function arrowLeavesLive({ page }) {
   ]
 }
 
+/** The viewer posts shadcn's dark variant to the live page on another origin, and the page applies it. */
+async function appliesTheDarkClass(page) {
+  const frame = await liveFrameOf(page)
+
+  try {
+    await frame.locator('html.dark').waitFor({ state: 'attached', timeout: 5_000 })
+
+    return []
+  } catch {
+    const classes = await frame.locator('html').getAttribute('class')
+
+    return [`the live page's <html> has class ${JSON.stringify(classes)}, expected dark`]
+  }
+}
+
+/** What an example's `live=1` link adds, and what its live page must show once mounted. */
+const LINK_EXTRAS = {
+  shadcn: { hash: '&bg=dark', check: appliesTheDarkClass },
+}
+
 /** A link with `live=1` in a new page: the recorded frame until the preview is ready, then Live. */
-async function opensFromLink(browser, context, testId) {
-  const url = `${context.url}#test=${testId}&live=1`
+async function opensFromLink(browser, context, testId, name) {
+  const extra = LINK_EXTRAS[name]
+  const url = `${context.url}#test=${testId}&live=1${extra?.hash ?? ''}`
   const viewer = await openViewer(browser, url, new URL(context.base).origin)
 
   try {
@@ -356,6 +398,10 @@ async function opensFromLink(browser, context, testId) {
       ...(await expectMounted(viewer.page, FIRST_STATUS_TIMEOUT)),
       ...(await checkLiveIframe(viewer.page, context.base)),
     ]
+
+    if (problems.length === 0 && extra) {
+      problems.push(...(await extra.check(viewer.page)))
+    }
 
     return [...problems, ...viewer.errors]
   } finally {
@@ -422,7 +468,7 @@ async function checkViewer(browser, name) {
 
   try {
     if (name !== 'react-browser') {
-      const problems = await opensFromLink(browser, context, testId)
+      const problems = await opensFromLink(browser, context, testId, name)
 
       return {
         problems: problems.map((problem) => `${label}, live=1: ${problem}`),
@@ -434,7 +480,7 @@ async function checkViewer(browser, name) {
 
     try {
       const result = await runSteps(label, BROWSER_STEPS, { ...context, page: viewer.page, viewer })
-      const fromLink = await opensFromLink(browser, context, testId)
+      const fromLink = await opensFromLink(browser, context, testId, name)
 
       return {
         problems: [
@@ -503,6 +549,7 @@ const summaries = []
 let problems = []
 let behaviours = 0
 let statuses = 0
+let messages = 0
 let viewerSteps = 0
 let fixtures = null
 let staticPart = null
@@ -518,6 +565,7 @@ try {
     summaries.push(result.summary)
     behaviours += result.behaviours ?? 0
     statuses += result.statuses ?? 0
+    messages += result.messages ?? 0
   }
 
   const viewers = await checkViewers(browser)
@@ -545,5 +593,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-live: ok — ${summaries.join(', ')} mounted, ${behaviours} behaviours, ${statuses} statuses, viewer ${viewerSteps} steps, ${fixtures.summary}; ${staticPart.summary}`,
+  `check-live: ok — ${summaries.join(', ')} mounted, ${behaviours} behaviours, ${statuses} statuses, ${messages} viewer-message cases, viewer ${viewerSteps} steps, ${fixtures.summary}; ${staticPart.summary}`,
 )

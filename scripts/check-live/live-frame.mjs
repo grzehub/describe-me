@@ -111,7 +111,8 @@ export function manifestTests(manifest) {
   })
 }
 
-function pageUrl(base, hostOrigin, { file, path, occurrence = 1 }) {
+/** The URL of a test's live page under `base`, for a viewer on `hostOrigin`. */
+export function pageUrl(base, hostOrigin, { file, path, occurrence = 1 }) {
   const query = new URLSearchParams({
     file,
     path: JSON.stringify(path),

@@ -53,13 +53,13 @@ The framework-agnostic heart of describe-me. Snapshots are serialized DOM via
 `rrweb-snapshot`, so nothing here knows about React. You need it directly only
 to write an adapter for another framework or to read the output yourself.
 
-| Entry point                                                                                                    | What it holds                                                              |
-| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [`@describe-me/core`](https://grzehub.github.io/describe-me/api.html#entry-core)                               | `step()`, `recorder` and `elementLabel()`, for adapters                    |
-| [`@describe-me/core/types`](https://grzehub.github.io/describe-me/api.html#entry-core-types)                   | the types of `.describe-me/manifest.json`                                  |
-| [`@describe-me/core/diagnostics`](https://grzehub.github.io/describe-me/api.html#entry-core-diagnostics)       | what a manifest could not document                                         |
-| [`@describe-me/core/css-references`](https://grzehub.github.io/describe-me/api.html#entry-core-css-references) | the `url()` and `@import` references in CSS text                           |
-| [`@describe-me/core/live`](https://grzehub.github.io/describe-me/api.html#entry-core-live)                     | the live page's state and its messages to the viewer, for the live preview |
+| Entry point                                                                                                    | What it holds                                                                       |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [`@describe-me/core`](https://grzehub.github.io/describe-me/api.html#entry-core)                               | `step()`, `recorder` and `elementLabel()`, for adapters                             |
+| [`@describe-me/core/types`](https://grzehub.github.io/describe-me/api.html#entry-core-types)                   | the types of `.describe-me/manifest.json`                                           |
+| [`@describe-me/core/diagnostics`](https://grzehub.github.io/describe-me/api.html#entry-core-diagnostics)       | what a manifest could not document                                                  |
+| [`@describe-me/core/css-references`](https://grzehub.github.io/describe-me/api.html#entry-core-css-references) | the `url()` and `@import` references in CSS text                                    |
+| [`@describe-me/core/live`](https://grzehub.github.io/describe-me/api.html#entry-core-live)                     | the live page's state and its messages to and from the viewer, for the live preview |
 
 [How it works](https://grzehub.github.io/describe-me/how-it-works.html) explains
 the recorder and the output directory.

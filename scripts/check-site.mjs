@@ -15,7 +15,13 @@
  * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
  * test again. In every viewer `bg` and the background switch set the stage's
  * canvas and the frame's color scheme, in a replayed frame, in Live and in the
- * overview's thumbnails, and no frame paints an opaque backdrop. With the live
+ * overview's thumbnails, and no frame paints an opaque backdrop. In shadcn
+ * `dark` also puts `.dark` and its `--primary` on the root of a replayed frame,
+ * of a frame swapped in from a link, of a thumbnail and of the live page,
+ * without a new frame or a reload. `light`, `auto` and `transparent` take it
+ * back, a frame recorded in its dark variant stays dark, and only the first
+ * `dark` fetches `foundations.json`. In react-browser, whose dark variant is a
+ * media query, no switch changes the root's class or attributes. With the live
  * page held back, the dimmed recorded frame stays under the live frame until
  * the first status and fades out after, leaving Live or picking another test
  * while it loads leaves one slot, and reduced motion keeps only the dimmed
@@ -1099,6 +1105,337 @@ async function checkStageBackground(browser, url, name) {
 
     console.log(
       `check-site: examples/${name}/ bg sets the canvas and the frames' color scheme, in replay, in Live and in the overview, with no backdrop`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${[errorMessage(error), ...failures].join(', ')}`]
+  } finally {
+    await context.close()
+  }
+}
+
+// --primary of examples/shadcn/src/index.css, the values of DARK_CASES in scripts/check-foundations/check-view.mjs.
+const PRIMARY = { light: 'oklch(0.52 0.23 285)', dark: 'oklch(0.7 0.18 285)' }
+
+/** The shadcn tests the dark variant cases show: one recorded light, one recorded in its dark variant. */
+const DARK_VARIANT = {
+  name: 'shadcn',
+  light: 'SignupCard > submits the email',
+  recordedDark: 'Button > renders every variant in the dark variant',
+}
+
+const VARIANT_WAIT = 5_000
+// Messages to the live page are tasks of their own, so a root that must stay as it is waits this long first.
+const SETTLE_MS = 300
+
+/**
+ * The root of the frame at `selector`, read in the page: whether it has the
+ * class `dark`, its `--primary`, its class and attribute names, and whether
+ * the iframe element and its window still carry the check's markers.
+ */
+function frameRoot(selector) {
+  const iframe = document.querySelector(selector)
+  const root = iframe?.contentDocument?.documentElement
+
+  if (!root) {
+    return null
+  }
+
+  return {
+    dark: root.classList.contains('dark'),
+    primary: iframe.contentWindow.getComputedStyle(root).getPropertyValue('--primary').trim(),
+    names: [...root.classList, ...root.getAttributeNames()].sort().join(' '),
+    sameIframe: iframe.darkVariantMarker === true,
+    sameWindow: iframe.contentWindow.darkVariantMarker === true,
+  }
+}
+
+/** Marks the iframe at `selector` and its window, so a later read tells a new frame or a reload. */
+async function markFrame(page, selector) {
+  await page.locator(selector).evaluate((iframe) => {
+    iframe.darkVariantMarker = true
+    iframe.contentWindow.darkVariantMarker = true
+  })
+}
+
+/** Polls the root at `selector` until it shows the variant `dark`, or `false` for the light one. */
+async function showsVariant(page, selector, dark) {
+  const expected = { dark, primary: dark ? PRIMARY.dark : PRIMARY.light }
+  const deadline = Date.now() + VARIANT_WAIT
+  let seen = null
+
+  while (Date.now() < deadline) {
+    seen = await page.evaluate(frameRoot, selector)
+
+    if (seen?.dark === expected.dark && seen.primary === expected.primary) {
+      return { seen, problem: null }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, PAINT_POLL))
+  }
+
+  return {
+    seen,
+    problem: `the root shows ${JSON.stringify(seen)}, expected ${JSON.stringify(expected)}`,
+  }
+}
+
+/** Counts the viewer's requests for `foundations.json`. */
+function countFoundations(page) {
+  const counter = { requests: 0 }
+
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.endsWith('/__data/foundations.json')) {
+      counter.requests += 1
+    }
+  })
+
+  return counter
+}
+
+/** A new document, because a link that differs only in its hash would not reload the viewer. */
+async function freshLoad(page, target) {
+  await page.goto('about:blank')
+  await page.goto(target)
+}
+
+/** a–c: the switch on a replayed frame, the same iframe throughout, and one fetch. */
+async function replayVariantSteps(page, base, id, counter) {
+  await page.goto(`${base}#test=${id}`)
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const plain = await showsVariant(page, RECORDED_IFRAME, false)
+
+  if (plain.problem || counter.requests !== 0) {
+    return `without bg: ${plain.problem ?? `${counter.requests} requests for foundations.json, expected none`}`
+  }
+
+  await markFrame(page, RECORDED_IFRAME)
+
+  for (const value of ['dark', 'light', 'auto', 'transparent']) {
+    await pickBackground(page, value)
+
+    const shown = await showsVariant(page, RECORDED_IFRAME, value === 'dark')
+
+    if (shown.problem) {
+      return `with ${value}: ${shown.problem}`
+    }
+
+    if (!shown.seen.sameIframe) {
+      return `with ${value}: the recorded iframe was replaced`
+    }
+
+    if (counter.requests !== 1) {
+      return `with ${value}: ${counter.requests} requests for foundations.json, expected one since the first dark`
+    }
+  }
+
+  return null
+}
+
+/** d: a link with `bg=dark` swaps the frame in with its dark variant already on. */
+async function linkedVariantStep(page, base, id) {
+  await freshLoad(page, `${base}#test=${id}&bg=dark`)
+
+  const first = await page
+    .waitForFunction(frameRoot, RECORDED_IFRAME, { timeout: VIEWER_TIMEOUT })
+    .then((handle) => handle.jsonValue())
+
+  if (!first.dark || first.primary !== PRIMARY.dark) {
+    return `#bg=dark: the frame swapped in with ${JSON.stringify(first)}`
+  }
+
+  return null
+}
+
+/** e: a frame recorded in its dark variant stays dark under every switch. */
+async function recordedDarkSteps(page, base, id) {
+  await page.goto(`${base}#test=${id}`)
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  for (const value of ['light', 'dark', 'light']) {
+    await pickBackground(page, value)
+
+    const problem =
+      (await showsBackground(page, RECORDED_IFRAME, value)) ??
+      (await showsVariant(page, RECORDED_IFRAME, true)).problem
+
+    if (problem) {
+      return `recorded dark, with ${value}: ${problem}`
+    }
+  }
+
+  return null
+}
+
+/** f: the overview's first thumbnail under `bg=dark`. */
+async function thumbVariantStep(page, base, id) {
+  const moduleId = readSiteManifest(DARK_VARIANT.name).modules.find((candidate) =>
+    candidate.tests.some((test) => test.id === id),
+  ).id
+
+  await freshLoad(page, `${base}#suite=${encodeURIComponent(moduleId)}&bg=dark`)
+  await page
+    .locator('.thumb iframe')
+    .first()
+    .waitFor({ state: 'attached', timeout: VIEWER_TIMEOUT })
+
+  const shown = await showsVariant(page, '.thumb iframe', true)
+
+  return shown.problem ? `the first thumbnail of #suite=…&bg=dark: ${shown.problem}` : null
+}
+
+async function mountedInLive(page) {
+  await page
+    .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
+    .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
+
+  await faded(page)
+}
+
+/** g: the switch in Live, which posts the variant to the live page without reloading it. */
+async function liveVariantSteps(page, base, id) {
+  await freshLoad(page, `${base}#test=${id}`)
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page.keyboard.press('l')
+  await mountedInLive(page)
+  await markFrame(page, LIVE_IFRAME)
+
+  for (const value of ['dark', 'light']) {
+    await pickBackground(page, value)
+
+    const shown = await showsVariant(page, LIVE_IFRAME, value === 'dark')
+
+    if (shown.problem) {
+      return `Live, with ${value}: ${shown.problem}`
+    }
+
+    if (!shown.seen.sameWindow) {
+      return `Live, with ${value}: the live frame reloaded`
+    }
+  }
+
+  return null
+}
+
+/** h: a test recorded in its dark variant, opened in Live with `bg=dark`, keeps its class under `light`. */
+async function liveRecordedDarkSteps(page, base, id) {
+  await freshLoad(page, `${base}#test=${id}&live=1&bg=dark`)
+  await mountedInLive(page)
+
+  const mounted = await showsVariant(page, LIVE_IFRAME, true)
+
+  if (mounted.problem) {
+    return `Live, recorded dark with live=1&bg=dark: ${mounted.problem}`
+  }
+
+  await pickBackground(page, 'light')
+
+  const switched = await showsBackground(page, LIVE_IFRAME, 'light')
+
+  if (switched) {
+    return `Live, recorded dark, with light: ${switched}`
+  }
+
+  await page.waitForTimeout(SETTLE_MS)
+
+  const kept = await showsVariant(page, LIVE_IFRAME, true)
+
+  return kept.problem ? `Live, recorded dark, with light: ${kept.problem}` : null
+}
+
+/** react-browser's dark variant is a media query, so no switch touches the root of a frame. */
+async function sameRootNames(page, selector) {
+  const names = {}
+
+  for (const value of ['light', 'dark']) {
+    await pickBackground(page, value)
+
+    const switched = await showsBackground(page, selector, value)
+
+    if (switched) {
+      return switched
+    }
+
+    await page.waitForTimeout(SETTLE_MS)
+    names[value] = (await page.evaluate(frameRoot, selector))?.names
+  }
+
+  return names.light === names.dark
+    ? null
+    : `the root has "${names.light}" under light and "${names.dark}" under dark`
+}
+
+async function mediaOnlySteps(page, url) {
+  const name = 'react-browser'
+  const base = `${url}examples/${name}/`
+
+  await page.goto(`${base}#test=${testIdOf(name, LIVE_TESTS[name].fullName)}`)
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const replayed = await sameRootNames(page, RECORDED_IFRAME)
+
+  if (replayed) {
+    return `${name}, replay: ${replayed}`
+  }
+
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page.keyboard.press('l')
+  await mountedInLive(page)
+
+  const live = await sameRootNames(page, LIVE_IFRAME)
+
+  return live ? `${name}, Live: ${live}` : null
+}
+
+/**
+ * The dark variant of shadcn under `bg=dark`, on the root of a replayed frame,
+ * a frame swapped in from a link, a thumbnail and the live page, and the root
+ * of react-browser, whose dark variant is a media query, left alone.
+ */
+async function checkStageDarkVariant(browser, url) {
+  const label = 'stage dark variant'
+  const { context, page, failures } = await openLivePage(browser, url, null)
+  const counter = countFoundations(page)
+  const base = `${url}examples/${DARK_VARIANT.name}/`
+  const light = testIdOf(DARK_VARIANT.name, DARK_VARIANT.light)
+  const recordedDark = testIdOf(DARK_VARIANT.name, DARK_VARIANT.recordedDark)
+
+  try {
+    const problem =
+      (await replayVariantSteps(page, base, light, counter)) ??
+      (await linkedVariantStep(page, base, light)) ??
+      (await recordedDarkSteps(page, base, recordedDark)) ??
+      (await thumbVariantStep(page, base, light)) ??
+      (await liveVariantSteps(page, base, light)) ??
+      (await liveRecordedDarkSteps(page, base, recordedDark))
+
+    if (problem) {
+      return [problem, ...failures].map(
+        (entry) => `examples/${DARK_VARIANT.name}/ ${label}: ${entry}`,
+      )
+    }
+
+    console.log(
+      `check-site: examples/${DARK_VARIANT.name}/ bg=dark puts .dark on the root of a replayed frame, a frame from a link, a thumbnail and the live page without a reload, light, auto and transparent take it back, a frame recorded dark stays dark, and foundations.json loads once, on the first dark`,
+    )
+
+    const mediaOnly = await mediaOnlySteps(page, url)
+    const problems = [mediaOnly, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `examples/react-browser/ ${label}: ${entry}`)
+    }
+
+    console.log(
+      'check-site: examples/react-browser/ bg=dark leaves the root of a replayed frame and of the live page alone, because its dark variant is a media query',
     )
 
     return []
@@ -2194,6 +2531,8 @@ try {
     problems.push(...(await checkStageBackground(browser, url, name)))
   }
 
+  problems.push(...(await checkStageDarkVariant(browser, url)))
+
   for (const name of exampleNames) {
     problems.push(...(await checkLiveLoading(browser, url, name)))
   }
@@ -2221,5 +2560,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, show Live loading, set the stage background, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, show Live loading, set the stage background and its dark variant, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )

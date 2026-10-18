@@ -410,7 +410,7 @@ export interface ManifestFoundations {
   errors?: string[]
 }
 
-// ---------- live preview (posted by the live page, read by the viewer) ----------
+// ---------- live preview (messages both ways between the live page and the viewer) ----------
 
 /** How the live preview page ended up. */
 export type LiveStatus =
@@ -432,3 +432,20 @@ export type LiveReport =
 
 /** A message the live page posts to the viewer around it. */
 export type LiveMessage = LiveReport & { source: typeof LIVE_MESSAGE_SOURCE }
+
+/** The `source` of every message the viewer posts to the live preview page. */
+export const VIEWER_MESSAGE_SOURCE = 'describe-me-viewer' as const
+
+/** What turns a project's dark variant on at the root element. */
+export interface DarkVariantRoot {
+  /** A class on the root, such as `'dark'` for `.dark`. */
+  className?: string
+  /** A `data-*` attribute on the root, such as `{ name: 'data-theme', value: 'dark' }`. */
+  attribute?: { name: string; value: string }
+}
+
+/** What the viewer asks of the live page, without the `source` field. `root: null` takes back what the page applied. */
+export type ViewerRequest = { type: 'dark-variant'; root: DarkVariantRoot | null }
+
+/** A message the viewer posts to the live page in its frame. A page ignores a `type` it does not know. */
+export type ViewerMessage = ViewerRequest & { source: typeof VIEWER_MESSAGE_SOURCE }

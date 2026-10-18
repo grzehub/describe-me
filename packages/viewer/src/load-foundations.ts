@@ -5,10 +5,15 @@ import { loadStyle } from './load-style.js'
 import { rerender } from './rerender.js'
 import { resolveAssetUrls } from './resolve-asset-urls.js'
 import { state } from './state.js'
+import { testShown } from './test-shown.js'
 
 /** What the view has of `foundations.json` and its stylesheets. */
 export type FoundationsLoad =
-  | { status: 'loading' }
+  | {
+      status: 'loading'
+      /** Resolves with the finished load once the memo holds it. */
+      settled: Promise<FoundationsLoad>
+    }
   | { status: 'error'; message: string }
   | {
       status: 'ready'
@@ -23,7 +28,9 @@ export type FoundationsLoad =
 
 type Loaded = { css: string; complete: boolean }
 
-let memo: { generatedAt: string; result: FoundationsLoad } | null = null
+type Memo = { generatedAt: string; result: FoundationsLoad }
+
+let memo: Memo | null = null
 
 function loadSheet(cssText: string): Promise<Loaded> {
   if (cssText.startsWith(STYLE_URL_PREFIX)) {
@@ -101,11 +108,21 @@ async function load(): Promise<FoundationsLoad> {
   }
 }
 
+/** The stage's dark variant comes from the load too, so a test under `bg=dark` repaints its frame. */
+function repaint(): void {
+  if (foundationsShown()) {
+    rerender()
+  } else if (state.background === 'dark' && testShown()) {
+    rerender('frame')
+  }
+}
+
 /**
  * `foundations.json` and its stylesheets for the manifest on screen, loaded on
  * the first call and memoized until the next manifest. Never rejects. When the
- * load settles while Foundations is open, the viewer repaints. With `retry`, a
- * load that failed starts again.
+ * load settles, the viewer repaints while Foundations is open, and repaints
+ * the frame while a test shows under `bg=dark`. With `retry`, a load that
+ * failed starts again.
  */
 export function loadFoundations(retry = false): FoundationsLoad {
   const generatedAt = state.manifest?.generatedAt ?? ''
@@ -114,26 +131,25 @@ export function loadFoundations(retry = false): FoundationsLoad {
     return memo.result
   }
 
-  const current = { generatedAt, result: { status: 'loading' } as FoundationsLoad }
-  memo = current
-
-  void load()
+  // `settled` resolves after the memo holds the result, so whoever awaits it
+  // reads the finished load from here.
+  const settled: Promise<FoundationsLoad> = load()
     .catch((error: unknown) => ({
       status: 'error' as const,
       message: `foundations.json did not load (${error instanceof Error ? error.message : String(error)}).`,
     }))
     .then((result) => {
       // A new manifest replaced the memo, and its own load repaints.
-      if (memo !== current) {
-        return
+      if (memo === current) {
+        current.result = result
+        repaint()
       }
 
-      current.result = result
-
-      if (foundationsShown()) {
-        rerender()
-      }
+      return result
     })
+
+  const current: Memo = { generatedAt, result: { status: 'loading', settled } }
+  memo = current
 
   return current.result
 }

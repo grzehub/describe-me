@@ -1,22 +1,5 @@
 import { LIVE_MESSAGE_SOURCE, type LiveMessage, type LiveReport } from './types.js'
-
-/** The viewer's origin from the page URL, when it is exactly the origin of an http(s) URL. */
-function viewerOrigin(): string | null {
-  const origin = new URLSearchParams(window.location.search).get('origin')
-
-  if (origin === null) {
-    return null
-  }
-
-  try {
-    const url = new URL(origin)
-    const web = url.protocol === 'http:' || url.protocol === 'https:'
-
-    return web && url.origin === origin ? origin : null
-  } catch {
-    return null
-  }
-}
+import { viewerOrigin } from './viewer-origin.js'
 
 /**
  * Posts a report to the viewer that frames the live page. It goes only to the

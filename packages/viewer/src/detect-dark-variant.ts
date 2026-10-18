@@ -1,11 +1,12 @@
+import type { DarkVariantRoot } from '@describe-me/core/types'
 import type { CustomProperty } from './read-custom-properties.js'
 
-/** How to show the dark variant that the token sheets declare. */
-export interface DarkVariant {
-  /** `'dark'` when dark values sit on `.dark`. */
-  className?: string
-  /** The first `[data-<name>="dark"]` that dark values sit on. */
-  attribute?: { name: string; value: string }
+/**
+ * How to show the dark variant that the token sheets declare: `'dark'` as the
+ * class when dark values sit on `.dark`, the first `[data-<name>="dark"]` they
+ * sit on as the attribute.
+ */
+export interface DarkVariant extends DarkVariantRoot {
   /** Whether dark values follow the color scheme, through `prefers-color-scheme: dark` or `light-dark()`. */
   media: boolean
 }

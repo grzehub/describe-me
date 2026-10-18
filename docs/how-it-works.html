@@ -1354,6 +1354,42 @@ describe-me: live-fixtures/node-only.test.tsx imports node:fs, which does not lo
           </table>
         </div>
 
+        <p>
+          The viewer posts one message to the page, with <code>source: 'describe-me-viewer'</code>.
+          It carries the <a href="viewer.html#viewport-background">stage's dark variant</a>.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Message</th>
+                <th>Fields</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>dark-variant</code></td>
+                <td class="nowrap"><code>root</code></td>
+                <td>
+                  When the frame loads, and whenever <code>bg</code> or the variant changes.
+                  <code>root</code> holds the class and the <code>data-*</code> attribute of the
+                  dark variant under <code>bg=dark</code>, or is <code>null</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          The page takes the message only from its parent window, from the origin its URL names. It
+          applies only one class name and one <code>data-*</code> attribute to
+          <code>&lt;html&gt;</code>, and only once it has a status. A request that comes earlier
+          waits for it. The page takes back only what it applied, so a class the test set itself
+          stays. A page of an earlier version ignores the message, so the live protocol stays 1.
+        </p>
+
         <div class="scroll">
           <table class="fields wide">
             <thead>

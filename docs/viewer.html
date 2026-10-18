@@ -285,9 +285,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           Without storage the switch still works until you reload.
         </p>
         <p>
-          The theme never reaches a frame. A frame's canvas and color scheme come from the
-          <a href="#viewport-background">background switch</a> alone, so a component looks the same
-          in either theme.
+          The theme never reaches a frame. A frame's canvas, color scheme and dark variant come from
+          the <a href="#viewport-background">background switch</a> alone, so a component looks the
+          same in either theme.
         </p>
 
         <h2 id="search">
@@ -444,6 +444,20 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             Under <code>dark</code>, <code>prefers-color-scheme: dark</code> matches inside the
             frame, so the component shows its own dark rules.
           </li>
+          <li>
+            <code>dark</code> also puts the dark variant that
+            <a href="foundations.html#dark-variant">Foundations</a> found on the frame's root: the
+            <code>.dark</code> class or the <code>[data-*="dark"]</code> attribute. It does so in
+            replay, in the overview's thumbnails and in <a href="#live">Live</a>.
+            <code>light</code>, <code>auto</code> and <code>transparent</code> leave the root as the
+            test recorded it, so a frame recorded in its dark variant stays dark.
+          </li>
+          <li>
+            Without tokens, or with <code>foundations: false</code>, <code>dark</code> sets only the
+            color scheme. A theme in JavaScript, such as Material UI without
+            <code>cssVariables</code>, wrote its colors into the recorded CSS, so a frame keeps
+            them.
+          </li>
           <li><code>transparent</code> is a checkerboard, with a light color scheme.</li>
           <li>
             <code>auto</code>, the default, is light unless the recorded page declares a dark scheme
@@ -466,7 +480,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           turns on, as in this
           <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;bg=dark">Disclosure test</a> of the
           jsdom example. The shadcn/ui and Material UI examples paint their page with their design
-          system's background.
+          system's background. Under <code>dark</code> the shadcn/ui example paints its dark one, as
+          in this <a href="examples/shadcn/#test=e5e1c5cf428e&amp;bg=dark">Button test</a>.
         </p>
 
         <h2 id="live">
@@ -559,7 +574,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <ul>
           <li>
             The toolbar's presets, W, H and the background apply without reloading the frame, so the
-            component keeps its state.
+            component keeps its state. So does the dark variant: the viewer posts it to the live
+            page, which applies it once the test has rendered.
           </li>
           <li>
             Under <code>auto</code>, Live keeps the canvas of the last recorded frame the stage
