@@ -1,13 +1,17 @@
 import type { FoundationGroup } from '@describe-me/core/types'
 import { BackgroundSwitch } from './background-switch.js'
-import type { FoundationsModel } from './build-foundations-model.js'
+import type { FoundationSection, FoundationsModel } from './build-foundations-model.js'
 import type { Canvas } from './canvas-of.js'
 import { el } from './el.js'
+import { filterSpecimens } from './filter-specimens.js'
+import { fitFrame } from './fit-frame.js'
+import { FoundationsFilter } from './foundations-filter.js'
 import { foundationsModelOf } from './foundations-model-of.js'
 import { foundationsRetry } from './foundations-retry.js'
 import type { FoundationsLoad } from './load-foundations.js'
 import { loadFoundations } from './load-foundations.js'
 import type { StageBackground } from './parse-stage-background.js'
+import { sectionMatches } from './section-matches.js'
 import { buildSpecimenFrame } from './specimen-frame.js'
 import { openFoundations, state, writeHash } from './state.js'
 import { systemName } from './system-name.js'
@@ -29,9 +33,12 @@ interface Panel {
   model: FoundationsModel | null
   main: HTMLElement
   buttons: Map<FoundationGroup, HTMLElement>
+  filter: FoundationsFilter
   backgrounds: BackgroundSwitch
   hint: HTMLElement
   canvas: HTMLElement
+  /** Shown instead of the frame when the open section has no token that matches the filter. */
+  noMatch: HTMLElement
   /** The section and background the frame on the canvas shows. */
   frame: { section: FoundationGroup; background: StageBackground } | null
 }
@@ -96,13 +103,96 @@ function incompleteNote(load: FoundationsLoad): HTMLElement | null {
   return el('div', { class: 'foundations-note', role: 'status' }, text)
 }
 
+/** From the loaded file alone, so it shows on a page without tokens too. */
+function setupHint(model: FoundationsModel | null): HTMLElement | null {
+  if (!model?.muiSetup) {
+    return null
+  }
+
+  return el(
+    'p',
+    { class: 'foundations-setup' },
+    'To show the Material UI theme here, name its module in ',
+    el('code', {}, "foundations: { theme: 'src/theme.ts' }"),
+    ' or create the theme with ',
+    el('code', {}, 'cssVariables: true'),
+    '.',
+  )
+}
+
+function shownSection(shown: Panel): FoundationSection | undefined {
+  return shown.model?.sections.find((candidate) => candidate.id === state.foundations)
+}
+
+/** The names the filter leaves in a section, or `null` while it is empty. */
+function matchesIn(shown: Panel, section: FoundationSection): Set<string> | null {
+  const query = shown.filter.query.trim()
+
+  return query === '' ? null : sectionMatches(section, query)
+}
+
+/** Each button counts what the filter leaves, from the model. */
+function syncCounts(shown: Panel): void {
+  for (const section of shown.model?.sections ?? []) {
+    const count = shown.buttons.get(section.id)?.querySelector('.count')
+    const matches = matchesIn(shown, section)
+
+    if (count) {
+      count.textContent = String(matches ? matches.size : section.count)
+    }
+  }
+}
+
+/** Filter the frame in place, or hide it when the open section has no match. */
+function syncMatches(shown: Panel): void {
+  const section = shownSection(shown)
+  const iframe = shown.canvas.querySelector('iframe')
+  const matches = section ? matchesIn(shown, section) : null
+  const none = matches !== null && matches.size === 0
+  const root = iframe?.contentDocument?.querySelector('.fd-root')
+  shown.noMatch.hidden = !none
+
+  if (!iframe || !root) {
+    return
+  }
+
+  iframe.hidden = none
+  filterSpecimens(root, matches)
+  fitFrame(iframe)
+}
+
+/** After Enter, an open section without a match gives way to the first section with one. */
+function openFirstMatch(shown: Panel): void {
+  const open = shownSection(shown)
+  const query = shown.filter.query.trim()
+
+  if (query === '' || (open && sectionMatches(open, query).size > 0)) {
+    return
+  }
+
+  const first = shown.model?.sections.find((section) => sectionMatches(section, query).size > 0)
+
+  if (first) {
+    openFoundations(first.id, 'replace')
+  }
+}
+
 function buildPanel(generatedAt: string, load: FoundationsLoad): Panel {
   const model = load.status === 'ready' ? foundationsModelOf(load) : null
   const buttons = sectionButtons(model)
   const backgrounds = new BackgroundSwitch()
   const hint = el('div', { class: 'foundations-hint', hidden: true }, 'no dark variant found')
   const canvas = el('div', { class: 'foundations-canvas' })
+  const noMatch = el(
+    'div',
+    { class: 'empty foundations-no-match', hidden: true },
+    'no token matches',
+  )
+
   const status = statusText(load, model)
+  const filter = new FoundationsFilter()
+
+  canvas.append(noMatch)
 
   if (status !== null) {
     canvas.append(el('div', { class: 'empty' }, status))
@@ -125,13 +215,35 @@ function buildPanel(generatedAt: string, load: FoundationsLoad): Panel {
       el('h1', {}, 'Foundations'),
       el('div', { class: 'overview-meta' }, metaText(load)),
     ),
-    el('div', { class: 'foundations-toolbar' }, sections, backgrounds.element),
+    el('div', { class: 'foundations-toolbar' }, sections, filter.element, backgrounds.element),
+    setupHint(model),
     hint,
     incompleteNote(load),
     canvas,
   )
 
-  return { generatedAt, load, model, main, buttons, backgrounds, hint, canvas, frame: null }
+  const built: Panel = {
+    generatedAt,
+    load,
+    model,
+    main,
+    buttons,
+    filter,
+    backgrounds,
+    hint,
+    canvas,
+    noMatch,
+    frame: null,
+  }
+
+  filter.changed = () => {
+    syncCounts(built)
+    syncMatches(built)
+  }
+
+  filter.entered = () => openFirstMatch(built)
+
+  return built
 }
 
 /** A link to an empty or unknown section shows the first one with tokens. */
@@ -153,6 +265,7 @@ function syncChrome(shown: Panel): void {
   }
 
   shown.backgrounds.sync()
+  syncCounts(shown)
 
   const model = shown.model
   const plain = model !== null && !model.darkVariant && !model.tokenModes
@@ -162,7 +275,7 @@ function syncChrome(shown: Panel): void {
 
 /** Only a section or background change rebuilds the frame, and the panel keeps its scroll otherwise. */
 function syncFrame(shown: Panel): void {
-  const section = shown.model?.sections.find((candidate) => candidate.id === state.foundations)
+  const section = shownSection(shown)
 
   if (shown.load.status !== 'ready' || !section) {
     return
@@ -185,6 +298,7 @@ function syncFrame(shown: Panel): void {
     variant: shown.model?.darkVariant ?? null,
     css: shown.load.css,
     height: height || START_HEIGHT,
+    shown: matchesIn(shown, section),
   })
 
   if (frame && frame.section !== section.id) {
@@ -192,6 +306,7 @@ function syncFrame(shown: Panel): void {
   }
 
   shown.frame = { section: section.id, background }
+  syncMatches(shown)
 }
 
 /** The panel stays while the manifest and the load stay, and while it is on screen. */
@@ -219,9 +334,9 @@ function currentPanel(): Panel {
 
 /**
  * Show Foundations in the center: the systems, a button per section with its
- * count, the stage background switch and one specimen frame for the open
- * section. A panel already in the center is never appended again, because a
- * moved iframe reloads blank.
+ * count, the token filter, the stage background switch and one specimen frame
+ * for the open section. A panel already in the center is never appended
+ * again, because a moved iframe reloads blank.
  */
 export function showFoundations(center: HTMLElement): void {
   const shown = currentPanel()

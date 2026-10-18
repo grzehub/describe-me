@@ -1,13 +1,15 @@
 /**
  * Static builds of the viewer for the outputs that check-foundations reads,
- * plus a copy of react-browser's output without foundations, served from one
- * temp directory the way a static host would.
+ * plus a copy of react-browser's output without foundations and the synthetic
+ * copies of copies.mjs, served from one temp directory the way a static host
+ * would.
  */
 import { spawnSync } from 'node:child_process'
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { repoRoot } from '../docs/repo-root.mjs'
 import { serveStatic } from '../docs/serve-static.mjs'
+import { COPIES } from './copies.mjs'
 
 const CLI = join(repoRoot, 'packages', 'viewer', 'bin', 'describe-me.js')
 
@@ -46,9 +48,10 @@ function copyWithoutFoundations(source, dir) {
 }
 
 /**
- * Build a viewer for every output, and the copy without foundations when
- * react-browser is among them. Resolves with the server and each viewer's URL
- * by label, every URL ending with `/`.
+ * Build a viewer for every output, the copy without foundations when
+ * react-browser is among them, and each synthetic copy whose output is.
+ * Resolves with the server and each viewer's URL by label, every URL ending
+ * with `/`.
  */
 export async function serveViewers(outputs, tempDir) {
   const root = tempDir()
@@ -64,6 +67,15 @@ export async function serveViewers(outputs, tempDir) {
     copyWithoutFoundations(outputs['react-browser'].outDir, data)
     build(data, join(root, slugOf(WITHOUT_FOUNDATIONS)))
     slugs[WITHOUT_FOUNDATIONS] = slugOf(WITHOUT_FOUNDATIONS)
+  }
+
+  for (const [label, { from, write }] of Object.entries(COPIES)) {
+    if (outputs[from]) {
+      const data = join(tempDir(), 'data')
+      write(outputs[from].outDir, data)
+      build(data, join(root, slugOf(label)))
+      slugs[label] = slugOf(label)
+    }
   }
 
   const { server, url } = await serveStatic(root)

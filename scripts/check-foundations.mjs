@@ -23,7 +23,11 @@
  * the entry, the sections and counts, resolved values, the dark variant,
  * fonts, the inspector, the frame's height, the viewer theme, the link and
  * narrow widths, and a copy of react-browser's output without foundations.
- * It prints how long collecting took per output. Run after `pnpm build` and
+ * `check-foundations/check-presets.mjs` adds the design-system blocks of every
+ * output, the WCAG contrast of pair tiles, the token filter and `/`, and
+ * synthetic copies: a Chakra UI project, a Material UI project without a
+ * theme module, which shows the setup hint, and the `MUI_CSS_VARS=1` output
+ * without its theme module. It prints how long collecting took per output. Run after `pnpm build` and
  * every example's tests. Exits 1 on any failure.
  *
  * Usage: node scripts/check-foundations.mjs

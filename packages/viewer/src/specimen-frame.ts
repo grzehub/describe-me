@@ -1,10 +1,13 @@
 import type { FoundationSection } from './build-foundations-model.js'
 import type { DarkVariant } from './detect-dark-variant.js'
-import { fontsSettled } from './fonts-settled.js'
+import { filterSpecimens } from './filter-specimens.js'
+import { fitFrame } from './fit-frame.js'
 import { previewHeadHtml } from './preview-head.js'
-import { SPECIMEN_CSS } from './specimen-css.js'
-import type { Specimen } from './specimen-block.js'
+import type { ContrastTile } from './show-contrast.js'
+import { showContrast } from './show-contrast.js'
 import { renderSpecimenBlock } from './specimen-block.js'
+import { SpecimenBuild } from './specimen-build.js'
+import { SPECIMEN_CSS } from './specimen-css.js'
 
 /** What one specimen frame shows. */
 export interface SpecimenOptions {
@@ -16,6 +19,8 @@ export interface SpecimenOptions {
   css: string[]
   /** The height to start at, the old frame's, so the panel does not jump until the new one is measured. */
   height: number
+  /** The names the token filter shows, or `null` for all. */
+  shown: ReadonlySet<string> | null
 }
 
 /** Constant, as rrweb writes it for replay. Everything else goes in through DOM APIs. */
@@ -61,70 +66,72 @@ function applyVariant(doc: Document, options: SpecimenOptions): void {
   }
 }
 
-/** Every painted value as the frame computes it, through one probe. */
-function showResolved(doc: Document, specimens: Specimen[]): void {
+/**
+ * Every painted value as the frame computes it, through one probe. Returns
+ * the pair tiles whose two paints both resolve to something.
+ */
+function showResolved(doc: Document, build: SpecimenBuild): ContrastTile[] {
   const view = doc.defaultView
 
   if (!view) {
-    return
+    return []
   }
 
   const probe = doc.createElement('div')
   probe.className = 'fd-probe'
   doc.body.append(probe)
 
-  for (const specimen of specimens) {
+  const resolve = (paint: string): string => {
     // A value the browser rejects would leave the last one in place.
     probe.style.removeProperty(PROBE_PROPERTY)
-    probe.style.setProperty(PROBE_PROPERTY, specimen.paint)
-    const resolved = view.getComputedStyle(probe).getPropertyValue(PROBE_PROPERTY).trim()
+    probe.style.setProperty(PROBE_PROPERTY, paint)
+
+    return view.getComputedStyle(probe).getPropertyValue(PROBE_PROPERTY).trim()
+  }
+
+  for (const specimen of build.specimens) {
+    const resolved = resolve(specimen.paint)
 
     if (resolved !== '' && comparable(resolved) !== comparable(specimen.raw)) {
       specimen.value.textContent = `${specimen.raw} → ${resolved}`
     }
   }
 
+  const tiles = build.tiles.filter(
+    (tile) => resolve(tile.background) !== '' && resolve(tile.foreground) !== '',
+  )
+
   probe.remove()
+
+  return tiles
 }
 
 /**
- * Fit the frame to its content's bottom edge. `scrollHeight` cannot measure
- * it, because it never reports less than the frame's own height.
+ * Refit whenever the content changes size: a new width, a face that loads
+ * late, or the token filter showing samples whose web font only then starts
+ * to load. Only the root is observed, because the frame's own height changes
+ * with every fit.
  */
-function fit(iframe: HTMLIFrameElement, root: HTMLElement): void {
-  if (!iframe.isConnected) {
-    return
-  }
-
-  iframe.style.height = `${Math.ceil(root.getBoundingClientRect().bottom)}px`
-}
-
-function watchWidth(iframe: HTMLIFrameElement, root: HTMLElement): void {
-  let width = iframe.getBoundingClientRect().width
-
+function watchContent(iframe: HTMLIFrameElement, root: HTMLElement): void {
   const observer = new ResizeObserver(() => {
     if (!iframe.isConnected) {
       observer.disconnect()
       return
     }
 
-    const next = iframe.getBoundingClientRect().width
-
-    if (next !== width) {
-      width = next
-      fit(iframe, root)
-    }
+    fitFrame(iframe)
   })
 
-  observer.observe(iframe)
+  observer.observe(root)
 }
 
 /**
  * Build the specimen frame of one section inside `canvas`, which must be
  * connected. The sandbox runs no script, the project's sheets sit in
  * `@layer project`, and under `bg=dark` the frame gets a dark color scheme and
- * its root the detected class and attribute. The frame fits its height to the
- * content, again once fonts settle and whenever its width changes.
+ * its root the detected class and attribute. The token filter applies before
+ * the first fit, and pair tiles get their contrast on `canvas`. The frame fits
+ * its height to the content, and again whenever the content changes size.
  */
 export function buildSpecimenFrame(
   canvas: HTMLElement,
@@ -156,17 +163,19 @@ export function buildSpecimenFrame(
   root.dataset.section = options.section.id
   doc.body.append(root)
 
-  const specimens: Specimen[] = []
+  const build = new SpecimenBuild(doc, options.dark)
 
   for (const block of options.section.blocks) {
-    root.append(renderSpecimenBlock(doc, options.section.id, block, options.dark, specimens))
+    root.append(renderSpecimenBlock(build, options.section.id, block))
   }
 
-  const fonts = fontsSettled(iframe)
-  showResolved(doc, specimens)
-  fit(iframe, root)
-  void fonts.then(() => fit(iframe, root))
-  watchWidth(iframe, root)
+  if (options.shown) {
+    filterSpecimens(root, options.shown)
+  }
+
+  showContrast(canvas, showResolved(doc, build))
+  fitFrame(iframe)
+  watchContent(iframe, root)
 
   return iframe
 }

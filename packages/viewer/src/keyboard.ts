@@ -1,5 +1,6 @@
 import type { ManifestTest } from '@describe-me/core/types'
 import { filterActive } from './filter-active.js'
+import { FoundationsFilter } from './foundations-filter.js'
 import { foundationsShown } from './foundations-shown.js'
 import { liveShown } from './live-shown.js'
 import { regions } from './regions.js'
@@ -99,9 +100,24 @@ function onFrameKey(test: ManifestTest, step: 1 | -1): void {
   rerender('frame')
 }
 
+/** The token filter while Foundations is shown, the sidebar search otherwise. */
+function focusSearch(): void {
+  const filter = foundationsShown() ? FoundationsFilter.current : null
+
+  if (filter?.element.isConnected) {
+    filter.focus()
+    return
+  }
+
+  const { search } = regions()
+  search.focus()
+  search.select()
+}
+
 /**
  * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
- * toggles Live, `/` focuses the search. In Foundations only `/` works.
+ * toggles Live, `/` focuses the search. In Foundations only `/` works, and it
+ * focuses the token filter.
  */
 export function onKey(event: KeyboardEvent): void {
   if (!state.manifest || isTyping(event.target)) {
@@ -114,9 +130,7 @@ export function onKey(event: KeyboardEvent): void {
   }
 
   if (isSearchKey(event)) {
-    const { search } = regions()
-    search.focus()
-    search.select()
+    focusSearch()
     event.preventDefault()
     return
   }

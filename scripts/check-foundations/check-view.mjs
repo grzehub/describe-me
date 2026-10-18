@@ -5,12 +5,15 @@
  * sections and their counts, resolved values, the dark variant by class, media
  * query and theme modes, fonts, the inspector, the frame's height, the viewer
  * theme and narrow widths. On react-browser it checks the link, and a copy of
- * its output without foundations must show no entry and fetch nothing.
+ * its output without foundations must show no entry and fetch nothing. Then
+ * check-presets.mjs checks the design-system blocks, contrast, the token
+ * filter and the setup hint on every output and on the synthetic copies.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rootCustomProperties } from '../../packages/vitest/dist/root-custom-properties.js'
 import { launchChromium } from '../docs/launch-chromium.mjs'
+import { checkPresets } from './check-presets.mjs'
 import {
   gotoViewer,
   hashParams,
@@ -830,6 +833,8 @@ export async function checkView({ check, tempDir, outputs }) {
         }),
       )
     }
+
+    await checkPresets({ check, browser, urls: served.urls, outputs })
   } finally {
     await browser.close()
     served.server.close()

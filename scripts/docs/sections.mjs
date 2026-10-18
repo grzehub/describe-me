@@ -61,7 +61,7 @@ export const sections = {
     'font-check',
     'assets',
   ],
-  'foundations.html': ['sources', 'view', 'dark-variant', 'limits'],
+  'foundations.html': ['sources', 'view', 'presets', 'dark-variant', 'limits'],
   'viewer.html': [
     'cli',
     'layout',
