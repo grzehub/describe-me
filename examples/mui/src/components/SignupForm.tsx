@@ -28,7 +28,9 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
   }
 
   return (
-    <Stack spacing={2} sx={{ width: 320 }}>
+    // Once it shrinks, the outlined field's label sits 9 px above the field, so the padding keeps
+    // it on a page whose body has no margin.
+    <Stack spacing={2} sx={{ width: 320, pt: 2 }}>
       <TextField
         label="Email"
         value={email}
