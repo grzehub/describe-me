@@ -1,249 +1,168 @@
 import type { FoundationGroup } from '@describe-me/core/types'
 import type { FoundationBlock, FoundationItem } from './build-foundations-model.js'
+import { renderPairs } from './render-pairs.js'
+import { renderPalette } from './render-palette.js'
+import { renderRamp } from './render-ramp.js'
+import { renderSamples } from './render-samples.js'
+import { renderScale } from './render-scale.js'
+import { shadowTile } from './shadow-tile.js'
+import type { SpecimenBuild } from './specimen-build.js'
+import { typographyRow } from './typography-row.js'
 
-/** A painted value whose element shows `raw`, or `raw → resolved` once the frame resolves it. */
-export interface Specimen {
-  paint: string
-  raw: string
-  value: HTMLElement
-}
-
-/** What one block needs while it builds. */
-interface Build {
-  doc: Document
-  dark: boolean
-  specimens: Specimen[]
-}
-
-const LETTERS = 'Aa Bb Cc 0123'
-const CAMEL_HUMP = /[A-Z]/g
-
-function make(doc: Document, tag: string, className: string, text?: string): HTMLElement {
-  const element = doc.createElement(tag)
-  element.className = className
-
-  if (text !== undefined) {
-    element.textContent = text
-  }
-
-  return element
-}
-
-function paintOf(item: FoundationItem, build: Build): string {
-  return build.dark ? item.paint.dark : item.paint.light
-}
-
-/** The token's element, which every check and test finds by its name. */
-function tokenElement(build: Build, item: FoundationItem, tag: string, className: string) {
-  const element = make(build.doc, tag, className)
-  element.dataset.token = item.name
-
-  return element
-}
-
-/** The name, and the value the frame resolves later. */
-function labels(build: Build, item: FoundationItem): HTMLElement[] {
-  const value = make(build.doc, 'span', 'fd-value')
-  const raw = build.dark ? item.raw.dark : item.raw.light
-  value.dataset.value = ''
-  value.textContent = raw
-  build.specimens.push({ paint: paintOf(item, build), raw, value })
-
-  return [make(build.doc, 'span', 'fd-name', item.name), value]
-}
-
-/** `style.setProperty()`, so the browser drops a value it cannot use. */
-function painted(build: Build, tag: string, className: string, styles: Record<string, string>) {
-  const element = make(build.doc, tag, className)
-  element.dataset.specimen = ''
-
-  for (const [property, value] of Object.entries(styles)) {
-    element.style.setProperty(property, value)
-  }
-
-  return element
-}
-
-function listRow(build: Build, item: FoundationItem): HTMLElement {
-  const row = tokenElement(build, item, 'div', 'fd-row')
-  const meta = make(build.doc, 'div', 'fd-meta')
-  meta.append(...labels(build, item))
-  row.append(meta)
-
-  return row
-}
-
-function showRow(build: Build, item: FoundationItem, show: HTMLElement, extra?: HTMLElement) {
-  const row = listRow(build, item)
-  const meta = row.firstElementChild!
-
-  if (extra) {
-    meta.append(extra)
-  }
-
-  const cell = make(build.doc, 'div', 'fd-show')
-  cell.append(show)
-  row.append(cell)
-
-  return row
-}
-
-function swatch(build: Build, item: FoundationItem): HTMLElement {
-  const tile = tokenElement(build, item, 'div', 'fd-swatch')
-  const chip = painted(build, 'div', 'fd-chip', { 'background-color': paintOf(item, build) })
-  tile.append(chip, ...labels(build, item))
-
-  return tile
-}
-
-function tile(build: Build, item: FoundationItem, className: string, property: string) {
-  const element = tokenElement(build, item, 'div', 'fd-tile')
-  const shape = painted(build, 'div', className, { [property]: paintOf(item, build) })
-  element.append(shape, ...labels(build, item))
-
-  return element
-}
-
-function kebab(property: string): string {
-  return property.replace(CAMEL_HUMP, (letter) => `-${letter.toLowerCase()}`)
-}
-
-function isFontSize(item: FoundationItem): boolean {
-  const named = item.name.startsWith('--text-') || /font-?size/i.test(item.name)
-
-  return item.type === 'dimension' && named
-}
-
-function typographyRow(build: Build, item: FoundationItem): HTMLElement {
-  const paint = paintOf(item, build)
-
-  if (item.type === 'typography') {
-    const parts = item.parts ?? {}
-    const styles = Object.fromEntries(
-      Object.entries(parts).map(([property, value]) => [kebab(property), value]),
-    )
-
-    const list = Object.entries(parts)
-      .map(([property, value]) => `${property} ${value}`)
-      .join(' · ')
-
-    const sample = painted(build, 'p', 'fd-sample', styles)
-    sample.textContent = LETTERS
-
-    return showRow(build, item, sample, make(build.doc, 'span', 'fd-parts', list))
-  }
-
-  if (item.type === 'fontFamily' || item.type === 'fontWeight') {
-    const property = item.type === 'fontFamily' ? 'font-family' : 'font-weight'
-    const sample = painted(build, 'p', 'fd-sample', { [property]: paint })
-    sample.textContent = LETTERS
-
-    return showRow(build, item, sample)
-  }
-
-  if (isFontSize(item)) {
-    const styles: Record<string, string> = { 'font-size': paint }
-
-    if (item.parts?.lineHeight) {
-      styles['line-height'] = item.parts.lineHeight
-    }
-
-    const sample = painted(build, 'p', 'fd-sample', styles)
-    sample.textContent = LETTERS
-
-    return showRow(build, item, sample)
-  }
-
-  return listRow(build, item)
-}
-
-function shadowTile(build: Build, item: FoundationItem): HTMLElement {
-  if (!CSS.supports('box-shadow', paintOf(item, build))) {
-    return listRow(build, item)
-  }
-
-  return tile(build, item, 'fd-card', 'box-shadow')
-}
-
-/** The width of a length in px inside the frame, or 0 for one the frame cannot use. */
-function pixels(build: Build, length: string): number {
-  const probe = make(build.doc, 'div', 'fd-measure')
-  probe.style.setProperty('width', length)
-  build.doc.body.append(probe)
-  const width = probe.getBoundingClientRect().width
-  probe.remove()
-
-  return Number.isFinite(width) ? width : 0
-}
-
-function breakpointRows(build: Build, items: FoundationItem[]): HTMLElement[] {
-  const widths = items.map((item) => pixels(build, paintOf(item, build)))
+function breakpointRows(build: SpecimenBuild, items: FoundationItem[]): HTMLElement[] {
+  const widths = items.map((item) => build.pixels(build.paintOf(item)))
   const widest = Math.max(0, ...widths)
 
   return items.map((item, i) => {
     const share = widest > 0 ? ((widths[i] ?? 0) / widest) * 100 : 0
-    const bar = painted(build, 'div', 'fd-bar', { width: `${share}%` })
+    const bar = build.painted('div', 'fd-bar', { width: `${share}%` })
 
-    return showRow(build, item, bar)
+    return build.showRow(item, bar)
   })
 }
 
-function container(build: Build, section: FoundationGroup, items: FoundationItem[]) {
-  const doc = build.doc
+function shadowTiles(
+  build: SpecimenBuild,
+  items: FoundationItem[],
+  property: 'box-shadow' | 'filter' | 'text-shadow',
+): HTMLElement {
+  const grid = build.make('div', 'fd-tiles fd-shadows')
+  grid.append(...items.map((item) => shadowTile(build, item, property)))
 
+  return grid
+}
+
+function rowsOf(build: SpecimenBuild, rows: HTMLElement[]): HTMLElement {
+  const container = build.make('div', 'fd-rows')
+  container.append(...rows)
+
+  return container
+}
+
+/** The layout of a block that has none of its own, by its section. */
+function sectionLayout(build: SpecimenBuild, section: FoundationGroup, items: FoundationItem[]) {
   if (section === 'colors') {
-    const grid = make(doc, 'div', 'fd-swatches')
-    grid.append(...items.map((item) => swatch(build, item)))
+    const grid = build.make('div', 'fd-swatches')
+    grid.append(...items.map((item) => build.swatch(item)))
 
     return grid
   }
 
-  if (section === 'radius' || section === 'shadows') {
-    const grid = make(doc, 'div', section === 'shadows' ? 'fd-tiles fd-shadows' : 'fd-tiles')
-    const tileOf = (item: FoundationItem) =>
-      section === 'shadows' ? shadowTile(build, item) : tile(build, item, 'fd-box', 'border-radius')
+  if (section === 'shadows') {
+    return shadowTiles(build, items, 'box-shadow')
+  }
 
-    grid.append(...items.map(tileOf))
+  if (section === 'radius') {
+    const grid = build.make('div', 'fd-tiles')
+    grid.append(...items.map((item) => build.tile(item, 'fd-box', 'border-radius')))
 
     return grid
   }
-
-  const rows = make(doc, 'div', 'fd-rows')
 
   if (section === 'breakpoints') {
-    rows.append(...breakpointRows(build, items))
-  } else if (section === 'typography') {
-    rows.append(...items.map((item) => typographyRow(build, item)))
-  } else if (section === 'spacing') {
-    rows.append(
-      ...items.map((item) =>
-        showRow(build, item, painted(build, 'div', 'fd-bar', { width: paintOf(item, build) })),
-      ),
-    )
-  } else {
-    rows.append(...items.map((item) => listRow(build, item)))
+    return rowsOf(build, breakpointRows(build, items))
   }
 
-  return rows
+  if (section === 'typography') {
+    return rowsOf(
+      build,
+      items.map((item) => typographyRow(build, item)),
+    )
+  }
+
+  if (section === 'spacing') {
+    const bars = items.map((item) =>
+      build.showRow(item, build.painted('div', 'fd-bar', { width: build.paintOf(item) })),
+    )
+
+    return rowsOf(build, bars)
+  }
+
+  return rowsOf(
+    build,
+    items.map((item) => build.listRow(item)),
+  )
+}
+
+function container(build: SpecimenBuild, section: FoundationGroup, block: FoundationBlock) {
+  const { layout, items } = block
+
+  if (layout?.kind === 'pairs') {
+    return renderPairs(build, items, layout.pairs)
+  }
+
+  if (layout?.kind === 'ramp') {
+    return renderRamp(build, items)
+  }
+
+  if (layout?.kind === 'palette') {
+    return renderPalette(build, items, layout.rows)
+  }
+
+  if (layout?.kind === 'scale') {
+    return renderScale(build, items, layout)
+  }
+
+  if (layout?.kind === 'samples') {
+    return renderSamples(build, items, layout)
+  }
+
+  if (layout?.kind === 'shadows') {
+    return shadowTiles(build, items, layout.property)
+  }
+
+  if (layout?.kind === 'variants') {
+    return rowsOf(
+      build,
+      items.map((item) => typographyRow(build, item, true)),
+    )
+  }
+
+  return sectionLayout(build, section, items)
+}
+
+/** Text between backticks shows as code. */
+function noteOf(build: SpecimenBuild, text: string): HTMLElement {
+  const note = build.make('p', 'fd-note')
+
+  text.split('`').forEach((part, i) => {
+    if (part !== '') {
+      note.append(i % 2 === 1 ? build.make('code', 'fd-code', part) : part)
+    }
+  })
+
+  return note
+}
+
+/** The title, its prefix, the count, a badge on a block of defaults, and the note under them. */
+function header(build: SpecimenBuild, block: FoundationBlock): HTMLElement[] {
+  const title = build.make('h2', 'fd-block-title', block.title)
+
+  if (block.prefix) {
+    title.append(build.make('span', 'fd-prefix', block.prefix))
+  }
+
+  title.append(build.make('span', 'fd-count', String(block.items.length)))
+
+  if (block.defaults) {
+    title.append(build.badge())
+  }
+
+  return block.note ? [title, noteOf(build, block.note)] : [title]
 }
 
 /**
- * One block of a section inside the specimen frame: its title and count, then
- * the specimens of the section's kind. Its painted values join `specimens`,
- * for the frame to resolve once everything is in place.
+ * One block of a section inside the specimen frame: its header, then its
+ * items in the block's layout, or in its section's layout when it has none.
  */
 export function renderSpecimenBlock(
-  doc: Document,
+  build: SpecimenBuild,
   section: FoundationGroup,
   block: FoundationBlock,
-  dark: boolean,
-  specimens: Specimen[],
 ): HTMLElement {
-  const build: Build = { doc, dark, specimens }
-  const element = make(doc, 'section', 'fd-block')
-  const title = make(doc, 'h2', 'fd-block-title', block.title)
-  title.append(make(doc, 'span', 'fd-count', String(block.items.length)))
-  element.append(title, container(build, section, block.items))
+  const element = build.make('section', 'fd-block')
+  element.dataset.block = block.id
+  element.append(...header(build, block), container(build, section, block))
 
   return element
 }

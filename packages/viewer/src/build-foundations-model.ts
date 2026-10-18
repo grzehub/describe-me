@@ -8,7 +8,12 @@ import { classifyCustomProperty } from './classify-custom-property.js'
 import type { DarkVariant } from './detect-dark-variant.js'
 import { detectDarkVariant } from './detect-dark-variant.js'
 import { FOUNDATION_SECTIONS } from './foundation-sections.js'
+import { genericBlocks } from './generic-blocks.js'
+import { muiBlocks } from './mui-blocks.js'
+import { needsMuiSetup } from './needs-mui-setup.js'
 import type { CustomProperty } from './read-custom-properties.js'
+import { shadcnBlocks } from './shadcn-blocks.js'
+import { tailwindBlocks } from './tailwind-blocks.js'
 
 /** A value per color scheme, the dark one shown under the dark variant. */
 export interface Schemed {
@@ -20,6 +25,8 @@ export interface Schemed {
 export interface FoundationItem {
   name: string
   type?: FoundationTokenType
+  /** The token's origin. Custom properties have none. */
+  origin?: 'project' | 'default'
   /** The CSS value that paints its specimen. */
   paint: Schemed
   /** The value printed next to it. */
@@ -27,9 +34,49 @@ export interface FoundationItem {
   parts?: Record<string, string>
 }
 
-/** A run of items from one source, such as `Custom properties`. */
+/** A background and its foreground, shown as one tile with their contrast. */
+export interface ColorPair {
+  background: string
+  foreground: string
+  /** Whose element the tile is. The other token of a `foreground` tile keeps its own swatch. */
+  tile: 'background' | 'foreground'
+}
+
+/** A row of the compact palette: a family and the names of its chips. */
+export interface PaletteRow {
+  label: string
+  names: string[]
+}
+
+/** A derived row of a scale, such as `p-4` for `calc(var(--spacing) * 4)`. */
+export interface ScaleStep {
+  step: number
+  label: string
+}
+
+/** How a block lays out its items. Without one, the block takes its section's layout. */
+export type BlockLayout =
+  | { kind: 'pairs'; pairs: ColorPair[] }
+  | { kind: 'ramp' }
+  | { kind: 'palette'; rows: PaletteRow[] }
+  | { kind: 'scale'; base: string; steps: ScaleStep[] }
+  | { kind: 'samples'; property: 'font-weight' | 'letter-spacing' | 'line-height'; font?: Schemed }
+  | { kind: 'variants' }
+  | { kind: 'shadows'; property: 'box-shadow' | 'filter' | 'text-shadow' }
+
+/** A run of items that belong together, such as `Semantic colors` or `Chakra font sizes`. */
 export interface FoundationBlock {
+  /** The `data-block` attribute, such as `shadcn-semantic`. */
+  id: string
+  /** Readable words, never a raw name. */
   title: string
+  /** The raw name prefix the items share, such as `--chart-*`. */
+  prefix?: string
+  /** One sentence. Text between backticks shows as code. */
+  note?: string
+  /** Only on a block of framework defaults, which carries one badge for all of them. */
+  defaults?: boolean
+  layout?: BlockLayout
   items: FoundationItem[]
 }
 
@@ -48,17 +95,32 @@ export interface FoundationsModel {
   darkVariant: DarkVariant | null
   /** Whether any token of the theme or the Tailwind theme has a value per color scheme. */
   tokenModes: boolean
+  /** Whether the view should say how to show a Material UI theme. */
+  muiSetup: boolean
 }
 
-type BlockKind = 'theme' | 'properties' | 'project' | 'defaults'
-
-interface Placed {
+/** An item with its section and source, before a preset puts it in a block. */
+export interface PlacedItem {
   group: FoundationGroup
-  block: BlockKind
+  source: 'theme' | 'property' | 'tailwind'
   item: FoundationItem
 }
 
-const BLOCK_ORDER: BlockKind[] = ['theme', 'properties', 'project', 'defaults']
+/** A block, the section it shows in and the kind of source it shows. */
+export interface SectionBlock {
+  section: FoundationGroup
+  /** Blocks come in this order within a section: theme module, custom properties, Tailwind. */
+  from: PlacedItem['source']
+  block: FoundationBlock
+}
+
+/** The blocks a preset builds and the items it leaves to the next one. */
+export interface PresetResult {
+  blocks: SectionBlock[]
+  rest: PlacedItem[]
+}
+
+const SOURCE_ORDER: PlacedItem['source'][] = ['theme', 'property', 'tailwind']
 
 /** `var(--x)` and nothing else, as an `@theme inline` alias is written. */
 const PLAIN_REFERENCE = /^var\(\s*(--[\w-]+)\s*\)$/
@@ -106,7 +168,7 @@ function isColorAlias(token: FoundationToken, kept: ReadonlySet<string>): boolea
   return target !== undefined && kept.has(target)
 }
 
-function propertyItem(property: CustomProperty, others: ReadonlyMap<string, string>): Placed {
+function propertyItem(property: CustomProperty, others: ReadonlyMap<string, string>): PlacedItem {
   const light = property.light ?? ''
   const dark = property.dark ?? light
   const kind = classifyCustomProperty(property.name, property.light ?? dark, others)
@@ -114,7 +176,7 @@ function propertyItem(property: CustomProperty, others: ReadonlyMap<string, stri
 
   return {
     group: kind.group,
-    block: 'properties',
+    source: 'property',
     item: {
       name: property.name,
       ...(kind.type === undefined ? {} : { type: kind.type }),
@@ -124,29 +186,22 @@ function propertyItem(property: CustomProperty, others: ReadonlyMap<string, stri
   }
 }
 
-function blockOf(token: FoundationToken): BlockKind {
-  if (token.source === 'theme') {
-    return 'theme'
-  }
-
-  return token.origin === 'default' ? 'defaults' : 'project'
-}
-
 /**
  * Tailwind writes only the variables that utilities use, so a token missing
  * from the sheets paints its own value.
  */
-function tokenItem(token: FoundationToken, declared: ReadonlySet<string>): Placed {
+function tokenItem(token: FoundationToken, declared: ReadonlySet<string>): PlacedItem {
   const own = { light: token.value, dark: token.modes?.dark ?? token.value }
   const reference = `var(${token.name})`
   const painted = token.source === 'tailwind' && declared.has(token.name)
 
   return {
     group: token.group,
-    block: blockOf(token),
+    source: token.source,
     item: {
       name: token.name,
       ...(token.type === undefined ? {} : { type: token.type }),
+      origin: token.origin,
       paint: painted ? { light: reference, dark: reference } : own,
       raw: painted ? { light: token.value, dark: token.value } : own,
       ...(token.parts === undefined ? {} : { parts: token.parts }),
@@ -154,32 +209,40 @@ function tokenItem(token: FoundationToken, declared: ReadonlySet<string>): Place
   }
 }
 
-function blockTitle(kind: BlockKind, file: Foundations): string {
-  const titles: Record<BlockKind, string> = {
-    theme: `Theme · ${file.theme?.module ?? 'module'}`,
-    properties: 'Custom properties',
-    project: 'Tailwind theme',
-    defaults: 'Tailwind defaults',
+/** Material UI from its theme module when there is one, else from its `--mui-*` custom properties. */
+function muiSource(file: Foundations): 'theme' | 'property' | null {
+  if (file.theme?.adapter === 'mui') {
+    return 'theme'
   }
 
-  return titles[kind]
+  return file.systems.some((system) => system.id === 'mui') ? 'property' : null
 }
 
-function sectionsOf(placed: Placed[], file: Foundations): FoundationSection[] {
+/** Presets claim items in this order: Material UI, shadcn/ui, Tailwind, then the generic one. */
+function presetBlocks(file: Foundations, placed: PlacedItem[]): SectionBlock[] {
+  const source = muiSource(file)
+  const mui = source ? muiBlocks(placed, source) : { blocks: [], rest: placed }
+  const shadcnUsed = file.systems.some((system) => system.id === 'shadcn')
+  const shadcn = shadcnUsed ? shadcnBlocks(mui.rest) : { blocks: [], rest: mui.rest }
+  const tailwind = tailwindBlocks(shadcn.rest)
+
+  return [...mui.blocks, ...shadcn.blocks, ...tailwind.blocks, ...genericBlocks(tailwind.rest)]
+}
+
+function sectionsOf(blocks: SectionBlock[]): FoundationSection[] {
   const sections: FoundationSection[] = []
 
   for (const { id, title } of FOUNDATION_SECTIONS) {
-    const blocks = BLOCK_ORDER.map((kind) => ({
-      title: blockTitle(kind, file),
-      items: placed
-        .filter((entry) => entry.group === id && entry.block === kind)
-        .map((entry) => entry.item),
-    })).filter((block) => block.items.length > 0)
+    const shown = SOURCE_ORDER.flatMap((from) =>
+      blocks
+        .filter((entry) => entry.section === id && entry.from === from)
+        .map((entry) => entry.block),
+    ).filter((block) => block.items.length > 0)
 
-    const count = blocks.reduce((sum, block) => sum + block.items.length, 0)
+    const count = shown.reduce((sum, block) => sum + block.items.length, 0)
 
     if (count > 0) {
-      sections.push({ id, title, count, blocks })
+      sections.push({ id, title, count, blocks: shown })
     }
   }
 
@@ -190,7 +253,8 @@ function sectionsOf(placed: Placed[], file: Foundations): FoundationSection[] {
  * The sections, blocks and specimens values of the view. A theme module wins
  * over `--mui-*` custom properties, the Tailwind theme over the variables
  * Tailwind writes, and a custom property over the `@theme inline` color alias
- * that points at it. `properties` come from the token sheets.
+ * that points at it. `properties` come from the token sheets. Design-system
+ * presets then group each section's items into blocks.
  */
 export function buildFoundationsModel(
   file: Foundations,
@@ -218,8 +282,9 @@ export function buildFoundationsModel(
   ]
 
   return {
-    sections: sectionsOf(placed, file),
+    sections: sectionsOf(presetBlocks(file, placed)),
     darkVariant: detectDarkVariant(properties),
     tokenModes: file.tokens.some((token) => token.modes),
+    muiSetup: needsMuiSetup(file, properties),
   }
 }

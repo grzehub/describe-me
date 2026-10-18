@@ -56,7 +56,7 @@ const WORD_RULES: WordRule[] = [
   { group: 'shadows', words: ['shadow', 'shadows', 'elevation'] },
   {
     group: 'typography',
-    words: ['font', 'typography', 'leading', 'tracking'],
+    words: ['font', 'fonts', 'typography', 'leading', 'tracking'],
     pairs: [
       ['line', 'height'],
       ['letter', 'spacing'],

@@ -65,14 +65,14 @@
           <h1>Foundations</h1>
           <p class="page-meta">
             packages/vitest/src/collect-foundations.ts · load-tailwind-theme.ts · import-theme.ts ·
-            packages/viewer/src/foundation-sections.ts
+            packages/viewer/src/foundation-sections.ts · build-foundations-model.ts
           </p>
         </header>
 
         <p class="lead">
           Foundations shows the tokens of the project's design system, read from what the tests
           load, without stories or MDX. This page covers where the tokens come from, what the view
-          shows and how it shows the dark variant.
+          shows, how it shows each design system and how it shows the dark variant.
         </p>
 
         <h2 id="sources">
@@ -167,18 +167,27 @@
 
         <h3>Blocks</h3>
         <p>
-          Inside a section, the tokens fall into blocks, in this order. An empty block drops out.
+          Inside a section, the tokens fall into blocks, such as <code>Semantic colors</code>,
+          <code>Type scale</code> or <code>Elevation</code>. A preset per design system forms them,
+          as <a href="#presets">Design systems</a> describes. Each block has a title in readable
+          words, the name prefix its tokens share, such as <code>--chart-*</code> or
+          <code>palette.primary.*</code>, and its count. A note under the title says what the block
+          leaves out or how to change it. Within a section, the blocks come in this order, and an
+          empty block drops out:
         </p>
-        <dl class="kv">
-          <dt><code>Theme · &lt;module&gt;</code></dt>
-          <dd>The tokens of the theme module, such as <code>Theme · src/theme.ts</code>.</dd>
-          <dt><code>Custom properties</code></dt>
-          <dd>The custom properties of the recorded stylesheets.</dd>
-          <dt><code>Tailwind theme</code></dt>
-          <dd>The tokens of the project's own <code>@theme</code>.</dd>
-          <dt><code>Tailwind defaults</code></dt>
-          <dd>The tokens Tailwind ships.</dd>
-        </dl>
+        <ol>
+          <li>The tokens of the theme module.</li>
+          <li>
+            The custom properties of the recorded stylesheets: the blocks of a preset, then blocks
+            by name prefix, then <code>Custom properties</code> for the rest.
+          </li>
+          <li>The tokens of the Tailwind theme, with Tailwind's default palette last.</li>
+        </ol>
+        <p>
+          Tailwind's defaults carry a <code>default</code> badge next to their name, so the
+          project's own tokens stand out. The compact grid of Tailwind's default colors carries one
+          badge on its title instead.
+        </p>
 
         <h3>Specimens</h3>
         <div class="scroll">
@@ -192,18 +201,28 @@
             <tbody>
               <tr>
                 <td>Colors</td>
-                <td>a swatch grid</td>
+                <td>
+                  a swatch, a large chip in the ramp of a color family, a small chip in a compact
+                  palette with its name and value in the tooltip, or a pair tile:
+                  <code>Aa</code> in the foreground on the background, with
+                  <a href="#presets">their contrast</a>
+                </td>
               </tr>
               <tr>
                 <td>Typography</td>
                 <td>
-                  a sample line in the family, the weight or the size, or in the whole composite
-                  typography token
+                  a sample line in the family, the weight or the size with its line height, in the
+                  whole style of a composite typography token, or in a <code>font</code> shorthand.
+                  Weights, tracking and leading paint their sample in the theme's sans font, and the
+                  leading sample wraps over at least two lines
                 </td>
               </tr>
               <tr>
                 <td>Spacing</td>
-                <td>a bar of that length</td>
+                <td>
+                  a bar of that length. A spacing scale adds a row per multiple, with its length in
+                  pixels
+                </td>
               </tr>
               <tr>
                 <td>Radius</td>
@@ -211,11 +230,14 @@
               </tr>
               <tr>
                 <td>Shadows</td>
-                <td>a card with that box shadow</td>
+                <td>
+                  a card under a box or inset shadow, a shape under
+                  <code>filter: drop-shadow()</code>, or <code>Aa</code> under a text shadow
+                </td>
               </tr>
               <tr>
                 <td>Breakpoints</td>
-                <td>a bar each, scaled to the widest</td>
+                <td>a bar each, scaled to the widest of its block</td>
               </tr>
               <tr>
                 <td>Motion and Other</td>
@@ -230,6 +252,22 @@
           something else, it shows <code>raw → resolved</code>, such as
           <code>var(--radius) → 0.625rem</code> or
           <code>calc(var(--radius) - 4px) → calc(0.625rem - 4px)</code>.
+        </p>
+
+        <h3>Filter</h3>
+        <p>
+          The field in the toolbar filters the tokens by name and value. Every word must occur, in
+          any case, in a token's name or in its raw light or dark value. So <code>brand</code> finds
+          <code>--color-brand-500</code>, and <code>0.7 0.18 285</code> finds the tokens whose name
+          or values hold all three. A pair shows whole when either of its tokens matches. While the
+          field holds text, each section button counts its matches, and a section without one shows
+          <code>no token matches</code>.
+        </p>
+        <p>
+          <kbd>/</kbd> focuses the field while Foundations is open. <kbd>Esc</kbd> clears it and
+          leaves the field. <kbd>Enter</kbd> leaves the field and, when the open section has no
+          match, opens the first section with one. The filter is not part of the link. It starts
+          empty each time Foundations opens and when a new run arrives.
         </p>
 
         <h3>The inspector</h3>
@@ -280,6 +318,172 @@
           its <a href="examples/shadcn/#foundations=radius">radius</a>, where the project's own
           tokens show <code>raw → resolved</code>, and the
           <a href="examples/mui/#foundations=typography">typography</a> of the Material UI example.
+        </p>
+
+        <h2 id="presets">
+          Design systems
+          <a class="anchor" href="#presets" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          A preset per design system groups the tokens into blocks. Material UI goes first, then
+          shadcn/ui and Tailwind, and a generic preset takes what is left. A token still shows once,
+          in the section of its kind.
+        </p>
+
+        <h3>Tailwind</h3>
+        <p>The tokens of the Tailwind 4 theme form these blocks:</p>
+        <dl class="kv">
+          <dt>Colors</dt>
+          <dd>
+            A ramp of large chips per color family of the project with at least three numeric steps,
+            such as <code>--color-brand-*</code>. Then <code>Theme colors</code> for the project's
+            other colors, and <code>Tailwind palette</code>: the default colors in a compact grid,
+            one row per family. Its note says how to remove it: add
+            <code>--color-*: initial</code> to <code>@theme</code>.
+          </dd>
+          <dt>Typography</dt>
+          <dd>
+            <code>Font families</code>, <code>Type scale</code> with each size's line height,
+            <code>Font weights</code>, <code>Tracking</code>, <code>Leading</code> and
+            <code>Base font</code>.
+          </dd>
+          <dt>Spacing</dt>
+          <dd>
+            <code>Spacing scale</code>: <code>--spacing</code>, then a row per multiple that
+            utilities such as <code>p-4</code> use, from 1 to 96, each with its length in pixels.
+          </dd>
+          <dt>Radius</dt>
+          <dd><code>Radius scale</code>.</dd>
+          <dt>Shadows</dt>
+          <dd>
+            <code>Box shadows</code>, <code>Inset shadows</code>, <code>Drop shadows</code> and
+            <code>Text shadows</code>, each painted the way its utility paints it.
+          </dd>
+          <dt>Breakpoints</dt>
+          <dd><code>Breakpoints</code> and <code>Containers</code>.</dd>
+          <dt>Motion</dt>
+          <dd><code>Easing</code>, <code>Animations</code> and <code>Transitions</code>.</dd>
+          <dt>Other</dt>
+          <dd>
+            A block per namespace, such as <code>Blur</code>, <code>Perspective</code> and
+            <code>Aspect</code>.
+          </dd>
+        </dl>
+        <p>
+          The project's tokens and Tailwind's defaults share a block, and each default carries the
+          <code>default</code> badge. See the
+          <a href="examples/shadcn/#foundations=spacing">spacing scale</a> and the
+          <a href="examples/shadcn/#foundations=typography">typography</a> of the shadcn/ui example.
+        </p>
+
+        <h3>shadcn/ui</h3>
+        <p>With shadcn/ui, its custom properties form four blocks ahead of the Tailwind ones:</p>
+        <dl class="kv">
+          <dt><code>Semantic colors</code></dt>
+          <dd>
+            The color custom properties outside the chart and the sidebar.
+            <code>--primary</code> and <code>--primary-foreground</code> form a pair, as does every
+            <code>--X</code> with its <code>--X-foreground</code>, and so do
+            <code>--background</code> and <code>--foreground</code>. A pair shows as one tile:
+            <code>Aa</code> in the foreground on the background, both tokens with their values, and
+            their contrast. The singles, such as <code>--border</code> and <code>--ring</code>,
+            follow as swatches.
+          </dd>
+          <dt><code>Chart</code></dt>
+          <dd><code>--chart-*</code>.</dd>
+          <dt><code>Sidebar</code></dt>
+          <dd><code>--sidebar-*</code>, with pairs of its own.</dd>
+          <dt><code>Radius</code></dt>
+          <dd>
+            <code>--radius</code>, then the Tailwind radius tokens derived from it, such as
+            <code>--radius-lg: var(--radius)</code>.
+          </dd>
+        </dl>
+        <p>
+          The contrast is the WCAG 2 ratio of the two colors as the frame paints them, for the mode
+          on screen, so <code>bg=dark</code> shows the ratio of the dark pair. A translucent color
+          counts over what lies under it. The level follows the ratio:
+        </p>
+        <dl class="kv">
+          <dt><code>AAA</code></dt>
+          <dd>7:1 and up.</dd>
+          <dt><code>AA</code></dt>
+          <dd>4.5:1 and up, enough for body text.</dd>
+          <dt><code>AA large</code></dt>
+          <dd>3:1 and up, enough for large text only.</dd>
+          <dt><code>fail</code></dt>
+          <dd>Below 3:1.</dd>
+        </dl>
+        <p>
+          See the <a href="examples/shadcn/#foundations=colors">pairs</a> of the shadcn/ui example
+          and its <a href="examples/shadcn/#foundations=radius">radius</a>.
+        </p>
+
+        <h3>Material UI</h3>
+        <p>
+          One preset, fed by the theme module that <code>foundations.theme</code> names or, without
+          one, by the <code>--mui-*</code> custom properties that <code>cssVariables: true</code>
+          writes. With both, the theme module wins. The blocks:
+        </p>
+        <ul>
+          <li>
+            <strong>Palette.</strong> <code>Primary</code>, <code>Secondary</code>,
+            <code>Error</code>, <code>Warning</code>, <code>Info</code> and
+            <code>Success</code> show <code>main</code>, <code>light</code> and <code>dark</code> as
+            swatches, and <code>contrastText</code> as a pair tile with <code>main</code> behind it.
+            Then the <code>Grey</code> ramp, <code>Text</code>, <code>Background</code>,
+            <code>Divider</code>, <code>Common</code> and <code>Action</code>. From
+            <code>--mui-*</code>, <code>Components</code> holds the colors of components, such as
+            <code>--mui-palette-Alert-*</code>.
+          </li>
+          <li>
+            <strong>Typography.</strong> <code>Variants</code> shows the 13 variants,
+            <code>h1</code> to <code>overline</code>, each as a sample line in its whole style with
+            its parts. From <code>--mui-*</code>, each sample paints its
+            <code>font</code> shorthand. A theme module adds <code>Font family</code> and
+            <code>Font weights</code>.
+          </li>
+          <li>
+            <strong>Spacing.</strong> <code>spacing(0)</code> to <code>spacing(12)</code>. From
+            <code>--mui-*</code>, <code>--mui-spacing</code> with a row per multiple.
+          </li>
+          <li>
+            <strong>The rest.</strong> <code>Shape</code>, the 25 levels of <code>Elevation</code>,
+            <code>Breakpoints</code>, <code>Duration</code>, <code>Easing</code> and
+            <code>z-index</code>. From <code>--mui-*</code>, also <code>Opacity</code> and
+            <code>Overlays</code>.
+          </li>
+        </ul>
+        <p>
+          Material UI writes most palette colors a second time as <code>…Channel</code> properties,
+          such as <code>--mui-palette-primary-mainChannel: 91 75 219</code>, for colors with alpha.
+          The preset leaves them out, and each block that had some says how many in its note.
+          Material UI 9.5 writes no breakpoints and no transitions as custom properties, so those
+          blocks show only with a theme module.
+        </p>
+        <p>
+          When Foundations opens for a project that uses Material UI without a theme module or
+          <code>--mui-*</code>, it says in one sentence what to set: name the theme's module in
+          <code>foundations: { theme: 'src/theme.ts' }</code> or create the theme with
+          <code>cssVariables: true</code>. See the
+          <a href="examples/mui/#foundations=colors">palette</a> and the
+          <a href="examples/mui/#foundations=typography">typography</a> of the Material UI example.
+        </p>
+
+        <h3>Other design systems</h3>
+        <p>
+          Custom properties that no preset takes form blocks by name prefix, within each section.
+          Names that share their first two parts, such as <code>--chakra-colors-gray-50</code> and
+          <code>--chakra-colors-bg</code>, form a block when there are at least two. Its title and
+          prefix come from the longest prefix they share: <code>Chakra colors</code>,
+          <code>--chakra-colors-*</code>. Names of two parts group by the first. The rest show under
+          <code>Custom properties</code>. Chakra UI, Mantine and Radix Themes show this way.
+        </p>
+        <p>
+          The tokens of a plain theme module group by their parent path, so
+          <code>colors.ink</code> shows in a block <code>Colors</code>, <code>colors.*</code>, as in
+          the <a href="examples/react-jsdom/#foundations=colors">jsdom example</a>.
         </p>
 
         <h2 id="dark-variant">
@@ -347,7 +551,7 @@
           <a href="limitations.html#limit-foundations-presets"
             >Chakra UI, Mantine and Radix Themes</a
           >
-          show in the generic sections only.
+          show in generic blocks by name prefix.
           <a href="limitations.html#summary">Limitations</a> lists the workarounds.
         </p>
 
@@ -368,6 +572,7 @@
         <ul>
           <li><a href="#sources">Where the tokens come from</a></li>
           <li><a href="#view">The view</a></li>
+          <li><a href="#presets">Design systems</a></li>
           <li><a href="#dark-variant">The dark variant</a></li>
           <li><a href="#limits">Limits</a></li>
         </ul>
