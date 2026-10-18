@@ -2,7 +2,6 @@ import type { FoundationSection } from './build-foundations-model.js'
 import type { DarkVariant } from './detect-dark-variant.js'
 import { filterSpecimens } from './filter-specimens.js'
 import { fitFrame } from './fit-frame.js'
-import { fontsSettled } from './fonts-settled.js'
 import { previewHeadHtml } from './preview-head.js'
 import type { ContrastTile } from './show-contrast.js'
 import { showContrast } from './show-contrast.js'
@@ -107,24 +106,23 @@ function showResolved(doc: Document, build: SpecimenBuild): ContrastTile[] {
   return tiles
 }
 
-function watchWidth(iframe: HTMLIFrameElement): void {
-  let width = iframe.getBoundingClientRect().width
-
+/**
+ * Refit whenever the content changes size: a new width, a face that loads
+ * late, or the token filter showing samples whose web font only then starts
+ * to load. Only the root is observed, because the frame's own height changes
+ * with every fit.
+ */
+function watchContent(iframe: HTMLIFrameElement, root: HTMLElement): void {
   const observer = new ResizeObserver(() => {
     if (!iframe.isConnected) {
       observer.disconnect()
       return
     }
 
-    const next = iframe.getBoundingClientRect().width
-
-    if (next !== width) {
-      width = next
-      fitFrame(iframe)
-    }
+    fitFrame(iframe)
   })
 
-  observer.observe(iframe)
+  observer.observe(root)
 }
 
 /**
@@ -133,8 +131,7 @@ function watchWidth(iframe: HTMLIFrameElement): void {
  * `@layer project`, and under `bg=dark` the frame gets a dark color scheme and
  * its root the detected class and attribute. The token filter applies before
  * the first fit, and pair tiles get their contrast on `canvas`. The frame fits
- * its height to the content, again once fonts settle and whenever its width
- * changes.
+ * its height to the content, and again whenever the content changes size.
  */
 export function buildSpecimenFrame(
   canvas: HTMLElement,
@@ -176,11 +173,9 @@ export function buildSpecimenFrame(
     filterSpecimens(root, options.shown)
   }
 
-  const fonts = fontsSettled(iframe)
   showContrast(canvas, showResolved(doc, build))
   fitFrame(iframe)
-  void fonts.then(() => fitFrame(iframe))
-  watchWidth(iframe)
+  watchContent(iframe, root)
 
   return iframe
 }

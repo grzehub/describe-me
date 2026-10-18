@@ -7,7 +7,14 @@
  * of copies.mjs. Every page opens through `openViewer()`.
  */
 import { CHAKRA_COPY, COPIES, MUI_VARIABLES_ONLY, MUI_WITHOUT_THEME } from './copies.mjs'
-import { gotoViewer, openViewer, sectionButtons, setHash, waitForFrame } from './view-page.mjs'
+import {
+  gotoViewer,
+  openViewer,
+  sectionButtons,
+  setHash,
+  waitForFonts,
+  waitForFrame,
+} from './view-page.mjs'
 
 // A copy of FOUNDATION_SECTIONS in packages/viewer/src/foundation-sections.ts.
 const SECTIONS = [
@@ -587,6 +594,80 @@ async function checkFilter(check, page) {
   )
 }
 
+function sectionCount(page, section) {
+  return page.evaluate(
+    (id) =>
+      Number(
+        document.querySelector(`.foundations-sections button[data-section="${id}"] .count`)
+          ?.textContent,
+      ),
+    section,
+  )
+}
+
+async function waitForCount(page, section, expected) {
+  await page.waitForFunction(
+    ([id, wanted]) =>
+      document.querySelector(`.foundations-sections button[data-section="${id}"] .count`)
+        ?.textContent === wanted,
+    [section, String(expected)],
+    { timeout: UPDATE_TIMEOUT },
+  )
+}
+
+/** Two frames, so the faces that shown samples need have started loading, then until they settle. */
+async function settleFonts(page) {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  )
+
+  await waitForFonts(page)
+}
+
+/**
+ * A frame built while the filter hides every sample in a web font requests
+ * that font only once the filter shows them again, so the content grows after
+ * the filter has refit the frame. It needs a page of its own, because a face
+ * that an earlier frame of the page loaded is ready at once.
+ */
+async function checkRevealedFit(check, label, page, [query, matches]) {
+  await check(
+    `${label}: with ${query} in the filter, Typography opened and Esc pressed, the frame fits its content once fonts settle`,
+    async () => {
+      const all = await sectionCount(page, 'typography')
+      const field = page.locator('.foundations .foundations-filter')
+      await field.fill(query)
+      await waitForCount(page, 'typography', matches)
+      await page
+        .locator('.foundations .foundations-sections button[data-section="typography"]')
+        .click()
+
+      await waitForFrame(page, 'typography')
+      // Past the frame's own wait for fonts, as when someone pauses before Esc.
+      await settleFonts(page)
+      await field.press('Escape')
+      await waitForCount(page, 'typography', all)
+      await settleFonts(page)
+
+      const box = await page.evaluate(() => {
+        const iframe = globalThis.specimenFrame()
+        const root = iframe.contentDocument.querySelector('.fd-root')
+
+        return {
+          frame: iframe.getBoundingClientRect().height,
+          content: Math.ceil(root.getBoundingClientRect().bottom),
+        }
+      })
+
+      // fitFrame() sets the height to the rounded-up bottom edge, so a fit is exact.
+      return {
+        passed: Math.abs(box.frame - box.content) <= PIXEL_TOLERANCE,
+        detail: JSON.stringify(box),
+      }
+    },
+  )
+}
+
 async function checkShadcn(check, page, output) {
   await checkShadcnColors(check, page, output.foundations)
   await checkContrast(check, 'shadcn', page, SHADCN_CONTRAST)
@@ -913,6 +994,13 @@ async function checkPlain(check, label, page, expected) {
   )
 }
 
+/** The query that hides Typography's web-font samples, and the Typography count it leaves. */
+const REVEALED = {
+  shadcn: ['brand', 0],
+  mui: ['h1', 1],
+  'mui, MUI_CSS_VARS=1': ['h1', 1],
+}
+
 const CASES = {
   shadcn: (check, page, output) => checkShadcn(check, page, output),
   mui: (check, page) => checkMuiTheme(check, 'mui', page),
@@ -929,23 +1017,45 @@ const CASES = {
     checkPlain(check, 'react-browser', page, [['custom-properties', 'Custom properties', null, 7]]),
 }
 
-async function checkLabel(check, browser, label, url, output) {
+async function openColors(browser, url) {
   const viewer = await openViewer(browser, url)
+  await gotoViewer(viewer, url, '#foundations=colors&bg=light')
+  await waitForFrame(viewer.page, 'colors')
+
+  return viewer
+}
+
+/** Returns the failures of its page. */
+async function checkFreshPage(check, browser, label, url) {
+  const viewer = await openColors(browser, url)
 
   try {
-    await gotoViewer(viewer, url, '#foundations=colors')
-    await waitForFrame(viewer.page, 'colors')
+    await checkRevealedFit(check, label, viewer.page, REVEALED[label])
+  } finally {
+    await viewer.close()
+  }
+
+  return viewer.failures
+}
+
+async function checkLabel(check, browser, label, url, output) {
+  const failures = REVEALED[label] ? await checkFreshPage(check, browser, label, url) : []
+  const viewer = await openColors(browser, url)
+
+  try {
     await checkCounts(check, label, viewer.page)
     await CASES[label]?.(check, viewer.page, output)
   } finally {
     await viewer.close()
   }
 
+  failures.push(...viewer.failures)
+
   await check(
     `${label}: no page error, console error or failed request in the preset cases`,
     () => ({
-      passed: viewer.failures.length === 0,
-      detail: [...new Set(viewer.failures)].join('; '),
+      passed: failures.length === 0,
+      detail: [...new Set(failures)].join('; '),
     }),
   )
 }
