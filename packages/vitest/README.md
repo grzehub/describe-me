@@ -14,6 +14,9 @@ a browsable catalog. `describe` blocks become the sidebar, each `it` is a
 story, and each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
+[Foundations](https://grzehub.github.io/describe-me/foundations.html) shows the design system your tests load: Tailwind 4, shadcn/ui,
+Material UI or plain CSS custom properties, in light and dark. See it in the [shadcn/ui example](https://grzehub.github.io/describe-me/examples/shadcn/).
+
 Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
 recorded frames, Live and Foundations in the viewer.
 
@@ -52,13 +55,9 @@ walks through both environments. Keep all describe-me packages on one version
 The plugin is the whole integration. It detects browser mode or a DOM
 environment, registers the setup file and the reporter, and redirects your
 test library's `render` to the recording one, so existing tests record frames
-unchanged.
-[What the plugin changes](https://grzehub.github.io/describe-me/configuration.html#plugin)
-lists every change it makes to your config, and
-[Options](https://grzehub.github.io/describe-me/configuration.html#options)
-every option it takes.
-The reporter also writes the tokens of your design system for Foundations. See
-[`foundations`](https://grzehub.github.io/describe-me/configuration.html#option-foundations).
+unchanged. [What the plugin changes](https://grzehub.github.io/describe-me/configuration.html#plugin)
+lists every change it makes to your config, and [Options](https://grzehub.github.io/describe-me/configuration.html#options)
+every option it takes, [`foundations`](https://grzehub.github.io/describe-me/configuration.html#option-foundations) among them.
 
 | Entry point                        | What it holds                                                                                                           |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
