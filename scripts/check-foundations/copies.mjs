@@ -2,9 +2,9 @@
  * Synthetic copies of example outputs for the preset cases of
  * check-foundations, each written into a directory of its own so that
  * `examples/` stays untouched: a Chakra UI project with custom properties
- * only, a Material UI project without a theme module or `--mui-*`, the
- * `MUI_CSS_VARS=1` output without its theme module, and mui's output with
- * a primary whose dark mode is Material UI's default.
+ * only, a Material UI project without a theme module or `--mui-*`, the mui
+ * output without its theme module, and the `MUI_CLASSIC=1` output with a
+ * primary whose dark mode is Material UI's default.
  */
 import { cpSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -12,13 +12,13 @@ import { join } from 'node:path'
 /** A Chakra UI project, from react-browser's output. */
 export const CHAKRA_COPY = 'Chakra copy'
 
-/** A Material UI project with neither a theme module nor `--mui-*`, from mui's output. */
+/** A Material UI project with neither a theme module nor `--mui-*`, from the `MUI_CLASSIC=1` output. */
 export const MUI_WITHOUT_THEME = 'MUI without theme'
 
-/** The `MUI_CSS_VARS=1` output without its theme module, so only `--mui-*` is left. */
+/** The mui output without its theme module, so only `--mui-*` is left. */
 export const MUI_VARIABLES_ONLY = '--mui-* only'
 
-/** mui's output whose dark primary is Material UI's `#90caf9`, which src/theme.ts never has. */
+/** The `MUI_CLASSIC=1` output whose dark primary is Material UI's `#90caf9`, which src/theme.ts never has. */
 export const MUI_DEFAULT_DARK_PRIMARY = 'MUI with a default dark primary'
 
 const CHAKRA_ROOT = [
@@ -104,7 +104,7 @@ export function writeChakraCopy(source, dir) {
   )
 }
 
-/** mui's output in `source` without its theme, with one custom property of its own. */
+/** The `MUI_CLASSIC=1` output in `source` without its theme, with one custom property of its own. */
 export function writeMuiWithoutTheme(source, dir) {
   copyWith(
     source,
@@ -118,12 +118,12 @@ export function writeMuiWithoutTheme(source, dir) {
   )
 }
 
-/** The `MUI_CSS_VARS=1` output in `source` without its theme module. */
+/** The mui output in `source` without its theme module. */
 export function writeMuiVariablesOnly(source, dir) {
   copyWith(source, dir, withoutTheme, (summary) => ({ ...summary, tokens: 232 }))
 }
 
-/** mui's output in `source`, with only the dark mode of `palette.primary.main` at the default. */
+/** The `MUI_CLASSIC=1` output in `source`, with only the dark mode of `palette.primary.main` at the default. */
 export function writeMuiDefaultDarkPrimary(source, dir) {
   const primary = {
     modes: { light: '#5b4bdb', dark: '#90caf9' },
@@ -147,7 +147,7 @@ export function writeMuiDefaultDarkPrimary(source, dir) {
 /** Each copy by label: the output it is made from and how. */
 export const COPIES = {
   [CHAKRA_COPY]: { from: 'react-browser', write: writeChakraCopy },
-  [MUI_WITHOUT_THEME]: { from: 'mui', write: writeMuiWithoutTheme },
-  [MUI_VARIABLES_ONLY]: { from: 'mui, MUI_CSS_VARS=1', write: writeMuiVariablesOnly },
-  [MUI_DEFAULT_DARK_PRIMARY]: { from: 'mui', write: writeMuiDefaultDarkPrimary },
+  [MUI_WITHOUT_THEME]: { from: 'mui, MUI_CLASSIC=1', write: writeMuiWithoutTheme },
+  [MUI_VARIABLES_ONLY]: { from: 'mui', write: writeMuiVariablesOnly },
+  [MUI_DEFAULT_DARK_PRIMARY]: { from: 'mui, MUI_CLASSIC=1', write: writeMuiDefaultDarkPrimary },
 }

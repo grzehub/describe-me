@@ -855,8 +855,8 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code>,
           <code>STORIES</code> and the values <code>no-live-setup</code> and <code>off</code> of
           <code>LIVE_FIXTURES</code> work only in <code>examples/react-jsdom</code>, and
-          <code>MUI_CSS_VARS</code> and <code>MUI_THEME</code> only in <code>examples/mui</code>.
-          Set them inline for one run. There is no <code>.env</code>.
+          <code>MUI_CLASSIC</code> and <code>MUI_THEME</code> only in <code>examples/mui</code>. Set
+          them inline for one run. There is no <code>.env</code>.
         </p>
 
         <div class="scroll">
@@ -955,12 +955,13 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   sets it.
                 </td>
               </tr>
-              <tr id="env-MUI_CSS_VARS">
-                <td><code>MUI_CSS_VARS</code></td>
+              <tr id="env-MUI_CLASSIC">
+                <td><code>MUI_CLASSIC</code></td>
                 <td class="nowrap"><code>examples/mui</code></td>
                 <td>
-                  <code>1</code> builds the theme with <code>cssVariables: true</code> and writes to
-                  <code>node_modules/.describe-me-css-vars</code>, so
+                  <code>1</code> builds the theme without <code>cssVariables</code>, so Material UI
+                  writes the light scheme's colors into the recorded CSS. It writes to
+                  <code>node_modules/.describe-me-classic</code>, so
                   <code>.describe-me/</code> keeps the default run.
                   <code>pnpm check-foundations</code> sets it.
                 </td>
@@ -971,8 +972,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                 <td>
                   <code>off</code> leaves out <code>foundations.theme</code>, as a plain Material UI
                   project does, and writes to <code>node_modules/.describe-me-no-theme</code>, where
-                  Foundations shows only the setup hint. It does not combine with
-                  <code>MUI_CSS_VARS=1</code>. <code>pnpm check-foundations</code> sets it.
+                  Foundations shows only the setup hint. It builds the classic theme too, without
+                  <code>cssVariables</code>, and does not combine with <code>MUI_CLASSIC=1</code>.
+                  <code>pnpm check-foundations</code> sets it.
                 </td>
               </tr>
             </tbody>

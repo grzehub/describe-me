@@ -1107,14 +1107,14 @@ async function checkPlain(check, label, page, expected) {
 /** The query that hides Typography's web-font samples, and the Typography count it leaves. */
 const REVEALED = {
   shadcn: ['brand', 0],
+  'mui, MUI_CLASSIC=1': ['h1', 1],
   mui: ['h1', 1],
-  'mui, MUI_CSS_VARS=1': ['h1', 1],
 }
 
 const CASES = {
   shadcn: (check, page, output) => checkShadcn(check, page, output),
+  'mui, MUI_CLASSIC=1': (check, page) => checkMuiTheme(check, 'mui, MUI_CLASSIC=1', page),
   mui: (check, page) => checkMuiTheme(check, 'mui', page),
-  'mui, MUI_CSS_VARS=1': (check, page) => checkMuiTheme(check, 'mui, MUI_CSS_VARS=1', page),
   [MUI_VARIABLES_ONLY]: (check, page) => checkMuiVariables(check, page),
   [MUI_WITHOUT_THEME]: (check, page) => checkMuiWithoutTheme(check, page),
   [MUI_DEFAULT_DARK_PRIMARY]: (check, page) => checkDefaultDarkPrimary(check, page),

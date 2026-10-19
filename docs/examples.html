@@ -135,8 +135,8 @@
           </li>
           <li>
             <a href="examples/mui/#test=6dc43ff7c593">PlanCard, marks the popular plan</a>. Switch
-            the stage background to dark: the live frame takes the theme's dark palette, because
-            Material UI follows <code>prefers-color-scheme</code> in a browser.
+            the stage background to dark: the frame takes the theme's dark palette, in Live and in
+            the recorded frames, through the dark media rule of Material UI's CSS variables.
           </li>
         </ul>
 
@@ -733,11 +733,20 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
           <code>src/theme.ts</code> builds the theme with <code>createTheme()</code>: a palette for
           the light and the dark scheme under <code>colorSchemes</code>, Roboto and heavier headings
           and buttons under <code>typography</code>, and rounder corners under <code>shape</code>.
-          jsdom has no <code>matchMedia</code>, so the recorded frames use the light scheme.
-          <code>MUI_CSS_VARS=1 pnpm test</code> runs the same tests with
-          <code>cssVariables: true</code> and writes them to
-          <code>node_modules/.describe-me-css-vars</code>, so <code>.describe-me/</code> keeps the
-          default run. See <a href="configuration.html#env-MUI_CSS_VARS">MUI_CSS_VARS</a>.
+          With <code>cssVariables</code>, Material UI writes both schemes as
+          <code>--mui-*</code> custom properties, the dark one under
+          <code>prefers-color-scheme: dark</code>. So a recorded frame shows its dark variant on the
+          dark canvas, although jsdom has no <code>matchMedia</code>.
+          <code>disableCssColorScheme</code> keeps <code>color-scheme</code> off the page, so the
+          stage's <code>auto</code> background follows the viewer theme.
+        </p>
+
+        <p>
+          Two variants run the classic theme, without <code>cssVariables</code>, where the recorded
+          CSS holds only the light scheme's colors. <code>MUI_CLASSIC=1 pnpm test</code> runs the
+          same tests into <code>node_modules/.describe-me-classic</code>, so
+          <code>.describe-me/</code> keeps the default run. See
+          <a href="configuration.html#env-MUI_CLASSIC">MUI_CLASSIC</a>.
           <code>MUI_THEME=off pnpm test</code> runs them without <code>foundations.theme</code>, as
           a plain Material UI project, into <code>node_modules/.describe-me-no-theme</code>, where
           Foundations shows only the setup hint. See
@@ -746,7 +755,7 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
 
         <p class="file">examples/mui/src/theme.ts</p>
         <pre><code>export const theme = createTheme({
-  cssVariables: process.env.MUI_CSS_VARS === '1',
+  cssVariables: process.env.MUI_CLASSIC === '1' ? false : { disableCssColorScheme: true },
   colorSchemes: {
     light: { palette: { primary: { main: '#5b4bdb' }, secondary: { main: '#00897b' } } },
     dark: { palette: { primary: { main: '#a99cff' }, secondary: { main: '#4db6ac' } } },

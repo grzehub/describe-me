@@ -18,42 +18,43 @@
  * frame, in Live and in the overview's thumbnails, and no frame paints an
  * opaque backdrop. The canvas takes the background the page paints, and a page
  * made see-through shows the bare canvas again. In Live under `dark` the canvas
- * takes shadcn's `.dark` body and the dark background Material UI switches to
- * at runtime. Under `dark` the replayed Material UI frame says it has only a light
- * variant and that `cssVariables: true` records both, and no other case says
- * so. In shadcn `dark` also puts `.dark` and its `--primary` on the root of a
- * replayed frame, of a frame swapped in from a link, of a thumbnail and of the
- * live page, without a new frame or a reload. `light`, `auto` under the light
- * theme and `transparent` take it back, a frame recorded in its dark variant
- * stays dark, and only the first `dark` fetches `foundations.json`. `auto`
- * under the dark viewer theme does what `dark` does, and the light theme takes
- * it back. In react-browser, whose dark variant is a media query, no switch
- * changes the root's class or attributes. With the live page held back, `L` on
- * a recorded frame keeps the dimmed recorded frame under the live frame until
- * the first status, and it fades out after. Leaving Live or picking another
- * test while it loads leaves one slot, and reduced motion keeps only the dimmed
- * frame. In react-browser a plain link opens a test in Live, while `live=0`,
- * `frame`, `L`, the timeline, a thumbnail and a preview that is starting or off
- * give the recorded frame, ↑ ↓ keep the mode, and an old link with
- * `live=1&frame=1` opens Live. The sidebar's edge sets its width with ← → and
- * by dragging, a double-click sets it back, frames ignore the pointer during a
- * drag and the stage refits after it, and each viewer keeps its own width after
- * a reload. The viewer's theme switch sets the chrome's colors and survives a
- * reload, the stored theme is set before `<body>`, a repaint keeps a focused
- * theme button focused and the switch works without storage until a reload.
- * Under `auto` the theme, and a change of the system's scheme under `system`,
- * pick the canvas and the frames' color scheme, and under `light`, `dark` and
- * `transparent` no theme changes the link or a pixel of the stage, in replay
- * and in Live. Every case runs with the color scheme emulation off, except the
- * one on a dark system. With the react-browser manifest padded in memory, a
- * long props table folds in the overview and in the inspector, and stays
- * unfolded through a frame step and a visit to another test until the page
- * reloads. In every viewer the overview of a module with several components
- * paints the thumbnails of each component's gallery. No request to the site may
- * fail and the page may throw no error. Remote requests are answered locally,
- * so remote fonts never decide the result. Before Chromium starts, every file
- * of site/ is read as bytes, and none may name the checkout or the home
- * directory. Run after `pnpm site:build`.
+ * takes shadcn's `.dark` body and Material UI's dark page, which the dark media
+ * rule of its CSS variables gives. Under `dark` the replayed Material UI frame
+ * paints its dark card, primary and page, the canvas takes the page's color,
+ * and `light` takes them back. No frame these cases open says it has only a
+ * light variant. In shadcn `dark` also puts `.dark` and its `--primary` on the
+ * root of a replayed frame, of a frame swapped in from a link, of a thumbnail
+ * and of the live page, without a new frame or a reload. `light`, `auto` under
+ * the light theme and `transparent` take it back, a frame recorded in its dark
+ * variant stays dark, and only the first `dark` fetches `foundations.json`.
+ * `auto` under the dark viewer theme does what `dark` does, and the light theme
+ * takes it back. In react-browser, whose dark variant is a media query, no
+ * switch changes the root's class or attributes. With the live page held back,
+ * `L` on a recorded frame keeps the dimmed recorded frame under the live frame
+ * until the first status, and it fades out after. Leaving Live or picking
+ * another test while it loads leaves one slot, and reduced motion keeps only
+ * the dimmed frame. In react-browser a plain link opens a test in Live, while
+ * `live=0`, `frame`, `L`, the timeline, a thumbnail and a preview that is
+ * starting or off give the recorded frame, ↑ ↓ keep the mode, and an old link
+ * with `live=1&frame=1` opens Live. The sidebar's edge sets its width with ← →
+ * and by dragging, a double-click sets it back, frames ignore the pointer
+ * during a drag and the stage refits after it, and each viewer keeps its own
+ * width after a reload. The viewer's theme switch sets the chrome's colors and
+ * survives a reload, the stored theme is set before `<body>`, a repaint keeps a
+ * focused theme button focused and the switch works without storage until a
+ * reload. Under `auto` the theme, and a change of the system's scheme under
+ * `system`, pick the canvas and the frames' color scheme, and under `light`,
+ * `dark` and `transparent` no theme changes the link or a pixel of the stage,
+ * in replay and in Live. Every case runs with the color scheme emulation off,
+ * except the one on a dark system. With the react-browser manifest padded in
+ * memory, a long props table folds in the overview and in the inspector, and
+ * stays unfolded through a frame step and a visit to another test until the
+ * page reloads. In every viewer the overview of a module with several
+ * components paints the thumbnails of each component's gallery. No request to
+ * the site may fail and the page may throw no error. Remote requests are
+ * answered locally, so remote fonts never decide the result. Before Chromium
+ * starts, every file of site/ is read as bytes, and none may name the checkout
+ * or the home directory. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -86,10 +87,10 @@ const BARE_CANVASES = { light: LIGHT_CANVAS, dark: DARK_CANVAS }
 // The examples whose pages paint their body in the tests of LIVE_TESTS.
 const PAINTED = ['shadcn', 'mui']
 // What the live page paints under `dark`: shadcn's `--background` under `.dark`, and Material
-// UI's dark `background.default`, which only a switch at runtime gives a classic theme.
+// UI's dark `background.default`, from the dark media rule of its CSS variables.
 const LIVE_DARK_PAINT = { shadcn: 'oklch(0.145 0 0)', mui: 'rgb(18, 18, 18)' }
-// The example whose recorded CSS has no dark variant, and the note's words, in packages/viewer/src/stage-note.ts.
-const NOTE_EXAMPLE = 'mui'
+// The note's words, in packages/viewer/src/stage-note.ts. Every frame of LIVE_TESTS records a dark
+// variant, so none may say them.
 const LIGHT_ONLY_WORDS = 'only a light variant'
 const CSS_VARIABLES_WORDS = 'cssVariables: true'
 
@@ -119,6 +120,27 @@ async function selectsRename(page) {
 const NO_BACKGROUND = 'rgba(0, 0, 0, 0)'
 const PAINT_WAIT = 5_000
 const PAINT_POLL = 100
+
+// What a replayed frame paints under each scheme: Material UI's dark `background.paper` and
+// `background.default`, and the light and dark primaries of examples/mui/src/theme.ts.
+const SCHEME_PAINT = {
+  mui: {
+    card: '.MuiCard-root',
+    button: 'Choose Pro',
+    dark: {
+      card: 'rgb(18, 18, 18)',
+      button: 'rgb(169, 156, 255)',
+      paint: 'rgb(18, 18, 18)',
+      canvas: 'rgb(18, 18, 18)',
+    },
+    light: {
+      card: 'rgb(255, 255, 255)',
+      button: 'rgb(91, 75, 219)',
+      paint: 'rgb(255, 255, 255)',
+      canvas: 'rgb(255, 255, 255)',
+    },
+  },
+}
 
 /** The computed background of `button` and of a probe painted with `var(--primary)`, in its document. */
 function primaryBackgrounds(button) {
@@ -1032,48 +1054,96 @@ function stageNote() {
 }
 
 /**
- * Waits until the note says that the frame has only a light variant, and
- * that Material UI records both with `cssVariables: true`, or with `lightOnly`
- * false until it says neither. Neither must still hold after SETTLE_MS, in
- * case the note comes with the frame's fonts. Returns a problem or `null`.
+ * Waits until the note says neither that the frame has only a light variant
+ * nor that Material UI records both with `cssVariables: true`. Neither must
+ * still hold after SETTLE_MS, in case the note comes with the frame's fonts.
+ * Returns a problem or `null`.
  */
-async function showsNote(page, lightOnly) {
+async function showsNote(page) {
   const sentences = [LIGHT_ONLY_WORDS, CSS_VARIABLES_WORDS]
   const shown = await page
     .waitForFunction(
-      ({ words, both }) => {
+      (words) => {
         const note = document.querySelector('.stage-note')
         const text = note === null || note.hidden ? '' : note.textContent
 
-        return words.every((word) => text.includes(word) === both)
+        return words.every((word) => !text.includes(word))
       },
-      { words: sentences, both: lightOnly },
+      sentences,
       { timeout: 5_000 },
     )
     .then(() => true)
     .catch(() => false)
 
-  if (shown && !lightOnly) {
+  if (shown) {
     await page.waitForTimeout(SETTLE_MS)
   }
 
   const text = await page.evaluate(stageNote)
-  const said = sentences.filter((word) => text.includes(word))
 
-  if (shown && said.length === (lightOnly ? sentences.length : 0)) {
+  if (shown && sentences.every((word) => !text.includes(word))) {
     return null
   }
 
-  return lightOnly
-    ? `the note says "${text}", expected "${LIGHT_ONLY_WORDS}" and "${CSS_VARIABLES_WORDS}"`
-    : `the note says "${text}", expected neither "${LIGHT_ONLY_WORDS}" nor "${CSS_VARIABLES_WORDS}"`
+  return `the note says "${text}", expected neither "${LIGHT_ONLY_WORDS}" nor "${CSS_VARIABLES_WORDS}"`
+}
+
+/** What the frame at `selector` paints, read in the page: its card, its primary button, its page and the canvas. */
+function schemePaint({ selector, card, button }) {
+  const frameDocument = document.querySelector(selector).contentDocument
+  const view = frameDocument.defaultView
+  const backgroundOf = (element) =>
+    element ? view.getComputedStyle(element).backgroundColor : null
+
+  const html = backgroundOf(frameDocument.documentElement)
+  const primary = Array.from(frameDocument.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent.trim() === button,
+  )
+
+  return {
+    card: backgroundOf(frameDocument.querySelector(card)),
+    button: backgroundOf(primary),
+    paint: html === 'rgba(0, 0, 0, 0)' ? backgroundOf(frameDocument.body) : html,
+    canvas: getComputedStyle(document.querySelector('.stage')).backgroundColor,
+  }
+}
+
+/**
+ * Waits until the replayed frame of `name` paints `scheme` as SCHEME_PAINT
+ * says, for an example with an entry there. It polls, because the frame
+ * starts light and Material UI's Button transitions `background-color`.
+ * Returns a problem or `null`.
+ */
+async function paintsTheScheme(page, name, scheme) {
+  const expected = SCHEME_PAINT[name]?.[scheme]
+
+  if (expected === undefined) {
+    return null
+  }
+
+  const { card, button } = SCHEME_PAINT[name]
+  const deadline = Date.now() + PAINT_WAIT
+  let shown = null
+
+  while (Date.now() < deadline) {
+    shown = await page.evaluate(schemePaint, { selector: RECORDED_IFRAME, card, button })
+
+    if (JSON.stringify(shown) === JSON.stringify(expected)) {
+      return null
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, PAINT_POLL))
+  }
+
+  return `the frame paints ${JSON.stringify(shown)}, expected ${JSON.stringify(expected)}`
 }
 
 /**
  * `bg=dark` in the link, then the switch, in a replayed frame. A page that
  * paints its body must paint under `dark` too, so the check is never vacuous.
- * Only Material UI's frame, which has no dark variant, gets the note, and only
- * under `dark`. Through the see-through style every example shows the bare
+ * Material UI's frame paints its dark card, primary and page from the dark
+ * media rule of its CSS variables, and `light` takes them back. No frame gets
+ * the note. Through the see-through style every example shows the bare
  * canvases, so the stage reads the page again on a switch.
  */
 async function replaySteps(page, url, name, id) {
@@ -1092,10 +1162,10 @@ async function replaySteps(page, url, name, id) {
     return `#bg=dark: the page paints ${paint}, expected a background of its own`
   }
 
-  const darkNote = await showsNote(page, name === NOTE_EXAMPLE)
+  const darkProblem = (await showsNote(page)) ?? (await paintsTheScheme(page, name, 'dark'))
 
-  if (darkNote) {
-    return `#bg=dark: ${darkNote}`
+  if (darkProblem) {
+    return `#bg=dark: ${darkProblem}`
   }
 
   for (const [value, expected] of [
@@ -1106,7 +1176,9 @@ async function replaySteps(page, url, name, id) {
     await pickBackground(page, value)
 
     const problem =
-      (await showsBackground(page, RECORDED_IFRAME, value)) ?? (await showsNote(page, false))
+      (await showsBackground(page, RECORDED_IFRAME, value)) ??
+      (await showsNote(page)) ??
+      (value === 'light' ? await paintsTheScheme(page, name, 'light') : null)
 
     if (problem) {
       return `with ${value}: ${problem}`
@@ -1142,14 +1214,13 @@ async function faded(page) {
 
 /**
  * Live under `dark`: the canvas takes the background the live page reports,
- * shadcn's `.dark` body and the dark scheme Material UI switches to at
- * runtime, and no note shows.
+ * shadcn's `.dark` body and Material UI's dark page from the dark media rule
+ * of its CSS variables, and no note shows.
  */
 async function liveDarkSteps(page, name) {
   await pickBackground(page, 'dark')
 
-  const problem =
-    (await showsBackground(page, LIVE_IFRAME, 'dark')) ?? (await showsNote(page, false))
+  const problem = (await showsBackground(page, LIVE_IFRAME, 'dark')) ?? (await showsNote(page))
 
   if (problem) {
     return problem
@@ -1272,9 +1343,9 @@ async function checkStageBackground(browser, url, name) {
       `check-site: examples/${name}/ bg sets the canvas and the frames' color scheme, and the canvas takes the page's background, in replay, in Live and in the overview, with no backdrop`,
     )
 
-    if (name === NOTE_EXAMPLE) {
+    if (SCHEME_PAINT[name]) {
       console.log(
-        `check-site: examples/${name}/ a replayed frame on the dark canvas says it has only a light variant and that cssVariables: true records both, and light, transparent and Live say neither`,
+        `check-site: examples/${name}/ a replayed frame under dark paints the dark card, the dark primary and the dark page, which the canvas takes, and light takes them back`,
       )
     }
 
@@ -2843,8 +2914,8 @@ const SETTLE_SHOTS = 10
 
 /**
  * A shot of the stage once two in a row, SETTLE_MS apart, agree. A switch may
- * still be settling: the dark variant loads, or Material UI turns dark at
- * runtime and its live page reports the new background.
+ * still be settling: the dark variant loads, or the live page reports the
+ * background its dark media rule gives, as Material UI's does.
  */
 async function settledShot(page) {
   let shot = await stageShot(page)

@@ -19,7 +19,8 @@
  * (scripts/check-live/viewer-messages.mjs). The live page's background reports
  * follow a change: in shadcn a `dark-variant` request for `.dark` brings a
  * report with another `body`, and in mui a dark `color-scheme` on the iframe
- * makes Material UI switch at runtime and report its dark `background.default`
+ * turns on the dark media rule of Material UI's CSS variables, and the page
+ * reports its dark `background.default`
  * (scripts/check-live/background-reports.mjs). Then each example's viewer runs
  * through `describe-me dev`, one at a time, because two viewers race on the
  * viewer's Vite cache. `__live.json` must say `ready` with the preview's base.
