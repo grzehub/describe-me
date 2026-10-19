@@ -874,7 +874,7 @@
         </p>
 
         <p>
-          The root entry point also exports the 41 names of
+          The root entry point also exports the 45 names of
           <a href="#entry-core-types"><code>@describe-me/core/types</code></a
           >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
           <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
@@ -891,8 +891,9 @@
           <code>FoundationToken</code>, <code>FoundationsSheet</code>,
           <code>FoundationsSystem</code>, <code>Foundations</code>,
           <code>ManifestFoundations</code>, <code>LiveStatus</code>,
-          <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>, <code>LiveReport</code> and
-          <code>LiveMessage</code>.
+          <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>, <code>LiveReport</code>,
+          <code>LiveMessage</code>, <code>VIEWER_MESSAGE_SOURCE</code>,
+          <code>DarkVariantRoot</code>, <code>ViewerRequest</code> and <code>ViewerMessage</code>.
         </p>
 
         <h3 id="entry-core-types">
@@ -1268,7 +1269,9 @@
                 <td>
                   The version of the contract between the viewer, the plugin's live mode and the
                   live page. <code>createLiveServer()</code> refuses a plugin whose
-                  <code>api.live.protocol</code> differs.
+                  <code>api.live.protocol</code> differs. An additive message such as
+                  <code>dark-variant</code> keeps it, because a page that does not know a message
+                  ignores it.
                 </td>
               </tr>
               <tr>
@@ -1286,6 +1289,38 @@
                 <td><code>LiveMessage</code></td>
                 <td><code>LiveReport &amp; { source: typeof LIVE_MESSAGE_SOURCE }</code></td>
                 <td>A message the live page posts to the viewer around it.</td>
+              </tr>
+              <tr>
+                <td><code>VIEWER_MESSAGE_SOURCE</code></td>
+                <td><code>'describe-me-viewer'</code></td>
+                <td>The <code>source</code> of every message the viewer posts to the live page.</td>
+              </tr>
+              <tr>
+                <td><code>DarkVariantRoot</code></td>
+                <td>
+                  <code>{ className?: string; attribute?: { name: string; value: string } }</code>
+                </td>
+                <td>
+                  What turns a project's dark variant on at the root element: a class such as
+                  <code>'dark'</code>, a <code>data-*</code> attribute such as
+                  <code>data-theme="dark"</code>, or both.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ViewerRequest</code></td>
+                <td><code>{ type: 'dark-variant'; root: DarkVariantRoot | null }</code></td>
+                <td>
+                  What the viewer asks of the live page, without the <code>source</code> field.
+                  <code>root: null</code> takes back what the page applied.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ViewerMessage</code></td>
+                <td><code>ViewerRequest &amp; { source: typeof VIEWER_MESSAGE_SOURCE }</code></td>
+                <td>
+                  A message the viewer posts to the live page in its frame. A page ignores a
+                  <code>type</code> it does not know.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -1383,9 +1418,9 @@
 
         <p>
           The state of the <a href="how-it-works.html#live-preview">live preview</a> page and its
-          messages to the viewer. It is used by the live preview, not for import in tests. The state
-          lives on <code>globalThis</code>, so two copies of this package share it, as they share
-          the recorder.
+          messages to and from the viewer. It is used by the live preview, not for import in tests.
+          The state lives on <code>globalThis</code>, so two copies of this package share it, as
+          they share the recorder.
         </p>
 
         <div class="scroll">
@@ -1412,8 +1447,20 @@
                 <td><code>reportLiveStatus(status: LiveStatus, detail?: string): void</code></td>
                 <td>
                   Reports how the page ended up. The first status is final. It sets
-                  <code>&lt;html data-describe-me-live&gt;</code>, posts the status, writes any
-                  status but <code>mounted</code> on the page and starts the height observer.
+                  <code>&lt;html data-describe-me-live&gt;</code>, applies the viewer's held
+                  request, posts the status, writes any status but <code>mounted</code> on the page
+                  and starts the height observer.
+                </td>
+              </tr>
+              <tr>
+                <td><code>listenToViewer</code></td>
+                <td><code>listenToViewer(): void</code></td>
+                <td>
+                  Listens to the viewer's <code>dark-variant</code> requests, only from
+                  <code>window.parent</code> and only from the origin that the page URL names. It
+                  holds a request until the page has a status, then puts its class and
+                  <code>data-*</code> attribute on <code>&lt;html&gt;</code>, and takes back only
+                  what it applied. It runs once per page.
                 </td>
               </tr>
               <tr>

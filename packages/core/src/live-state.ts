@@ -1,4 +1,4 @@
-import type { LiveStatus } from './types.js'
+import type { DarkVariantRoot, LiveStatus } from './types.js'
 
 /** What the height observer keeps between animation frames. */
 interface LiveHeightState {
@@ -7,11 +7,30 @@ interface LiveHeightState {
   reported: number | null
 }
 
+/** What the page put on its root for the viewer, so it can take back exactly that. */
+export interface AppliedViewerRoot {
+  root: DarkVariantRoot
+  /** The class it added, or `null` when the root already had it. */
+  addedClass: string | null
+  /** The attribute it set, with the value it replaced, `null` when there was none. */
+  attribute: { name: string; previous: string | null } | null
+}
+
+/** What the viewer asked of the page, and what the page applied of it. */
+interface LiveViewerState {
+  /** Whether a copy of core listens to the viewer already. */
+  listening: boolean
+  /** The last valid request, held until the page has a status. */
+  requested: DarkVariantRoot | null
+  applied: AppliedViewerRoot | null
+}
+
 /** Everything one live page shares, whichever copy of core reads it. */
 export interface LiveState {
   status: LiveStatus | null
   stop: Error
   height: LiveHeightState
+  viewer: LiveViewerState
 }
 
 const LIVE_KEY = Symbol.for('describe-me.live')
@@ -37,6 +56,7 @@ export function liveState(): LiveState {
     status: null,
     stop: createStop(),
     height: { observing: false, queued: false, reported: null },
+    viewer: { listening: false, requested: null, applied: null },
   }
 
   return scope[LIVE_KEY]

@@ -1,3 +1,4 @@
+import { applyDarkVariant } from './apply-dark-variant.js'
 import type { FoundationSection } from './build-foundations-model.js'
 import type { DarkVariant } from './detect-dark-variant.js'
 import { filterSpecimens } from './filter-specimens.js'
@@ -48,22 +49,6 @@ function fillHead(doc: Document, css: string[]): void {
   const own = doc.createElement('style')
   own.textContent = SPECIMEN_CSS
   doc.head.append(project, own)
-}
-
-function applyVariant(doc: Document, options: SpecimenOptions): void {
-  const root = doc.documentElement
-
-  if (!options.dark || !options.variant) {
-    return
-  }
-
-  if (options.variant.className) {
-    root.classList.add(options.variant.className)
-  }
-
-  if (options.variant.attribute) {
-    root.setAttribute(options.variant.attribute.name, options.variant.attribute.value)
-  }
 }
 
 /**
@@ -156,7 +141,7 @@ export function buildSpecimenFrame(
   doc.close()
 
   fillHead(doc, options.css)
-  applyVariant(doc, options)
+  applyDarkVariant(doc, options.dark ? options.variant : null)
 
   const root = doc.createElement('div')
   root.className = 'fd-root'

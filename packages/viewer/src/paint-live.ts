@@ -4,6 +4,7 @@ import { liveSession } from './live-session.js'
 import { liveSrc } from './live-src.js'
 import { resetLiveSession } from './reset-live-session.js'
 import { state } from './state.js'
+import { syncLiveDarkVariant } from './sync-live-dark-variant.js'
 
 /** The fade of the live frame and of the underlay. Matches the transitions in `style.css`. */
 const FADE_MS = 150
@@ -16,7 +17,11 @@ function keptSlot(frames: HTMLElement, src: string): HTMLElement | null {
   return shown === src && slot?.dataset.restart === String(liveSession.restarts) ? slot : null
 }
 
-/** No `sandbox`: the live page runs the component, its scripts and its timers. */
+/**
+ * No `sandbox`: the live page runs the component, its scripts and its timers.
+ * Every `load` is a fresh page, after a Restart or a reload of its own, so it
+ * gets the stage's dark variant again.
+ */
 function buildSlot(test: ManifestTest, src: string): HTMLElement {
   const iframe = el('iframe', { src, title: `${test.fullName}, live` })
   const slot = el('div', { class: 'stage-slot live-slot loading' }, iframe)
@@ -24,6 +29,12 @@ function buildSlot(test: ManifestTest, src: string): HTMLElement {
   // Never `generatedAt` or `frame`, so the stage never takes it for a recorded frame.
   slot.dataset.test = test.id
   slot.dataset.restart = String(liveSession.restarts)
+
+  iframe.addEventListener('load', () => {
+    slot.dataset.loaded = ''
+    delete slot.dataset.darkVariant
+    syncLiveDarkVariant(slot)
+  })
 
   return slot
 }

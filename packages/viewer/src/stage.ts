@@ -1,4 +1,5 @@
 import type { ManifestTest } from '@describe-me/core/types'
+import { applyDarkVariant } from './apply-dark-variant.js'
 import { applyViewport } from './apply-viewport.js'
 import { autoCanvas } from './auto-canvas.js'
 import type { Canvas } from './canvas-of.js'
@@ -10,8 +11,11 @@ import { liveSession } from './live-session.js'
 import { liveShown } from './live-shown.js'
 import { paintLive } from './paint-live.js'
 import { replaySnapshot } from './replay-snapshot.js'
+import { stageDarkVariant } from './stage-dark-variant.js'
+import { stageDarkVariantReady } from './stage-dark-variant-ready.js'
 import { renderStageNote } from './stage-note.js'
 import { currentTest, state } from './state.js'
+import { syncLiveDarkVariant } from './sync-live-dark-variant.js'
 import { testView } from './test-view.js'
 import { renderViewportControls } from './viewport-controls.js'
 
@@ -84,6 +88,13 @@ function setFrameScheme(iframe: HTMLIFrameElement, canvas: Canvas): void {
   iframe.style.colorScheme = canvas === 'dark' ? 'dark' : 'light'
 }
 
+/** A recorded frame is same-origin, so the variant goes on its root directly. */
+function setFrameVariant(iframe: HTMLIFrameElement): void {
+  if (iframe.contentDocument) {
+    applyDarkVariant(iframe.contentDocument, stageDarkVariant())
+  }
+}
+
 function shows(slot: HTMLElement | null, shown: Shown): boolean {
   return (
     slot?.dataset.generatedAt === shown.generatedAt &&
@@ -93,18 +104,26 @@ function shows(slot: HTMLElement | null, shown: Shown): boolean {
 }
 
 /**
- * Re-apply the background and the viewport to every slot, then sync the
- * stage's canvas and the toolbar.
+ * Re-apply the background, its dark variant and the viewport to every slot,
+ * then sync the stage's canvas and the toolbar.
  */
 function refit(stage: HTMLElement, frames: HTMLElement): void {
   for (const slot of frames.querySelectorAll<HTMLElement>(':scope > .stage-slot')) {
     const iframe = slot.querySelector('iframe')
-    const liveHeight = slot.classList.contains('live-slot') ? liveSession.height : undefined
-    // `autoCanvas()` reads a new frame under `light`, so its scheme waits until it has.
+    const live = slot.classList.contains('live-slot')
+    const liveHeight = live ? liveSession.height : undefined
+    // `autoCanvas()` reads a new frame as recorded, so its scheme and variant wait until it has.
     const measured = !slot.classList.contains('incoming') || slot.dataset.auto !== undefined
 
     if (iframe && measured) {
       setFrameScheme(iframe, canvasOf(autoOf(slot)))
+
+      // The live page may run on another origin, so it only ever gets a message.
+      if (live) {
+        syncLiveDarkVariant(slot)
+      } else {
+        setFrameVariant(iframe)
+      }
     }
 
     if (iframe) {
@@ -162,7 +181,8 @@ async function swapIn(
   const token = ++paintToken
   removeIncoming(frames)
 
-  const node = await loadSnapshot(snapshot)
+  // A link with `bg=dark` never swaps the light variant in first.
+  const [node] = await Promise.all([loadSnapshot(snapshot), stageDarkVariantReady()])
   if (token !== paintToken) {
     return
   }
@@ -189,10 +209,11 @@ async function swapIn(
     return
   }
 
-  // Measured with the final scheme, which may change the page's rules and so its height.
+  // Measured with the final scheme and variant, which may change the page's rules and so its height.
   const auto = autoCanvas(iframe)
   incoming.dataset.auto = auto
   setFrameScheme(iframe, canvasOf(auto))
+  setFrameVariant(iframe)
 
   const scale = applyViewport(incoming, iframe, stage)
 

@@ -5,10 +5,12 @@
  * sections and their counts, resolved values, the dark variant by class, media
  * query and theme modes, fonts, the inspector, the frame's height, the viewer
  * theme and narrow widths. On react-browser it checks the link, and a copy of
- * its output without foundations must show no entry and fetch nothing. The
- * MUI output without its theme module has no specimen frame, so it gets a
- * case of its own: the entry, a page that holds only the heading and the
- * setup hint, `/` and a link with `bg=dark`. Then check-presets.mjs checks the
+ * its output without foundations must show no entry and fetch nothing, even
+ * under `bg=dark`, where its frame gets only the dark color scheme. The MUI
+ * output without its theme module has no specimen frame, so it gets a case of
+ * its own: the entry, a page that holds only the heading and the setup hint,
+ * `/`, a link with `bg=dark`, and a test under `bg=dark` that fetches nothing,
+ * because its summary has 0 tokens. Then check-presets.mjs checks the
  * design-system blocks, the `default` badges, contrast, the token filter and
  * the setup hint on every other output and on the synthetic copies.
  */
@@ -40,6 +42,7 @@ const SECTIONS = [
   ['other', 'Other'],
 ]
 
+const RECORDED_IFRAME = '.stage-slot[data-frame]:not(.incoming) iframe'
 const STYLE_REFERENCE = /^describe-me-style:([0-9a-f]{16}(?:\+[0-9a-f]{16})*)$/
 const PLAIN_REFERENCE = /^var\((--[\w-]+)\)$/
 
@@ -742,6 +745,60 @@ async function checkLink(check, url, browser) {
   return [...failures, ...viewer.failures]
 }
 
+/**
+ * Without tokens there is no dark variant to read, so `bg=dark` sets only the
+ * frame's color scheme and fetches nothing.
+ */
+async function checkDarkWithout(check, url, browser, label) {
+  const viewer = await openViewer(browser, url)
+  const { page } = viewer
+
+  try {
+    await check(
+      `${label}: #test=<first test>&bg=dark shows the recorded frame in a dark color scheme, no class dark on its root, nothing fetched foundations.json`,
+      async () => {
+        await gotoViewer(viewer, url)
+
+        const id = await page.evaluate(async () => {
+          const manifest = await (await fetch('__data/manifest.json')).json()
+
+          return manifest.modules[0].tests[0].id
+        })
+
+        await page.goto('about:blank')
+        await gotoViewer(viewer, url, `#test=${encodeURIComponent(id)}&bg=dark`)
+
+        const handle = await page.waitForFunction(
+          (selector) => {
+            const iframe = document.querySelector(selector)
+            const root = iframe?.contentDocument?.documentElement
+
+            return root
+              ? {
+                  scheme: getComputedStyle(iframe).colorScheme,
+                  dark: root.classList.contains('dark'),
+                }
+              : null
+          },
+          RECORDED_IFRAME,
+          { timeout: 15_000 },
+        )
+
+        const shown = await handle.jsonValue()
+
+        return same(
+          { ...shown, requests: viewer.foundationsRequests() },
+          { scheme: 'dark', dark: false, requests: 0 },
+        )
+      },
+    )
+  } finally {
+    await viewer.close()
+  }
+
+  return viewer.failures
+}
+
 async function checkWithout(check, url, browser) {
   const plain = await openViewer(browser, url)
   const linked = await openViewer(browser, url)
@@ -781,7 +838,11 @@ async function checkWithout(check, url, browser) {
     await linked.close()
   }
 
-  return [...plain.failures, ...linked.failures]
+  return [
+    ...plain.failures,
+    ...linked.failures,
+    ...(await checkDarkWithout(check, url, browser, WITHOUT_FOUNDATIONS)),
+  ]
 }
 
 /** What the page around the setup hint holds, inside `.foundations` unless it says otherwise. */
@@ -902,7 +963,11 @@ async function checkHintOnly(check, url, browser) {
     await dark.close()
   }
 
-  const failures = [...viewer.failures, ...dark.failures]
+  const failures = [
+    ...viewer.failures,
+    ...dark.failures,
+    ...(await checkDarkWithout(check, url, browser, label)),
+  ]
 
   await check(`${label}: no page error, console error or failed request in the view`, () => ({
     passed: failures.length === 0,

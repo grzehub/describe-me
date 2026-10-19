@@ -1,4 +1,4 @@
-import { reportLiveStatus } from '@describe-me/core/live'
+import { listenToViewer, reportLiveStatus } from '@describe-me/core/live'
 import { collectLiveSuites } from './collect-live-suites.js'
 import { findLiveTest } from './find-live-test.js'
 import { installLiveGlobals } from './install-live-globals.js'
@@ -49,11 +49,15 @@ async function importSetupFiles(setupFiles: LivePageOptions['setupFiles']): Prom
 }
 
 /**
- * Runs the live page: imports the setup files and then the test file that
- * the URL names, with the shims in place, runs the test's arrange phase and
- * stops at its first render. The component stays mounted and live.
+ * Runs the live page: listens to the viewer, imports the setup files and then
+ * the test file that the URL names, with the shims in place, runs the test's
+ * arrange phase and stops at its first render. The component stays mounted
+ * and live.
  */
 export async function startLivePage(options: LivePageOptions): Promise<void> {
+  // Before the frame's `load`, after which the viewer posts its requests.
+  listenToViewer()
+
   if (options.globals) {
     installLiveGlobals()
   }
