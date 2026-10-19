@@ -3,7 +3,9 @@
  * page: as a URL relative to the site root, and with `&amp;` for an `href`.
  * The test is found by its full name as in the manifest, for example
  * `Button > variants > renders primary by default`. `frame` counts from 0.
- * Needs that example's manifest, so run its tests first.
+ * Without it the link opens Live on a viewer with the live preview, so pass 0
+ * for the recorded frame 0. Needs that example's manifest, so run its tests
+ * first.
  *
  * Usage: `node scripts/docs-link.mjs <example> "<full test name>" [frame]`
  */

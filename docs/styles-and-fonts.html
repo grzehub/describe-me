@@ -174,8 +174,8 @@
         <p>
           <code>StyledText.test.tsx</code> in react-browser and react-jsdom renders one line per
           technique. Compare it in the
-          <a href="examples/react-browser/#test=5ecfadd98c6d">browser-mode viewer</a> and the
-          <a href="examples/react-jsdom/#test=5ecfadd98c6d">jsdom viewer</a>: the
+          <a href="examples/react-browser/#test=5ecfadd98c6d&amp;live=0">browser-mode viewer</a> and
+          the <a href="examples/react-jsdom/#test=5ecfadd98c6d&amp;live=0">jsdom viewer</a>: the
           <code>adoptedStyleSheets</code> line loses its orange in jsdom. In
           <code>examples/react-jsdom</code>, <code>pnpm check-styles</code> checks that each rule
           and its colour are in the snapshots.
@@ -229,8 +229,8 @@ export { customRender as render }</code></pre>
           Tests import <code>render</code> from this file. It imports
           <code>@testing-library/react</code> itself, so the plugin's redirect records through it
           and neither the tests nor this file need to know. The jsdom example's
-          <a href="examples/react-jsdom/#test=ae5575a20d6f">Heading test</a> renders this way and
-          takes its colour from the theme. In jsdom with styled-components, also read the
+          <a href="examples/react-jsdom/#test=ae5575a20d6f&amp;live=0">Heading test</a> renders this
+          way and takes its colour from the theme. In jsdom with styled-components, also read the
           <a href="#styled-components">next section</a>.
         </p>
 
@@ -326,8 +326,8 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           directory. A relative path counts from the project root. <code>/src/fonts.css</code>
           above is copied together with the fonts it points at. The browser-mode example loads Inter
           from Google Fonts and a local Lora this way. Its
-          <a href="examples/react-browser/#test=1b944868ad08">Postcard test</a> shows the caption in
-          Lora.
+          <a href="examples/react-browser/#test=1b944868ad08&amp;live=0">Postcard test</a> shows the
+          caption in Lora.
         </p>
 
         <h3>Local fonts of an app shell</h3>
@@ -589,8 +589,8 @@ describe-me: https://fonts.bunny.net/css?family=… did not download (…). It k
         <p>
           The <code>Postcard</code> test shows a photo imported as a module on a background from a
           stylesheet <code>url()</code>, both copied. See it in the
-          <a href="examples/react-browser/#test=1b944868ad08">browser-mode viewer</a> and the
-          <a href="examples/react-jsdom/#test=1b944868ad08">jsdom viewer</a>.
+          <a href="examples/react-browser/#test=1b944868ad08&amp;live=0">browser-mode viewer</a> and
+          the <a href="examples/react-jsdom/#test=1b944868ad08&amp;live=0">jsdom viewer</a>.
           <a href="how-it-works.html#storage">Storage</a> covers file names and garbage collection.
         </p>
 

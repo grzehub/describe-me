@@ -3,7 +3,8 @@ import type { State } from './state.js'
 /**
  * The link of a view, without the `#`: the Foundations section, the
  * selection, the frame, the viewport size, the stage background, Live and the
- * tag filter.
+ * tag filter. Live is the default, so its link has neither `frame` nor `live`,
+ * and the recorded frame 0 has `live=0`.
  */
 export function stateHash(state: State): string {
   const params = new URLSearchParams()
@@ -19,7 +20,7 @@ export function stateHash(state: State): string {
     params.set('test', state.testId)
   }
 
-  if (state.frame) {
+  if (!state.live && state.frame) {
     params.set('frame', String(state.frame))
   }
 
@@ -35,8 +36,8 @@ export function stateHash(state: State): string {
     params.set('bg', state.background)
   }
 
-  if (state.live) {
-    params.set('live', '1')
+  if (!state.live && !state.frame) {
+    params.set('live', '0')
   }
 
   if (state.tag !== null) {

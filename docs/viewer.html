@@ -258,7 +258,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
-            time into the test. A click shows that frame.
+            time into the test. A click shows that frame and leaves <a href="#live">Live</a>.
           </li>
           <li>
             <strong>Inspector.</strong> The test's status and duration, the component with its
@@ -339,7 +339,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td>a test</td>
                 <td>
                   The previous or next frame. In Live, they leave Live and show the frame that was
-                  selected before.
+                  selected before, frame 0 for a test that opened in Live.
                 </td>
               </tr>
               <tr>
@@ -361,8 +361,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td class="nowrap"><kbd>L</kbd></td>
                 <td>a test</td>
                 <td>
-                  Turns <a href="#live">Live</a> on or off, once the live preview is ready. Either
-                  case, and not with <kbd>Ctrl</kbd>, <kbd>Meta</kbd> or <kbd>Alt</kbd> held.
+                  Turns <a href="#live">Live</a> off or on, once the live preview is ready. A test
+                  opens in Live. The key works in either case, and not with <kbd>Ctrl</kbd>,
+                  <kbd>Meta</kbd> or <kbd>Alt</kbd> held.
                 </td>
               </tr>
               <tr>
@@ -478,10 +479,13 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           Neither React example paints its page, so their components stand right on the canvas. Both
           have dark tokens under <code>prefers-color-scheme: dark</code>, which the dark canvas
           turns on, as in this
-          <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;bg=dark">Disclosure test</a> of the
-          jsdom example. The shadcn/ui and Material UI examples paint their page with their design
-          system's background. Under <code>dark</code>, the shadcn/ui example paints its dark one,
-          as in this <a href="examples/shadcn/#test=e5e1c5cf428e&amp;bg=dark">Button test</a>.
+          <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;bg=dark&amp;live=0"
+            >Disclosure test</a
+          >
+          of the jsdom example. The shadcn/ui and Material UI examples paint their page with their
+          design system's background. Under <code>dark</code>, the shadcn/ui example paints its dark
+          one, as in this
+          <a href="examples/shadcn/#test=e5e1c5cf428e&amp;bg=dark&amp;live=0">Button test</a>.
         </p>
 
         <h2 id="live">
@@ -491,24 +495,33 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <p>
           Live mounts the selected test for real, in a frame of the
           <a href="how-it-works.html#live-preview">live preview</a>, in place of its recorded frame.
-          The component starts as the test's arrange phase set it up: everything before the test's
-          first render runs, and nothing after it. So Live is a fresh start: it does not replay the
-          test's interactions to reach a later frame.
-          <a href="writing-stories.html#live">Writing stories</a> explains which part of a test
-          runs.
+          When the live preview is ready, a test opens in Live. The component starts as the test's
+          arrange phase set it up: everything before the test's first render runs, and nothing after
+          it. So Live is a fresh start: it does not replay the test's interactions to reach a later
+          frame. <a href="writing-stories.html#live">Writing stories</a> explains which part of a
+          test runs.
         </p>
 
-        <h3>Opening it</h3>
+        <h3>Turning it off and on</h3>
         <ul>
-          <li>The <strong>Live</strong> toggle, the first button of the viewport toolbar.</li>
-          <li><kbd>L</kbd> in a test, as the <a href="#keyboard">keyboard table</a> says.</li>
+          <li>Live is the default once the live preview is ready.</li>
           <li>
-            <code>live=1</code> in the <a href="#links">link</a>. Until the live preview is ready
-            the recorded frame shows, then Live takes over. Try it on the
-            <a href="examples/react-browser/#test=d5b51b54fed9&amp;live=1">Menu test</a> of the
-            browser-mode example: open Actions and pick Rename.
+            The <strong>Live</strong> toggle, the first button of the viewport toolbar, and
+            <kbd>L</kbd> in a test switch it, as the <a href="#keyboard">keyboard table</a> says.
+          </li>
+          <li>
+            <kbd>←</kbd> <kbd>→</kbd>, a click on the frame timeline and a thumbnail of the
+            <a href="#overview">overview</a> show recorded frames.
+          </li>
+          <li>
+            <code>live=0</code> or <code>frame</code> in the <a href="#links">link</a> opens the
+            recorded frame. <code>live=1</code>, from links of earlier versions, still opens Live.
           </li>
         </ul>
+        <p>
+          Try it on the <a href="examples/react-browser/#test=d5b51b54fed9">Menu test</a> of the
+          browser-mode example: open Actions and pick Rename.
+        </p>
 
         <h3>While it mounts</h3>
         <ul>
@@ -519,8 +532,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             With no recorded frame of the test on the stage, the shimmer runs on the empty canvas.
             That happens after <strong>Restart</strong> of a mounted test, after picking another
-            test in Live, and with a <code>live=1</code> link that opens Live before the frame
-            shows.
+            test in Live, and when a link opens the test in Live before its recorded frame shows.
           </li>
           <li>The dot of the Live toggle pulses, and the inspector says "mounting…".</li>
           <li>
@@ -594,12 +606,14 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         <h3>Moving around</h3>
         <ul>
           <li>
-            <kbd>←</kbd> and <kbd>→</kbd> leave Live and show the frame that was selected before. A
-            click on a frame of the timeline leaves Live and shows that frame.
+            <kbd>←</kbd> and <kbd>→</kbd> leave Live and show the frame that was selected before,
+            frame 0 for a test that opened in Live. A click on a frame of the timeline leaves Live
+            and shows that frame.
           </li>
           <li>
-            <kbd>↑</kbd> and <kbd>↓</kbd> keep Live and mount the previous or next test. So do a
-            click in the sidebar, <kbd>Enter</kbd> in the search and a test in the issues list.
+            <kbd>↑</kbd> and <kbd>↓</kbd> keep the mode, and so do a click in the sidebar,
+            <kbd>Enter</kbd> in the search and a test in the issues list. In Live they mount the
+            other test. Otherwise they show its recorded frame 0.
           </li>
           <li>
             An <a href="#overview">overview</a> and its gallery never show Live. Back in the test,
@@ -628,6 +642,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         </ul>
         <p>
           The viewer never waits for the live preview, so the recorded frames show while it starts.
+          Once the preview is ready the test switches to Live. It does not if you stepped through
+          frames meanwhile, or if the link has <code>live=0</code> or <code>frame</code>.
         </p>
 
         <h3>Where it runs</h3>
@@ -658,7 +674,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <code>test</code> is the test's id, <code>frame</code> counts from 0, and
             <code>w</code> and <code>h</code> are the viewport size. <code>frame=1</code> is the
-            inspector's "frame 2". The link leaves out frame 0 and an auto size.
+            inspector's "frame 2". In Live the link has neither <code>frame</code> nor
+            <code>live</code>. On the recorded frame 0 it has <code>live=0</code>, and on a later
+            frame only <code>frame</code>. It leaves out an auto size.
           </li>
           <li>
             <code>suite</code> takes the place of <code>test</code> for an
@@ -681,9 +699,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <code>auto</code>.
           </li>
           <li>
-            <code>live=1</code> opens the test in <a href="#live">Live</a>, so it needs
-            <code>test</code>. Until the live preview is ready, the recorded frame shows.
+            <code>live=0</code> opens the recorded frame 0 instead of <a href="#live">Live</a>, so
+            it needs <code>test</code>.
           </li>
+          <li><code>live=1</code>, from links of earlier versions, still opens Live.</li>
           <li>
             <code>tag</code> narrows the sidebar to the tests with that <a href="#search">tag</a>.
             Without <code>test</code>, the first of them opens. Setting or clearing it adds a

@@ -32,9 +32,10 @@ const WITH_FOUNDATIONS = ['foundations', 'bg']
  * page. A deep link into an example names a test, frame and suite of its
  * manifest and a viewport size the viewer accepts. `bg` takes only `light`,
  * `dark` or `transparent`, because the link leaves out `auto`. `live` takes
- * only `1`, the one value the viewer reads, and needs a test. `foundations`
- * names a section of the Foundations view, needs tokens in the example's
- * manifest, because the viewer drops it without them, and goes only with `bg`.
+ * `0` or `1` and needs a test. It never goes with `frame`, which alone opens
+ * that frame and which `live=1` would hide. `foundations` names a section of
+ * the Foundations view, needs tokens in the example's manifest, because the
+ * viewer drops it without them, and goes only with `bg`.
  */
 export default function links(context) {
   const targets = targetsOf(context)
@@ -286,11 +287,17 @@ function checkLive(where, params) {
     return []
   }
 
-  if (live !== '1') {
-    return [`${where}: live must be 1, not "${live}"`]
+  if (live !== '0' && live !== '1') {
+    return [`${where}: live must be 0 or 1, not "${live}"`]
   }
 
-  return params.get('test') === null ? [`${where}: live needs a test`] : []
+  if (params.get('test') === null) {
+    return [`${where}: live needs a test`]
+  }
+
+  return params.has('frame')
+    ? [`${where}: live goes without frame. frame alone opens that frame, and live=1 would hide it`]
+    : []
 }
 
 function checkFoundations(where, example, params, manifest) {
