@@ -11,6 +11,7 @@ export const sections = {
     'jsdom',
     'first-story',
     'viewer',
+    'foundations',
     'publish',
     'next',
   ],

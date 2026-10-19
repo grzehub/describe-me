@@ -295,6 +295,38 @@ describe('Counter', () =&gt; {
           viewer without it.
         </p>
 
+        <h2 id="foundations">
+          See your design system
+          <a class="anchor" href="#foundations" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          When the run found tokens, the viewer has a Foundations entry above the test files. It
+          shows them: custom properties on <code>:root</code> and other root-like selectors in the
+          CSS the tests load, and the Tailwind 4 theme. See the
+          <a href="examples/shadcn/#foundations=colors">colors of the shadcn/ui example</a>.
+        </p>
+
+        <p>
+          A JS theme, such as a Material UI or styled-components theme, needs the
+          <code>foundations.theme</code> option. It names the module that exports the theme:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { describeMe } from '@describe-me/vitest/plugin'
+
+export default defineConfig({
+  plugins: [react(), describeMe({ foundations: { theme: 'src/theme.ts' } })],
+})</code></pre>
+
+        <p>
+          <a href="foundations.html#sources">Where the tokens come from</a> lists every source, and
+          <a href="configuration.html#option-foundations"><code>foundations</code></a> describes the
+          option.
+        </p>
+
         <h2 id="publish">
           Publish the docs <a class="anchor" href="#publish" aria-label="Link to this section">#</a>
         </h2>
@@ -337,6 +369,10 @@ describe('Counter', () =&gt; {
             ><h3>Viewer and CLI</h3>
             <p>Everything the viewer shows, and the commands.</p></a
           >
+          <a class="card" href="foundations.html"
+            ><h3>Foundations</h3>
+            <p>The tokens of your design system, where they come from and the presets.</p></a
+          >
           <a class="card" href="troubleshooting.html"
             ><h3>Troubleshooting</h3>
             <p>Diagnostics, warnings and common symptoms.</p></a
@@ -364,6 +400,7 @@ describe('Counter', () =&gt; {
           <li><a href="#jsdom">jsdom</a></li>
           <li><a href="#first-story">Your first story</a></li>
           <li><a href="#viewer">Open the viewer</a></li>
+          <li><a href="#foundations">See your design system</a></li>
           <li><a href="#publish">Publish the docs</a></li>
           <li><a href="#next">Next steps</a></li>
         </ul>

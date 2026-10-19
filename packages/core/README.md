@@ -15,7 +15,7 @@ story, and each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
 Status: prototype. React 18 and 19, Vitest 4 and 5 in browser mode or jsdom,
-recorded frames and Live in the viewer.
+recorded frames, Live and Foundations in the viewer.
 
 ## Which package do I need
 

@@ -537,17 +537,18 @@
                 </td>
                 <td><span class="badge env">both</span></td>
                 <td>Declare the tokens as custom properties in a stylesheet the tests load.</td>
-                <td><span class="badge status-open">open</span></td>
+                <td><span class="badge status-planned">planned</span></td>
               </tr>
               <tr id="limit-foundations-presets">
                 <td>
                   Chakra UI, Mantine and Radix Themes have no preset of their own in Foundations.
-                  They show in generic blocks by name prefix. See
+                  They show in generic blocks by name prefix. Chakra UI and Mantine presets are on
+                  the roadmap, and Radix Themes has none announced. See
                   <a href="foundations.html#presets">Design systems</a>.
                 </td>
                 <td><span class="badge env">viewer</span></td>
                 <td>None.</td>
-                <td><span class="badge status-open">open</span></td>
+                <td><span class="badge status-planned">planned</span></td>
               </tr>
               <tr id="limit-foundations-loaded-css">
                 <td>
@@ -682,7 +683,8 @@
         </h2>
 
         <p>
-          <a href="viewer.html#live">Live</a> shipped in 0.6.0. These are announced, without dates:
+          <a href="viewer.html#live">Live</a> shipped in 0.6.0 and
+          <a href="foundations.html">Foundations</a> in 0.9.0. These are announced, without dates:
         </p>
         <ul>
           <li>
@@ -701,6 +703,18 @@
             <strong>Names from wrappers that ignore <code>children</code>.</strong> Today you name
             such a test with <code>recorder.setComponent()</code>. See
             <a href="#limit-naming-wrappers">the limit</a>.
+          </li>
+          <li>
+            <strong>Token export.</strong> Write the tokens of Foundations as a DTCG
+            <code>tokens.json</code>.
+          </li>
+          <li>
+            <strong>Chakra UI and Mantine presets.</strong> Blocks shaped like each design system,
+            as Material UI has. See <a href="#limit-foundations-presets">the limit</a>.
+          </li>
+          <li>
+            <strong>Tailwind 3.</strong> Read the theme from <code>tailwind.config.js</code>. See
+            <a href="#limit-foundations-tailwind-3">the limit</a>.
           </li>
         </ul>
 

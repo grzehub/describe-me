@@ -8,9 +8,11 @@ as a browsable catalog: `describe` blocks become the sidebar, each `it` is a
 story, each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
-**[Read the docs](https://grzehub.github.io/describe-me/)** · see the viewer
-of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/)
-and the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/)
+**[Read the docs](https://grzehub.github.io/describe-me/)** · see the viewers
+of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/),
+the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/),
+the [shadcn/ui example](https://grzehub.github.io/describe-me/examples/shadcn/)
+and the [Material UI example](https://grzehub.github.io/describe-me/examples/mui/)
 
 ## Status
 
@@ -18,6 +20,9 @@ Prototype. React, Vitest in browser mode or jsdom. The viewer replays the
 recorded frames and can mount a test in
 [Live](https://grzehub.github.io/describe-me/viewer.html#live), from its
 arrange phase. There are no controls yet.
+[Foundations](https://grzehub.github.io/describe-me/foundations.html) shows
+the tokens of your design system, read from the CSS the tests load and an
+optional theme module.
 [Limitations](https://grzehub.github.io/describe-me/limitations.html) lists
 every known limit and whether a fix is planned.
 
