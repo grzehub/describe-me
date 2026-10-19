@@ -103,7 +103,11 @@
   }
 }
 
-/* What frames stand on. Neither the system's scheme nor the viewer's theme changes it. */
+/*
+ * What frames stand on, unless their page paints a background of its own and
+ * the switch is not `transparent`. The colors never follow the viewer's theme,
+ * which under `auto` only picks one.
+ */
 :root {
   --canvas-light: #ffffff;
   --canvas-dark: #141619;
@@ -992,7 +996,7 @@ button.tag.active {
   height: 180px;
   border: 0;
 }
-/* Fixed colors, because the canvas does not follow the viewer's scheme. */
+/* Fixed colors keyed to the canvas, because the canvas follows the viewer's theme only under `auto`. */
 .stage .empty {
   align-self: center;
   color: #6b7381;
@@ -1535,8 +1539,8 @@ kbd {
 /*
  * While the live page loads, its frame is see-through and a band sweeps the
  * slot's own background, over the empty canvas or through the dimmed
- * underlay. Fixed colors, because the canvas does not follow the viewer's
- * scheme.
+ * underlay. Fixed colors keyed to the canvas, because the canvas follows the
+ * viewer's theme only under `auto`.
  */
 .stage-slot.live-slot.loading {
   background-image: linear-gradient(

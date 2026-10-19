@@ -10,6 +10,8 @@ import { state } from './state.js'
 
 const MAX_ACTIONS = 50
 const MAX_MESSAGES = 20
+// Room for a computed color: Chromium writes `color(display-p3 …)` with an alpha in about 50.
+const MAX_COLOR_LENGTH = 100
 
 /** Only the live frame on the stage, loaded from the preview's origin, may talk to the viewer. */
 function fromLiveFrame(event: MessageEvent): boolean {
@@ -36,9 +38,16 @@ function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
 
+/** A color the viewer may put on its canvas: a short string that CSS parses as a color. */
+function isColor(value: unknown): value is string {
+  return (
+    typeof value === 'string' && value.length <= MAX_COLOR_LENGTH && CSS.supports('color', value)
+  )
+}
+
 /** The report a message carries, or `null` when a field has the wrong type or the type is unknown. */
 function reportOf(data: Record<string, unknown>): LiveReport | null {
-  const { type, status, detail, height, name, args, message } = data
+  const { type, status, detail, height, name, args, message, html, body } = data
 
   if (type === 'status' && isLiveStatus(status)) {
     if (detail !== undefined && typeof detail !== 'string') {
@@ -58,6 +67,10 @@ function reportOf(data: Record<string, unknown>): LiveReport | null {
 
   if ((type === 'error' || type === 'notice') && typeof message === 'string') {
     return { type, message }
+  }
+
+  if (type === 'background' && isColor(html) && isColor(body)) {
+    return { type, html, body }
   }
 
   return null
@@ -81,6 +94,8 @@ function record(report: LiveReport): void {
     )
   } else if (report.type === 'error') {
     liveSession.errors = kept(liveSession.errors, report.message, MAX_MESSAGES)
+  } else if (report.type === 'background') {
+    liveSession.background = { html: report.html, body: report.body }
   } else {
     liveSession.notices = kept(liveSession.notices, report.message, MAX_MESSAGES)
   }
@@ -112,7 +127,7 @@ function onMessage(event: MessageEvent): void {
     return
   }
 
-  if (report.type === 'size') {
+  if (report.type === 'size' || report.type === 'background') {
     void paintStage()
   } else {
     rerender('frame')
@@ -120,8 +135,9 @@ function onMessage(event: MessageEvent): void {
 }
 
 /**
- * Listen to the live frame on the stage: its status, size, actions, errors
- * and notices go into the live session. Installed once, at startup.
+ * Listen to the live frame on the stage: its status, size, background,
+ * actions, errors and notices go into the live session. Installed once, at
+ * startup.
  */
 export function listenToLive(): void {
   window.addEventListener('message', onMessage)

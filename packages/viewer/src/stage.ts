@@ -6,11 +6,16 @@ import type { Canvas } from './canvas-of.js'
 import { canvasOf } from './canvas-of.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
+import type { FontFailures } from './fonts-settled.js'
 import { fontsSettled } from './fonts-settled.js'
+import { frameHasDarkVariant } from './frame-has-dark-variant.js'
+import { framePaint } from './frame-paint.js'
 import { liveSession } from './live-session.js'
 import { liveShown } from './live-shown.js'
+import { pagePaint } from './page-paint.js'
 import { paintLive } from './paint-live.js'
 import { replaySnapshot } from './replay-snapshot.js'
+import { setCanvas } from './set-canvas.js'
 import { stageDarkVariant } from './stage-dark-variant.js'
 import { stageDarkVariantReady } from './stage-dark-variant-ready.js'
 import { renderStageNote } from './stage-note.js'
@@ -27,11 +32,15 @@ let paintToken = 0
 let observer: ResizeObserver | null = null
 
 /**
- * What `auto` meant for the last recorded frame swapped in. Live uses it,
- * because the viewer never reads the live page. Under `describe-me dev` it
- * cannot, and a static site behaves the same.
+ * What `auto` meant for the last recorded frame swapped in, `null` when the
+ * viewer theme decides. Live uses it. Its page reports what it paints, but it
+ * paints under the scheme the viewer gave it, so a dark report would keep
+ * `auto` dark.
  */
-let lastAuto: 'light' | 'dark' = 'light'
+let lastAuto: 'light' | 'dark' | null = null
+
+/** What failed to load in the recorded frame on the stage, kept for the note that every refit renders. */
+let shownFailures: FontFailures | null = null
 
 interface Shown {
   generatedAt: string
@@ -74,13 +83,78 @@ function removeAllBut(frames: HTMLElement, keep: Element | null): void {
 }
 
 /** A slot's own `auto`, or the last one for Live and for a frame not measured yet. */
-function autoOf(slot: HTMLElement | null): 'light' | 'dark' {
+function autoOf(slot: HTMLElement | null): 'light' | 'dark' | null {
   const auto = slot?.dataset.auto
   if (auto === 'light' || auto === 'dark') {
     return auto
   }
 
+  if (auto === 'none') {
+    return null
+  }
+
   return lastAuto
+}
+
+/** `data-auto` cannot hold `null`, and a missing one means a slot not measured yet. */
+function autoValue(auto: 'light' | 'dark' | null): string {
+  return auto ?? 'none'
+}
+
+/** A recorded slot keeps what its page paints, read after each change of its scheme or variant. */
+function readPaint(slot: HTMLElement, iframe: HTMLIFrameElement): void {
+  const paint = framePaint(iframe)
+
+  if (paint === null) {
+    delete slot.dataset.paint
+  } else {
+    slot.dataset.paint = paint
+  }
+}
+
+/**
+ * What the live page paints, from its last report. While it loads without
+ * one, the recorded frame under it keeps the canvas, so the canvas does not
+ * flash. A page that never reports leaves the canvas to the switch.
+ */
+function livePaint(frames: HTMLElement): string | null {
+  const report = liveSession.background
+
+  if (report) {
+    return pagePaint(report.html, report.body)
+  }
+
+  if (liveSession.status !== 'loading') {
+    return null
+  }
+
+  return frames.querySelector<HTMLElement>(':scope > .live-underlay')?.dataset.paint ?? null
+}
+
+function paintOf(frames: HTMLElement, slot: HTMLElement | null): string | null {
+  if (slot?.classList.contains('live-slot')) {
+    return livePaint(frames)
+  }
+
+  return slot?.dataset.paint ?? null
+}
+
+/**
+ * A recorded frame on the dark canvas that is not dark by itself and whose
+ * CSS has no dark variant shows its light one, and the note says so.
+ */
+function lightOnly(slot: HTMLElement | null): boolean {
+  if (!slot || slot.classList.contains('live-slot') || slot.dataset.auto === 'dark') {
+    return false
+  }
+
+  if (canvasOf(autoOf(slot)) !== 'dark') {
+    return false
+  }
+
+  const frameDocument = slot.querySelector('iframe')?.contentDocument
+
+  return frameDocument ? !frameHasDarkVariant(frameDocument) : false
 }
 
 /** The iframe's scheme decides `prefers-color-scheme` inside the frame. */
@@ -89,9 +163,9 @@ function setFrameScheme(iframe: HTMLIFrameElement, canvas: Canvas): void {
 }
 
 /** A recorded frame is same-origin, so the variant goes on its root directly. */
-function setFrameVariant(iframe: HTMLIFrameElement): void {
+function setFrameVariant(iframe: HTMLIFrameElement, canvas: Canvas): void {
   if (iframe.contentDocument) {
-    applyDarkVariant(iframe.contentDocument, stageDarkVariant())
+    applyDarkVariant(iframe.contentDocument, stageDarkVariant(canvas))
   }
 }
 
@@ -105,7 +179,7 @@ function shows(slot: HTMLElement | null, shown: Shown): boolean {
 
 /**
  * Re-apply the background, its dark variant and the viewport to every slot,
- * then sync the stage's canvas and the toolbar.
+ * then sync the stage's canvas, the note and the toolbar.
  */
 function refit(stage: HTMLElement, frames: HTMLElement): void {
   for (const slot of frames.querySelectorAll<HTMLElement>(':scope > .stage-slot')) {
@@ -116,13 +190,17 @@ function refit(stage: HTMLElement, frames: HTMLElement): void {
     const measured = !slot.classList.contains('incoming') || slot.dataset.auto !== undefined
 
     if (iframe && measured) {
-      setFrameScheme(iframe, canvasOf(autoOf(slot)))
+      const canvas = canvasOf(autoOf(slot))
+
+      setFrameScheme(iframe, canvas)
 
       // The live page may run on another origin, so it only ever gets a message.
       if (live) {
+        slot.dataset.canvas = canvas
         syncLiveDarkVariant(slot)
       } else {
-        setFrameVariant(iframe)
+        setFrameVariant(iframe, canvas)
+        readPaint(slot, iframe)
       }
     }
 
@@ -131,7 +209,10 @@ function refit(stage: HTMLElement, frames: HTMLElement): void {
     }
   }
 
-  stage.dataset.canvas = canvasOf(autoOf(visibleSlot(frames)))
+  const visible = visibleSlot(frames)
+
+  setCanvas(stage, canvasOf(autoOf(visible)), paintOf(frames, visible))
+  renderStageNote(shownFailures, lightOnly(visible))
   renderViewportControls()
 }
 
@@ -149,10 +230,11 @@ function showEmpty(stage: HTMLElement, frames: HTMLElement, message: string): vo
   ++paintToken
   removeAllBut(frames, null)
   frames.append(el('div', { class: 'empty' }, message))
-  stage.dataset.canvas = canvasOf(lastAuto)
+  setCanvas(stage, canvasOf(lastAuto), null)
   state.scale = 1
   renderViewportControls()
-  renderStageNote(null)
+  shownFailures = null
+  renderStageNote(null, false)
 }
 
 /** Live takes the stage. A snapshot still loading must not swap in over it. */
@@ -160,8 +242,9 @@ function showLive(stage: HTMLElement, frames: HTMLElement, test: ManifestTest): 
   ++paintToken
   removeIncoming(frames)
   paintLive(stage, frames, test)
+  // The refit hides the note, because a live slot never has one.
+  shownFailures = null
   refit(stage, frames)
-  renderStageNote(null)
 }
 
 /** Keep the frame on screen, but settle any paint still in flight for another one. */
@@ -211,9 +294,11 @@ async function swapIn(
 
   // Measured with the final scheme and variant, which may change the page's rules and so its height.
   const auto = autoCanvas(iframe)
-  incoming.dataset.auto = auto
-  setFrameScheme(iframe, canvasOf(auto))
-  setFrameVariant(iframe)
+  const canvas = canvasOf(auto)
+  incoming.dataset.auto = autoValue(auto)
+  setFrameScheme(iframe, canvas)
+  setFrameVariant(iframe, canvas)
+  readPaint(incoming, iframe)
 
   const scale = applyViewport(incoming, iframe, stage)
 
@@ -227,7 +312,7 @@ async function swapIn(
   removeAllBut(frames, incoming)
   // In the task of the swap, so the new canvas never shows next to the old frame.
   lastAuto = auto
-  stage.dataset.canvas = canvasOf(auto)
+  setCanvas(stage, canvas, paintOf(frames, incoming))
   incoming.classList.remove('incoming')
   incoming.removeAttribute('aria-hidden')
 
@@ -242,8 +327,8 @@ async function swapIn(
   // not cleared at the swap, so frames that share a failure do not flicker.
   const failures = await fonts
   if (token === paintToken) {
+    shownFailures = failures
     refit(stage, frames)
-    renderStageNote(failures)
   }
 }
 

@@ -1,51 +1,57 @@
 /**
  * Checks the live preview of every example in headless Chromium. For each
- * example it starts `createLiveServer()` from `@describe-me/vitest/live` on
- * the config file its manifest names, frames the live page from a host page
- * on another origin, and shows every test of the manifest: each one must
- * report `mounted`, then a positive height, load the frame exactly once and
- * log no error. Six behaviours of live components follow: an action from a
- * `vi.fn()`, two rerenders from an empty fragment, a toast that hides itself
- * in real time, an async load, and a theme with global styles. Eight pages
- * must report their status: `no-render` for a hook, `import-failed` for a
+ * example it starts `createLiveServer()` from `@describe-me/vitest/live` on the
+ * config file its manifest names, frames the live page from a host page on
+ * another origin, and shows every test of the manifest: each one must report
+ * its background and `mounted`, then a positive height, load the frame exactly
+ * once and log no error. Six behaviours of live components follow: an action
+ * from a `vi.fn()`, two rerenders from an empty fragment, a toast that hides
+ * itself in real time, an async load, and a theme with global styles. Eight
+ * pages must report their status: `no-render` for a hook, `import-failed` for a
  * missing file, and `not-found` for a missing test, a path out of the root,
- * three `file` values that would lead to another origin and an occurrence
- * past a test's last one. In react-browser the host page then posts the
- * viewer's messages to the live page: a `dark-variant` request puts its class
- * and attribute on `<html>`, `null` takes back only what the page applied,
- * five malformed or foreign messages change nothing on `<html>`, which a
+ * three `file` values that would lead to another origin and an occurrence past
+ * a test's last one. In react-browser the host page then posts the viewer's
+ * messages to the live page: a `dark-variant` request puts its class and
+ * attribute on `<html>`, `null` takes back only what the page applied, five
+ * malformed or foreign messages change nothing on `<html>`, which a
  * MutationObserver watches, and throw nothing, a request before the status
  * waits for it, and a page whose URL names another origin ignores a valid one
- * (scripts/check-live/viewer-messages.mjs). Then each example's
- * viewer runs through `describe-me dev`, one at a time, because two viewers
- * race on the viewer's Vite cache. `__live.json` must say `ready` with the
- * preview's base. In react-browser, a link with `live=0` opens the recorded
- * frame, `L` mounts `Menu > selects an item and reports it` in a live frame
- * without a sandbox and leaves neither `live` nor `frame` in the link, an
- * action shows in the inspector, the 375px preset keeps the state without a
- * reload, a notice and an error from the frame show while the same message
- * from the viewer page does not, Restart starts fresh and ← leaves Live for a
- * recorded frame with `live=0` in the link. A plain link to a test opens Live
- * in react-jsdom, shadcn and mui, which proves that Live is the default and
- * that the CLI finds the project from a jsdom manifest too. In react-browser
- * an old link with `live=1&frame=1` opens Live. Either way the viewer rewrites
- * the link without `live` or `frame`. In shadcn the link adds `bg=dark`, and
- * the viewer's message across origins puts `dark` on the live page's
- * `<html>`. `describe-me dev --no-live` answers off and shows no
- * toggle. The viewer pages log no error. Last, the live fixtures of
- * react-browser and react-jsdom run under Vitest and in the live preview, with setup files,
- * fixtures, around hooks, `each` and `for` names, module mocks, a CSS plugin
- * split in two by `apply`, a Node-only import, `setup-failed` and `live: false`
- * (scripts/check-live/check-fixtures.mjs).
- * Then the static part builds the same with `buildLive()`, serves each build
- * under a nested path and runs the same tests, statuses and fixtures against
- * it (scripts/check-live/check-static.mjs). Remote requests are answered
- * locally, so remote fonts never decide the result. Run after `pnpm build`
- * and every example's tests.
+ * (scripts/check-live/viewer-messages.mjs). The live page's background reports
+ * follow a change: in shadcn a `dark-variant` request for `.dark` brings a
+ * report with another `body`, and in mui a dark `color-scheme` on the iframe
+ * makes Material UI switch at runtime and report its dark `background.default`
+ * (scripts/check-live/background-reports.mjs). Then each example's viewer runs
+ * through `describe-me dev`, one at a time, because two viewers race on the
+ * viewer's Vite cache. `__live.json` must say `ready` with the preview's base.
+ * In react-browser, a link with `live=0` opens the recorded frame, `L` mounts
+ * `Menu > selects an item and reports it` in a live frame without a sandbox and
+ * leaves neither `live` nor `frame` in the link, an action shows in the
+ * inspector, the 375px preset keeps the state without a reload, a notice and an
+ * error from the frame show while the same message from the viewer page does
+ * not, Restart starts fresh and ← leaves Live for a recorded frame with
+ * `live=0` in the link. A plain link to a test opens Live in react-jsdom,
+ * shadcn and mui, which proves that Live is the default and that the CLI finds
+ * the project from a jsdom manifest too. In react-browser an old link with
+ * `live=1&frame=1` opens Live. Either way the viewer rewrites the link without
+ * `live` or `frame`. In shadcn the link adds `bg=dark`, the viewer's message
+ * across origins puts `dark` on the live page's `<html>`, and the page's report
+ * brings its dark `body` color to the stage. `describe-me dev --no-live`
+ * answers off and shows no toggle. The viewer pages log no error. Last, the
+ * live fixtures of react-browser and react-jsdom run under Vitest and in the
+ * live preview, with setup files, fixtures, around hooks, `each` and `for`
+ * names, module mocks, a CSS plugin split in two by `apply`, a Node-only
+ * import, `setup-failed` and `live: false`
+ * (scripts/check-live/check-fixtures.mjs). Then the static part builds the same
+ * with `buildLive()`, serves each build under a nested path and runs the same
+ * tests, statuses and fixtures against it
+ * (scripts/check-live/check-static.mjs). Remote requests are answered locally,
+ * so remote fonts never decide the result. Run after `pnpm build` and every
+ * example's tests.
  *
  * Usage: `node scripts/check-live.mjs`
  */
 import { join } from 'node:path'
+import { checkBackgroundReports } from './check-live/background-reports.mjs'
 import { checkFixtures, FIXTURE_ENV } from './check-live/check-fixtures.mjs'
 import { checkStatic } from './check-live/check-static.mjs'
 import { checkStatuses, checkTests } from './check-live/check-tests.mjs'
@@ -67,6 +73,7 @@ import {
   LIVE_SOURCE,
   manifestTests,
   openHost,
+  POLL,
   readManifest,
   STATUS_TIMEOUT,
   startHost,
@@ -136,17 +143,25 @@ async function checkExample(browser, host, name) {
         ? await checkViewerMessages(context)
         : { problems: [], passed: 0 }
 
+    const backgrounds = await checkBackgroundReports(browser, host, name, server.base)
+
+    if (backgrounds.line) {
+      console.log(backgrounds.line)
+    }
+
     return {
       problems: [
         ...checkServer(name, server),
         ...tests.problems,
         ...statuses.problems,
         ...messages.problems,
+        ...backgrounds.problems,
       ],
       summary: `${name} ${tests.mounted}/${total}`,
       behaviours: tests.behaviours,
       statuses: statuses.passed,
       messages: messages.passed,
+      backgrounds: backgrounds.line ? 1 : 0,
     }
   } finally {
     await context.close()
@@ -394,6 +409,44 @@ async function appliesTheDarkClass(page) {
   }
 }
 
+// shadcn's `--background` under `.dark`, as Chromium computes it.
+const SHADCN_DARK_BODY = 'oklch(0.145 0 0)'
+
+/**
+ * The stage takes the `body` color of the live page on another origin, which
+ * only the page's report can bring it, and the variant makes it shadcn's dark one.
+ */
+async function takesTheLiveBackground(page) {
+  const frame = await liveFrameOf(page)
+  const deadline = Date.now() + 5_000
+  let seen = null
+
+  while (Date.now() < deadline) {
+    seen = {
+      body: await frame.locator('body').evaluate((body) => getComputedStyle(body).backgroundColor),
+      stage: await page
+        .locator('.stage')
+        .evaluate((stage) => getComputedStyle(stage).backgroundColor),
+    }
+
+    if (seen.body === SHADCN_DARK_BODY && seen.stage === seen.body) {
+      return []
+    }
+
+    await delay(POLL)
+  }
+
+  return [
+    `the stage paints ${seen?.stage} and the live page's body ${seen?.body}, expected both ${SHADCN_DARK_BODY}`,
+  ]
+}
+
+async function takesTheDarkVariant(page) {
+  const problems = await appliesTheDarkClass(page)
+
+  return problems.length > 0 ? problems : takesTheLiveBackground(page)
+}
+
 /**
  * What an example's link adds to the test, and what its live page must show
  * once mounted. react-browser keeps a link of an earlier version. The others
@@ -401,7 +454,7 @@ async function appliesTheDarkClass(page) {
  */
 const LINK_EXTRAS = {
   'react-browser': { hash: '&live=1&frame=1', label: 'live=1&frame=1' },
-  shadcn: { hash: '&bg=dark', check: appliesTheDarkClass },
+  shadcn: { hash: '&bg=dark', check: takesTheDarkVariant },
 }
 
 function linkLabel(name) {
@@ -576,6 +629,7 @@ let problems = []
 let behaviours = 0
 let statuses = 0
 let messages = 0
+let backgrounds = 0
 let viewerSteps = 0
 let fixtures = null
 let staticPart = null
@@ -592,6 +646,7 @@ try {
     behaviours += result.behaviours ?? 0
     statuses += result.statuses ?? 0
     messages += result.messages ?? 0
+    backgrounds += result.backgrounds ?? 0
   }
 
   const viewers = await checkViewers(browser)
@@ -619,5 +674,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-live: ok — ${summaries.join(', ')} mounted, ${behaviours} behaviours, ${statuses} statuses, ${messages} viewer-message cases, viewer ${viewerSteps} steps, ${fixtures.summary}; ${staticPart.summary}`,
+  `check-live: ok — ${summaries.join(', ')} mounted, ${behaviours} behaviours, ${statuses} statuses, ${messages} viewer-message cases, ${backgrounds} background cases, viewer ${viewerSteps} steps, ${fixtures.summary}; ${staticPart.summary}`,
 )

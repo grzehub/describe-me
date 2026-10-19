@@ -254,7 +254,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <a href="#viewport">viewport toolbar</a> with the <a href="#live">Live</a> toggle, the
             sizes and the background swatches, above the replayed frame or the test in Live. A note
             under a replayed frame names the fonts and stylesheets that did not load in your
-            browser.
+            browser, and says when the frame has only a light variant to show on the dark canvas.
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
@@ -285,9 +285,15 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           Without storage the switch still works until you reload.
         </p>
         <p>
-          The theme never reaches a frame. A frame's canvas, color scheme and dark variant come from
-          the <a href="#viewport-background">background switch</a> alone, so a component looks the
-          same in either theme.
+          Under <code>auto</code>, the default of the
+          <a href="#viewport-background">background switch</a>, the theme picks the canvas and the
+          frame's color scheme for a page that declares no scheme and paints no dark background. The
+          dark theme gives the dark canvas, with the frame's dark variant, and
+          <code>system</code> follows your system. Under <code>light</code>, <code>dark</code> and
+          <code>transparent</code> the theme changes nothing on the stage. The specimens of
+          <a href="foundations.html">Foundations</a> never follow it. So a link without
+          <code>bg</code> can look different in another theme, and <code>bg=light</code> or
+          <code>bg=dark</code> fixes the canvas.
         </p>
 
         <h2 id="search">
@@ -446,12 +452,20 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             frame, so the component shows its own dark rules.
           </li>
           <li>
+            Under <code>auto</code>, <code>light</code> and <code>dark</code> the canvas takes the
+            color the page paints on its <code>html</code>, or on its <code>body</code> when
+            <code>html</code> paints none, when that color is at least half opaque. So a page that
+            paints its body shows no band at its edges. This holds in replay, in
+            <a href="#live">Live</a> and in the overview's thumbnails.
+          </li>
+          <li>
             <code>dark</code> also puts the dark variant that
             <a href="foundations.html#dark-variant">Foundations</a> found on the frame's root: the
             <code>.dark</code> class or the <code>[data-*="dark"]</code> attribute. It does so in
-            replay, in the overview's thumbnails and in <a href="#live">Live</a>.
-            <code>light</code>, <code>auto</code> and <code>transparent</code> leave the root as the
-            test recorded it, so a frame recorded in its dark variant stays dark.
+            replay, in the overview's thumbnails and in <a href="#live">Live</a>, and so does an
+            <code>auto</code> that resolves to dark. <code>light</code>,
+            <code>transparent</code> and an <code>auto</code> that resolves to light leave the root
+            as the test recorded it, so a frame recorded in its dark variant stays dark.
           </li>
           <li>
             Without tokens, or with <code>foundations: false</code>, <code>dark</code> sets only the
@@ -459,11 +473,22 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <code>cssVariables</code>, wrote its colors into the recorded CSS, so a frame keeps
             them.
           </li>
-          <li><code>transparent</code> is a checkerboard, with a light color scheme.</li>
           <li>
-            <code>auto</code>, the default, is light unless the recorded page declares a dark scheme
-            on its root or paints its <code>html</code> or <code>body</code> dark. It never follows
-            the <a href="#layout-theme">viewer's theme</a> or your system.
+            A replayed frame on the dark canvas that is not dark by itself gets a note under the
+            stage when its CSS has no dark variant: no dark tokens, no
+            <code>prefers-color-scheme: dark</code> rule and no <code>light-dark()</code>. The note
+            says that the frame has only a light variant. With Material UI it adds that
+            <code>cssVariables: true</code> records both.
+          </li>
+          <li>
+            <code>transparent</code> is a checkerboard, with a light color scheme. It never takes
+            the page's color.
+          </li>
+          <li>
+            <code>auto</code>, the default, takes the scheme the page declares on its root, or dark
+            when the page paints its <code>html</code> or <code>body</code> dark, and otherwise the
+            <a href="#layout-theme">viewer theme</a>. An <code>auto</code> that resolves to dark is
+            <code>dark</code>, color scheme and dark variant included.
           </li>
           <li>A page that sets its own <code>color-scheme</code> keeps it.</li>
           <li>
@@ -483,8 +508,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             >Disclosure test</a
           >
           of the jsdom example. The shadcn/ui and Material UI examples paint their page with their
-          design system's background. Under <code>dark</code>, the shadcn/ui example paints its dark
-          one, as in this
+          design system's background, and the canvas takes it, so no band shows. Under
+          <code>dark</code>, the shadcn/ui example paints its dark one, as in this
           <a href="examples/shadcn/#test=e5e1c5cf428e&amp;bg=dark&amp;live=0">Button test</a>.
         </p>
 
@@ -590,8 +615,15 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             page, which applies it once the test has rendered.
           </li>
           <li>
-            Under <code>auto</code>, Live keeps the canvas of the last recorded frame the stage
-            showed, because the viewer does not read the live page.
+            The canvas takes the background the live page reports, with its status and after every
+            change, such as a switch to its dark scheme. A live page of an earlier version reports
+            none, and the canvas keeps the switch's color.
+          </li>
+          <li>
+            Under <code>auto</code>, Live takes the scheme of the last recorded frame the stage
+            showed. When that page declares none and paints no dark background, or the stage showed
+            none, it takes the <a href="#layout-theme">viewer theme</a>. A theme change applies
+            without reloading the frame.
           </li>
           <li>
             The auto height follows the height of the content, but stops at the visible height of

@@ -1270,8 +1270,8 @@
                   The version of the contract between the viewer, the plugin's live mode and the
                   live page. <code>createLiveServer()</code> refuses a plugin whose
                   <code>api.live.protocol</code> differs. An additive message such as
-                  <code>dark-variant</code> keeps it, because a page that does not know a message
-                  ignores it.
+                  <code>dark-variant</code> or <code>background</code> keeps it, because the side
+                  that does not know a message ignores it.
                 </td>
               </tr>
               <tr>
@@ -1280,7 +1280,7 @@
                   <code
                     >{ type: 'status'; status; detail? } | { type: 'size'; height } | { type:
                     'action'; name; args } | { type: 'error'; message } | { type: 'notice'; message
-                    }</code
+                    } | { type: 'background'; html; body }</code
                   >
                 </td>
                 <td>What the live page reports, without the <code>source</code> field.</td>
@@ -1448,8 +1448,8 @@
                 <td>
                   Reports how the page ended up. The first status is final. It sets
                   <code>&lt;html data-describe-me-live&gt;</code>, applies the viewer's held
-                  request, posts the status, writes any status but <code>mounted</code> on the page
-                  and starts the height observer.
+                  request, starts the background observer, posts the status, writes any status but
+                  <code>mounted</code> on the page and starts the height observer.
                 </td>
               </tr>
               <tr>

@@ -1,50 +1,59 @@
 /**
- * Checks the built site/ in headless Chromium, served over HTTP as a host
- * would serve it: docs.css applies to the pages (the light `--bg` token is the
- * body background), and each example viewer loads its data and shows as many
- * tests as its manifest has tests with a frame besides the closing one. Then
- * Live, which `pnpm site:build` builds into every viewer: `__live.json` says
- * `ready` with the base `__live/`, and a link to a test mounts it in a live
- * frame without a sandbox, on the site's own origin. In react-browser a click on
+ * Checks the built site/ in headless Chromium, served over HTTP as a host would
+ * serve it: docs.css applies to the pages (the light `--bg` token is the body
+ * background), and each example viewer loads its data and shows as many tests
+ * as its manifest has tests with a frame besides the closing one. Then Live,
+ * which `pnpm site:build` builds into every viewer: `__live.json` says `ready`
+ * with the base `__live/`, and a link to a test mounts it in a live frame
+ * without a sandbox, on the site's own origin. In react-browser a click on
  * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
  * inspector. In shadcn an email typed into the frame and a click on Request
  * access show `onSubmit("ada@example.com")`. Before the click, Request access
  * paints the `--primary` of Tailwind's CSS, which proves that the static live
- * build runs `@tailwindcss/vite`. In react-browser the tag `forms` shows on its tests, the search
- * finds them by it, `#tag=forms` and a click on the tag in the inspector narrow
- * the sidebar to them, `#tag=forms` alone opens one of them, and × shows every
- * test again. In every viewer `bg` and the background switch set the stage's
- * canvas and the frame's color scheme, in a replayed frame, in Live and in the
- * overview's thumbnails, and no frame paints an opaque backdrop. In shadcn
- * `dark` also puts `.dark` and its `--primary` on the root of a replayed frame,
- * of a frame swapped in from a link, of a thumbnail and of the live page,
- * without a new frame or a reload. `light`, `auto` and `transparent` take it
- * back, a frame recorded in its dark variant stays dark, and only the first
- * `dark` fetches `foundations.json`. In react-browser, whose dark variant is a
- * media query, no switch changes the root's class or attributes. With the live
- * page held back, `L` on a recorded frame keeps the dimmed recorded frame under
- * the live frame until the first status, and it fades out after. Leaving Live
- * or picking another test while it loads leaves one slot, and reduced motion
- * keeps only the dimmed frame. In react-browser a plain link opens a test in
- * Live, while `live=0`, `frame`, `L`, the timeline, a thumbnail and a preview
- * that is starting or off give the recorded frame, ↑ ↓ keep the mode, and an
- * old link with `live=1&frame=1` opens Live. The sidebar's edge sets its width
- * with ← → and by dragging, a double-click sets it back, frames ignore the
- * pointer during a drag and the stage refits after it, and each viewer keeps
- * its own width after a reload.
- * The viewer's theme switch sets the chrome's colors and survives a reload,
- * the stored theme is set before `<body>`, a repaint keeps a focused theme
- * button focused, the switch works without storage until a reload, and no
- * theme changes a frame's pixels, canvas, color scheme or media query, in
- * replay and in Live. With the react-browser manifest padded in memory, a long
- * props table folds in the overview and in the inspector, and stays unfolded
- * through a frame step and a visit to another test until the page reloads. In
- * every viewer the overview of a module with several components paints the
- * thumbnails of each component's gallery. No
- * request to the site may fail and the page may throw no error. Remote
- * requests are answered locally, so remote fonts never decide the result.
- * Before Chromium starts, every file of site/ is read as bytes, and none may
- * name the checkout or the home directory. Run after `pnpm site:build`.
+ * build runs `@tailwindcss/vite`. In react-browser the tag `forms` shows on its
+ * tests, the search finds them by it, `#tag=forms` and a click on the tag in
+ * the inspector narrow the sidebar to them, `#tag=forms` alone opens one of
+ * them, and × shows every test again. In every viewer `bg` and the background
+ * switch set the stage's canvas and the frame's color scheme, in a replayed
+ * frame, in Live and in the overview's thumbnails, and no frame paints an
+ * opaque backdrop. The canvas takes the background the page paints, and a page
+ * made see-through shows the bare canvas again. In Live under `dark` the canvas
+ * takes shadcn's `.dark` body and the dark background Material UI switches to
+ * at runtime. Under `dark` the replayed Material UI frame says it has only a light
+ * variant and that `cssVariables: true` records both, and no other case says
+ * so. In shadcn `dark` also puts `.dark` and its `--primary` on the root of a
+ * replayed frame, of a frame swapped in from a link, of a thumbnail and of the
+ * live page, without a new frame or a reload. `light`, `auto` under the light
+ * theme and `transparent` take it back, a frame recorded in its dark variant
+ * stays dark, and only the first `dark` fetches `foundations.json`. `auto`
+ * under the dark viewer theme does what `dark` does, and the light theme takes
+ * it back. In react-browser, whose dark variant is a media query, no switch
+ * changes the root's class or attributes. With the live page held back, `L` on
+ * a recorded frame keeps the dimmed recorded frame under the live frame until
+ * the first status, and it fades out after. Leaving Live or picking another
+ * test while it loads leaves one slot, and reduced motion keeps only the dimmed
+ * frame. In react-browser a plain link opens a test in Live, while `live=0`,
+ * `frame`, `L`, the timeline, a thumbnail and a preview that is starting or off
+ * give the recorded frame, ↑ ↓ keep the mode, and an old link with
+ * `live=1&frame=1` opens Live. The sidebar's edge sets its width with ← → and
+ * by dragging, a double-click sets it back, frames ignore the pointer during a
+ * drag and the stage refits after it, and each viewer keeps its own width after
+ * a reload. The viewer's theme switch sets the chrome's colors and survives a
+ * reload, the stored theme is set before `<body>`, a repaint keeps a focused
+ * theme button focused and the switch works without storage until a reload.
+ * Under `auto` the theme, and a change of the system's scheme under `system`,
+ * pick the canvas and the frames' color scheme, and under `light`, `dark` and
+ * `transparent` no theme changes the link or a pixel of the stage, in replay
+ * and in Live. Every case runs with the color scheme emulation off, except the
+ * one on a dark system. With the react-browser manifest padded in memory, a
+ * long props table folds in the overview and in the inspector, and stays
+ * unfolded through a frame step and a visit to another test until the page
+ * reloads. In every viewer the overview of a module with several components
+ * paints the thumbnails of each component's gallery. No request to the site may
+ * fail and the page may throw no error. Remote requests are answered locally,
+ * so remote fonts never decide the result. Before Chromium starts, every file
+ * of site/ is read as bytes, and none may name the checkout or the home
+ * directory. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -72,14 +81,17 @@ const LOADING_WORDS = 'mounting…'
 const LIGHT_CANVAS = 'rgb(255, 255, 255)'
 const DARK_CANVAS = 'rgb(20, 22, 25)'
 const BACKGROUNDS = ['auto', 'light', 'dark', 'transparent']
-// No example declares a dark scheme or paints its page dark in the tests check-site uses, so
-// `auto` is light in all of them. The checkerboard is an image.
-const CANVASES = {
-  auto: { canvas: LIGHT_CANVAS, image: false },
-  light: { canvas: LIGHT_CANVAS, image: false },
-  dark: { canvas: DARK_CANVAS, image: false },
-  transparent: { image: true },
-}
+// The bare canvas of each one the switch resolves to, where the page paints no background.
+const BARE_CANVASES = { light: LIGHT_CANVAS, dark: DARK_CANVAS }
+// The examples whose pages paint their body in the tests of LIVE_TESTS.
+const PAINTED = ['shadcn', 'mui']
+// What the live page paints under `dark`: shadcn's `--background` under `.dark`, and Material
+// UI's dark `background.default`, which only a switch at runtime gives a classic theme.
+const LIVE_DARK_PAINT = { shadcn: 'oklch(0.145 0 0)', mui: 'rgb(18, 18, 18)' }
+// The example whose recorded CSS has no dark variant, and the note's words, in packages/viewer/src/stage-note.ts.
+const NOTE_EXAMPLE = 'mui'
+const LIGHT_ONLY_WORDS = 'only a light variant'
+const CSS_VARIABLES_WORDS = 'cssVariables: true'
 
 // SidebarWidth in packages/viewer/src/sidebar-width.ts, and the most at the 1280 px of openLivePage().
 const SIDEBAR = { default: 296, min: 216, step: 16, max: 640 }
@@ -737,10 +749,11 @@ async function checkGalleries(context, url, name) {
 
 /**
  * A page that answers remote requests locally and keeps failed site requests
- * and page errors. `colorScheme: null` turns the emulation off, and
- * `reducedMotion` sets `prefers-reduced-motion`.
+ * and page errors. `colorScheme: null`, the default, turns the emulation off,
+ * so each frame takes its scheme from its iframe and the viewer theme
+ * `system` is light. `reducedMotion` sets `prefers-reduced-motion`.
  */
-async function openLivePage(browser, url, colorScheme = 'light', reducedMotion = 'no-preference') {
+async function openLivePage(browser, url, colorScheme = null, reducedMotion = 'no-preference') {
   const context = await browser.newContext({
     colorScheme,
     reducedMotion,
@@ -862,16 +875,29 @@ async function checkLive(browser, url, name) {
 }
 
 /**
- * What the stage and the frame at `selector` show, read in the page. With
- * `expected`, whether they show it, for `waitForFunction()`.
+ * What the stage and the frame at `selector` show, read in the page. `paint`
+ * is what the frame's page paints: the background of `html`, or of `body`
+ * when `html` paints none. Every frame here is same-origin, the live one
+ * included. With `expected`, whether they show it, for `waitForFunction()`.
+ * Its `bare` is the canvas expected where the page paints nothing, and
+ * otherwise the stage must take the page's paint.
  */
 function stageBackground({ selector, expected }) {
-  const stage = getComputedStyle(document.querySelector('.stage'))
+  const element = document.querySelector('.stage')
+  const stage = getComputedStyle(element)
   const iframe = document.querySelector(selector)
+  const frameDocument = iframe?.contentDocument
+  const view = frameDocument?.defaultView
+  const html = view ? view.getComputedStyle(frameDocument.documentElement).backgroundColor : null
   const pressed = document.querySelectorAll('.backgrounds [aria-pressed="true"]')
   const seen = {
     canvas: stage.backgroundColor,
     image: stage.backgroundImage !== 'none',
+    dataCanvas: element.dataset.canvas ?? null,
+    paint:
+      html === 'rgba(0, 0, 0, 0)'
+        ? view.getComputedStyle(frameDocument.body).backgroundColor
+        : html,
     scheme: iframe ? getComputedStyle(iframe).colorScheme : 'no frame',
     dark: iframe?.contentWindow?.matchMedia('(prefers-color-scheme: dark)').matches ?? null,
     pressed: Array.from(pressed, (button) => button.getAttribute('aria-label')).join(' '),
@@ -881,15 +907,32 @@ function stageBackground({ selector, expected }) {
     return seen
   }
 
-  return Object.entries(expected).every(([key, value]) => seen[key] === value)
+  const { bare, ...exact } = expected
+  const canvas = seen.paint === 'rgba(0, 0, 0, 0)' ? bare : seen.paint
+
+  return (
+    (bare === undefined || seen.canvas === canvas) &&
+    Object.entries(exact).every(([key, value]) => seen[key] === value)
+  )
 }
 
-/** Waits until the stage and the frame at `selector` show `value`. Returns a problem or `null`. */
-async function showsBackground(page, selector, value) {
+/**
+ * Waits until the stage and the frame at `selector` show `value`. `auto`
+ * resolves to `theme`, the viewer theme, because no page check-site shows
+ * under `auto` declares a scheme or paints dark. `transparent` shows the
+ * checkerboard, and the others the page's paint or the bare canvas. Returns
+ * a problem or `null`.
+ */
+async function showsBackground(page, selector, value, theme = 'light') {
+  const resolved = value === 'auto' ? theme : value
+  const canvas =
+    resolved === 'transparent' ? { image: true } : { image: false, bare: BARE_CANVASES[resolved] }
+
   const expected = {
-    ...CANVASES[value],
-    scheme: value === 'dark' ? 'dark' : 'light',
-    dark: value === 'dark',
+    ...canvas,
+    dataCanvas: resolved,
+    scheme: resolved === 'dark' ? 'dark' : 'light',
+    dark: resolved === 'dark',
     pressed: value,
   }
 
@@ -959,12 +1002,15 @@ async function paintsBackdrop(page, selector) {
   return !shown.equals(hidden)
 }
 
-/** Each value of the switch on the frame at `selector`: canvas, scheme, media query and no backdrop. */
-async function eachBackground(page, selector, check = async () => null) {
+/**
+ * Each value of the switch on the frame at `selector`: canvas, scheme, media
+ * query and no backdrop, with `auto` resolved by the viewer theme `theme`.
+ */
+async function eachBackground(page, selector, check = async () => null, theme = 'light') {
   for (const value of BACKGROUNDS) {
     await pickBackground(page, value)
 
-    const problem = (await showsBackground(page, selector, value)) ?? (await check(value))
+    const problem = (await showsBackground(page, selector, value, theme)) ?? (await check(value))
 
     if (problem) {
       return problem
@@ -978,7 +1024,58 @@ async function eachBackground(page, selector, check = async () => null) {
   return null
 }
 
-/** `bg=dark` in the link, then the switch, in a replayed frame. */
+/** The note under the stage, read in the page: its text, empty while it is hidden. */
+function stageNote() {
+  const note = document.querySelector('.stage-note')
+
+  return note === null || note.hidden ? '' : note.textContent
+}
+
+/**
+ * Waits until the note says that the frame has only a light variant, and
+ * that Material UI records both with `cssVariables: true`, or with `lightOnly`
+ * false until it says neither. Neither must still hold after SETTLE_MS, in
+ * case the note comes with the frame's fonts. Returns a problem or `null`.
+ */
+async function showsNote(page, lightOnly) {
+  const sentences = [LIGHT_ONLY_WORDS, CSS_VARIABLES_WORDS]
+  const shown = await page
+    .waitForFunction(
+      ({ words, both }) => {
+        const note = document.querySelector('.stage-note')
+        const text = note === null || note.hidden ? '' : note.textContent
+
+        return words.every((word) => text.includes(word) === both)
+      },
+      { words: sentences, both: lightOnly },
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false)
+
+  if (shown && !lightOnly) {
+    await page.waitForTimeout(SETTLE_MS)
+  }
+
+  const text = await page.evaluate(stageNote)
+  const said = sentences.filter((word) => text.includes(word))
+
+  if (shown && said.length === (lightOnly ? sentences.length : 0)) {
+    return null
+  }
+
+  return lightOnly
+    ? `the note says "${text}", expected "${LIGHT_ONLY_WORDS}" and "${CSS_VARIABLES_WORDS}"`
+    : `the note says "${text}", expected neither "${LIGHT_ONLY_WORDS}" nor "${CSS_VARIABLES_WORDS}"`
+}
+
+/**
+ * `bg=dark` in the link, then the switch, in a replayed frame. A page that
+ * paints its body must paint under `dark` too, so the check is never vacuous.
+ * Only Material UI's frame, which has no dark variant, gets the note, and only
+ * under `dark`. Through the see-through style every example shows the bare
+ * canvases, so the stage reads the page again on a switch.
+ */
 async function replaySteps(page, url, name, id) {
   await page.goto(`${url}examples/${name}/#test=${id}&bg=dark&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
@@ -989,6 +1086,18 @@ async function replaySteps(page, url, name, id) {
     return `#bg=dark: ${linked}`
   }
 
+  const { paint } = await page.evaluate(stageBackground, { selector: RECORDED_IFRAME })
+
+  if (PAINTED.includes(name) && paint === NO_BACKGROUND) {
+    return `#bg=dark: the page paints ${paint}, expected a background of its own`
+  }
+
+  const darkNote = await showsNote(page, name === NOTE_EXAMPLE)
+
+  if (darkNote) {
+    return `#bg=dark: ${darkNote}`
+  }
+
   for (const [value, expected] of [
     ['light', 'light'],
     ['transparent', 'transparent'],
@@ -996,10 +1105,11 @@ async function replaySteps(page, url, name, id) {
   ]) {
     await pickBackground(page, value)
 
-    const problem = await showsBackground(page, RECORDED_IFRAME, value)
+    const problem =
+      (await showsBackground(page, RECORDED_IFRAME, value)) ?? (await showsNote(page, false))
 
     if (problem) {
-      return problem
+      return `with ${value}: ${problem}`
     }
 
     const linked = linkBackground(page)
@@ -1011,7 +1121,9 @@ async function replaySteps(page, url, name, id) {
 
   await seeThrough(page, RECORDED_IFRAME)
 
-  return eachBackground(page, RECORDED_IFRAME)
+  const seen = await eachBackground(page, RECORDED_IFRAME)
+
+  return seen ? `see-through: ${seen}` : null
 }
 
 /** Waits until the live frame has faded in and the recorded frame under it is gone. */
@@ -1028,8 +1140,33 @@ async function faded(page) {
   )
 }
 
-/** The switch in Live, which must not reload the live frame. */
-async function liveSteps(page) {
+/**
+ * Live under `dark`: the canvas takes the background the live page reports,
+ * shadcn's `.dark` body and the dark scheme Material UI switches to at
+ * runtime, and no note shows.
+ */
+async function liveDarkSteps(page, name) {
+  await pickBackground(page, 'dark')
+
+  const problem =
+    (await showsBackground(page, LIVE_IFRAME, 'dark')) ?? (await showsNote(page, false))
+
+  if (problem) {
+    return problem
+  }
+
+  const { canvas } = await page.evaluate(stageBackground, { selector: LIVE_IFRAME })
+  const expected = LIVE_DARK_PAINT[name] ?? DARK_CANVAS
+
+  return canvas === expected ? null : `the canvas is ${canvas}, expected ${expected}`
+}
+
+/**
+ * The switch in Live, which must not reload the live frame. Through the
+ * see-through style every example shows the bare canvases, so the live page
+ * reports a change in its `<head>`.
+ */
+async function liveSteps(page, name) {
   await page
     .locator('.live-toggle:not([aria-disabled])')
     .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
@@ -1044,6 +1181,12 @@ async function liveSteps(page) {
   await page.locator(LIVE_IFRAME).evaluate((iframe) => {
     iframe.contentWindow.stageBackgroundMarker = true
   })
+
+  const dark = await liveDarkSteps(page, name)
+
+  if (dark) {
+    return `Live, with dark: ${dark}`
+  }
 
   await seeThrough(page, LIVE_IFRAME)
 
@@ -1062,7 +1205,10 @@ async function liveSteps(page) {
   return null
 }
 
-/** `bg=dark` in the link of an overview: the first thumbnail's canvas, scheme and media query. */
+/**
+ * `bg=dark` in the link of an overview: the first thumbnail's canvas, scheme
+ * and media query. The canvas is the thumbnail page's paint when it paints.
+ */
 async function overviewSteps(page, url, name, id) {
   const moduleId = readSiteManifest(name).modules.find((candidate) =>
     candidate.tests.some((test) => test.id === id),
@@ -1083,30 +1229,37 @@ async function overviewSteps(page, url, name, id) {
     .then(() => true)
     .catch(() => false)
 
-  const seen = await iframe.evaluate((element) => ({
-    media: element.contentWindow.matchMedia('(prefers-color-scheme: dark)').matches,
-    canvas: getComputedStyle(element.closest('.thumb')).backgroundColor,
-  }))
+  const seen = await iframe.evaluate((element) => {
+    const frameDocument = element.contentDocument
+    const html = getComputedStyle(frameDocument.documentElement).backgroundColor
 
-  if (!dark || !seen.media || seen.canvas !== DARK_CANVAS) {
+    return {
+      media: element.contentWindow.matchMedia('(prefers-color-scheme: dark)').matches,
+      canvas: getComputedStyle(element.closest('.thumb')).backgroundColor,
+      paint:
+        html === 'rgba(0, 0, 0, 0)' ? getComputedStyle(frameDocument.body).backgroundColor : html,
+    }
+  })
+
+  const canvas = seen.paint === NO_BACKGROUND ? DARK_CANVAS : seen.paint
+
+  if (!dark || !seen.media || seen.canvas !== canvas) {
     return `the first thumbnail of #suite=…&bg=dark shows ${JSON.stringify({ dark, ...seen })}`
   }
 
   return null
 }
 
-/** The stage background: `bg` in the link, the switch, Live and the overview. */
+/** The stage background: `bg` in the link, the switch, the page's paint, the note, Live and the overview. */
 async function checkStageBackground(browser, url, name) {
   const label = `examples/${name}/ stage background`
-  // Emulating a scheme forces `prefers-color-scheme` in every frame and hides
-  // the one each frame takes from its iframe, so the emulation is off here.
-  const { context, page, failures } = await openLivePage(browser, url, null)
+  const { context, page, failures } = await openLivePage(browser, url)
   const id = testIdOf(name, LIVE_TESTS[name].fullName)
 
   try {
     const problem =
       (await replaySteps(page, url, name, id)) ??
-      (await liveSteps(page)) ??
+      (await liveSteps(page, name)) ??
       (await overviewSteps(page, url, name, id))
 
     const problems = [problem, ...failures].filter((entry) => entry !== null)
@@ -1116,8 +1269,14 @@ async function checkStageBackground(browser, url, name) {
     }
 
     console.log(
-      `check-site: examples/${name}/ bg sets the canvas and the frames' color scheme, in replay, in Live and in the overview, with no backdrop`,
+      `check-site: examples/${name}/ bg sets the canvas and the frames' color scheme, and the canvas takes the page's background, in replay, in Live and in the overview, with no backdrop`,
     )
+
+    if (name === NOTE_EXAMPLE) {
+      console.log(
+        `check-site: examples/${name}/ a replayed frame on the dark canvas says it has only a light variant and that cssVariables: true records both, and light, transparent and Live say neither`,
+      )
+    }
 
     return []
   } catch (error) {
@@ -1365,6 +1524,83 @@ async function liveRecordedDarkSteps(page, base, id) {
   return kept.problem ? `Live, recorded dark, with light: ${kept.problem}` : null
 }
 
+/**
+ * Under `auto`, the dark theme puts the variant on the root at `selector` and
+ * the light theme takes it back, in the same iframe and window. Ends under
+ * the light theme.
+ */
+async function themeVariantSteps(page, selector) {
+  await markFrame(page, selector)
+
+  for (const theme of ['dark', 'light']) {
+    await pickTheme(page, theme)
+
+    const shown = await showsVariant(page, selector, theme === 'dark')
+
+    if (shown.problem) {
+      return `under the ${theme} theme: ${shown.problem}`
+    }
+
+    if (!shown.seen.sameIframe || !shown.seen.sameWindow) {
+      return `under the ${theme} theme the frame was replaced or reloaded`
+    }
+  }
+
+  return null
+}
+
+/**
+ * i: `auto` that resolves to dark is `bg=dark`. Under the dark theme a
+ * replayed frame, a thumbnail and the live page get the variant, without a
+ * new frame or a reload. The light theme takes it back. The overview rebuilds
+ * its thumbnails on a change of the theme, so its first one is read under
+ * each theme in turn. Ends under `system`.
+ */
+async function autoThemeVariantSteps(page, base, id) {
+  await freshLoad(page, `${base}#test=${id}&live=0`)
+  await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const replayed = await themeVariantSteps(page, RECORDED_IFRAME)
+
+  if (replayed) {
+    return `auto, replay: ${replayed}`
+  }
+
+  const moduleId = readSiteManifest(DARK_VARIANT.name).modules.find((candidate) =>
+    candidate.tests.some((test) => test.id === id),
+  ).id
+
+  await pickTheme(page, 'dark')
+  await freshLoad(page, `${base}#suite=${encodeURIComponent(moduleId)}`)
+
+  for (const theme of ['dark', 'light']) {
+    await pickTheme(page, theme)
+    await page
+      .locator('.thumb iframe')
+      .first()
+      .waitFor({ state: 'attached', timeout: VIEWER_TIMEOUT })
+
+    const thumb = await showsVariant(page, '.thumb iframe', theme === 'dark')
+
+    if (thumb.problem) {
+      return `auto, the first thumbnail under the ${theme} theme: ${thumb.problem}`
+    }
+  }
+
+  await freshLoad(page, `${base}#test=${id}`)
+  await page
+    .locator('.live-toggle[aria-pressed="true"]')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await mountedInLive(page)
+
+  const live = await themeVariantSteps(page, LIVE_IFRAME)
+
+  await pickTheme(page, 'system')
+
+  return live ? `auto, Live: ${live}` : null
+}
+
 /** react-browser's dark variant is a media query, so no switch touches the root of a frame. */
 async function sameRootNames(page, selector) {
   const names = {}
@@ -1413,13 +1649,14 @@ async function mediaOnlySteps(page, url) {
 }
 
 /**
- * The dark variant of shadcn under `bg=dark`, on the root of a replayed frame,
- * a frame swapped in from a link, a thumbnail and the live page, and the root
- * of react-browser, whose dark variant is a media query, left alone.
+ * The dark variant of shadcn under `bg=dark`, and under `auto` with the dark
+ * viewer theme, on the root of a replayed frame, a frame swapped in from a
+ * link, a thumbnail and the live page, and the root of react-browser, whose
+ * dark variant is a media query, left alone.
  */
 async function checkStageDarkVariant(browser, url) {
   const label = 'stage dark variant'
-  const { context, page, failures } = await openLivePage(browser, url, null)
+  const { context, page, failures } = await openLivePage(browser, url)
   const counter = countFoundations(page)
   const base = `${url}examples/${DARK_VARIANT.name}/`
   const light = testIdOf(DARK_VARIANT.name, DARK_VARIANT.light)
@@ -1441,7 +1678,19 @@ async function checkStageDarkVariant(browser, url) {
     }
 
     console.log(
-      `check-site: examples/${DARK_VARIANT.name}/ bg=dark puts .dark on the root of a replayed frame, a frame from a link, a thumbnail and the live page without a reload, light, auto and transparent take it back, a frame recorded dark stays dark, and foundations.json loads once, on the first dark`,
+      `check-site: examples/${DARK_VARIANT.name}/ bg=dark puts .dark on the root of a replayed frame, a frame from a link, a thumbnail and the live page without a reload, light, auto under the light theme and transparent take it back, a frame recorded dark stays dark, and foundations.json loads once, on the first dark`,
+    )
+
+    const autoTheme = await autoThemeVariantSteps(page, base, light)
+
+    if (autoTheme) {
+      return [autoTheme, ...failures].map(
+        (entry) => `examples/${DARK_VARIANT.name}/ ${label}: ${entry}`,
+      )
+    }
+
+    console.log(
+      `check-site: examples/${DARK_VARIANT.name}/ auto under the dark viewer theme puts .dark on the root of a replayed frame, a thumbnail and the live page without a reload, as bg=dark does, and the light theme takes it back`,
     )
 
     const mediaOnly = await mediaOnlySteps(page, url)
@@ -1772,7 +2021,7 @@ async function checkLiveLoading(browser, url, name) {
 async function checkLiveLoadingReducedMotion(browser, url) {
   const name = 'react-browser'
   const label = `examples/${name}/ Live loading with reduced motion`
-  const { context, page, failures } = await openLivePage(browser, url, 'light', 'reduce')
+  const { context, page, failures } = await openLivePage(browser, url, null, 'reduce')
   const id = testIdOf(name, LIVE_TESTS[name].fullName)
 
   try {
@@ -2032,7 +2281,7 @@ async function thumbnailStep(page, base, ids) {
 
 /** A page whose `__live.json` answers `body` until `release()`, then the site's own file. */
 async function previewPage(browser, url, body) {
-  const opened = await openLivePage(browser, url, null)
+  const opened = await openLivePage(browser, url)
   const gate = { released: false }
 
   await opened.page.route('**/__live.json', (route) =>
@@ -2137,7 +2386,7 @@ async function checkLiveByDefault(browser, url) {
   const label = `examples/${name}/ Live by default`
   const base = `${url}examples/${name}/`
   const ids = tests.map((fullName) => testIdOf(name, fullName))
-  const { context, page, failures } = await openLivePage(browser, url, null)
+  const { context, page, failures } = await openLivePage(browser, url)
   const steps = [
     ['a', () => plainLinkStep(page, base, ids)],
     ['b', () => pressLStep(page, ids)],
@@ -2589,6 +2838,36 @@ async function largestChannelDelta([first, second]) {
   return largest
 }
 
+// How many times settledShot() looks again before it takes what it has.
+const SETTLE_SHOTS = 10
+
+/**
+ * A shot of the stage once two in a row, SETTLE_MS apart, agree. A switch may
+ * still be settling: the dark variant loads, or Material UI turns dark at
+ * runtime and its live page reports the new background.
+ */
+async function settledShot(page) {
+  let shot = await stageShot(page)
+
+  for (let i = 0; i < SETTLE_SHOTS; i++) {
+    await page.waitForTimeout(SETTLE_MS)
+
+    const next = await stageShot(page)
+    const delta = await page.evaluate(
+      largestChannelDelta,
+      [shot, next].map((buffer) => buffer.toString('base64')),
+    )
+
+    if (delta !== null && delta <= COMPOSITING_NOISE) {
+      return next
+    }
+
+    shot = next
+  }
+
+  return shot
+}
+
 /** Remembers whether `data-theme` first changed while the parser had not reached `<body>`. */
 function watchThemeAttribute() {
   const observer = new MutationObserver(() => {
@@ -2599,45 +2878,104 @@ function watchThemeAttribute() {
   observer.observe(document, { subtree: true, attributeFilter: ['data-theme'] })
 }
 
-/** Under `system`, then the dark theme, then across a reload: the replayed frame stays the same. */
+/**
+ * Under `light`, `dark` and `transparent` the dark theme changes neither the
+ * link nor a pixel of the stage at `selector`. Ends under `system`.
+ */
+async function fixedBackgroundSteps(page, selector) {
+  for (const value of ['light', 'dark', 'transparent']) {
+    await pickBackground(page, value)
+
+    const before =
+      (await showsTheme(page, 'system')) ?? (await showsBackground(page, selector, value))
+
+    if (before) {
+      return `with ${value}: ${before}`
+    }
+
+    const shot = await settledShot(page)
+    const link = page.url()
+
+    await pickTheme(page, 'dark')
+
+    const after = (await showsTheme(page, 'dark')) ?? (await showsBackground(page, selector, value))
+
+    if (after) {
+      return `with ${value}: ${after}`
+    }
+
+    if (page.url() !== link) {
+      return `with ${value} the dark theme changed the link from ${link} to ${page.url()}`
+    }
+
+    const shots = [shot, await settledShot(page)].map((buffer) => buffer.toString('base64'))
+    const delta = await page.evaluate(largestChannelDelta, shots)
+
+    if (delta === null) {
+      return `with ${value} the dark theme changed the size of the stage`
+    }
+
+    if (delta > COMPOSITING_NOISE) {
+      return `with ${value} the dark theme changed the pixels of the stage, by up to ${delta} in a channel`
+    }
+
+    await pickTheme(page, 'system')
+  }
+
+  return null
+}
+
+/**
+ * Under `auto` the dark theme gives the frame at `selector` the dark canvas
+ * and scheme, and `light` and `system`, which is light here, the light ones.
+ * `check` runs after each theme. Ends under `system`.
+ */
+async function autoThemeSteps(page, selector, check = async () => null) {
+  await pickBackground(page, 'auto')
+
+  for (const theme of ['dark', 'light', 'system']) {
+    await pickTheme(page, theme)
+
+    const resolved = theme === 'dark' ? 'dark' : 'light'
+    const problem =
+      (await showsTheme(page, theme)) ??
+      (await showsBackground(page, selector, 'auto', resolved)) ??
+      (await check(theme))
+
+    if (problem) {
+      return `with auto: ${problem}`
+    }
+  }
+
+  return null
+}
+
+/**
+ * In a replayed frame: the theme changes nothing under `light`, `dark` and
+ * `transparent`, and picks the canvas and the scheme under `auto`. The dark
+ * theme survives a reload, and under it every value of the switch shows no
+ * backdrop. Ends under `auto` and `system`.
+ */
 async function replayThemeSteps(page, url, name, id) {
   await page.goto(`${url}examples/${name}/#test=${id}&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
-  const before =
+  const start =
     (await showsTheme(page, 'system')) ?? (await showsBackground(page, RECORDED_IFRAME, 'auto'))
 
-  if (before) {
-    return before
+  if (start) {
+    return start
   }
 
-  const shot = await stageShot(page)
-  const link = page.url()
+  const problem =
+    (await fixedBackgroundSteps(page, RECORDED_IFRAME)) ??
+    (await autoThemeSteps(page, RECORDED_IFRAME))
+
+  if (problem) {
+    return problem
+  }
 
   await pickTheme(page, 'dark')
-
-  const after =
-    (await showsTheme(page, 'dark')) ?? (await showsBackground(page, RECORDED_IFRAME, 'auto'))
-
-  if (after) {
-    return after
-  }
-
-  if (page.url() !== link) {
-    return `the dark theme changed the link from ${link} to ${page.url()}`
-  }
-
-  const shots = [shot, await stageShot(page)].map((buffer) => buffer.toString('base64'))
-  const delta = await page.evaluate(largestChannelDelta, shots)
-
-  if (delta === null) {
-    return 'the dark theme changed the size of the stage'
-  }
-
-  if (delta > COMPOSITING_NOISE) {
-    return `the dark theme changed the pixels of the stage, by up to ${delta} in a channel`
-  }
-
   await page.reload()
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
@@ -2645,7 +2983,9 @@ async function replayThemeSteps(page, url, name, id) {
     return 'after a reload data-theme was not set before <body>'
   }
 
-  const reloaded = await showsTheme(page, 'dark')
+  const reloaded =
+    (await showsTheme(page, 'dark')) ??
+    (await showsBackground(page, RECORDED_IFRAME, 'auto', 'dark'))
 
   if (reloaded) {
     return `after a reload: ${reloaded}`
@@ -2653,15 +2993,16 @@ async function replayThemeSteps(page, url, name, id) {
 
   await seeThrough(page, RECORDED_IFRAME)
 
-  const problem = await eachBackground(page, RECORDED_IFRAME)
+  const seen = await eachBackground(page, RECORDED_IFRAME, async () => null, 'dark')
 
-  if (problem) {
-    return `under the dark theme: ${problem}`
+  if (seen) {
+    return `under the dark theme: ${seen}`
   }
 
   await pickBackground(page, 'auto')
+  await pickTheme(page, 'system')
 
-  return null
+  return showsTheme(page, 'system')
 }
 
 function linkTest() {
@@ -2698,40 +3039,40 @@ async function focusThemeSteps(page) {
     : `↓ to the test ${await page.evaluate(linkTest)} took the focus off the dark theme button`
 }
 
-/** Each theme in Live: the frame keeps its background and does not reload. */
+/**
+ * In Live: under `auto` the theme picks the canvas and the scheme, and under
+ * `light`, `dark` and `transparent` it changes nothing. The live frame never
+ * reloads. Ends under `auto` and `system`.
+ */
 async function liveThemeSteps(page, url, name, id) {
   await page.goto(`${url}examples/${name}/#test=${id}`)
   await page
     .locator('.live-toggle[aria-pressed="true"]')
     .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
 
-  await page
-    .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
-    .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
-
+  await mountedInLive(page)
   await page.locator(LIVE_IFRAME).evaluate((iframe) => {
     iframe.contentWindow.viewerThemeMarker = true
   })
 
-  for (const theme of ['light', 'system', 'dark']) {
-    await pickTheme(page, theme)
-
-    const problem =
-      (await showsTheme(page, theme)) ?? (await showsBackground(page, LIVE_IFRAME, 'auto'))
-
-    if (problem) {
-      return `Live: ${problem}`
-    }
-
+  const reloaded = async (theme) => {
     const kept = await page
       .locator(LIVE_IFRAME)
       .evaluate((iframe) => iframe.contentWindow.viewerThemeMarker === true)
 
-    if (!kept) {
-      return `Live: under the ${theme} theme the live frame reloaded`
-    }
+    return kept ? null : `under the ${theme} theme the live frame reloaded`
   }
 
+  const problem =
+    (await autoThemeSteps(page, LIVE_IFRAME, reloaded)) ??
+    (await fixedBackgroundSteps(page, LIVE_IFRAME)) ??
+    (await reloaded('system'))
+
+  if (problem) {
+    return `Live: ${problem}`
+  }
+
+  await pickBackground(page, 'auto')
   await pickTheme(page, 'system')
 
   return showsTheme(page, 'system')
@@ -2739,7 +3080,7 @@ async function liveThemeSteps(page, url, name, id) {
 
 /** Every frame assertion of the theme, with the emulation off so frames take their own scheme. */
 async function frameThemeSteps(browser, url, name) {
-  const { context, page, failures } = await openLivePage(browser, url, null)
+  const { context, page, failures } = await openLivePage(browser, url)
   const id = testIdOf(name, LIVE_TESTS[name].fullName)
 
   try {
@@ -2760,18 +3101,46 @@ async function showsTree(page) {
   await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
 }
 
+/** Waits until `.stage` has `data-canvas="${canvas}"`. Returns a problem or `null`. */
+async function showsDataCanvas(page, canvas) {
+  const shown = await page
+    .locator(`.stage[data-canvas="${canvas}"]`)
+    .waitFor({ state: 'attached', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (shown) {
+    return null
+  }
+
+  const seen = await page.evaluate(() => document.querySelector('.stage')?.dataset.canvas ?? null)
+
+  return `the stage has data-canvas="${seen}", expected ${canvas}`
+}
+
 /**
- * On a dark system, `system` is dark and a stored `light` survives a reload.
- * The emulation forces the scheme into every frame, so only the chrome counts.
+ * On a dark system, `system` is dark, so is `auto` on a replayed frame, and
+ * a stored `light` survives a reload. The emulation forces the scheme into
+ * every frame, so only the chrome and the stage's `data-canvas` count.
  */
 async function darkSystemThemeSteps(browser, url, name) {
   const { context, page, failures } = await openLivePage(browser, url, 'dark')
+  const id = testIdOf(name, LIVE_TESTS[name].fullName)
 
   try {
     await page.goto(`${url}examples/${name}/`)
     await showsTree(page)
 
     let problem = await showsTheme(page, 'system', { background: DARK_BACKGROUND })
+
+    if (!problem) {
+      await page.goto(`${url}examples/${name}/#test=${id}&live=0`)
+      await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+      const canvas = await showsDataCanvas(page, 'dark')
+
+      problem = canvas ? `under system and auto: ${canvas}` : null
+    }
 
     if (!problem) {
       await pickTheme(page, 'light')
@@ -2792,6 +3161,42 @@ async function darkSystemThemeSteps(browser, url, name) {
   }
 }
 
+/**
+ * With the emulation off, a system that turns dark under `system` and `auto`
+ * turns the stage's canvas dark without a reload. The emulation then forces
+ * the scheme into every frame, so only `data-canvas` counts.
+ */
+async function systemSwitchSteps(browser, url, name) {
+  const { context, page, failures } = await openLivePage(browser, url)
+  const id = testIdOf(name, LIVE_TESTS[name].fullName)
+
+  try {
+    await page.goto(`${url}examples/${name}/#test=${id}&live=0`)
+    await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
+
+    let problem = await showsDataCanvas(page, 'light')
+
+    if (!problem) {
+      await page.evaluate(() => {
+        window.systemSwitchMarker = true
+      })
+
+      await page.emulateMedia({ colorScheme: 'dark' })
+      problem = await showsDataCanvas(page, 'dark')
+    }
+
+    if (!problem && (await page.evaluate(() => window.systemSwitchMarker)) !== true) {
+      problem = 'the viewer reloaded'
+    }
+
+    return [problem, ...failures]
+      .filter((entry) => entry !== null)
+      .map((entry) => `when the system turns dark under system and auto: ${entry}`)
+  } finally {
+    await context.close()
+  }
+}
+
 /** The getter Chromium has when site data is blocked. */
 function blockStorage() {
   Object.defineProperty(window, 'localStorage', {
@@ -2804,7 +3209,7 @@ function blockStorage() {
 
 /** Without storage the switch works until a reload, with no page error. */
 async function blockedThemeSteps(browser, url, name) {
-  const { context, page, failures } = await openLivePage(browser, url, null)
+  const { context, page, failures } = await openLivePage(browser, url)
   const blocked = { stored: 'blocked' }
 
   try {
@@ -2833,7 +3238,10 @@ async function blockedThemeSteps(browser, url, name) {
   }
 }
 
-/** The viewer's own theme: stored, set before the body, and never seen by a frame. */
+/**
+ * The viewer's own theme: stored and set before the body. Under `auto` it
+ * picks the canvas and the frames' scheme, and otherwise no frame sees it.
+ */
 async function checkViewerTheme(browser, url, name) {
   const label = `examples/${name}/ viewer theme`
 
@@ -2841,6 +3249,7 @@ async function checkViewerTheme(browser, url, name) {
     const problems = [
       ...(await frameThemeSteps(browser, url, name)),
       ...(await darkSystemThemeSteps(browser, url, name)),
+      ...(await systemSwitchSteps(browser, url, name)),
       ...(await blockedThemeSteps(browser, url, name)),
     ]
 
@@ -2849,7 +3258,7 @@ async function checkViewerTheme(browser, url, name) {
     }
 
     console.log(
-      `check-site: examples/${name}/ viewer theme survives a reload, is set before the body, keeps the focus, works without storage and leaves the frames alone, in replay and in Live`,
+      `check-site: examples/${name}/ viewer theme survives a reload, is set before the body, keeps the focus and works without storage, under auto picks the canvas and the frames' color scheme and follows a change of the system's scheme without a reload, and under light, dark and transparent changes no pixel of the stage, in replay and in Live`,
     )
 
     return []
@@ -2883,7 +3292,8 @@ let problems = [...scanned.problems]
 try {
   browser = await launchChromium()
 
-  const context = await browser.newContext({ colorScheme: 'light' })
+  // With the emulation off, as everywhere here, headless Chromium's scheme is light.
+  const context = await browser.newContext({ colorScheme: null })
 
   problems.push(...(await checkPages(context, url)))
 
@@ -2937,5 +3347,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, open a test in Live by default, show Live loading, set the stage background and its dark variant, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project and let the viewer theme pick the stage only under auto`,
 )

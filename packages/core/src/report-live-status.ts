@@ -1,5 +1,6 @@
 import { applyViewerRequest } from './apply-viewer-request.js'
 import { liveState } from './live-state.js'
+import { observeLiveBackground } from './observe-live-background.js'
 import { observeLiveHeight } from './observe-live-height.js'
 import { postLiveMessage } from './post-live-message.js'
 import type { LiveReport, LiveStatus } from './types.js'
@@ -15,8 +16,9 @@ function showStatus(status: LiveStatus, detail: string | undefined): void {
 
 /**
  * Reports how the live page ended up, on `<html data-describe-me-live>` and to
- * the viewer, after applying the viewer's held request. The first status of a
- * page is final, so later calls do nothing.
+ * the viewer, after applying the viewer's held request and reporting the
+ * page's background. The first status of a page is final, so later calls do
+ * nothing.
  */
 export function reportLiveStatus(status: LiveStatus, detail?: string): void {
   const state = liveState()
@@ -27,8 +29,10 @@ export function reportLiveStatus(status: LiveStatus, detail?: string): void {
 
   state.status = status
   document.documentElement.dataset.describeMeLive = status
-  // The viewer fades the frame in on this status, so the variant must be there first.
+  // The viewer fades the frame in on this status, so the variant and the
+  // page's background must be there first.
   applyViewerRequest()
+  observeLiveBackground()
 
   const report: LiveReport =
     detail === undefined ? { type: 'status', status } : { type: 'status', status, detail }

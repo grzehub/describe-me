@@ -900,7 +900,8 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             <code>:where(:root) { color-scheme: light dark }</code> rule goes first in its
             <code>&lt;head&gt;</code>, then the preview head, so the captured styles win ties. The
             rule gives the page the iframe's color scheme, which comes from the
-            <a href="viewer.html#viewport-background">background switch</a>.
+            <a href="viewer.html#viewport-background">background switch</a>, and under
+            <code>auto</code> from the page or the viewer theme.
           </li>
           <li>
             Builds the new frame in a hidden slot next to the visible one, and swaps it in once its
@@ -1322,6 +1323,16 @@ describe-me: live-fixtures/node-only.test.tsx imports node:fs, which does not lo
                 <td>Once, when the page knows how it ended up. The first status is final.</td>
               </tr>
               <tr>
+                <td><code>background</code></td>
+                <td class="nowrap"><code>html</code>, <code>body</code></td>
+                <td>
+                  Just before the status, and whenever either changes: the computed
+                  <code>background-color</code> of <code>&lt;html&gt;</code> and of
+                  <code>&lt;body&gt;</code>, so the viewer can paint its canvas to match. A viewer
+                  of an earlier version ignores it.
+                </td>
+              </tr>
+              <tr>
                 <td><code>size</code></td>
                 <td class="nowrap"><code>height</code></td>
                 <td>
@@ -1373,9 +1384,10 @@ describe-me: live-fixtures/node-only.test.tsx imports node:fs, which does not lo
                 <td><code>dark-variant</code></td>
                 <td class="nowrap"><code>root</code></td>
                 <td>
-                  When the frame loads, and whenever <code>bg</code> or the variant changes.
-                  <code>root</code> holds the class and the <code>data-*</code> attribute of the
-                  dark variant under <code>bg=dark</code>, or is <code>null</code>.
+                  When the frame loads, and whenever <code>bg</code>, the viewer theme under
+                  <code>auto</code> or the variant changes. <code>root</code> holds the class and
+                  the <code>data-*</code> attribute of the dark variant under <code>bg=dark</code>,
+                  or under <code>auto</code> when it resolves to dark, or is <code>null</code>.
                 </td>
               </tr>
             </tbody>

@@ -429,6 +429,8 @@ export type LiveReport =
   | { type: 'action'; name: string; args: string[] }
   | { type: 'error'; message: string }
   | { type: 'notice'; message: string }
+  /** The computed `background-color` of `<html>` and of `<body>`, so the viewer can paint its canvas to match. */
+  | { type: 'background'; html: string; body: string }
 
 /** A message the live page posts to the viewer around it. */
 export type LiveMessage = LiveReport & { source: typeof LIVE_MESSAGE_SOURCE }

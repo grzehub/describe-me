@@ -5,7 +5,7 @@ import { state, writeHash } from './state.js'
 
 /** Swatches, not words, so the breadcrumb path keeps its room. */
 const BACKGROUNDS: { value: StageBackground; title: string }[] = [
-  { value: 'auto', title: 'Stage background: auto, follows the page' },
+  { value: 'auto', title: 'Stage background: auto, follows the page or the viewer theme' },
   { value: 'light', title: 'Stage background: light' },
   { value: 'dark', title: 'Stage background: dark' },
   { value: 'transparent', title: 'Stage background: transparent' },
