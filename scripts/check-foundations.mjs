@@ -17,27 +17,28 @@
  * summary at 0 tokens for a Material UI project without tokens, and say that
  * it cannot import a theme module without Vitest's module runner.
  *
- * Then it runs `examples/mui` with `MUI_CSS_VARS=1` and with `MUI_THEME=off`,
- * and checks the output of every example: shadcn with its Tailwind 4 theme
- * and components.json, MUI with its theme module and Material UI's defaults
- * with and without CSS variables, MUI without its theme module, react-jsdom
- * with its plain theme object and react-browser with its custom properties
- * only. Every chunk that `foundations.json` names must exist, no file may name
- * the checkout or the home directory, and no manifest may carry foundations
- * errors. Then `check-foundations/check-view.mjs` opens a static build of the
- * viewer for every output in Chromium and checks the Foundations view: the
- * entry, the sections and counts, resolved values, the dark variant, fonts,
- * the inspector, the frame's height, the viewer theme, the link and narrow
- * widths, a copy of react-browser's output without foundations, and the MUI
- * output without its theme module, whose page holds only the setup hint.
- * `check-foundations/check-presets.mjs` adds the design-system blocks of every
- * output, the `default` badges of Material UI per section under both
+ * Then it runs `examples/mui` with `MUI_CLASSIC=1` and with `MUI_THEME=off`,
+ * and checks the output of every example: shadcn with its Tailwind 4 theme and
+ * components.json, MUI with its theme module and Material UI's defaults on CSS
+ * variables and on the classic theme, MUI without its theme module,
+ * react-jsdom with its plain theme object and react-browser with its custom
+ * properties only. Every chunk that `foundations.json` names must exist, no
+ * file may name the checkout or the home directory, and no manifest may carry
+ * foundations errors. Then `check-foundations/check-view.mjs` opens a static
+ * build of the viewer for every output in Chromium and checks the Foundations
+ * view: the entry, the sections and counts, resolved values, the dark variant,
+ * fonts, the inspector, the frame's height, the viewer theme, the link and
+ * narrow widths, a copy of react-browser's output without foundations, the MUI
+ * output without its theme module, whose page holds only the setup hint, and
+ * the stage's note on the classic MUI output, whose frame has only a light
+ * variant. `check-foundations/check-presets.mjs` adds the design-system blocks
+ * of every output, the `default` badges of Material UI per section under both
  * backgrounds, the WCAG contrast of pair tiles, the token filter and `/`, and
- * synthetic copies: a Chakra UI project, a Material UI project without a
- * theme module, which shows the setup hint, the `MUI_CSS_VARS=1` output
- * without its theme module, and MUI's output with a default dark primary. It
- * prints how long collecting took per output. Run after `pnpm build` and
- * every example's tests. Exits 1 on any failure.
+ * synthetic copies: a Chakra UI project, a Material UI project without a theme
+ * module, which shows the setup hint, MUI's output without its theme module,
+ * and the classic MUI output with a default dark primary. It prints how long
+ * collecting took per output. Run after `pnpm build` and every example's
+ * tests. Exits 1 on any failure.
  *
  * Usage: node scripts/check-foundations.mjs
  */
@@ -95,7 +96,7 @@ const OUTPUTS = {
   'react-jsdom': 'react-jsdom/.describe-me',
   shadcn: 'shadcn/.describe-me',
   mui: 'mui/.describe-me',
-  'mui, MUI_CSS_VARS=1': 'mui/node_modules/.describe-me-css-vars',
+  'mui, MUI_CLASSIC=1': 'mui/node_modules/.describe-me-classic',
   'mui, MUI_THEME=off': 'mui/node_modules/.describe-me-no-theme',
 }
 
@@ -545,16 +546,16 @@ function restoreEnv(name, value) {
 
 /**
  * The theme that examples/mui/src/theme.ts exports, imported through Vitest's
- * module runner as the reporter imports it, with `MUI_CSS_VARS` at `value`.
+ * module runner as the reporter imports it, with `MUI_CLASSIC` at `value`.
  */
 async function exampleTheme(value) {
   const mui = join(EXAMPLES, 'mui')
   const vitestNode = createRequire(join(mui, 'package.json')).resolve('vitest/node')
   const { createVitest } = await import(pathToFileURL(vitestNode).href)
-  const inherited = process.env.MUI_CSS_VARS
+  const inherited = process.env.MUI_CLASSIC
 
   // Without the example's config nothing defines the variable, so theme.ts reads it from the process.
-  process.env.MUI_CSS_VARS = value
+  process.env.MUI_CLASSIC = value
 
   const vitest = await createVitest('test', { config: false, root: mui, watch: false })
 
@@ -564,7 +565,7 @@ async function exampleTheme(value) {
     return theme
   } finally {
     await vitest.close()
-    restoreEnv('MUI_CSS_VARS', inherited)
+    restoreEnv('MUI_CLASSIC', inherited)
   }
 }
 
@@ -572,17 +573,17 @@ async function checkMuiDefaultOptions() {
   const { createTheme } = muiStyles()
 
   await check(
-    'muiDefaultOptions of the theme in examples/mui/src/theme.ts is its light and dark schemes and defaultColorScheme light',
-    async () => same(muiDefaultOptions(await exampleTheme('')), MUI_EXAMPLE_OPTIONS),
-  )
-
-  await check(
-    'muiDefaultOptions of the same theme with MUI_CSS_VARS=1 adds cssVariables with prefix mui, selector media and root :root',
+    'muiDefaultOptions of the theme in examples/mui/src/theme.ts is its light and dark schemes, defaultColorScheme light and cssVariables with prefix mui, selector media and root :root',
     async () =>
-      same(muiDefaultOptions(await exampleTheme('1')), {
+      same(muiDefaultOptions(await exampleTheme('')), {
         ...MUI_EXAMPLE_OPTIONS,
         cssVariables: { cssVarPrefix: 'mui', colorSchemeSelector: 'media', rootSelector: ':root' },
       }),
+  )
+
+  await check(
+    'muiDefaultOptions of the same theme with MUI_CLASSIC=1 is its light and dark schemes and defaultColorScheme light, without cssVariables',
+    async () => same(muiDefaultOptions(await exampleTheme('1')), MUI_EXAMPLE_OPTIONS),
   )
 
   await check(
@@ -1071,12 +1072,12 @@ function runMui(name, value, other) {
   }))
 }
 
-function runCssVariables() {
-  return runMui('MUI_CSS_VARS', '1', 'MUI_THEME')
+function runClassic() {
+  return runMui('MUI_CLASSIC', '1', 'MUI_THEME')
 }
 
 function runWithoutTheme() {
-  return runMui('MUI_THEME', 'off', 'MUI_CSS_VARS')
+  return runMui('MUI_THEME', 'off', 'MUI_CLASSIC')
 }
 
 /** A sheet's CSS: its stored chunks joined in order, or the inline text. */
@@ -1304,7 +1305,7 @@ async function checkMuiDefaults(label, foundations) {
   )
 }
 
-async function checkMui({ foundations }) {
+async function checkMuiClassic({ foundations }) {
   const variants = foundations.tokens.filter(
     (token) => token.name.startsWith('typography.') && token.type === 'typography',
   )
@@ -1312,55 +1313,58 @@ async function checkMui({ foundations }) {
   const spacing = Array.from({ length: 13 }, (_, step) => `spacing(${step})`)
   const shadows = foundations.tokens.filter((token) => token.name.startsWith('shadows.'))
 
-  await check('mui: the theme module is src/theme.ts, export theme, adapter mui', () =>
-    same(foundations.theme, { module: 'src/theme.ts', export: 'theme', adapter: 'mui' }),
+  await check(
+    'mui, MUI_CLASSIC=1: the theme module is src/theme.ts, export theme, adapter mui',
+    () => same(foundations.theme, { module: 'src/theme.ts', export: 'theme', adapter: 'mui' }),
   )
 
-  await check('mui: palette.primary.main has modes #5b4bdb and #a99cff', () =>
+  await check('mui, MUI_CLASSIC=1: palette.primary.main has modes #5b4bdb and #a99cff', () =>
     same(tokenNamed(foundations, 'palette.primary.main')?.modes, {
       light: '#5b4bdb',
       dark: '#a99cff',
     }),
   )
 
-  await check('mui: 13 typography variants with parts', () => ({
+  await check('mui, MUI_CLASSIC=1: 13 typography variants with parts', () => ({
     passed: variants.length === 13 && variants.every((token) => token.parts?.fontSize),
     detail: variants.map((token) => token.name).join(', '),
   }))
 
-  await check('mui: spacing(0) to spacing(12), spacing(1) is 8px', () => ({
+  await check('mui, MUI_CLASSIC=1: spacing(0) to spacing(12), spacing(1) is 8px', () => ({
     passed:
       spacing.every((name) => tokenNamed(foundations, name)?.group === 'spacing') &&
       tokenNamed(foundations, 'spacing(1)')?.value === '8px',
     detail: JSON.stringify(tokenNamed(foundations, 'spacing(1)')),
   }))
 
-  await check('mui: shape.borderRadius is 10px', () =>
+  await check('mui, MUI_CLASSIC=1: shape.borderRadius is 10px', () =>
     same(tokenNamed(foundations, 'shape.borderRadius')?.value, '10px'),
   )
 
-  await check('mui: 25 shadows', () => same(shadows.length, 25))
+  await check('mui, MUI_CLASSIC=1: 25 shadows', () => same(shadows.length, 25))
 
-  await check('mui: 3 Roboto font sheets from node_modules/@fontsource/roboto/', () =>
-    same(
-      foundations.fontSheets.map((sheet) => sheet.source),
-      ['400', '500', '700'].map((weight) => `node_modules/@fontsource/roboto/${weight}.css`),
-    ),
+  await check(
+    'mui, MUI_CLASSIC=1: 3 Roboto font sheets from node_modules/@fontsource/roboto/',
+    () =>
+      same(
+        foundations.fontSheets.map((sheet) => sheet.source),
+        ['400', '500', '700'].map((weight) => `node_modules/@fontsource/roboto/${weight}.css`),
+      ),
   )
 
-  await check('mui: no project CSS sources, systems mui and emotion', () =>
+  await check('mui, MUI_CLASSIC=1: no project CSS sources, systems mui and emotion', () =>
     same(
       { cssSources: foundations.cssSources, systems: foundations.systems.map(({ id }) => id) },
       { cssSources: [], systems: ['mui', 'emotion'] },
     ),
   )
 
-  await checkMuiDefaults('mui', foundations)
+  await checkMuiDefaults('mui, MUI_CLASSIC=1', foundations)
 }
 
 async function checkMuiCssVariables({ outDir, foundations }) {
   await check(
-    'mui, MUI_CSS_VARS=1: --mui-palette-primary-main is #5b4bdb in :root and #a99cff in the dark media query',
+    'mui: --mui-palette-primary-main is #5b4bdb in :root and #a99cff in the dark media query',
     () => {
       const sheets = foundations.tokenSheets.map((sheet) => sheetText(outDir, sheet.cssText))
       const name = '--mui-palette-primary-main'
@@ -1371,20 +1375,20 @@ async function checkMuiCssVariables({ outDir, foundations }) {
     },
   )
 
-  await check('mui, MUI_CSS_VARS=1: spacing(1) is var(--mui-spacing, 8px)', () =>
+  await check('mui: spacing(1) is var(--mui-spacing, 8px)', () =>
     same(tokenNamed(foundations, 'spacing(1)')?.value, 'var(--mui-spacing, 8px)'),
   )
 
-  await check('mui, MUI_CSS_VARS=1: no token name ends in Channel', () =>
+  await check('mui: no token name ends in Channel', () =>
     same(
       foundations.tokens.filter((token) => token.name.endsWith('Channel')).map(({ name }) => name),
       [],
     ),
   )
 
-  await checkMuiDefaults('mui, MUI_CSS_VARS=1', foundations)
+  await checkMuiDefaults('mui', foundations)
 
-  await check('mui, MUI_CSS_VARS=1: spacing(1) is default', () =>
+  await check('mui: spacing(1) is default', () =>
     same(tokenNamed(foundations, 'spacing(1)')?.origin, 'default'),
   )
 }
@@ -1525,7 +1529,7 @@ async function checkEveryOutput(label, { outDir, manifest }) {
 }
 
 async function checkExamples() {
-  await runCssVariables()
+  await runClassic()
   await runWithoutTheme()
 
   const outputs = await readOutputs()
@@ -1533,8 +1537,8 @@ async function checkExamples() {
     'react-browser': checkReactBrowser,
     'react-jsdom': checkReactJsdom,
     shadcn: checkShadcn,
-    mui: checkMui,
-    'mui, MUI_CSS_VARS=1': checkMuiCssVariables,
+    mui: checkMuiCssVariables,
+    'mui, MUI_CLASSIC=1': checkMuiClassic,
     'mui, MUI_THEME=off': checkMuiWithoutTheme,
   }
 

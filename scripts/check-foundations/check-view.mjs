@@ -10,15 +10,18 @@
  * output without its theme module has no specimen frame, so it gets a case of
  * its own: the entry, a page that holds only the heading and the setup hint,
  * `/`, a link with `bg=dark`, and a test under `bg=dark` that fetches nothing,
- * because its summary has 0 tokens. Then check-presets.mjs checks the
- * design-system blocks, the `default` badges, contrast, the token filter and
- * the setup hint on every other output and on the synthetic copies.
+ * because its summary has 0 tokens. check-stage-note.mjs checks the stage's
+ * note under `bg=dark`, which only the classic MUI output shows. Then
+ * check-presets.mjs checks the design-system blocks, the `default` badges,
+ * contrast, the token filter and the setup hint on every other output and on
+ * the synthetic copies.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rootCustomProperties } from '../../packages/vitest/dist/root-custom-properties.js'
 import { launchChromium } from '../docs/launch-chromium.mjs'
 import { checkPresets, SETUP_SENTENCE } from './check-presets.mjs'
+import { checkStageNote } from './check-stage-note.mjs'
 import {
   gotoViewer,
   hashParams,
@@ -50,8 +53,8 @@ const SYSTEMS = {
   'react-browser': 'custom properties',
   'react-jsdom': 'styled-components',
   shadcn: 'Tailwind · shadcn/ui',
+  'mui, MUI_CLASSIC=1': 'Material UI · Emotion',
   mui: 'Material UI · Emotion',
-  'mui, MUI_CSS_VARS=1': 'Material UI · Emotion',
 }
 
 /** Every `--mui-*` gives way to the theme module, so both MUI outputs show the same. */
@@ -70,8 +73,8 @@ const FIXED_SECTIONS = {
   'react-browser': [['Colors', 7]],
   // 3 theme colors and 7 custom properties.
   'react-jsdom': [['Colors', 10]],
+  'mui, MUI_CLASSIC=1': MUI_SECTIONS,
   mui: MUI_SECTIONS,
-  'mui, MUI_CSS_VARS=1': MUI_SECTIONS,
 }
 
 /** What shadcn's src/index.css adds to its Tailwind theme: 31 semantic colors, and `--radius`. */
@@ -81,23 +84,23 @@ const SHADCN_RADIUS = 1
 const INSPECTOR = {
   'react-browser': ['prefers-color-scheme'],
   shadcn: ['src/index.css', 'class .dark'],
-  mui: ['src/theme.ts', 'theme modes'],
-  'mui, MUI_CSS_VARS=1': ['prefers-color-scheme, theme modes', '3 token sheets, 3 font sheets'],
+  'mui, MUI_CLASSIC=1': ['src/theme.ts', 'theme modes'],
+  mui: ['prefers-color-scheme, theme modes', '3 token sheets, 3 font sheets'],
 }
 
 const RESOLVED = {
   shadcn: { section: 'radius', token: '--radius-lg', contains: ['var(--radius)', '0.625rem'] },
-  'mui, MUI_CSS_VARS=1': {
+  mui: {
     section: 'spacing',
     token: 'spacing(1)',
     contains: ['var(--mui-spacing, 8px)', '8px'],
   },
-  mui: { section: 'spacing', token: 'spacing(1)', exactly: '8px' },
+  'mui, MUI_CLASSIC=1': { section: 'spacing', token: 'spacing(1)', exactly: '8px' },
 }
 
 const FONTS = {
   shadcn: 'Inter Variable',
-  mui: 'Roboto',
+  'mui, MUI_CLASSIC=1': 'Roboto',
 }
 
 /** How each output's dark variant shows, read from the root and one swatch, under `bg=light` then `bg=dark`. */
@@ -116,14 +119,14 @@ const DARK_CASES = {
     scheme: true,
     bareRoot: true,
   },
-  'mui, MUI_CSS_VARS=1': {
+  mui: {
     how: 'by media',
     property: '--mui-palette-primary-main',
     values: ['#5b4bdb', '#a99cff'],
     swatch: 'palette.primary.main',
     swatchValues: ['rgb(91, 75, 219)', 'rgb(169, 156, 255)'],
   },
-  mui: {
+  'mui, MUI_CLASSIC=1': {
     how: 'by theme modes',
     swatch: 'palette.primary.main',
     swatchValues: ['rgb(91, 75, 219)', 'rgb(169, 156, 255)'],
@@ -1031,6 +1034,10 @@ export async function checkView({ check, tempDir, outputs }) {
           detail: [...new Set(failures)].join('; '),
         }),
       )
+    }
+
+    if (served.urls.mui && served.urls['mui, MUI_CLASSIC=1']) {
+      await checkStageNote({ check, browser, urls: served.urls, outputs })
     }
 
     await checkPresets({ check, browser, urls: served.urls, outputs })

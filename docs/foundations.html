@@ -476,9 +476,10 @@
           Only a theme module marks defaults, never the <code>--mui-*</code> custom properties. When
           <code>@mui/material/styles</code> does not import, every token stays the project's own and
           the <a href="troubleshooting.html#diag-foundationsErrors">diagnostics</a> get one
-          sentence. See the <a href="examples/mui/#foundations=colors">palette</a> of the Material
-          UI example, where only Primary and Secondary are its own, and its
-          <a href="examples/mui/#foundations=typography">typography</a>.
+          sentence. The Material UI example runs on CSS variables with its theme module, so its
+          <code>--mui-*</code> give way to the module. See its
+          <a href="examples/mui/#foundations=colors">palette</a>, where only Primary and Secondary
+          are its own, and its <a href="examples/mui/#foundations=typography">typography</a>.
         </p>
         <p>
           When Foundations opens for a project that uses Material UI without a theme module or
@@ -553,8 +554,9 @@
           Compare the dark variant of the shadcn/ui example, a <code>.dark</code> class, in its
           <a href="examples/shadcn/#foundations=colors&amp;bg=dark">colors</a>, that of the
           browser-mode example, <code>prefers-color-scheme</code>, in
-          <a href="examples/react-browser/#foundations=colors&amp;bg=dark">its colors</a>, and the
-          theme modes of the Material UI example in
+          <a href="examples/react-browser/#foundations=colors&amp;bg=dark">its colors</a>, and that
+          of the Material UI example, the <code>prefers-color-scheme</code> rule of its CSS
+          variables beside its theme modes, as its inspector row says, in
           <a href="examples/mui/#foundations=colors&amp;bg=dark">its colors</a>.
         </p>
 

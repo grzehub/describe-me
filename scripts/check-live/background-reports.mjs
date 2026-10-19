@@ -4,8 +4,8 @@
  * `SignupCard > submits the email` a `dark-variant` request for `.dark`, which
  * the host posts as the viewer does, brings a report with another `body`. In
  * mui's `PlanCard > marks the popular plan` a dark `color-scheme` on the
- * iframe makes Material UI switch to its dark scheme at runtime, and the page
- * reports its dark `background.default`. Each page loads once and logs no
+ * iframe turns on the dark media rule of Material UI's CSS variables, and the
+ * page reports its dark `background.default`. Each page loads once and logs no
  * error.
  */
 import {
