@@ -9,7 +9,8 @@ const DOCS_LINK_WITHIN = 12
 const MAX_LINES = 80
 const PACKAGE_TABLE = '## Which package do I need'
 const QUICK_START = '## Quick start'
-// The package READMEs link one viewer per environment, not every example.
+// The package READMEs link one viewer per environment, not every example. The
+// Foundations sentence links the shadcn/ui viewer as well.
 const README_VIEWERS = ['react-browser', 'react-jsdom']
 
 /**
