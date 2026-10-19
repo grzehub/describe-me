@@ -19,7 +19,10 @@ export interface State {
    */
   foundations: FoundationGroup | null
   frame: number
-  /** The selected test mounted live instead of its frame. `live=1` in the link. */
+  /**
+   * The selected test mounted live instead of its frame, the default. `live=0`
+   * or a `frame` in the link turns it off.
+   */
   live: boolean
   /** What `__live.json` says about the live preview. */
   preview: LivePreviewInfo
@@ -48,7 +51,7 @@ export const state: State = {
   suiteKey: null,
   foundations: null,
   frame: 0,
-  live: false,
+  live: true,
   preview: { status: 'off' },
   viewport: { width: null, height: null },
   background: 'auto',
@@ -59,13 +62,28 @@ export const state: State = {
   expandedProps: new Set(),
 }
 
+/** Live unless the link names a recorded frame. `live=1`, from links of earlier versions, wins over `frame`. */
+function opensLive(params: URLSearchParams): boolean {
+  const live = params.get('live')
+
+  if (live === '1') {
+    return true
+  }
+
+  if (live === '0') {
+    return false
+  }
+
+  return !params.has('frame')
+}
+
 export function readHash(): void {
   const params = new URLSearchParams(location.hash.slice(1))
   state.testId = params.get('test')
   state.suiteKey = params.get('suite')
   state.foundations = parseFoundationsSection(params.get('foundations'))
   state.frame = Number(params.get('frame') ?? 0) || 0
-  state.live = params.get('live') === '1'
+  state.live = opensLive(params)
   state.tag = params.get('tag') || null
   state.viewport = {
     width: parseViewportSize(params.get('w')),

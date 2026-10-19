@@ -4,8 +4,8 @@
  * body background), and each example viewer loads its data and shows as many
  * tests as its manifest has tests with a frame besides the closing one. Then
  * Live, which `pnpm site:build` builds into every viewer: `__live.json` says
- * `ready` with the base `__live/`, and `L` mounts a test in a live frame
- * without a sandbox, on the site's own origin. In react-browser a click on
+ * `ready` with the base `__live/`, and a link to a test mounts it in a live
+ * frame without a sandbox, on the site's own origin. In react-browser a click on
  * Actions, then Rename, in the frame shows `onSelect("Rename")` in the
  * inspector. In shadcn an email typed into the frame and a click on Request
  * access show `onSubmit("ada@example.com")`. Before the click, Request access
@@ -22,12 +22,16 @@
  * back, a frame recorded in its dark variant stays dark, and only the first
  * `dark` fetches `foundations.json`. In react-browser, whose dark variant is a
  * media query, no switch changes the root's class or attributes. With the live
- * page held back, the dimmed recorded frame stays under the live frame until
- * the first status and fades out after, leaving Live or picking another test
- * while it loads leaves one slot, and reduced motion keeps only the dimmed
- * frame. The sidebar's edge sets its width with ← → and by dragging, a
- * double-click sets it back, frames ignore the pointer during a drag and the
- * stage refits after it, and each viewer keeps its own width after a reload.
+ * page held back, `L` on a recorded frame keeps the dimmed recorded frame under
+ * the live frame until the first status, and it fades out after. Leaving Live
+ * or picking another test while it loads leaves one slot, and reduced motion
+ * keeps only the dimmed frame. In react-browser a plain link opens a test in
+ * Live, while `live=0`, `frame`, `L`, the timeline, a thumbnail and a preview
+ * that is starting or off give the recorded frame, ↑ ↓ keep the mode, and an
+ * old link with `live=1&frame=1` opens Live. The sidebar's edge sets its width
+ * with ← → and by dragging, a double-click sets it back, frames ignore the
+ * pointer during a drag and the stage refits after it, and each viewer keeps
+ * its own width after a reload.
  * The viewer's theme switch sets the chrome's colors and survives a reload,
  * the stored theme is set before `<body>`, a repaint keeps a focused theme
  * button focused, the switch works without storage until a reload, and no
@@ -548,7 +552,7 @@ async function longPropsSteps(page, base, ids, keys) {
     () => foldProblem(page, OVERVIEW, SHOWN_ROWS, more, false),
     () => overviewKeySteps(page, more),
     async () => {
-      await page.goto(`${base}#test=${ids.padded}`)
+      await page.goto(`${base}#test=${ids.padded}&live=0`)
 
       return (
         (await foldProblem(
@@ -572,12 +576,12 @@ async function longPropsSteps(page, base, ids, keys) {
       return foldProblem(page, INSPECTOR, padded.props, 'Show fewer', true)
     },
     async () => {
-      await page.goto(`${base}#test=${ids.short}`)
+      await page.goto(`${base}#test=${ids.short}&live=0`)
 
       return foldProblem(page, INSPECTOR, short.props, null)
     },
     async () => {
-      await page.goto(`${base}#test=${ids.padded}`)
+      await page.goto(`${base}#test=${ids.padded}&live=0`)
 
       return foldProblem(page, INSPECTOR, padded.props, 'Show fewer', true)
     },
@@ -796,12 +800,15 @@ async function mountLive(page, url, name) {
 
   await page.goto(`${url}examples/${name}/#test=${testIdOf(name, fullName)}`)
   await page
-    .locator('.live-toggle:not([aria-disabled])')
+    .locator('.live-toggle[aria-pressed="true"]')
     .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
 
-  await page.keyboard.press('l')
-
   const problems = await checkLiveIframe(page, `${url}examples/${name}/__live/live.html`)
+  const link = await pageLink(page)
+
+  if (!link.has('test') || link.has('live') || link.has('frame')) {
+    problems.push(`the link in Live is #${link}, expected a test without live or frame`)
+  }
 
   if (problems.length > 0) {
     return { problems }
@@ -817,7 +824,7 @@ async function mountLive(page, url, name) {
   return { problems: [], shown: `${painted}${acted}` }
 }
 
-/** Live in the viewer of the site: `__live.json`, then one test mounted through `L`. */
+/** Live in the viewer of the site: `__live.json`, then one test mounted from a plain link. */
 async function checkLive(browser, url, name) {
   const label = `examples/${name}/ Live`
   const liveJson = join(SITE, 'examples', name, '__live.json')
@@ -911,6 +918,11 @@ function linkBackground(page) {
   return new URLSearchParams(new URL(page.url()).hash.slice(1)).get('bg')
 }
 
+/** The link's parameters, read in the page. */
+async function pageLink(page) {
+  return new URLSearchParams(await page.evaluate(() => location.hash.slice(1)))
+}
+
 async function seeThrough(page, selector) {
   await page
     .locator(selector)
@@ -968,7 +980,7 @@ async function eachBackground(page, selector, check = async () => null) {
 
 /** `bg=dark` in the link, then the switch, in a replayed frame. */
 async function replaySteps(page, url, name, id) {
-  await page.goto(`${url}examples/${name}/#test=${id}&bg=dark`)
+  await page.goto(`${url}examples/${name}/#test=${id}&bg=dark&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
   const linked = await showsBackground(page, RECORDED_IFRAME, 'dark')
@@ -1202,7 +1214,7 @@ async function freshLoad(page, target) {
 
 /** a–c: the switch on a replayed frame, the same iframe throughout, and one fetch. */
 async function replayVariantSteps(page, base, id, counter) {
-  await page.goto(`${base}#test=${id}`)
+  await page.goto(`${base}#test=${id}&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
   const plain = await showsVariant(page, RECORDED_IFRAME, false)
@@ -1236,7 +1248,7 @@ async function replayVariantSteps(page, base, id, counter) {
 
 /** d: a link with `bg=dark` swaps the frame in with its dark variant already on. */
 async function linkedVariantStep(page, base, id) {
-  await freshLoad(page, `${base}#test=${id}&bg=dark`)
+  await freshLoad(page, `${base}#test=${id}&bg=dark&live=0`)
 
   const first = await page
     .waitForFunction(frameRoot, RECORDED_IFRAME, { timeout: VIEWER_TIMEOUT })
@@ -1251,7 +1263,7 @@ async function linkedVariantStep(page, base, id) {
 
 /** e: a frame recorded in its dark variant stays dark under every switch. */
 async function recordedDarkSteps(page, base, id) {
-  await page.goto(`${base}#test=${id}`)
+  await page.goto(`${base}#test=${id}&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
   for (const value of ['light', 'dark', 'light']) {
@@ -1298,10 +1310,9 @@ async function mountedInLive(page) {
 async function liveVariantSteps(page, base, id) {
   await freshLoad(page, `${base}#test=${id}`)
   await page
-    .locator('.live-toggle:not([aria-disabled])')
+    .locator('.live-toggle[aria-pressed="true"]')
     .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
 
-  await page.keyboard.press('l')
   await mountedInLive(page)
   await markFrame(page, LIVE_IFRAME)
 
@@ -1331,6 +1342,12 @@ async function liveRecordedDarkSteps(page, base, id) {
 
   if (mounted.problem) {
     return `Live, recorded dark with live=1&bg=dark: ${mounted.problem}`
+  }
+
+  const link = await pageLink(page)
+
+  if (link.get('bg') !== 'dark' || link.has('live')) {
+    return `Live, recorded dark with live=1&bg=dark: the link reads #${link}, expected bg=dark without live`
   }
 
   await pickBackground(page, 'light')
@@ -1374,7 +1391,7 @@ async function mediaOnlySteps(page, url) {
   const name = 'react-browser'
   const base = `${url}examples/${name}/`
 
-  await page.goto(`${base}#test=${testIdOf(name, LIVE_TESTS[name].fullName)}`)
+  await page.goto(`${base}#test=${testIdOf(name, LIVE_TESTS[name].fullName)}&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
   const replayed = await sameRootNames(page, RECORDED_IFRAME)
@@ -1570,7 +1587,7 @@ function loadingOverRecorded() {
 
 /** The test's recorded frame on the stage, with Live ready to start. */
 async function showRecorded(page, url, name, id) {
-  await page.goto(`${url}examples/${name}/#test=${id}`)
+  await page.goto(`${url}examples/${name}/#test=${id}&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
   await page
     .locator('.live-toggle:not([aria-disabled])')
@@ -1800,6 +1817,365 @@ async function checkLiveLoadingReducedMotion(browser, url) {
     return []
   } catch (error) {
     return [`${label}: ${[errorMessage(error), ...failures].join(', ')}`]
+  } finally {
+    await context.close()
+  }
+}
+
+/** The react-browser tests of the Live-by-default check: one with three frames, then the two after it in the sidebar. */
+const BY_DEFAULT = {
+  name: 'react-browser',
+  tests: [
+    'Counter > increments',
+    'Counter > does not go below the minimum',
+    'Counter > resets to the initial value',
+  ],
+}
+
+const STARTING = JSON.stringify({ status: 'starting' })
+const OFF = JSON.stringify({ status: 'off' })
+
+function described(key, value) {
+  return value === null ? `no ${key}` : `${key}=${value}`
+}
+
+/** A problem when the link does not name `test` with `live` and `frame` as given, `null` for none. */
+async function linkProblem(page, { test, live = null, frame = null }) {
+  const link = await pageLink(page)
+
+  if (link.get('test') === test && link.get('live') === live && link.get('frame') === frame) {
+    return null
+  }
+
+  return `the link is #${link}, expected test=${test}, ${described('live', live)} and ${described('frame', frame)}`
+}
+
+/** Waits until the test `id` shows its recorded frame `frame`. */
+async function showsRecordedFrame(page, id, frame) {
+  await page
+    .locator(`.stage-slot[data-test="${id}"][data-frame="${frame}"]:not(.incoming) iframe`)
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+}
+
+/** Waits until the toggle is on and the live slot of the test `id` has mounted. */
+async function mountsInLive(page, id) {
+  await page
+    .locator('.live-toggle[aria-pressed="true"]')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page
+    .locator(`.stage-slot.live-slot[data-test="${id}"]:not(.loading)`)
+    .waitFor({ state: 'attached', timeout: LIVE_TIMEOUT })
+
+  await mountedInLive(page)
+}
+
+/** Whether no live slot shows up within SETTLE_MS of the toggle turning usable. */
+async function staysRecorded(page) {
+  await page
+    .locator('.live-toggle:not([aria-disabled])')
+    .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+  await page.waitForTimeout(SETTLE_MS)
+
+  return (await page.locator('.stage-slot.live-slot').count()) === 0
+}
+
+/** The click on the breadcrumbs takes the focus off any frame, so the key reaches the viewer. */
+async function pressInViewer(page, key) {
+  await page.locator('.crumbs .path').click()
+  await page.keyboard.press(key)
+}
+
+/** a: a plain link opens the test in Live, with no active frame and neither `live` nor `frame` in the link. */
+async function plainLinkStep(page, base, ids) {
+  await freshLoad(page, `${base}#test=${ids[0]}`)
+  await mountsInLive(page, ids[0])
+
+  const problems = await checkLiveIframe(page, `${base}__live/live.html`)
+
+  if (problems.length > 0) {
+    return problems.join(', ')
+  }
+
+  if ((await page.locator('.timeline .frame.active').count()) > 0) {
+    return 'a frame of the timeline is active in Live'
+  }
+
+  return linkProblem(page, { test: ids[0] })
+}
+
+/** b: `L` leaves Live for the recorded frame 0, and the link says `live=0`. */
+async function pressLStep(page, ids) {
+  await page.locator('.crumbs .path').click()
+  await leaveLive(page)
+  await showsRecordedFrame(page, ids[0], 0)
+
+  return linkProblem(page, { test: ids[0], live: '0' })
+}
+
+/** c: ↓ keeps the recorded frames, `L` mounts the test, then ↓ and ↑ keep Live. */
+async function arrowSteps(page, ids) {
+  await pressInViewer(page, 'ArrowDown')
+  await showsRecordedFrame(page, ids[1], 0)
+
+  const recorded = await linkProblem(page, { test: ids[1], live: '0' })
+
+  if (recorded) {
+    return `↓ on a recorded frame: ${recorded}`
+  }
+
+  const moves = [
+    ['L on the recorded frame', 'l', ids[1]],
+    ['↓ in Live', 'ArrowDown', ids[2]],
+    ['↑ in Live', 'ArrowUp', ids[1]],
+    ['↑ in Live again', 'ArrowUp', ids[0]],
+  ]
+
+  for (const [move, key, id] of moves) {
+    await pressInViewer(page, key)
+    await mountsInLive(page, id)
+
+    const problem = await linkProblem(page, { test: id })
+
+    if (problem) {
+      return `${move}: ${problem}`
+    }
+  }
+
+  return null
+}
+
+/** d: a click on the timeline's second frame leaves Live for that frame. */
+async function timelineStep(page, ids) {
+  await page.locator('.timeline .frame').nth(1).click()
+  await showsRecordedFrame(page, ids[0], 1)
+
+  return linkProblem(page, { test: ids[0], frame: '1' })
+}
+
+/** e: `live=0` opens the recorded frame 0, which stays once the preview is ready. */
+async function liveOffStep(page, base, ids) {
+  await freshLoad(page, `${base}#test=${ids[0]}&live=0`)
+  await showsRecordedFrame(page, ids[0], 0)
+
+  if (!(await staysRecorded(page))) {
+    return 'live=0: a live slot showed up'
+  }
+
+  return linkProblem(page, { test: ids[0], live: '0' })
+}
+
+function rewrittenToLiveOff() {
+  const link = new URLSearchParams(location.hash.slice(1))
+
+  return link.get('live') === '0' && !link.has('frame')
+}
+
+/** f: `frame=0` opens the recorded frame 0 and becomes `live=0`, and `frame=2` opens and keeps that frame. */
+async function frameLinkSteps(page, base, ids) {
+  await freshLoad(page, `${base}#test=${ids[0]}&frame=0`)
+  await showsRecordedFrame(page, ids[0], 0)
+
+  const rewritten = await page
+    .waitForFunction(rewrittenToLiveOff, undefined, { timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (!rewritten) {
+    return `frame=0: the link is #${await pageLink(page)}, expected live=0 and no frame`
+  }
+
+  await freshLoad(page, `${base}#test=${ids[0]}&frame=2`)
+  await showsRecordedFrame(page, ids[0], 2)
+
+  if (!(await staysRecorded(page))) {
+    return 'frame=2: a live slot showed up'
+  }
+
+  const kept = await linkProblem(page, { test: ids[0], frame: '2' })
+
+  return kept ? `frame=2: ${kept}` : null
+}
+
+/** g: an old link with `live=1&frame=1` opens Live, and the viewer rewrites it to the test alone. */
+async function oldLinkStep(page, base, ids) {
+  await freshLoad(page, `${base}#test=${ids[0]}&live=1&frame=1`)
+  await mountsInLive(page, ids[0])
+
+  const link = await pageLink(page)
+
+  if ([...link.keys()].join() === 'test' && link.get('test') === ids[0]) {
+    return null
+  }
+
+  return `live=1&frame=1: the link is #${link}, expected test=${ids[0]} alone`
+}
+
+/** h: a thumbnail of the overview opens its recorded frame, not Live. */
+async function thumbnailStep(page, base, ids) {
+  const { name, tests } = BY_DEFAULT
+  const moduleId = readSiteManifest(name).modules.find((candidate) =>
+    candidate.tests.some((test) => test.id === ids[0]),
+  ).id
+
+  await freshLoad(page, `${base}#suite=${encodeURIComponent(moduleId)}`)
+  await page.locator(`.overview .gallery .tile[title="${tests[0]}"]`).click()
+  await showsRecordedFrame(page, ids[0], 2)
+
+  if (!(await staysRecorded(page))) {
+    return 'the thumbnail: a live slot showed up'
+  }
+
+  return linkProblem(page, { test: ids[0], frame: '2' })
+}
+
+/** A page whose `__live.json` answers `body` until `release()`, then the site's own file. */
+async function previewPage(browser, url, body) {
+  const opened = await openLivePage(browser, url, null)
+  const gate = { released: false }
+
+  await opened.page.route('**/__live.json', (route) =>
+    gate.released
+      ? route.fallback()
+      : route.fulfill({ status: 200, contentType: 'application/json', body }),
+  )
+
+  return {
+    ...opened,
+    release: () => {
+      gate.released = true
+    },
+  }
+}
+
+/**
+ * i: while the preview starts, the recorded frame 0 shows. The viewer polls
+ * every 500 ms, so once released the test switches to Live, unless `hash`
+ * has `live=0`.
+ */
+async function startingStep(browser, url, base, id, hash) {
+  const { context, page, failures, release } = await previewPage(browser, url, STARTING)
+  const live = hash === '' ? null : '0'
+
+  try {
+    await page.goto(`${base}#test=${id}${hash}`)
+    await showsRecordedFrame(page, id, 0)
+    await page
+      .locator('.live-toggle[aria-disabled="true"]')
+      .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+    const starting = await linkProblem(page, { test: id, live })
+
+    if (starting) {
+      return `while it starts: ${starting}`
+    }
+
+    release()
+
+    if (live === null) {
+      await mountsInLive(page, id)
+    } else if (!(await staysRecorded(page))) {
+      return 'once ready: a live slot showed up'
+    }
+
+    const ready = await linkProblem(page, { test: id, live })
+
+    if (ready) {
+      return `once ready: ${ready}`
+    }
+
+    return failures.length > 0 ? failures.join(', ') : null
+  } finally {
+    await context.close()
+  }
+}
+
+/** i: with the preview off, a plain link shows the recorded frame 0 and no toggle. */
+async function offStep(browser, url, base, id) {
+  const { context, page, failures } = await previewPage(browser, url, OFF)
+
+  try {
+    const answered = page
+      .waitForResponse((response) => new URL(response.url()).pathname.endsWith('/__live.json'), {
+        timeout: VIEWER_TIMEOUT,
+      })
+      .catch(() => null)
+
+    await page.goto(`${base}#test=${id}`)
+
+    if ((await answered) === null) {
+      return 'the viewer never asked for __live.json'
+    }
+
+    await showsRecordedFrame(page, id, 0)
+    await page.waitForTimeout(SETTLE_MS)
+
+    if (await page.locator('.live-toggle').isVisible()) {
+      return 'the Live toggle shows'
+    }
+
+    if ((await page.locator('.stage-slot.live-slot').count()) > 0) {
+      return 'a live slot showed up'
+    }
+
+    const link = await linkProblem(page, { test: id })
+
+    if (link) {
+      return link
+    }
+
+    return failures.length > 0 ? failures.join(', ') : null
+  } finally {
+    await context.close()
+  }
+}
+
+/** Live by default: a plain link opens it, and the recorded frames stay one key, click or link away. */
+async function checkLiveByDefault(browser, url) {
+  const { name, tests } = BY_DEFAULT
+  const label = `examples/${name}/ Live by default`
+  const base = `${url}examples/${name}/`
+  const ids = tests.map((fullName) => testIdOf(name, fullName))
+  const { context, page, failures } = await openLivePage(browser, url, null)
+  const steps = [
+    ['a', () => plainLinkStep(page, base, ids)],
+    ['b', () => pressLStep(page, ids)],
+    ['c', () => arrowSteps(page, ids)],
+    ['d', () => timelineStep(page, ids)],
+    ['e', () => liveOffStep(page, base, ids)],
+    ['f', () => frameLinkSteps(page, base, ids)],
+    ['g', () => oldLinkStep(page, base, ids)],
+    ['h', () => thumbnailStep(page, base, ids)],
+    ['i, starting', () => startingStep(browser, url, base, ids[0], '')],
+    ['i, starting with live=0', () => startingStep(browser, url, base, ids[0], '&live=0')],
+    ['i, off', () => offStep(browser, url, base, ids[0])],
+  ]
+
+  let current = steps[0][0]
+
+  try {
+    for (const [step, run] of steps) {
+      current = step
+
+      const problem = await run()
+
+      if (problem) {
+        return [`step ${step}: ${problem}`, ...failures].map((entry) => `${label}: ${entry}`)
+      }
+    }
+
+    if (failures.length > 0) {
+      return failures.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${name}/ opens a test in Live from a plain link, L, the timeline, live=0, frame and a thumbnail give the recorded frame, ↑ ↓ keep the mode, an old live=1&frame=1 link opens Live and is rewritten to the test alone, a starting preview shows the recorded frame 0 and switches to Live once ready unless the link has live=0, and an off preview shows only recorded frames`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: step ${current}: ${[errorMessage(error), ...failures].join(', ')}`]
   } finally {
     await context.close()
   }
@@ -2225,7 +2601,7 @@ function watchThemeAttribute() {
 
 /** Under `system`, then the dark theme, then across a reload: the replayed frame stays the same. */
 async function replayThemeSteps(page, url, name, id) {
-  await page.goto(`${url}examples/${name}/#test=${id}`)
+  await page.goto(`${url}examples/${name}/#test=${id}&live=0`)
   await page.locator(RECORDED_IFRAME).waitFor({ timeout: VIEWER_TIMEOUT })
 
   const before =
@@ -2326,10 +2702,9 @@ async function focusThemeSteps(page) {
 async function liveThemeSteps(page, url, name, id) {
   await page.goto(`${url}examples/${name}/#test=${id}`)
   await page
-    .locator('.live-toggle:not([aria-disabled])')
+    .locator('.live-toggle[aria-pressed="true"]')
     .waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
 
-  await page.keyboard.press('l')
   await page
     .locator('.live-section .live-status', { hasText: MOUNTED_WORDS })
     .waitFor({ state: 'visible', timeout: LIVE_TIMEOUT })
@@ -2527,6 +2902,8 @@ try {
     problems.push(...(await checkLive(browser, url, name)))
   }
 
+  problems.push(...(await checkLiveByDefault(browser, url)))
+
   for (const name of exampleNames) {
     problems.push(...(await checkStageBackground(browser, url, name)))
   }
@@ -2560,5 +2937,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, show Live loading, set the stage background and its dark variant, keep a resized sidebar per project and keep the viewer theme out of the frames`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, open a test in Live by default, show Live loading, set the stage background and its dark variant, keep a resized sidebar per project and keep the viewer theme out of the frames`,
 )

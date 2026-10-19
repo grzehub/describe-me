@@ -79,7 +79,7 @@ function isLiveKey(event: KeyboardEvent): boolean {
 
 /**
  * While Live shows, ← → leave it and show the frame as it was. Otherwise they
- * step, and a link still waiting for the preview stays out of Live.
+ * step, and a test still waiting for the preview stays out of Live.
  */
 function onFrameKey(test: ManifestTest, step: 1 | -1): void {
   const leaving = liveShown()

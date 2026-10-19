@@ -236,12 +236,14 @@ A link can open one test of an example viewer, at a frame and a viewport
 size. The view sits after `#` as URL parameters: `test` (the 12-character id
 of a test), `frame` (from 0), `suite` (`<module>::<suite path joined with
 ' > '>`, which opens the component overview instead), `w` and `h` in pixels,
-`bg` (`light`, `dark` or `transparent`, the stage background), `live=1`,
-which opens the test in Live and needs `test`, and `foundations` (one of the
+`bg` (`light`, `dark` or `transparent`, the stage background), `live` (`0` or
+`1`, with a `test` and never with `frame`), and `foundations` (one of the
 section ids `colors`, `typography`, `spacing`, `radius`, `shadows`,
 `breakpoints`, `motion` and `other`), which opens the Foundations view instead,
-needs tokens or Material UI in the example's manifest and goes only with `bg`. The example
-viewers are built with `--live`, so a page can link them with `live=1`. In
+needs tokens or Material UI in the example's manifest and goes only with `bg`.
+The example viewers are built with `--live`, so a test link without `frame` or
+`live` opens the test in Live. `frame`, 0 included, or `live=0` links a
+recorded frame. `live=1`, from links of earlier versions, opens Live too. In
 HTML, write `&` as `&amp;`:
 
 ```html
@@ -255,7 +257,8 @@ exact match it lists names that contain the text.
 `pnpm check-docs` reads every example's manifest and checks that the test
 exists and the viewer shows it, that the frame exists, that the suite names a
 module and a suite of it, that `w` is 1 to 10000 and `h` 120 to 10000, that
-`bg` is `light`, `dark` or `transparent`, that `live` is `1` next to a `test`,
+`bg` is `light`, `dark` or `transparent`, that `live` is `0` or `1` next to a
+`test` and without `frame`,
 that `foundations` names one of the eight sections of an example whose
 manifest has `foundations.tokens` or `mui` in `foundations.systems` and has
 only `bg` beside it, and that there are no other parameters. Run every example's tests first.
@@ -297,7 +300,8 @@ No page is a stub. `structure.mjs` refuses a `data-stub` attribute and a
   example viewer, fragments at ids of their target, SVG references at ids of
   their page, and deep links at tests, frames and suites of the manifests. A
   deep link has `bg` only as `light`, `dark` or `transparent`, and `live` only
-  as `live=1`, and only with a `test`. `foundations` names one of the eight
+  as `live=0` or `live=1`, only with a `test` and never with `frame`.
+  `foundations` names one of the eight
   sections of the Foundations view, needs `foundations.tokens` or `mui` in
   `foundations.systems` in the example's manifest, as the viewer's
   `has-foundations.ts` does, and goes only with `bg`.

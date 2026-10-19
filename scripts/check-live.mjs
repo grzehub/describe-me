@@ -19,15 +19,19 @@
  * (scripts/check-live/viewer-messages.mjs). Then each example's
  * viewer runs through `describe-me dev`, one at a time, because two viewers
  * race on the viewer's Vite cache. `__live.json` must say `ready` with the
- * preview's base. In react-browser, `L` mounts `Menu > selects an item and
- * reports it` in a live frame without a sandbox, an action shows in the
- * inspector, the 375px preset keeps the state without a reload, a notice and
- * an error from the frame show while the same message from the viewer page
- * does not, Restart starts fresh and ← leaves Live for a recorded frame. A
- * link with `live=1` opens Live in every example, which proves that the CLI
- * finds the project from a jsdom manifest too. In shadcn the link adds
- * `bg=dark`, and the viewer's message across origins puts `dark` on the live
- * page's `<html>`. `describe-me dev --no-live` answers off and shows no
+ * preview's base. In react-browser, a link with `live=0` opens the recorded
+ * frame, `L` mounts `Menu > selects an item and reports it` in a live frame
+ * without a sandbox and leaves neither `live` nor `frame` in the link, an
+ * action shows in the inspector, the 375px preset keeps the state without a
+ * reload, a notice and an error from the frame show while the same message
+ * from the viewer page does not, Restart starts fresh and ← leaves Live for a
+ * recorded frame with `live=0` in the link. A plain link to a test opens Live
+ * in react-jsdom, shadcn and mui, which proves that Live is the default and
+ * that the CLI finds the project from a jsdom manifest too. In react-browser
+ * an old link with `live=1&frame=1` opens Live. Either way the viewer rewrites
+ * the link without `live` or `frame`. In shadcn the link adds `bg=dark`, and
+ * the viewer's message across origins puts `dark` on the live page's
+ * `<html>`. `describe-me dev --no-live` answers off and shows no
  * toggle. The viewer pages log no error. Last, the live fixtures of
  * react-browser and react-jsdom run under Vitest and in the live preview, with setup files,
  * fixtures, around hooks, `each` and `for` names, module mocks, a CSS plugin
@@ -166,6 +170,15 @@ function linkParams(page) {
   return new URLSearchParams(new URL(page.url()).hash.slice(1))
 }
 
+/** Live is the default, so its link has neither `live` nor `frame`. */
+function liveLinkProblems(page) {
+  const params = linkParams(page)
+
+  return params.has('live') || params.has('frame')
+    ? [`the link in Live has live or frame: ${page.url()}`]
+    : []
+}
+
 /** The page of the live iframe on the stage, to act in it like a user would. */
 async function liveFrameOf(page) {
   const handle = await page.locator('.stage-slot.live-slot iframe').elementHandle()
@@ -224,11 +237,7 @@ async function pressLive(context) {
   await page.locator('.live-toggle:not([aria-disabled])').waitFor({ state: 'visible' })
   await page.keyboard.press('l')
 
-  const problems = await checkLiveIframe(page, context.base)
-
-  if (linkParams(page).get('live') !== '1') {
-    problems.push(`the link has no live=1: ${page.url()}`)
-  }
+  const problems = [...(await checkLiveIframe(page, context.base)), ...liveLinkProblems(page)]
 
   return [...problems, ...(await expectMounted(page, FIRST_STATUS_TIMEOUT))]
 }
@@ -354,8 +363,10 @@ async function arrowLeavesLive({ page }) {
     problems.push('the live slot is still on the stage after ←')
   }
 
-  if (linkParams(page).has('live')) {
-    problems.push(`the link still has live after ←: ${page.url()}`)
+  const params = linkParams(page)
+
+  if (params.get('live') !== '0' || params.has('frame')) {
+    problems.push(`the link after ← has no live=0, or a frame: ${page.url()}`)
   }
 
   return [
@@ -383,24 +394,34 @@ async function appliesTheDarkClass(page) {
   }
 }
 
-/** What an example's `live=1` link adds, and what its live page must show once mounted. */
+/**
+ * What an example's link adds to the test, and what its live page must show
+ * once mounted. react-browser keeps a link of an earlier version. The others
+ * open a plain link, which proves that Live is the default.
+ */
 const LINK_EXTRAS = {
+  'react-browser': { hash: '&live=1&frame=1', label: 'live=1&frame=1' },
   shadcn: { hash: '&bg=dark', check: appliesTheDarkClass },
 }
 
-/** A link with `live=1` in a new page: the recorded frame until the preview is ready, then Live. */
+function linkLabel(name) {
+  return LINK_EXTRAS[name]?.label ?? 'plain link'
+}
+
+/** A link in a new page opens the test in Live, and the viewer rewrites it without `live` or `frame`. */
 async function opensFromLink(browser, context, testId, name) {
   const extra = LINK_EXTRAS[name]
-  const url = `${context.url}#test=${testId}&live=1${extra?.hash ?? ''}`
+  const url = `${context.url}#test=${testId}${extra?.hash ?? ''}`
   const viewer = await openViewer(browser, url, new URL(context.base).origin)
 
   try {
     const problems = [
       ...(await expectMounted(viewer.page, FIRST_STATUS_TIMEOUT)),
       ...(await checkLiveIframe(viewer.page, context.base)),
+      ...liveLinkProblems(viewer.page),
     ]
 
-    if (problems.length === 0 && extra) {
+    if (problems.length === 0 && extra?.check) {
       problems.push(...(await extra.check(viewer.page)))
     }
 
@@ -472,12 +493,16 @@ async function checkViewer(browser, name) {
       const problems = await opensFromLink(browser, context, testId, name)
 
       return {
-        problems: problems.map((problem) => `${label}, live=1: ${problem}`),
+        problems: problems.map((problem) => `${label}, ${linkLabel(name)}: ${problem}`),
         passed: problems.length === 0 ? 1 : 0,
       }
     }
 
-    const viewer = await openViewer(browser, `${dev.url}#test=${testId}`, new URL(base).origin)
+    const viewer = await openViewer(
+      browser,
+      `${dev.url}#test=${testId}&live=0`,
+      new URL(base).origin,
+    )
 
     try {
       const result = await runSteps(label, BROWSER_STEPS, { ...context, page: viewer.page, viewer })
@@ -487,7 +512,7 @@ async function checkViewer(browser, name) {
         problems: [
           ...result.problems,
           ...viewer.errors.map((error) => `${label}: ${error}`),
-          ...fromLink.map((problem) => `${label}, live=1: ${problem}`),
+          ...fromLink.map((problem) => `${label}, ${linkLabel(name)}: ${problem}`),
         ],
         passed: result.passed + (fromLink.length === 0 ? 1 : 0),
       }
