@@ -15,6 +15,8 @@ export interface LiveSession {
   detail: string | null
   /** The last height of the page's content, `null` before the first. */
   height: number | null
+  /** The last background the page reported, `null` before the first. */
+  background: { html: string; body: string } | null
   actions: LiveAction[]
   errors: string[]
   notices: string[]
@@ -28,6 +30,7 @@ export const liveSession: LiveSession = {
   status: 'loading',
   detail: null,
   height: null,
+  background: null,
   actions: [],
   errors: [],
   notices: [],

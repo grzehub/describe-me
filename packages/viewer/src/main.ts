@@ -14,6 +14,7 @@ import { wireSidebarHandle } from './sidebar-handle.js'
 import { stateHash } from './state-hash.js'
 import { readHash, state } from './state.js'
 import { syncSelection } from './sync-selection.js'
+import { watchViewerTheme } from './watch-viewer-theme.js'
 
 setRerender((scope) => {
   if (scope === 'frame') {
@@ -45,6 +46,7 @@ document.addEventListener('keydown', onKey)
 window.addEventListener('popstate', onLocationChange)
 window.addEventListener('hashchange', onLocationChange)
 listenToLive()
+watchViewerTheme()
 wireSearchField(regions().search)
 wireSidebarHandle(regions().sidebarHandle)
 

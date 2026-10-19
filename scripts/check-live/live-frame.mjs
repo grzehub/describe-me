@@ -17,6 +17,7 @@ export const STATUS_TIMEOUT = 15_000
 export const POLL = 50
 
 const SIZE_TIMEOUT = 5_000
+const BACKGROUND_TIMEOUT = 5_000
 
 // The host page keeps every message from the live frame, with the time it came.
 const HOST_PAGE = `<!doctype html>
@@ -183,10 +184,12 @@ function watchFrame(page, liveOrigin) {
 /**
  * A browser context whose host page frames the live server at `base`. Remote
  * fonts and stylesheets of the preview head never decide the result, offline
- * or not. `close()` closes the context, not the server.
+ * or not. `colorScheme: null` turns Playwright's light emulation off, so the
+ * iframe's own scheme decides `prefers-color-scheme` in the live page.
+ * `close()` closes the context, not the server.
  */
-export async function openHost(browser, host, name, base) {
-  const browserContext = await browser.newContext()
+export async function openHost(browser, host, name, base, colorScheme = 'light') {
+  const browserContext = await browser.newContext({ colorScheme })
 
   await browserContext.route(
     (url) => url.protocol === 'https:',
@@ -249,6 +252,30 @@ export async function checkSize(context, label, status) {
   return []
 }
 
+/**
+ * Waits for a background report with string `html` and `body`, by the
+ * `mounted` status or within 5 s after it. The page posts one just before its
+ * status.
+ */
+export async function checkBackground(context, label, status) {
+  const background = await waitForMessage(
+    context.page,
+    (message) =>
+      message.type === 'background' &&
+      typeof message.html === 'string' &&
+      typeof message.body === 'string',
+    BACKGROUND_TIMEOUT,
+  )
+
+  if (background === null || background.at - status.at > BACKGROUND_TIMEOUT) {
+    return [
+      `${label}: no background report with html and body within ${BACKGROUND_TIMEOUT / 1000} s`,
+    ]
+  }
+
+  return []
+}
+
 /** Shows one test of the manifest, and checks that it mounts cleanly. */
 export async function checkMount(context, test, timeout) {
   const label = `${context.name} ${test.file} ${test.fullName}`
@@ -264,7 +291,12 @@ export async function checkMount(context, test, timeout) {
     return { problems: [`${label}: ${status.status}${detail}`] }
   }
 
-  return { problems: await checkSize(context, label, status), mountedAt: status.at }
+  const problems = [
+    ...(await checkBackground(context, label, status)),
+    ...(await checkSize(context, label, status)),
+  ]
+
+  return { problems, mountedAt: status.at }
 }
 
 /** What happened while the test was shown, beyond its status: loads and errors. */

@@ -108,11 +108,15 @@ async function load(): Promise<FoundationsLoad> {
   }
 }
 
-/** The stage's dark variant comes from the load too, so a test under `bg=dark` repaints its frame. */
+/**
+ * The stage's dark variant comes from the load too, so a test under `bg=dark`
+ * repaints its frame. So does one under `auto`, which may resolve to dark, and
+ * a frame already on screen only gets its variant again.
+ */
 function repaint(): void {
   if (foundationsShown()) {
     rerender()
-  } else if (state.background === 'dark' && testShown()) {
+  } else if ((state.background === 'dark' || state.background === 'auto') && testShown()) {
     rerender('frame')
   }
 }
@@ -121,8 +125,8 @@ function repaint(): void {
  * `foundations.json` and its stylesheets for the manifest on screen, loaded on
  * the first call and memoized until the next manifest. Never rejects. When the
  * load settles, the viewer repaints while Foundations is open, and repaints
- * the frame while a test shows under `bg=dark`. With `retry`, a load that
- * failed starts again.
+ * the frame while a test shows under `bg=dark` or `auto`. With `retry`, a load
+ * that failed starts again.
  */
 export function loadFoundations(retry = false): FoundationsLoad {
   const generatedAt = state.manifest?.generatedAt ?? ''

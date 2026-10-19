@@ -9,7 +9,10 @@ export interface TestView {
   stage: HTMLElement
   /** A one-cell grid inside the stage that holds the slots. */
   frames: HTMLElement
-  /** Names what failed to load in the frame on the stage. Hidden when nothing did. */
+  /**
+   * Names what failed to load in the frame on the stage, and says when a frame
+   * on the dark canvas has only a light variant. Hidden when there is nothing to say.
+   */
   note: HTMLElement
   timeline: HTMLElement
 }
@@ -18,7 +21,7 @@ let built: TestView | null = null
 
 /**
  * The column that shows one test: crumbs and toolbar, the replay stage, a note
- * on what failed to load and the frame timeline. Built once, then filled in place.
+ * on the frame and the frame timeline. Built once, then filled in place.
  */
 export function testView(): TestView {
   if (built) {

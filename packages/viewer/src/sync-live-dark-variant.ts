@@ -5,10 +5,11 @@ import { state } from './state.js'
 
 /**
  * Post the stage's dark variant to the live page of `slot`, which may run on
- * another origin, so the viewer never touches its document. Nothing goes out
- * before the frame's first `load`, while it still holds `about:blank`, and
- * nothing goes out twice in a row. The variant never goes into `src`, because
- * a new `src` reloads the page.
+ * another origin, so the viewer never touches its document. The variant is
+ * the one of the canvas the stage resolved for the slot, light when it has
+ * none yet. Nothing goes out before the frame's first `load`, while it still
+ * holds `about:blank`, and nothing goes out twice in a row. The variant never
+ * goes into `src`, because a new `src` reloads the page.
  */
 export function syncLiveDarkVariant(slot: HTMLElement): void {
   const target = slot.querySelector('iframe')?.contentWindow
@@ -18,7 +19,7 @@ export function syncLiveDarkVariant(slot: HTMLElement): void {
     return
   }
 
-  const root = stageDarkVariant()
+  const root = stageDarkVariant(slot.dataset.canvas === 'dark' ? 'dark' : 'light')
   const key = JSON.stringify(root)
 
   if (slot.dataset.darkVariant === key) {

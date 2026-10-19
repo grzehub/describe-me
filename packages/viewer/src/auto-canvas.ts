@@ -1,34 +1,4 @@
-let probe: CanvasRenderingContext2D | null = null
-
-function probeContext(): CanvasRenderingContext2D | null {
-  if (!probe) {
-    const canvas = document.createElement('canvas')
-    canvas.width = 1
-    canvas.height = 1
-    probe = canvas.getContext('2d', { willReadFrequently: true })
-  }
-
-  return probe
-}
-
-/**
- * The sRGB bytes of a CSS color, alpha last. The canvas parses every syntax
- * the browser knows, `oklch()` and `color()` included. A `fillStyle` it
- * rejects keeps the previous one, so an unknown color reads as transparent.
- */
-function colorBytes(color: string): Uint8ClampedArray | null {
-  const context = probeContext()
-  if (!context) {
-    return null
-  }
-
-  context.clearRect(0, 0, 1, 1)
-  context.fillStyle = 'transparent'
-  context.fillStyle = color
-  context.fillRect(0, 0, 1, 1)
-
-  return context.getImageData(0, 0, 1, 1).data
-}
+import { colorBytes } from './color-bytes.js'
 
 function paintsDark(element: Element | null, view: Window): boolean {
   const bytes = element ? colorBytes(view.getComputedStyle(element).backgroundColor) : null
@@ -42,29 +12,42 @@ function paintsDark(element: Element | null, view: Window): boolean {
   return alpha >= 255 / 2 && lightness < 128
 }
 
-function declaresDark(root: Element, view: Window): boolean {
+/** The one scheme the root declares, or `null` when it declares both or none. */
+function declaredScheme(root: Element, view: Window): 'light' | 'dark' | null {
   const names = view.getComputedStyle(root).colorScheme.split(' ')
+  const light = names.includes('light')
+  const dark = names.includes('dark')
 
-  return names.includes('dark') && !names.includes('light')
+  if (light === dark) {
+    return null
+  }
+
+  return dark ? 'dark' : 'light'
 }
 
 /**
  * What `auto` means for a replayed frame: dark when its root declares only a
- * dark scheme, or when `html` or `body` paints a dark `background-color`.
- * Call it while the iframe's `color-scheme` is `light`, so the page's own
- * `prefers-color-scheme: dark` rules do not decide, and neither do the viewer
- * or the system. A document it cannot read is light.
+ * dark scheme, or when `html` or `body` paints a dark `background-color`, and
+ * light when its root declares only a light scheme. `null` leaves it to the
+ * viewer theme, and so does a document it cannot read. A light background
+ * declares nothing, because a page with a dark variant paints one in its
+ * light variant too. Call it while the iframe's `color-scheme` is `light`, so
+ * the page's own `prefers-color-scheme: dark` rules do not decide, and
+ * neither do the viewer or the system.
  */
-export function autoCanvas(iframe: HTMLIFrameElement): 'light' | 'dark' {
+export function autoCanvas(iframe: HTMLIFrameElement): 'light' | 'dark' | null {
   const frameDocument = iframe.contentDocument
   const view = frameDocument?.defaultView
   if (!frameDocument || !view) {
-    return 'light'
+    return null
   }
 
   const root = frameDocument.documentElement
-  const dark =
-    declaresDark(root, view) || paintsDark(root, view) || paintsDark(frameDocument.body, view)
+  const declared = declaredScheme(root, view)
 
-  return dark ? 'dark' : 'light'
+  if (declared === 'dark' || paintsDark(root, view) || paintsDark(frameDocument.body, view)) {
+    return 'dark'
+  }
+
+  return declared
 }

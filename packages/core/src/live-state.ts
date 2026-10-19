@@ -7,6 +7,13 @@ interface LiveHeightState {
   reported: number | null
 }
 
+/** What the background observer keeps between animation frames. */
+interface LiveBackgroundState {
+  observing: boolean
+  queued: boolean
+  reported: { html: string; body: string } | null
+}
+
 /** What the page put on its root for the viewer, so it can take back exactly that. */
 export interface AppliedViewerRoot {
   root: DarkVariantRoot
@@ -30,6 +37,7 @@ export interface LiveState {
   status: LiveStatus | null
   stop: Error
   height: LiveHeightState
+  background: LiveBackgroundState
   viewer: LiveViewerState
 }
 
@@ -56,6 +64,7 @@ export function liveState(): LiveState {
     status: null,
     stop: createStop(),
     height: { observing: false, queued: false, reported: null },
+    background: { observing: false, queued: false, reported: null },
     viewer: { listening: false, requested: null, applied: null },
   }
 

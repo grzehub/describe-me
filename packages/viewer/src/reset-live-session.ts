@@ -6,6 +6,7 @@ export function resetLiveSession(testId: string): void {
   liveSession.status = 'loading'
   liveSession.detail = null
   liveSession.height = null
+  liveSession.background = null
   liveSession.actions = []
   liveSession.errors = []
   liveSession.notices = []

@@ -6,7 +6,9 @@ import { contentBox } from './content-box.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
 import { fontsSettled } from './fonts-settled.js'
+import { framePaint } from './frame-paint.js'
 import { replaySnapshot } from './replay-snapshot.js'
+import { setCanvas } from './set-canvas.js'
 import { stageDarkVariant } from './stage-dark-variant.js'
 import { stageDarkVariantReady } from './stage-dark-variant-ready.js'
 import { select, state } from './state.js'
@@ -27,15 +29,15 @@ async function paintThumb(thumb: HTMLElement, frame: ManifestFrame): Promise<voi
 
   // Styles are in place after a frame. Only then do the boxes have their final
   // size and the page its colors. This runs before that frame paints, so a
-  // thumb never shows the wrong scheme or variant.
+  // thumb never shows the wrong scheme, variant or canvas.
   requestAnimationFrame(() => {
     const canvas = canvasOf(autoCanvas(iframe))
-    thumb.dataset.canvas = canvas
     iframe.style.colorScheme = canvas === 'dark' ? 'dark' : 'light'
     if (iframe.contentDocument) {
-      applyDarkVariant(iframe.contentDocument, stageDarkVariant())
+      applyDarkVariant(iframe.contentDocument, stageDarkVariant(canvas))
     }
 
+    setCanvas(thumb, canvas, framePaint(iframe))
     fitThumb(thumb, iframe)
   })
 
@@ -122,7 +124,7 @@ export function renderStatesGallery(tests: ManifestTest[]): HTMLElement {
     const lastIndex = Math.max(0, test.frames.length - 1)
     const last = test.frames[lastIndex]
     const thumb = el('div', { class: 'thumb' })
-    thumb.dataset.canvas = canvasOf('light')
+    thumb.dataset.canvas = canvasOf(null)
     if (last) {
       pending.set(thumb, last)
     } else {
