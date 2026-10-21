@@ -705,12 +705,16 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
                 <td class="name"><code>SignupCard</code></td>
                 <td>
                   A product component built from <code>Card</code>, <code>Label</code>,
-                  <code>Input</code> and <code>Button</code>. <code>userEvent.fill</code>
-                  <a href="examples/shadcn/#test=574e80817705&amp;frame=1">types the email</a>, and
+                  <code>Input</code> and <code>Button</code>. A <code>step</code> named
+                  <a href="examples/shadcn/#test=574e80817705&amp;frame=1">type the email</a>
+                  wraps <code>userEvent.fill</code>, and
                   <a href="examples/shadcn/#test=574e80817705&amp;frame=2"
                     >a click on Request access</a
                   >
-                  calls <code>onSubmit</code>.
+                  calls <code>onSubmit</code> and swaps the card for a confirmation. Without an
+                  email, the click
+                  <a href="examples/shadcn/#test=fd701b032ed2&amp;frame=1">shows an error</a>
+                  under the input and marks it <code>aria-invalid</code>.
                 </td>
               </tr>
             </tbody>

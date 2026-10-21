@@ -34,7 +34,8 @@
     "site": "node scripts/build-site.mjs && node scripts/serve-site.mjs",
     "check-site": "node scripts/check-site.mjs",
     "docs:screenshots": "node scripts/screenshot-docs.mjs",
-    "docs:link": "node scripts/docs-link.mjs"
+    "docs:link": "node scripts/docs-link.mjs",
+    "demo:record": "node scripts/record-demo.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
