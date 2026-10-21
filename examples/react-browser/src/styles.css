@@ -17,15 +17,16 @@
 }
 /*
  * The page paints no background, so its frames stand on the viewer's canvas.
- * The dark canvas turns on these tokens.
+ * The dark canvas turns on these tokens. Their grays lean blue, like the
+ * canvas, next to which neutral grays look brown.
  */
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #ededed;
-    --paper: #1a1a1a;
-    --muted: #a0a0a0;
-    --line: #333333;
-    --hover: #262626;
+    --paper: #1c1f24;
+    --muted: #9ca3ad;
+    --line: #363b44;
+    --hover: #282c33;
     --accent: #7c9bff;
     --danger: #ff6b6b;
   }
@@ -58,13 +59,10 @@ body {
   background: var(--ink);
   color: var(--paper);
 }
-.btn-primary:hover {
-  background: var(--accent);
-}
 .btn-secondary {
   background: var(--paper);
   color: var(--ink);
-  border-color: var(--ink);
+  border-color: var(--line);
 }
 .btn-ghost {
   background: transparent;
@@ -74,8 +72,12 @@ body {
   background: var(--danger);
   color: var(--paper);
 }
-.btn-ghost:hover,
-.btn-secondary:hover {
+/* Button sets aria-disabled while disabled or loading, and then hover changes nothing. */
+.btn-primary:hover:not([aria-disabled='true']) {
+  background: var(--accent);
+}
+.btn-ghost:hover:not([aria-disabled='true']),
+.btn-secondary:hover:not([aria-disabled='true']) {
   background: var(--hover);
 }
 .btn:disabled,
@@ -89,6 +91,12 @@ body {
   border-radius: 50%;
   border: 2px solid currentColor;
   border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
 }
 .counter {
   display: inline-flex;
@@ -145,10 +153,30 @@ body {
   align-items: center;
   gap: 8px;
 }
+.searchbox-field {
+  position: relative;
+  display: inline-flex;
+}
 .searchbox input {
   font: inherit;
-  padding: 8px 10px;
+  padding: 8px 36px 8px 10px;
+  color: var(--ink);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 8px;
   min-width: 220px;
+}
+.searchbox input::placeholder {
+  color: var(--muted);
+}
+/* The clear button below takes the place of the browser's own. */
+.searchbox input::-webkit-search-cancel-button {
+  appearance: none;
+}
+.searchbox-field .btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  bottom: 4px;
+  padding: 0 8px;
 }

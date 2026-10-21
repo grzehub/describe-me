@@ -19,18 +19,20 @@ export function SearchBox({ placeholder = 'Search…', onSearch }: SearchBoxProp
         onSearch?.(query)
       }}
     >
-      <input
-        type="search"
-        aria-label="query"
-        placeholder={placeholder}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      {query && (
-        <Button variant="ghost" size="sm" aria-label="clear" onClick={() => setQuery('')}>
-          ×
-        </Button>
-      )}
+      <span className="searchbox-field">
+        <input
+          type="search"
+          aria-label="query"
+          placeholder={placeholder}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        {query && (
+          <Button variant="ghost" size="sm" aria-label="clear" onClick={() => setQuery('')}>
+            ×
+          </Button>
+        )}
+      </span>
       <Button size="sm" type="submit" disabled={!query}>
         Search
       </Button>

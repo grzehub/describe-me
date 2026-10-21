@@ -24,10 +24,10 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #ededed;
-    --paper: #1a1a1a;
-    --muted: #a0a0a0;
-    --line: #333333;
-    --hover: #262626;
+    --paper: #1c1f24;
+    --muted: #9ca3ad;
+    --line: #363b44;
+    --hover: #282c33;
     --accent: #7c9bff;
     --danger: #ff6b6b;
   }
@@ -47,6 +47,10 @@ body {
   padding: 10px 16px;
   cursor: pointer;
   transition: none;
+}
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 13px;
 }
 .btn-primary {
   background: var(--ink);
@@ -70,6 +74,12 @@ body {
 .panel-body {
   color: var(--muted);
   font-size: 14px;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .disclosure-body {
   margin: 12px 0 0;
