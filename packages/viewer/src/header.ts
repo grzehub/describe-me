@@ -22,7 +22,13 @@ export function renderHeader(): HTMLElement[] {
     summary.append(stat(failed, 'failed', 'fail'))
   }
 
-  const wordmark = el('span', { class: 'wordmark' }, 'describe', el('span', { class: 'me' }, '-me'))
+  const wordmark = el(
+    'span',
+    { class: 'wordmark' },
+    'describe',
+    el('span', { class: 'me' }, '(me)'),
+  )
+
   const when = manifest ? new Date(manifest.generatedAt).toLocaleTimeString() : '…'
   const issues = manifest ? renderDiagnosticsMenu(manifest) : null
   const updated = el(

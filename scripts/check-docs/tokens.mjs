@@ -3,6 +3,8 @@ import { join } from 'node:path'
 
 const VIEWER_CSS = 'packages/viewer/src/style.css'
 const DOCS_CSS = 'docs/docs.css'
+const VIEWER_ICON = 'packages/viewer/src/favicon.svg'
+const DOCS_ICON = 'docs/favicon.svg'
 const COMMENT = /\/\*[\s\S]*?\*\//g
 const LIGHT = /:root\s*\{([^}]*)\}/
 const DARK = /@media\s*\(\s*prefers-color-scheme:\s*dark\s*\)\s*\{\s*:root\s*\{([^}]*)\}/
@@ -17,12 +19,13 @@ const DECLARATION = /(--[\w-]+)\s*:\s*([^;]+);/g
  * system, hold the same tokens. The tokens at the top of docs/docs.css equal
  * those of the viewer, in the light and the dark scheme, so the docs and the
  * viewer look like one product. Tokens only the docs need live in a block of
- * their own further down.
+ * their own further down. The favicon, which is also the sygnet of the
+ * wordmark, is the same file in both.
  */
 export default function tokens(context) {
   const viewer = viewerBlocks(readFileSync(join(context.root, VIEWER_CSS), 'utf8'))
   const docs = docsBlocks(readFileSync(join(context.root, DOCS_CSS), 'utf8'))
-  const problems = [...viewer.problems]
+  const problems = [...viewer.problems, ...favicons(context)]
 
   for (const scheme of ['light', 'dark']) {
     if (!viewer[scheme] || !docs[scheme]) {
@@ -35,6 +38,15 @@ export default function tokens(context) {
   }
 
   return problems
+}
+
+function favicons(context) {
+  const viewer = readFileSync(join(context.root, VIEWER_ICON), 'utf8')
+  const docs = readFileSync(join(context.root, DOCS_ICON), 'utf8')
+
+  return viewer === docs
+    ? []
+    : [`${DOCS_ICON}: differs from ${VIEWER_ICON}, copy one over the other`]
 }
 
 function docsBlocks(css) {

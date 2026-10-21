@@ -209,9 +209,19 @@ a {
   background: var(--panel);
 }
 .wordmark {
+  display: inline-flex;
+  align-items: center;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.015em;
+}
+/* The sygnet, the same drawing as the favicon and as docs/favicon.svg. */
+.wordmark::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  background: url(./favicon.svg) center / contain no-repeat;
 }
 .wordmark .me {
   color: var(--accent);

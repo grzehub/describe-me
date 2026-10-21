@@ -18,7 +18,7 @@ and the [Material UI example](https://grzehub.github.io/describe-me/examples/mui
 
 ## Status
 
-Prototype. React, Vitest in browser mode or jsdom. The viewer replays the
+Early. React, Vitest in browser mode or jsdom. The viewer replays the
 recorded frames and can mount a test in
 [Live](https://grzehub.github.io/describe-me/viewer.html#live), from its
 arrange phase. There are no controls yet.
