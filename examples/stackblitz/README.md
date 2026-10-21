@@ -13,7 +13,7 @@ terminal: the viewer follows every rerun.
 
 ```sh
 npm install
-npm run dev        # the tests once, then the viewer at http://localhost:4173
+npm run dev        # the tests once, then the viewer at http://localhost:6006
 npm run test:watch # in a second terminal, the viewer follows the reruns
 npm run build      # a static site in describe-me-dist/
 ```
