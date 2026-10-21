@@ -191,8 +191,8 @@ function socialCard(page, html, find, title, description) {
     'og:description': (description?.attributes.content ?? '').trim(),
     'og:url': page.file === 'index.html' ? SITE : `${SITE}${page.file}`,
     'og:image': `${SITE}og.png`,
-    'og:image:width': '1200',
-    'og:image:height': '630',
+    'og:image:width': '2400',
+    'og:image:height': '1260',
   }
 
   const problems = []
