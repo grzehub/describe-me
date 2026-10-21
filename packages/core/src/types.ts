@@ -220,6 +220,12 @@ export interface Manifest {
    * Absent when the run had no config file, and in manifests written before 0.6.
    */
   configFile?: string
+  /**
+   * The name of the project: the `name` of the nearest package.json at or
+   * above `root`, else the root directory's name. The viewer's header and
+   * tab title show it. Absent in manifests written before 0.10.
+   */
+  project?: string
   modules: ManifestModule[]
   /** Keyed by component name, as reported by the framework adapter. */
   components: Record<string, ComponentDoc>

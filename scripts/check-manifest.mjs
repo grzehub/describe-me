@@ -258,6 +258,13 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value !== ''
 }
 
+/** Every manifest since 0.10 names its project, from the package.json at or above the root. */
+function projectProblemsIn(manifest) {
+  return isNonEmptyString(manifest.project)
+    ? []
+    : [`manifest.project is ${JSON.stringify(manifest.project)}, expected the project's name`]
+}
+
 /** Every manifest since 0.5.1 names its writer. Only the full check knows which one it must be. */
 function generatorProblemsIn(manifest) {
   const { generator } = manifest
@@ -868,7 +875,7 @@ for (const path of paths) {
   problems.push(...closingFrameProblemsIn(manifest, path))
   problems.push(...orderProblemsIn(manifest))
   problems.push(...idProblemsIn(manifest))
-  problems.push(...generatorProblemsIn(manifest))
+  problems.push(...generatorProblemsIn(manifest), ...projectProblemsIn(manifest))
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
     problems.push(...stableIdProblemsIn(manifest))
