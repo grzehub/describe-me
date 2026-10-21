@@ -53,6 +53,7 @@ pnpm check-site       # no file of the site names the checkout or the home direc
 pnpm docs:screenshots [page.html …]   # light and dark, 1280 and 390 px wide [--out dir]
 pnpm docs:link react-browser "<full test name>" [frame]   # a deep link into an example viewer for a docs page
 pnpm demo:record [submits|rejects|foundations …] [--out dir]   # the demo videos of the shadcn viewer for the README and social media, as WebM, MP4 and GIF into demo/, after pnpm site:build, needs ffmpeg
+cd examples/stackblitz && npm install && npm test   # the StackBlitz starter: 6 tests, jsdom, on the published packages, outside the pnpm workspace
 pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z] [--vitest x.y.z] [--react x.y.z] (Node ^20.19 || >=22.12)
 ```
 

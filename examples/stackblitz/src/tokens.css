@@ -1,0 +1,42 @@
+/*
+ * The design tokens, as custom properties. Foundations in the viewer reads
+ * them from here: --color-* become swatches, --space-* a scale, --radius-*
+ * corners and --font-* type. light-dark() follows the frame's color scheme,
+ * so the dark canvas of the viewer shows the dark variant.
+ */
+:root {
+  --color-ink: light-dark(#1c2024, #e2e6ea);
+  --color-muted: light-dark(#6b7381, #8a939f);
+  --color-paper: light-dark(#ffffff, #171a1f);
+  --color-line: light-dark(#e6e9ee, #252a31);
+  --color-accent: light-dark(#4a63d8, #8ea2ff);
+  --color-inverse: light-dark(#ffffff, #0f1115);
+  --color-danger: light-dark(#d04747, #e8756f);
+  --color-pass: light-dark(#2f9e5f, #4fbb7d);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 18px;
+
+  color-scheme: light dark;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  padding: var(--space-6);
+}

@@ -7,3 +7,4 @@ dist-cli
 docs-dist
 describe-me-dist
 site
+examples/stackblitz/package-lock.json
