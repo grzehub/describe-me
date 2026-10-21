@@ -29,6 +29,11 @@ Every page is a copy of the same skeleton. Start a page from an existing one.
   and the "On this page" list in `<aside class="toc">`, which links every `h2`
   of the page in order.
 
+The topbar carries the brand: `favicon.svg` is the sygnet, the same file as
+`packages/viewer/src/favicon.svg` (`pnpm check-docs` keeps them equal), and
+`docs.css` puts it before the `describe(me)` wordmark, as the viewer's header
+does.
+
 The topbar shows the version of `packages/viewer/package.json`.
 `node scripts/sync-docs-version.mjs` sets it on every page, and
 `pnpm version-packages` runs that for each release.
@@ -143,7 +148,7 @@ Two columns, browser mode and jsdom, which stack on a phone:
 Badges. `.dot` adds a dot in the tone:
 
 ```html
-<span class="badge prototype">prototype</span>
+<span class="badge early">early</span>
 <span class="badge env">jsdom</span>
 <span class="badge dot status-open">open</span>
 <span class="badge status-planned">planned</span>
