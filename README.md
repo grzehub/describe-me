@@ -14,7 +14,9 @@ https://github.com/user-attachments/assets/edc2d289-5d0a-444d-9d9f-6f0d3dd1342f
 of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/),
 the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/),
 the [shadcn/ui example](https://grzehub.github.io/describe-me/examples/shadcn/)
-and the [Material UI example](https://grzehub.github.io/describe-me/examples/mui/)
+and the [Material UI example](https://grzehub.github.io/describe-me/examples/mui/),
+or **[open the starter in StackBlitz](https://stackblitz.com/github/grzehub/describe-me/tree/main/examples/stackblitz)**:
+three components, their tests and the viewer in jsdom, nothing to clone.
 
 ## Status
 
