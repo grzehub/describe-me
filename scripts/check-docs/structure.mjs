@@ -7,7 +7,8 @@ const ANCHOR_LABEL = 'Link to this section'
 const FORBIDDEN_ELEMENTS = ['script', 'style', 'iframe']
 
 /**
- * The skeleton every page shares: the file list, the head, the topbar, the
+ * The skeleton every page shares: the file list, the head with its link
+ * preview tags, the topbar, the
  * sidebar, the pager and the footer, the section headings and their "On this
  * page" list, unique ids and no stub markers. No scripts, no inline styles,
  * and only relative URLs for the site's own files.
@@ -99,6 +100,8 @@ function head(page, html, context) {
     problems.push(`${page.file}: has no <meta name="description"> with content`)
   }
 
+  problems.push(...socialCard(page, html, find, title, description))
+
   if (!find('link', { rel: 'icon', href: 'favicon.svg' })) {
     problems.push(`${page.file}: has no <link rel="icon" href="favicon.svg" />`)
   }
@@ -175,6 +178,38 @@ function isRelative(url) {
 }
 
 /** The `h2` of the page's `main`, each with its id and the anchor link of the template. */
+const SITE = 'https://grzehub.github.io/describe-me/'
+
+/**
+ * The Open Graph and Twitter tags a link preview reads: the page's own title,
+ * description and URL, the shared og.png, and the large card.
+ */
+function socialCard(page, html, find, title, description) {
+  const expected = {
+    'og:type': 'website',
+    'og:title': title ? collapse(title[1]) : '',
+    'og:description': (description?.attributes.content ?? '').trim(),
+    'og:url': page.file === 'index.html' ? SITE : `${SITE}${page.file}`,
+    'og:image': `${SITE}og.png`,
+    'og:image:width': '1200',
+    'og:image:height': '630',
+  }
+
+  const problems = []
+
+  for (const [property, content] of Object.entries(expected)) {
+    if (!find('meta', { property, content })) {
+      problems.push(`${page.file}: has no <meta property="${property}" content="${content}">`)
+    }
+  }
+
+  if (!find('meta', { name: 'twitter:card', content: 'summary_large_image' })) {
+    problems.push(`${page.file}: has no <meta name="twitter:card" content="summary_large_image">`)
+  }
+
+  return problems
+}
+
 function headings(page, html, context) {
   const problems = []
   const main = context.helpers.pagePart(html, 'main')

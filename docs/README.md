@@ -18,8 +18,9 @@ plan and the code.
 
 Every page is a copy of the same skeleton. Start a page from an existing one.
 
-- **Shared, identical on every page:** the `<head>` (apart from `<title>` and
-  the meta description), the topbar `<header class="topbar">`, the sidebar
+- **Shared, identical on every page:** the `<head>` (apart from `<title>`,
+  the meta description and the `og:` tags that repeat them with the page's
+  URL; `og.png` is the link preview of every page), the topbar `<header class="topbar">`, the sidebar
   `<nav class="sidebar">`, and the structure of the pager and footer. The
   sidebar differs only in `aria-current="page"` on the page's own link. The
   pager links the previous and next page of the sidebar order, and the footer

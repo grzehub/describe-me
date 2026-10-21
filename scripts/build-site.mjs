@@ -1,6 +1,6 @@
 /**
- * Builds the docs site into site/: the pages of docs/ with docs.css and
- * favicon.svg, and the static viewer of each example under
+ * Builds the docs site into site/: the pages of docs/ with docs.css,
+ * favicon.svg and og.png, and the static viewer of each example under
  * site/examples/<name>/, built with `--live` so it shows Live. Needs
  * `pnpm build` and every example's tests. `--no-vendor-fonts` goes to
  * `describe-me build`, which then downloads no web fonts.
@@ -15,7 +15,7 @@ import { exampleNames } from './docs/example-names.mjs'
 import { pages } from './docs/pages.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
 
-const ASSETS = ['docs.css', 'favicon.svg']
+const ASSETS = ['docs.css', 'favicon.svg', 'og.png']
 const SITE = join(repoRoot, 'site')
 const CLI = join(repoRoot, 'packages', 'viewer', 'bin', 'describe-me.js')
 const CLI_BUILD = join(repoRoot, 'packages', 'viewer', 'dist-cli', 'main.js')
