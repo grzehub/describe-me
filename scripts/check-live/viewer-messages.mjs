@@ -223,7 +223,9 @@ async function waitsForTheStatus(context) {
     requested = resolve
   })
 
-  const isTestFile = (url) => url.pathname === `/${TEST.file}`
+  // The server serves the project under its base, so the test file loads from there.
+  const testFilePath = new URL(TEST.file, context.base).pathname
+  const isTestFile = (url) => url.pathname === testFilePath
 
   await page.route(isTestFile, async (route) => {
     requested()

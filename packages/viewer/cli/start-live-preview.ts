@@ -9,6 +9,13 @@ import { reasonOf } from './reason-of.js'
 // The code `createLiveServer()` rejects with when the project's config sets `live: false`.
 const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
 
+/** What `__live.json` says about the started preview, and where its server is. */
+export interface StartedLivePreview {
+  info: LivePreviewInfo
+  /** The live server's origin, to proxy. A server of an earlier version has none. */
+  origin?: string
+}
+
 /**
  * Starts the live preview of the project the manifest names, or of `--root`,
  * on a free port. Never throws: a preview that cannot start comes back as
@@ -17,7 +24,7 @@ const LIVE_OFF = 'DESCRIBE_ME_LIVE_OFF'
 export async function startLivePreview(
   data: string,
   root: string | undefined,
-): Promise<LivePreviewInfo> {
+): Promise<StartedLivePreview> {
   try {
     const project = liveProject(data, root, LIVE_CONSEQUENCES.dev)
     const createLiveServer = await importCreateLiveServer(project.root)
@@ -27,17 +34,19 @@ export async function startLivePreview(
       await server.close().catch(() => undefined)
 
       return {
-        status: 'error',
-        error: `all describe-me packages must be on the same version. The live preview in ${project.root} speaks protocol ${server.protocol}, this viewer ${LIVE_PROTOCOL}.`,
+        info: {
+          status: 'error',
+          error: `all describe-me packages must be on the same version. The live preview in ${project.root} speaks protocol ${server.protocol}, this viewer ${LIVE_PROTOCOL}.`,
+        },
       }
     }
 
-    return { status: 'ready', base: server.base }
+    return { info: { status: 'ready', base: server.base }, origin: server.origin }
   } catch (error) {
     if (codeOf(error) === LIVE_OFF) {
-      return { status: 'off' }
+      return { info: { status: 'off' } }
     }
 
-    return { status: 'error', error: reasonOf(error) }
+    return { info: { status: 'error', error: reasonOf(error) } }
   }
 }

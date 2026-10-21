@@ -4,6 +4,7 @@ import { checkLiveEnabled } from './check-live-enabled.js'
 import { findLiveConfigFile } from './find-live-config-file.js'
 import { freeLivePort } from './free-live-port.js'
 import { importLiveVite } from './import-live-vite.js'
+import { LIVE_BASE } from './live-base.js'
 import { livePluginProtocol } from './live-plugin-protocol.js'
 import { loadLiveConfig } from './load-live-config.js'
 
@@ -24,6 +25,8 @@ export interface LiveServerOptions {
 export interface LiveServer {
   /** The URL the live page is under, such as `http://localhost:5173/__describe-me/`. */
   base: string
+  /** The server's origin, such as `http://localhost:5173`. Everything it serves is under `base`. */
+  origin: string
   /** `api.live.protocol` of the project's describeMe() plugin. */
   protocol: number
   /** Stops the server. */
@@ -47,7 +50,9 @@ async function closingOnError<T>(
 /**
  * Starts the live preview: a second Vite dev server on the project's own
  * config, in mode `test` and on localhost only, whose page mounts one test
- * at a time. A change to the config file takes a new server. When the
+ * at a time, with `/__describe-me/` as Vite's base, so that its modules and
+ * HMR socket sit under the live page's path and `describe-me dev` can serve
+ * the whole preview through its own port. A change to the config file takes a new server. When the
  * project's describeMe() has `live: false`, it closes the server and rejects
  * with an error whose `code` is `DESCRIBE_ME_LIVE_OFF`.
  */
@@ -66,7 +71,7 @@ export async function createLiveServer(options: LiveServerOptions): Promise<Live
     ...vite.mergeConfig(loaded.config, {
       root,
       mode: 'test',
-      base: '/',
+      base: LIVE_BASE,
       clearScreen: false,
       logLevel: 'warn',
       server: { host: 'localhost', port, strictPort: true, open: false },
@@ -82,10 +87,11 @@ export async function createLiveServer(options: LiveServerOptions): Promise<Live
 
   await closingOnError(server, () => server.listen())
 
-  const local = server.resolvedUrls?.local[0] ?? `http://localhost:${port}/`
+  const local = server.resolvedUrls?.local[0] ?? `http://localhost:${port}${LIVE_BASE}`
 
   return {
-    base: new URL('__describe-me/', local).href,
+    base: new URL(LIVE_BASE, local).href,
+    origin: new URL(local).origin,
     protocol,
     close: () => server.close(),
   }
