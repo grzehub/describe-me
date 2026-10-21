@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>describe-me demo stage</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #13161d;
+        --band: #0a0a0a;
+        --line: #232835;
+        --text: #e6e9ef;
+        --dim: #8b93a5;
+        --accent: #8b7cf6;
+        --ok: #4ade80;
+        --keyword: #c792ea;
+        --string: #a5d6a7;
+        --name: #82aaff;
+        --comment: #6b7280;
+        --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        --sans: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        overflow: hidden;
+      }
+      .stage {
+        display: grid;
+        grid-template-rows: 680px 400px;
+        width: 1920px;
+        height: 1080px;
+      }
+      .band {
+        display: grid;
+        grid-template-columns: 1180px 1fr;
+        min-height: 0;
+        border-top: 1px solid var(--line);
+        background: var(--band);
+      }
+      .codepane {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 0;
+      }
+      .file {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 32px 6px;
+        font: 500 15px var(--mono);
+        color: var(--dim);
+      }
+      .file b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .code {
+        margin: 0;
+        padding: 4px 0 16px;
+        font: 18px/1.5 var(--mono);
+        overflow: hidden;
+        min-height: 0;
+        white-space: pre;
+        scroll-behavior: smooth;
+      }
+      .line {
+        display: block;
+        padding: 0 32px 0 29px;
+        border-left: 3px solid transparent;
+        opacity: 0.3;
+        transition:
+          opacity 0.4s,
+          background 0.4s;
+      }
+      .code.plain .line,
+      .line.hot {
+        opacity: 1;
+      }
+      .line.hot {
+        background: rgba(139, 124, 246, 0.13);
+        border-left-color: var(--accent);
+      }
+      /* The eye goes where the light is: the viewer dims under the test, the test under the viewer. */
+      .stage[data-focus='viewer'] .code.plain .line {
+        opacity: 0.3;
+      }
+      .stage[data-focus='code'] .right {
+        opacity: 0.35;
+      }
+      .keyword {
+        color: var(--keyword);
+      }
+      .string {
+        color: var(--string);
+      }
+      .name {
+        color: var(--name);
+      }
+      .comment {
+        color: var(--comment);
+        font-style: italic;
+      }
+      .side {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        min-height: 0;
+        padding: 26px 36px 24px 32px;
+        border-left: 1px solid var(--line);
+      }
+      .term {
+        padding: 12px 18px;
+        min-height: 78px;
+        border-radius: 10px;
+        background: #0a0c10;
+        border: 1px solid var(--line);
+        font: 15px/1.55 var(--mono);
+        color: var(--dim);
+        white-space: pre;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .term.shown {
+        opacity: 1;
+      }
+      .term .prompt {
+        color: var(--text);
+      }
+      .term .ok {
+        color: var(--ok);
+      }
+      .term .url {
+        color: var(--name);
+      }
+      .caption {
+        font-size: 30px;
+        line-height: 1.3;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        transition: opacity 0.3s;
+      }
+      .caption.out {
+        opacity: 0;
+      }
+      .caption em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .right {
+        position: relative;
+        background: #111316;
+        transition: opacity 0.45s;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      #cursor {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 20;
+        pointer-events: none;
+        opacity: 0;
+        transition:
+          transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+          opacity 0.3s;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+      }
+      #cursor.shown {
+        opacity: 1;
+      }
+      #cursor svg {
+        display: block;
+        transition: transform 0.12s;
+        transform-origin: 4px 3px;
+      }
+      #cursor.down svg {
+        transform: scale(0.82);
+      }
+      #ring {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 19;
+        width: 44px;
+        height: 44px;
+        margin: -22px 0 0 -22px;
+        border-radius: 50%;
+        border: 3px solid var(--accent);
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(0.4);
+      }
+      #ring.pulse {
+        animation: pulse 0.55s ease-out;
+      }
+      @keyframes pulse {
+        0% {
+          opacity: 0.9;
+          transform: scale(0.4);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.3);
+        }
+      }
+      #end {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        background: var(--bg);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s;
+      }
+      #end.shown {
+        opacity: 1;
+      }
+      #end img {
+        display: block;
+        width: 1920px;
+        height: 1080px;
+      }
+      #end .sygnet-slot {
+        position: absolute;
+        left: 878px;
+        top: 248px;
+        width: 164px;
+        height: 164px;
+        background: var(--bg);
+      }
+      #end .sygnet {
+        position: absolute;
+        left: 2px;
+        top: 2px;
+        overflow: visible;
+      }
+      .paren,
+      .plate,
+      .shadow {
+        opacity: 0;
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+      #end.shown .paren-left {
+        animation: paren-left 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s forwards;
+      }
+      #end.shown .paren-right {
+        animation: paren-right 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s forwards;
+      }
+      #end.shown .plate {
+        animation: plate 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      }
+      #end.shown .plate-1 {
+        animation-delay: 0.85s;
+      }
+      #end.shown .plate-2 {
+        animation-delay: 1.05s;
+      }
+      #end.shown .plate-3 {
+        animation-delay: 1.25s;
+      }
+      #end.shown .shadow {
+        animation: fade 0.5s ease-out 1.3s forwards;
+      }
+      @keyframes paren-left {
+        from {
+          opacity: 0;
+          transform: translateX(-16px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes paren-right {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes plate {
+        from {
+          opacity: 0;
+          transform: translate(14px, -8px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes fade {
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage" data-focus="both">
+      <div class="right"><iframe id="viewer" title="viewer"></iframe></div>
+      <div class="band">
+        <div class="codepane">
+          <div class="file"><span id="language">tsx</span><b id="file"></b></div>
+          <pre class="code" id="code"></pre>
+        </div>
+        <div class="side">
+          <div class="caption" id="caption"></div>
+          <div class="term" id="term"></div>
+        </div>
+      </div>
+    </div>
+    <div id="ring"></div>
+    <div id="cursor">
+      <svg width="30" height="34" viewBox="0 0 30 34">
+        <path
+          d="M4 3 L4 27 L10.5 21 L15 31 L19.5 29 L15 19.5 L24 19 Z"
+          fill="#ffffff"
+          stroke="#111318"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </div>
+    <!--
+      The outro plate comes from the brand file in Figma, Submit Demo › Demo — outro. The sygnet
+      is drawn again on top of its printed copy, so it can enter: parens close, plates stack.
+    -->
+    <div id="end">
+      <img
+        src="outro.png"
+        alt="describe(me). Your tests are your stories."
+        width="1920"
+        height="1080"
+      />
+      <div class="sygnet-slot">
+        <svg
+          class="sygnet"
+          width="160"
+          height="160"
+          viewBox="0 0 160 160"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <defs>
+            <filter
+              id="filter0_f_4_304"
+              x="77.25"
+              y="50.5"
+              width="52.3"
+              height="87"
+              filterUnits="userSpaceOnUse"
+              color-interpolation-filters="sRGB"
+            >
+              <feFlood flood-opacity="0" result="BackgroundImageFix" />
+              <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+              <feGaussianBlur stdDeviation="5.5" result="effect1_foregroundBlur_4_304" />
+            </filter>
+            <linearGradient
+              id="paint0_linear_4_304"
+              x1="-6.53352e-07"
+              y1="20"
+              x2="-6.53352e-07"
+              y2="140"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#93A5FB" />
+              <stop offset="1" stop-color="#5B73E2" />
+            </linearGradient>
+            <linearGradient
+              id="paint1_linear_4_304"
+              x1="9.33963e-06"
+              y1="20"
+              x2="9.33963e-06"
+              y2="140"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#5871DD" />
+              <stop offset="1" stop-color="#2F43AB" />
+            </linearGradient>
+            <radialGradient
+              id="paint2_radial_4_304"
+              cx="0"
+              cy="0"
+              r="1"
+              gradientUnits="userSpaceOnUse"
+              gradientTransform="translate(80 80) scale(52.5 52.5)"
+            >
+              <stop offset="0.72" stop-color="white" stop-opacity="0.75" />
+              <stop offset="1" stop-color="white" stop-opacity="0" />
+            </radialGradient>
+            <linearGradient
+              id="paint3_linear_4_304"
+              x1="54.45"
+              y1="41.5"
+              x2="104.232"
+              y2="64.7062"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#7A90F5" />
+              <stop offset="1" stop-color="#3D53C6" />
+            </linearGradient>
+            <linearGradient
+              id="paint4_linear_4_304"
+              x1="64.85"
+              y1="47.5"
+              x2="114.632"
+              y2="70.7062"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#7A90F5" />
+              <stop offset="1" stop-color="#3D53C6" />
+            </linearGradient>
+            <linearGradient
+              id="paint5_linear_4_304"
+              x1="75.25"
+              y1="53.5"
+              x2="125.032"
+              y2="76.7062"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#7A90F5" />
+              <stop offset="1" stop-color="#3D53C6" />
+            </linearGradient>
+          </defs>
+          <mask
+            id="mask0_4_304"
+            style="mask-type: luminance"
+            maskUnits="userSpaceOnUse"
+            x="101"
+            y="17"
+            width="39"
+            height="126"
+          >
+            <path
+              d="M120.5 21.35C132.847 38.4135 139.493 58.9382 139.493 80C139.493 101.062 132.847 121.587 120.5 138.65C118.823 140.782 116.387 142.182 113.702 142.557C111.016 142.933 108.289 142.255 106.092 140.666C103.895 139.076 102.398 136.698 101.915 134.029C101.432 131.361 102 128.609 103.5 126.35C113.26 112.866 118.514 96.6454 118.514 80C118.514 63.3546 113.26 47.1339 103.5 33.65C102 31.3909 101.432 28.639 101.915 25.9706C102.398 23.3022 103.895 20.9241 106.092 19.3345C108.289 17.7449 111.016 17.0669 113.702 17.4426C116.387 17.8183 118.823 19.2185 120.5 21.35Z"
+              fill="white"
+            />
+          </mask>
+          <g class="paren paren-left">
+            <path
+              d="M39.5 21.35C27.1534 38.4135 20.5066 58.9382 20.5066 80C20.5066 101.062 27.1534 121.587 39.5 138.65C41.1765 140.782 43.6127 142.182 46.2984 142.557C48.984 142.933 51.7109 142.255 53.908 140.666C56.105 139.076 57.6019 136.698 58.085 134.029C58.5682 131.361 58.0002 128.609 56.5 126.35C46.7402 112.866 41.4858 96.6454 41.4858 80C41.4858 63.3546 46.7402 47.1339 56.5 33.65C58.0002 31.3909 58.5682 28.639 58.085 25.9706C57.6019 23.3022 56.105 20.9241 53.908 19.3345C51.7109 17.7449 48.984 17.0669 46.2984 17.4426C43.6127 17.8183 41.1765 19.2185 39.5 21.35Z"
+              fill="url(#paint0_linear_4_304)"
+            />
+            <path
+              d="M39.5 21.35C27.1534 38.4135 20.5066 58.9382 20.5066 80C20.5066 101.062 27.1534 121.587 39.5 138.65C41.1765 140.782 43.6127 142.182 46.2984 142.557C48.984 142.933 51.7109 142.255 53.908 140.666C56.105 139.076 57.6019 136.698 58.085 134.029C58.5682 131.361 58.0002 128.609 56.5 126.35C46.7402 112.866 41.4858 96.6454 41.4858 80C41.4858 63.3546 46.7402 47.1339 56.5 33.65C58.0002 31.3909 58.5682 28.639 58.085 25.9706C57.6019 23.3022 56.105 20.9241 53.908 19.3345C51.7109 17.7449 48.984 17.0669 46.2984 17.4426C43.6127 17.8183 41.1765 19.2185 39.5 21.35Z"
+              fill="url(#paint2_radial_4_304)"
+            />
+          </g>
+          <g class="paren paren-right">
+            <path
+              d="M120.5 21.35C132.847 38.4135 139.493 58.9382 139.493 80C139.493 101.062 132.847 121.587 120.5 138.65C118.823 140.782 116.387 142.182 113.702 142.557C111.016 142.933 108.289 142.255 106.092 140.666C103.895 139.076 102.398 136.698 101.915 134.029C101.432 131.361 102 128.609 103.5 126.35C113.26 112.866 118.514 96.6454 118.514 80C118.514 63.3546 113.26 47.1339 103.5 33.65C102 31.3909 101.432 28.639 101.915 25.9706C102.398 23.3022 103.895 20.9241 106.092 19.3345C108.289 17.7449 111.016 17.0669 113.702 17.4426C116.387 17.8183 118.823 19.2185 120.5 21.35Z"
+              fill="url(#paint1_linear_4_304)"
+            />
+          </g>
+          <g class="shadow">
+            <g mask="url(#mask0_4_304)">
+              <g opacity="0.55" filter="url(#filter0_f_4_304)">
+                <path d="M88.25 79L118.55 61.5V109L88.25 126.5V79Z" fill="#0D1440" />
+              </g>
+            </g>
+          </g>
+          <g class="plate plate-1">
+            <path
+              opacity="0.5"
+              d="M54.45 59L84.75 41.5V89L54.45 106.5V59Z"
+              fill="url(#paint3_linear_4_304)"
+            />
+            <path opacity="0.35" d="M54.45 59L57.5 57.25V104.75L54.45 106.5V59Z" fill="white" />
+            <path opacity="0.35" d="M54.45 59L84.75 41.5V44.5L54.45 62V59Z" fill="white" />
+          </g>
+          <g class="plate plate-2">
+            <path
+              opacity="0.75"
+              d="M64.85 65L95.15 47.5V95L64.85 112.5V65Z"
+              fill="url(#paint4_linear_4_304)"
+            />
+            <path opacity="0.45" d="M64.85 65L67.9 63.25V110.75L64.85 112.5V65Z" fill="white" />
+            <path opacity="0.45" d="M64.85 65L95.15 47.5V50.5L64.85 68V65Z" fill="white" />
+          </g>
+          <g class="plate plate-3">
+            <path d="M75.25 71L105.55 53.5V101L75.25 118.5V71Z" fill="url(#paint5_linear_4_304)" />
+            <path opacity="0.7" d="M75.25 71L78.25 69.25V116.75L75.25 118.5V71Z" fill="white" />
+            <path opacity="0.7" d="M75.25 71L105.55 53.5V56.5L75.25 74V71Z" fill="white" />
+          </g>
+        </svg>
+      </div>
+    </div>
+    <script>
+      const byId = (id) => document.getElementById(id)
+      const escapeHtml = (text) =>
+        text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+      const TOKENS = {
+        tsx: [
+          ['comment', /\/\/.*$/],
+          ['string', /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/],
+          [
+            'keyword',
+            /\b(?:import|from|export|const|let|function|async|await|return|if|else|interface|type)\b/,
+          ],
+          ['name', /\b(?:describe|it|expect|step|render|userEvent|screen|vi)\b(?=[.(])/],
+        ],
+        css: [
+          ['comment', /\/\*[\s\S]*?\*\//],
+          ['keyword', /@[a-z-]+|:root|\.dark/],
+          ['name', /--[a-z0-9-]+(?=\s*:)/],
+          ['string', /oklch\([^)]*\)|'[^']*'/],
+        ],
+      }
+
+      function highlight(line, language) {
+        const rules = TOKENS[language] ?? []
+        let out = ''
+        let rest = line
+
+        while (rest.length > 0) {
+          let best = null
+
+          for (const [kind, pattern] of rules) {
+            const match = pattern.exec(rest)
+
+            if (match && (best === null || match.index < best.index)) {
+              best = { kind, index: match.index, text: match[0] }
+            }
+          }
+
+          if (best === null) {
+            out += escapeHtml(rest)
+            break
+          }
+
+          out += escapeHtml(rest.slice(0, best.index))
+          out += `<span class="${best.kind}">${escapeHtml(best.text)}</span>`
+          rest = rest.slice(best.index + best.text.length)
+        }
+
+        return out
+      }
+
+      window.stage = {
+        setCode({ file, language, text }) {
+          byId('file').textContent = file
+          byId('language').textContent = language
+          byId('code').className = 'code plain'
+          byId('code').innerHTML = text
+            .split('\n')
+            .map(
+              (line, i) =>
+                `<span class="line" data-line="${i + 1}">${highlight(line, language)}</span>`,
+            )
+            .join('')
+        },
+
+        hot(lines) {
+          const code = byId('code')
+          code.classList.toggle('plain', lines.length === 0)
+
+          for (const element of code.querySelectorAll('.line')) {
+            element.classList.toggle('hot', lines.includes(Number(element.dataset.line)))
+          }
+
+          const first = code.querySelector('.line.hot')
+          const last = [...code.querySelectorAll('.line.hot')].pop()
+
+          if (first && last) {
+            const top = first.offsetTop - code.offsetTop
+            const bottom = last.offsetTop - code.offsetTop + last.offsetHeight
+            code.scrollTop = Math.max(0, (top + bottom) / 2 - code.clientHeight / 2)
+          }
+        },
+
+        term(lines) {
+          byId('term').classList.add('shown')
+          byId('term').innerHTML = lines
+            .map(({ kind, text }) => `<span class="${kind}">${escapeHtml(text)}</span>`)
+            .join('\n')
+        },
+
+        caption(html) {
+          const caption = byId('caption')
+          caption.classList.add('out')
+          setTimeout(() => {
+            caption.innerHTML = html
+            caption.classList.remove('out')
+          }, 300)
+        },
+
+        cursor(x, y) {
+          const cursor = byId('cursor')
+          cursor.style.transform = `translate(${x - 4}px, ${y - 3}px)`
+          cursor.classList.add('shown')
+        },
+
+        press(x, y, down) {
+          byId('cursor').classList.toggle('down', down)
+
+          if (down) {
+            const ring = byId('ring')
+            ring.style.left = `${x}px`
+            ring.style.top = `${y}px`
+            ring.classList.remove('pulse')
+            void ring.offsetWidth
+            ring.classList.add('pulse')
+          }
+        },
+
+        focus(target) {
+          byId('stage').dataset.focus = target
+        },
+
+        end() {
+          byId('end').classList.add('shown')
+        },
+      }
+    </script>
+  </body>
+</html>

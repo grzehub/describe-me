@@ -8,6 +8,8 @@ as a browsable catalog: `describe` blocks become the sidebar, each `it` is a
 story, each step is a frame you can scrub through. Stories cannot rot,
 because they are tests. If one drifts from the component, CI goes red.
 
+https://github.com/user-attachments/assets/edc2d289-5d0a-444d-9d9f-6f0d3dd1342f
+
 **[Read the docs](https://grzehub.github.io/describe-me/)** · see the viewers
 of the [browser-mode example](https://grzehub.github.io/describe-me/examples/react-browser/),
 the [jsdom example](https://grzehub.github.io/describe-me/examples/react-jsdom/),
@@ -25,6 +27,8 @@ the tokens of your design system, read from the CSS the tests load and an
 optional theme module.
 [Limitations](https://grzehub.github.io/describe-me/limitations.html) lists
 every known limit and whether a fix is planned.
+
+https://github.com/user-attachments/assets/36d95ba1-3e99-4f63-9d1f-b87fce79653e
 
 ## Add it to your project
 
