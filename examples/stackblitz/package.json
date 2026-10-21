@@ -9,10 +9,6 @@
     "dev": "vitest run; describe-me dev --data .describe-me",
     "build": "describe-me build --data .describe-me --out describe-me-dist"
   },
-  "stackblitz": {
-    "installDependencies": true,
-    "startCommand": "npm run dev"
-  },
   "dependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
