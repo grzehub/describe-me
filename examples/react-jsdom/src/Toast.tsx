@@ -24,11 +24,11 @@ export function Toast({ message, duration = 3000 }: ToastProps) {
   return (
     <div role="status">
       {visible ? (
-        <p className="panel">
-          <span>{message}</span>{' '}
+        <p className="panel toast">
+          <span>{message}</span>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-primary btn-sm"
             aria-label="dismiss"
             onClick={() => setVisible(false)}
           >

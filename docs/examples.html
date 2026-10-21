@@ -134,6 +134,11 @@
             >. Open Actions and pick Rename. The inspector lists <code>onSelect("Rename")</code>.
           </li>
           <li>
+            <a href="examples/react-browser/#test=a2a42d3ef562">Chip, can be removed</a>. Remove
+            design and it goes, because the test keeps the chips in state. The inspector lists
+            <code>onRemove("design")</code>.
+          </li>
+          <li>
             <a href="examples/react-jsdom/#test=1ae901275128"
               >Toast, hides itself after its duration</a
             >. Time is real in Live, so "Saved" hides after about 3 seconds. Restart shows it again.
@@ -200,10 +205,11 @@ it('does not go below the minimum', async () =&gt; {
               <tr>
                 <td class="name"><code>Chip</code></td>
                 <td>
-                  <code>.click()</code> on the remove button, with
+                  <code>.click()</code> on the remove button of two chips that a component in the
+                  test file keeps in state, with
                   <a href="examples/react-browser/#test=a2a42d3ef562&amp;frame=1"
                     >the click as its own frame</a
-                  >.
+                  >. The test is documented under the first chip.
                 </td>
               </tr>
               <tr>

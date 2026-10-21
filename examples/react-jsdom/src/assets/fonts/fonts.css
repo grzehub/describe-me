@@ -1,7 +1,13 @@
-/* Lora from @fontsource/lora, under the SIL Open Font License 1.1 (OFL.txt). */
+/* Lora from @fontsource/lora, under the SIL Open Font License 1.1 (OFL.txt).
+   The two faces stay under 256 characters, so snapshots keep the sheet inline,
+   which pnpm check-foundations relies on. */
 @font-face {
   font-family: 'Lora';
   font-style: normal;
-  font-weight: 400;
   src: url('./lora-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  src: url('./lora-latin-400-italic.woff2') format('woff2');
 }

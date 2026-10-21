@@ -6,7 +6,7 @@
 export const theme = {
   colors: {
     ink: 'light-dark(rgb(17, 17, 17), rgb(237, 237, 237))',
-    paper: 'light-dark(rgb(255, 255, 255), rgb(26, 26, 26))',
-    muted: 'light-dark(rgb(107, 107, 107), rgb(160, 160, 160))',
+    paper: 'light-dark(rgb(255, 255, 255), rgb(28, 31, 36))',
+    muted: 'light-dark(rgb(107, 107, 107), rgb(156, 163, 173))',
   },
 }
