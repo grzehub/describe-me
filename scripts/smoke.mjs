@@ -1418,7 +1418,8 @@ describe('Swatch', () => {
  * `createLiveServer()` from the installed packages, opens its live page
  * directly and counts a real click. Then it does the same through
  * `describe-me dev` on each data directory, whose `__live.json` must say
- * `ready`. Vite closes its dev server when stdin ends, and `CI=1` does not
+ * `ready` with the base `__describe-me/`: the preview through the viewer's
+ * own port, so the page opens under the viewer's URL. Vite closes its dev server when stdin ends, and `CI=1` does not
  * stop that, so stdin stays piped and open. Then `describe-me build --live`
  * builds each data directory into a site of its own, which a small static
  * server serves under a sub-path only: `__live.json` must say `ready` with
@@ -1468,6 +1469,8 @@ const buildCases = [
 // Where the static server puts a site, as a host serves a project's pages.
 const SUB_PATH = '/docs/components/'
 const LIVE_READY = JSON.stringify({ status: 'ready', base: '__live/' })
+// What \`__live.json\` says under \`describe-me dev\`: the preview under the viewer's own origin.
+const DEV_BASE = '__describe-me/'
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -1552,11 +1555,11 @@ async function waitForReady(dev) {
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
 
-  if (last?.status !== 'ready') {
-    throw new Error(\`live: describe-me dev --data \${dev.data} says \${JSON.stringify(last)}:\\n\${dev.output()}\`)
+  if (last?.status !== 'ready' || last.base !== DEV_BASE) {
+    throw new Error(\`live: describe-me dev --data \${dev.data} says \${JSON.stringify(last)}, expected ready with \${DEV_BASE}:\\n\${dev.output()}\`)
   }
 
-  return last.base
+  return new URL(last.base, new URL('__live.json', dev.url)).href
 }
 
 async function stopDev(dev) {
