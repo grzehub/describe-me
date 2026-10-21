@@ -1,8 +1,9 @@
 import type { Vite } from 'vitest/node'
+import { LIVE_BASE } from './live-base.js'
 import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import { livePageHtml } from './live-page-html.js'
 
-const PAGE_PATH = '/__describe-me/live.html'
+const PAGE_PATH = `${LIVE_BASE}live.html`
 /** How Vite serves a module id that starts with `\0`. */
 const ENTRY_URL = `/@id/__x00__${LIVE_MODULE_IDS.entry.slice(1)}`
 

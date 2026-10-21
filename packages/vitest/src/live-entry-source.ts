@@ -1,15 +1,16 @@
+import { LIVE_BASE } from './live-base.js'
 import { LIVE_MODULE_IDS } from './live-module-ids.js'
 import type { LivePageSettings } from './live-page-settings.js'
 import { liveStringLiteral } from './live-string-literal.js'
 
 /**
- * The `importTest` of the dev server's entry. It imports an absolute URL:
- * Vite adds `?import` to a path from the root, and the static self-import
- * that `@vitejs/plugin-react` adds to a file with a component would then load
- * the test file a second time.
+ * The `importTest` of the dev server's entry. It imports an absolute URL
+ * under the server's base: Vite adds `?import` to a path from the root, and
+ * the static self-import that `@vitejs/plugin-react` adds to a file with a
+ * component would then load the test file a second time.
  */
 const SERVE_IMPORT_TEST = [
-  `  importTest: (file) => import(/* @vite-ignore */ new URL('/' + file, location.origin).href),`,
+  `  importTest: (file) => import(/* @vite-ignore */ new URL(${liveStringLiteral(LIVE_BASE)} + file, location.origin).href),`,
 ]
 
 /** The `importTest` of a build, which holds only the test files of its map. */

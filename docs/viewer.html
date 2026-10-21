@@ -697,13 +697,17 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           The live preview is a second Vite dev server, on your project's own Vite and config. It
           loads the project and config of the manifest, or of
           <a href="#flag-root"><code>--root</code></a
-          >. <code>describe-me dev</code> starts it on a free port on localhost and prints its
-          address, such as <code>http://localhost:5173/__describe-me/</code>. The viewer learns its
-          state from <code>/__live.json</code> on its own dev server: <code>starting</code>,
-          <code>ready</code> with the preview's <code>base</code>, <code>off</code>, or
-          <code>error</code> with the reason. On a static site built with <code>--live</code>, the
-          page is a static build under <code>__live/</code>, and <code>__live.json</code> next to
-          the viewer says <code>ready</code> with that base (<a href="#hosting-live"
+          >. <code>describe-me dev</code> starts it on a free port on localhost and serves it
+          through its own port, under <code>/__describe-me/</code>, so one address reaches the
+          viewer and Live, also through a forwarded port in a container or a web IDE such as
+          Codespaces or StackBlitz. It prints the address, such as
+          <code>http://localhost:6006/__describe-me/</code>. The viewer learns the preview's state
+          from <code>/__live.json</code> on its own dev server: <code>starting</code>,
+          <code>ready</code> with the preview's <code>base</code>, <code>__describe-me/</code>,
+          <code>off</code>, or <code>error</code> with the reason. On a static site built with
+          <code>--live</code>, the page is a static build under <code>__live/</code>, and
+          <code>__live.json</code> next to the viewer says <code>ready</code> with that base (<a
+            href="#hosting-live"
             >Live in the static site</a
           >).
         </p>

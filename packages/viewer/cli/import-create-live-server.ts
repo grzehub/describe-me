@@ -11,6 +11,8 @@ import { resolveLiveEntry } from './resolve-live-entry.js'
 export interface LivePreviewServer {
   /** The URL the live page is under. */
   base: string
+  /** The server's origin, under which everything it serves sits. A server of an earlier version has none. */
+  origin?: string
   /** The live protocol of the project's describeMe() plugin. */
   protocol: number
   close(): Promise<void>

@@ -509,6 +509,9 @@ async function runSteps(label, steps, context) {
   return result
 }
 
+/** What `__live.json` says under `describe-me dev`: the preview under the viewer's own origin. */
+const DEV_BASE = '__describe-me/'
+
 const BROWSER_STEPS = [
   ['L mounts the test', pressLive],
   ['an action', selectsRenameLive],
@@ -518,20 +521,24 @@ const BROWSER_STEPS = [
   ['← leaves Live', arrowLeavesLive],
 ]
 
-/** Starts `describe-me dev` in an example and waits for `__live.json` to say `ready`. */
+/**
+ * Starts `describe-me dev` in an example and waits for `__live.json` to say
+ * `ready` with `__describe-me/`: the preview through the viewer's own port.
+ * Returns that base as an absolute URL.
+ */
 async function startReadyDev(name) {
   const dev = await startDev(join(repoRoot, 'examples', name), '.describe-me')
   const preview = await waitForPreview(dev)
 
-  if (preview?.status !== 'ready' || !BASE.test(preview.base ?? '')) {
+  if (preview?.status !== 'ready' || preview.base !== DEV_BASE) {
     await stopDev(dev)
 
     throw new Error(
-      `describe-me dev: __live.json says ${JSON.stringify(preview)}, expected ready with http://localhost:<port>/__describe-me/. Output:\n${dev.output()}`,
+      `describe-me dev: __live.json says ${JSON.stringify(preview)}, expected ready with ${DEV_BASE}. Output:\n${dev.output()}`,
     )
   }
 
-  return { dev, base: preview.base }
+  return { dev, base: new URL(preview.base, dev.url).href }
 }
 
 /** Live in the example's viewer, through `describe-me dev`. */
