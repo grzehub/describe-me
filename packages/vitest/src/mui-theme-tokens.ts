@@ -1,5 +1,6 @@
 import type { FoundationGroup, FoundationToken, FoundationTokenType } from '@describe-me/core/types'
 import { isCssColor } from './is-css-color.js'
+import { typeStyleParts } from './type-style-parts.js'
 
 type Values = Record<string, unknown>
 
@@ -24,15 +25,6 @@ const VARIANTS = [
   'button',
   'caption',
   'overline',
-]
-
-const VARIANT_PARTS = [
-  'fontFamily',
-  'fontSize',
-  'fontWeight',
-  'lineHeight',
-  'letterSpacing',
-  'textTransform',
 ]
 
 const FONT_WEIGHTS = ['fontWeightLight', 'fontWeightRegular', 'fontWeightMedium', 'fontWeightBold']
@@ -126,15 +118,7 @@ function paletteTokens(theme: Values): FoundationToken[] {
 }
 
 function variantToken(variant: string, style: Values): FoundationToken | undefined {
-  const parts: Record<string, string> = {}
-
-  for (const part of VARIANT_PARTS) {
-    const value = style[part]
-
-    if (isCssText(value)) {
-      parts[part] = part === 'fontSize' && typeof value === 'number' ? `${value}px` : String(value)
-    }
-  }
+  const parts = typeStyleParts(style)
 
   if (parts.fontSize === undefined) {
     return undefined

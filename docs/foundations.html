@@ -537,6 +537,18 @@
           <code>--type-*</code>. Custom properties that a preset takes, such as
           <code>--mui-*</code>, never form a style.
         </p>
+        <p>
+          A plain theme module forms its type styles from objects. An object with a
+          <code>fontSize</code> and at least one more of <code>fontFamily</code>,
+          <code>fontWeight</code>, <code>lineHeight</code>, <code>letterSpacing</code> and
+          <code>textTransform</code>, such as <code>typography.title</code>, is one token with its
+          parts, in the block of its parent path, <code>typography.*</code>. A number is in px for a
+          size and a letter spacing, as React writes it. The object's other keys, such as a variant
+          nested in it, stay tokens of their own. An object whose <code>fontSize</code> is a scale,
+          such as <code>{ sm: '14px' }</code>, is no style. A weight or a line height written as a
+          string, such as <code>'600'</code> or <code>'1.5'</code>, counts as one when its path
+          names it, as in <code>fontWeights.semibold</code>.
+        </p>
 
         <h2 id="dark-variant">
           The dark variant

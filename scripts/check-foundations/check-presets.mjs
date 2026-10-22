@@ -15,6 +15,7 @@ import {
   MUI_DEFAULT_DARK_PRIMARY,
   MUI_VARIABLES_ONLY,
   MUI_WITHOUT_THEME,
+  THEME_TYPE_STYLES_COPY,
   TYPE_STYLES_COPY,
 } from './copies.mjs'
 import {
@@ -178,6 +179,33 @@ const TYPE_STYLES_SAMPLES = {
   '--line-height-tight': { lineHeight: '18.75px' },
   '--letter-spacing-wide': { letterSpacing: '1px' },
   '--link-font-weight': { fontWeight: '500' },
+}
+
+const THEME_TYPE_STYLES_BLOCKS = [
+  ['theme-typography', 'Typography', 'typography.*', 4],
+  ['theme-typography-caption', 'Typography caption', 'typography.caption.*', 1],
+  ['theme-typography-fontWeights', 'Typography font weights', 'typography.fontWeights.*', 2],
+  ['theme-typography-lineHeights', 'Typography line heights', 'typography.lineHeights.*', 1],
+]
+
+const THEME_TYPE_STYLES_SAMPLES = {
+  'typography.display': {
+    fontFamily: 'ui-serif, Georgia, serif',
+    fontSize: '48px',
+    fontWeight: '700',
+    lineHeight: '52.8px',
+    letterSpacing: '-1px',
+  },
+  'typography.title': {
+    fontSize: '32px',
+    fontWeight: '600',
+    lineHeight: '40px',
+    textTransform: 'uppercase',
+  },
+  'typography.body': { fontSize: '16px', lineHeight: '24px' },
+  'typography.caption.fontSize': { fontSize: '12px' },
+  'typography.fontWeights.bold': { fontWeight: '700' },
+  'typography.lineHeights.tight': { lineHeight: '18.75px' },
 }
 
 function same(actual, expected) {
@@ -1233,6 +1261,53 @@ async function checkTypeStyles(check, page) {
   )
 }
 
+async function checkThemeTypeStyles(check, page) {
+  const label = THEME_TYPE_STYLES_COPY
+
+  await check(`${label}: the sections Colors 1, Typography 8`, async () =>
+    same(await sectionButtons(page), [
+      ['Colors', 1],
+      ['Typography', 8],
+    ]),
+  )
+
+  await showSection(page, 'typography')
+  const blocks = await readBlocks(page)
+
+  await check(
+    `${label}: each style of the theme module is one token in Typography, typography.*, and a style of one part stays a size`,
+    () =>
+      same(
+        { blocks: blocks.map(titled), names: blocks[0]?.names },
+        {
+          blocks: THEME_TYPE_STYLES_BLOCKS,
+          names: [
+            'typography.fontFamily',
+            'typography.display',
+            'typography.title',
+            'typography.body',
+          ],
+        },
+      ),
+  )
+
+  await check(
+    `${label}: a style paints its parts, numbers in px for a size and a letter spacing, and string weights and line heights paint theirs`,
+    async () =>
+      same(await sampleStyles(page, THEME_TYPE_STYLES_SAMPLES), THEME_TYPE_STYLES_SAMPLES),
+  )
+
+  await check(
+    `${label}: typography.display lists its parts in order and shows its size`,
+    async () =>
+      same(await tokenTexts(page, 'typography.display'), {
+        value: '48px',
+        parts:
+          'fontFamily ui-serif, Georgia, serif · fontSize 48px · fontWeight 700 · lineHeight 1.1 · letterSpacing -1px',
+      }),
+  )
+}
+
 async function checkPlain(check, label, page, expected) {
   await check(
     `${label}: Colors shows ${expected.map((block) => `${block[0]} ${block[3]}`).join(', ')}`,
@@ -1260,6 +1335,7 @@ const CASES = {
   [MUI_DEFAULT_DARK_PRIMARY]: (check, page) => checkDefaultDarkPrimary(check, page),
   [CHAKRA_COPY]: (check, page) => checkChakra(check, page),
   [TYPE_STYLES_COPY]: (check, page) => checkTypeStyles(check, page),
+  [THEME_TYPE_STYLES_COPY]: (check, page) => checkThemeTypeStyles(check, page),
   'react-jsdom': (check, page) =>
     checkPlain(check, 'react-jsdom', page, [
       ['theme-colors', 'Colors', 'colors.*', 3],

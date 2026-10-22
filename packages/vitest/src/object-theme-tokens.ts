@@ -1,6 +1,7 @@
 import type { FoundationGroup, FoundationToken } from '@describe-me/core/types'
 import { isCssColor } from './is-css-color.js'
 import { splitLightDark } from './split-light-dark.js'
+import { typeStyleParts } from './type-style-parts.js'
 
 /** Deeper values are not read, so a theme with a huge nested object cannot stall the run. */
 const MAX_DEPTH = 8
@@ -21,6 +22,10 @@ const GENERIC_FAMILIES = new Set([
 ])
 
 const DURATION = /^(?:\d+|\d*\.\d+)m?s$/
+
+const NUMBER = /^-?(?:\d+|\d*\.\d+)$/
+
+const FONT_WEIGHT_KEYWORDS = ['normal', 'bold', 'bolder', 'lighter']
 
 const LENGTH = /^-?(?:\d+|\d*\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|ch|ex|pt)$/
 
@@ -139,6 +144,18 @@ function classifyString(value: string, segments: string[]): Classified {
     return { group: lengthGroup(segments), type: 'dimension' }
   }
 
+  // A weight or a line height written as a string, such as `'600'` or `'1.5'`.
+  if (NUMBER.test(value)) {
+    return classifyNumber(segments)
+  }
+
+  if (
+    FONT_WEIGHT_KEYWORDS.includes(value.toLowerCase()) &&
+    segments.some((segment) => segment.includes('fontweight'))
+  ) {
+    return { group: 'typography', type: 'fontWeight' }
+  }
+
   if (segments.some((segment) => segment.includes('shadow'))) {
     return { group: 'shadows', type: 'shadow' }
   }
@@ -165,6 +182,29 @@ function classifyNumber(segments: string[]): Classified {
   return { group: 'other', type: 'number' }
 }
 
+/**
+ * One token for an object with a font size and at least one other part of a
+ * type style, such as `typography.title`, named by its path. Null for any
+ * other object.
+ */
+function typeStyleToken(path: string[], style: Record<string, unknown>): FoundationToken | null {
+  const parts = typeStyleParts(style)
+
+  if (path.length === 0 || parts.fontSize === undefined || Object.keys(parts).length < 2) {
+    return null
+  }
+
+  return {
+    name: path.join('.'),
+    group: 'typography',
+    type: 'typography',
+    value: parts.fontSize,
+    origin: 'project',
+    source: 'theme',
+    parts,
+  }
+}
+
 function tokenOf(path: string[], value: string | number): FoundationToken {
   const segments = path.map((segment) => segment.toLowerCase())
   const text = typeof value === 'number' ? String(value) : value.trim()
@@ -185,12 +225,23 @@ function tokenOf(path: string[], value: string | number): FoundationToken {
 /**
  * The tokens of a plain theme object, one per string or number, named by its
  * dotted path (`colors.ink`, arrays by index) and grouped by its value, then
- * its path. A `light-dark()` value is read as light and dark.
+ * its path. A `light-dark()` value is read as light and dark. A type style,
+ * such as `typography.title` with its `fontSize` and `lineHeight`, is one
+ * token with its parts.
  */
 export function objectThemeTokens(theme: object): ObjectThemeTokens {
   const result: ObjectThemeTokens = { tokens: [], truncated: false }
   // The objects on the current path, so a cycle stops while a shared object is read at every path.
   const ancestors = new WeakSet<object>()
+
+  const add = (token: FoundationToken): void => {
+    if (result.tokens.length === MAX_TOKENS) {
+      result.truncated = true
+      return
+    }
+
+    result.tokens.push(token)
+  }
 
   const visit = (value: unknown, path: string[]): void => {
     if (result.truncated) {
@@ -198,12 +249,7 @@ export function objectThemeTokens(theme: object): ObjectThemeTokens {
     }
 
     if (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value))) {
-      if (result.tokens.length === MAX_TOKENS) {
-        result.truncated = true
-        return
-      }
-
-      result.tokens.push(tokenOf(path, value))
+      add(tokenOf(path, value))
       return
     }
 
@@ -213,10 +259,19 @@ export function objectThemeTokens(theme: object): ObjectThemeTokens {
       return
     }
 
+    const style = isPlainObject(value) ? typeStyleToken(path, value) : null
+
+    if (style) {
+      add(style)
+    }
+
     ancestors.add(value)
 
     for (const [key, child] of Object.entries(value)) {
-      visit(child, [...path, key])
+      // The style's token holds its parts. Its other keys, such as nested variants, are read.
+      if (style?.parts?.[key] === undefined) {
+        visit(child, [...path, key])
+      }
     }
 
     ancestors.delete(value)

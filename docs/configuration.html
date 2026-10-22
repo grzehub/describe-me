@@ -367,8 +367,10 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                   <code>'src/theme.ts'</code> reads its export <code>theme</code>, else
                   <code>default</code>, and <code>'src/theme.ts#name'</code> reads
                   <code>name</code>. A <code>light-dark()</code> value is read as light and dark. A
-                  Material UI theme module also marks the tokens that equal Material UI's defaults.
-                  A project that uses Material UI without <code>theme</code> still gets
+                  <a href="foundations.html#type-styles">type style</a> of a plain object, such as
+                  <code>typography.title</code>, is one token with its parts. A Material UI theme
+                  module also marks the tokens that equal Material UI's defaults. A project that
+                  uses Material UI without <code>theme</code> still gets
                   <code>foundations.json</code>, so Foundations can say what to set.
                   <code>false</code> switches it off (<a
                     href="how-it-works.html#manifest-foundations"

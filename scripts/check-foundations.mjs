@@ -2,9 +2,9 @@
  * Checks the design-system foundations that the reporter writes to
  * `foundations.json`, on the built packages. Unit cases cover the
  * `foundations` option, the scan for root custom properties (with a 1 MB
- * adversarial input), `light-dark()` splitting, the plain-object adapter,
- * `manifestDiagnostics`, and `muiDefaultOptions` with the real `createTheme()`
- * of examples/mui. `collectFoundations` runs on temp roots with an injected
+ * adversarial input), `light-dark()` splitting, the plain-object adapter with
+ * its type styles, `manifestDiagnostics`, and `muiDefaultOptions` with the
+ * real `createTheme()` of examples/mui. `collectFoundations` runs on temp roots with an injected
  * module import: a missing theme file, a module without the export, a
  * throwing import whose message names the temp root, Tailwind 4 without
  * `@tailwindcss/node`, and a `@mui/material/styles` that throws on import,
@@ -35,9 +35,10 @@
  * of every output, the `default` badges of Material UI per section under both
  * backgrounds, the WCAG contrast of pair tiles, the token filter and `/`, and
  * synthetic copies: a Chakra UI project, a project whose type styles are
- * custom properties named `--<style>-<part>`, a Material UI project without a
- * theme module, which shows the setup hint, MUI's output without its theme
- * module, and the classic MUI output with a default dark primary. It prints how long
+ * custom properties named `--<style>-<part>`, a project whose plain theme
+ * module holds type styles, a Material UI project without a theme module,
+ * which shows the setup hint, MUI's output without its theme module, and the
+ * classic MUI output with a default dark primary. It prints how long
  * collecting took per output. Run after `pnpm build` and every example's
  * tests. Exits 1 on any failure.
  *
@@ -497,6 +498,102 @@ async function checkObjectAdapter() {
         source: 'theme',
       },
     ]),
+  )
+
+  await check(
+    'the object adapter makes one typography token of a style object, with px for a numeric size and letter spacing, and reads its other keys',
+    () =>
+      same(
+        objectThemeTokens({
+          typography: {
+            title: {
+              fontFamily: 'Inter, sans-serif',
+              fontSize: 32,
+              fontWeight: 600,
+              lineHeight: 1.25,
+              letterSpacing: -0.5,
+              textTransform: 'uppercase',
+              color: '#111',
+            },
+            caption: { fontSize: '12px' },
+          },
+        }).tokens,
+        [
+          {
+            name: 'typography.title',
+            group: 'typography',
+            type: 'typography',
+            value: '32px',
+            origin: 'project',
+            source: 'theme',
+            parts: {
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '32px',
+              fontWeight: '600',
+              lineHeight: '1.25',
+              letterSpacing: '-0.5px',
+              textTransform: 'uppercase',
+            },
+          },
+          {
+            name: 'typography.title.color',
+            group: 'colors',
+            type: 'color',
+            value: '#111',
+            origin: 'project',
+            source: 'theme',
+          },
+          {
+            name: 'typography.caption.fontSize',
+            group: 'typography',
+            type: 'dimension',
+            value: '12px',
+            origin: 'project',
+            source: 'theme',
+          },
+        ],
+      ),
+  )
+
+  await check(
+    'the object adapter reads a base style and the styles nested in it, but no scale of sizes',
+    () =>
+      same(
+        objectThemeTokens({
+          typography: {
+            fontFamily: 'Lora',
+            fontSize: 14,
+            h1: { fontSize: '2rem', fontWeight: 300 },
+          },
+          text: { fontSize: { sm: '14px' }, lineHeight: 1.5 },
+        }).tokens.map((token) => [token.name, token.type]),
+        [
+          ['typography', 'typography'],
+          ['typography.h1', 'typography'],
+          ['text.fontSize.sm', 'dimension'],
+          ['text.lineHeight', 'number'],
+        ],
+      ),
+  )
+
+  await check('the object adapter reads a weight or a line height written as a string', () =>
+    same(
+      classified(
+        objectThemeTokens({
+          fontWeights: { regular: '400', bold: 'bold' },
+          lineHeights: { tight: '1.25' },
+          zIndex: { modal: '1300' },
+          labels: { bold: 'bold' },
+        }).tokens,
+      ),
+      {
+        'fontWeights.regular': 'typography/fontWeight',
+        'fontWeights.bold': 'typography/fontWeight',
+        'lineHeights.tight': 'typography/number',
+        'zIndex.modal': 'other/number',
+        'labels.bold': 'other',
+      },
+    ),
   )
 
   await check('the object adapter reads a shared object at every path', () =>
