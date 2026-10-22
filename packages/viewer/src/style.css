@@ -477,7 +477,11 @@ a {
   scroll-padding-top: 58px;
 }
 
-/* Straddles the sidebar's border. Its line covers that border, so only the border shows at rest. */
+/*
+ * Straddles the sidebar's border, wider than it for the pointer. Its line is
+ * that border, so only the border shows at rest and no pixel of the stage
+ * changes on hover.
+ */
 .sidebar-handle {
   grid-column: 2;
   position: relative;
@@ -492,7 +496,7 @@ a {
   position: absolute;
   inset-block: 0;
   left: 3px;
-  width: 2px;
+  width: 1px;
   background: transparent;
   transition: background-color 0.12s;
 }
