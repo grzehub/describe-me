@@ -3123,6 +3123,98 @@ async function largestChannelDelta([first, second]) {
   return largest
 }
 
+/**
+ * Where two PNG screenshots of the stage, given in base64, differ by more than
+ * `noise` in a channel: the box of those pixels, how many there are, and the
+ * colors at the one that changed most. Read in the page, for a problem's message.
+ */
+async function changedPixels([first, second, noise]) {
+  async function pixels(base64) {
+    const response = await fetch(`data:image/png;base64,${base64}`)
+    const bitmap = await createImageBitmap(await response.blob(), {
+      colorSpaceConversion: 'none',
+      premultiplyAlpha: 'none',
+    })
+
+    const context = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')
+
+    context.drawImage(bitmap, 0, 0)
+
+    return context.getImageData(0, 0, bitmap.width, bitmap.height)
+  }
+
+  const [one, two] = await Promise.all([pixels(first), pixels(second)])
+  const box = { left: Infinity, top: Infinity, right: -1, bottom: -1 }
+  let count = 0
+  let most = { delta: 0, at: null }
+
+  for (let i = 0; i < one.data.length; i += 4) {
+    const delta = Math.max(
+      ...[0, 1, 2].map((channel) => Math.abs(one.data[i + channel] - two.data[i + channel])),
+    )
+
+    if (delta <= noise) {
+      continue
+    }
+
+    const left = (i / 4) % one.width
+    const top = Math.floor(i / 4 / one.width)
+
+    count += 1
+    box.left = Math.min(box.left, left)
+    box.top = Math.min(box.top, top)
+    box.right = Math.max(box.right, left)
+    box.bottom = Math.max(box.bottom, top)
+
+    if (delta > most.delta) {
+      most = { delta, at: [left, top] }
+    }
+  }
+
+  const colorAt = (image, [left, top]) => {
+    const start = (top * image.width + left) * 4
+
+    return `rgb(${[...image.data.slice(start, start + 3)].join(', ')})`
+  }
+
+  return {
+    box: [box.left, box.top, box.right, box.bottom],
+    count,
+    at: most.at,
+    before: most.at && colorAt(one, most.at),
+    after: most.at && colorAt(two, most.at),
+  }
+}
+
+/**
+ * What lies at a point of the stage's screenshot: the viewer's elements there,
+ * the frame's under its iframe, and what has the pointer and the focus.
+ */
+function elementsAt([left, top]) {
+  const stage = document.querySelector('.stage').getBoundingClientRect()
+  const pageLeft = stage.left + left + 0.5
+  const pageTop = stage.top + top + 0.5
+  const nameOf = (element) => {
+    const classes = typeof element.className === 'string' ? element.className.trim() : ''
+
+    return `${element.tagName.toLowerCase()}${classes ? `.${classes.split(/\s+/).join('.')}` : ''}`
+  }
+
+  const stack = document.elementsFromPoint(pageLeft, pageTop)
+  const iframe = stack.find((element) => element.tagName === 'IFRAME')
+  const frameBox = iframe?.getBoundingClientRect()
+  const frame = iframe?.contentDocument
+    ? iframe.contentDocument.elementsFromPoint(pageLeft - frameBox.left, pageTop - frameBox.top)
+    : []
+
+  return {
+    viewer: stack.slice(0, 5).map(nameOf),
+    frame: frame.slice(0, 5).map(nameOf),
+    hover: [...document.querySelectorAll(':hover')].slice(-3).map(nameOf),
+    focus: document.activeElement ? nameOf(document.activeElement) : null,
+  }
+}
+
 // How many times settledShot() looks again before it takes what it has.
 const SETTLE_SHOTS = 10
 
@@ -3201,7 +3293,10 @@ async function fixedBackgroundSteps(page, selector) {
     }
 
     if (delta > COMPOSITING_NOISE) {
-      return `with ${value} the dark theme changed the pixels of the stage, by up to ${delta} in a channel`
+      const changed = await page.evaluate(changedPixels, [...shots, COMPOSITING_NOISE])
+      const under = changed.at ? await page.evaluate(elementsAt, changed.at) : null
+
+      return `with ${value} the dark theme changed the pixels of the stage, by up to ${delta} in a channel: ${JSON.stringify({ ...changed, under })}`
     }
 
     await pickTheme(page, 'system')
