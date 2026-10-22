@@ -3,12 +3,14 @@ import { filterActive } from './filter-active.js'
 import { FoundationsFilter } from './foundations-filter.js'
 import { foundationsShown } from './foundations-shown.js'
 import { liveShown } from './live-shown.js'
+import type { SidePanel } from './panel-choice.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
 import { testsInScope } from './scope.js'
 import { sidebarOrder } from './sidebar-order.js'
 import { currentTest, select, state, writeHash } from './state.js'
 import { toggleLive } from './toggle-live.js'
+import { togglePanel } from './toggle-panel.js'
 import { visibleTests } from './visible-tests.js'
 
 /** In the overview, ↑ ↓ jump into the scope: the first or the last test it holds. */
@@ -78,6 +80,29 @@ function isLiveKey(event: KeyboardEvent): boolean {
 }
 
 /**
+ * `[` for the sidebar and `]` for the inspector, not held down. Ctrl and Meta
+ * leave the key to the browser, except Ctrl as part of AltGr, which some
+ * layouts need for a bracket, and so does Alt (Option) on a Mac.
+ */
+function panelKey(event: KeyboardEvent): SidePanel | null {
+  const ctrl = event.ctrlKey && !event.getModifierState('AltGraph')
+
+  if (ctrl || event.metaKey || event.repeat) {
+    return null
+  }
+
+  if (event.key === '[') {
+    return 'sidebar'
+  }
+
+  if (event.key === ']') {
+    return 'inspector'
+  }
+
+  return null
+}
+
+/**
  * While Live shows, ← → leave it and show the frame as it was. Otherwise they
  * step, and a test still waiting for the preview stays out of Live.
  */
@@ -100,7 +125,10 @@ function onFrameKey(test: ManifestTest, step: 1 | -1): void {
   rerender('frame')
 }
 
-/** The token filter while Foundations is shown, the sidebar search otherwise. */
+/**
+ * The token filter while Foundations is shown, the sidebar search otherwise,
+ * which shows a hidden sidebar.
+ */
 function focusSearch(): void {
   const filter = foundationsShown() ? FoundationsFilter.current : null
 
@@ -109,6 +137,8 @@ function focusSearch(): void {
     return
   }
 
+  togglePanel('sidebar', true)
+
   const { search } = regions()
   search.focus()
   search.select()
@@ -116,7 +146,8 @@ function focusSearch(): void {
 
 /**
  * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
- * toggles Live, `/` focuses the search. In Foundations only `/` works, and it
+ * toggles Live, `/` focuses the search, `[` and `]` hide or show the sidebar
+ * and the inspector. In Foundations only `/`, `[` and `]` work, and `/`
  * focuses the token filter.
  */
 export function onKey(event: KeyboardEvent): void {
@@ -131,6 +162,13 @@ export function onKey(event: KeyboardEvent): void {
 
   if (isSearchKey(event)) {
     focusSearch()
+    event.preventDefault()
+    return
+  }
+
+  const panel = panelKey(event)
+  if (panel) {
+    togglePanel(panel)
     event.preventDefault()
     return
   }

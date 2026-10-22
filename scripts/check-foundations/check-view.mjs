@@ -581,11 +581,17 @@ async function checkNarrow(check, label, url, browser) {
 
   try {
     await check(
-      `${label}: at 960 px the center is 344 px wide and neither the panel nor the frame overflows`,
+      `${label}: at 960 px the inspector starts hidden, and with it shown the center is 344 px wide and neither the panel nor the frame overflows`,
       async () => {
         await gotoViewer(medium, url, '#foundations=colors')
         await waitForFrame(medium.page, 'colors')
         await waitForFonts(medium.page)
+
+        const hidden = await medium.page.evaluate(
+          () => document.querySelector('.center').getBoundingClientRect().width,
+        )
+
+        await medium.page.keyboard.press(']')
 
         const box = await medium.page.evaluate(() => {
           const panel = document.querySelector('.foundations')
@@ -598,7 +604,7 @@ async function checkNarrow(check, label, url, browser) {
           }
         })
 
-        return same(box, { center: 344, panel: 0, frame: 0 })
+        return same({ hidden, ...box }, { hidden: 664, center: 344, panel: 0, frame: 0 })
       },
     )
   } finally {
@@ -610,6 +616,8 @@ async function checkNarrow(check, label, url, browser) {
   try {
     await check(`${label}: at 390 px the document is as wide as with a test view`, async () => {
       await gotoViewer(narrow, url)
+      // Both panels start hidden at this width, and the entry is in the sidebar.
+      await narrow.page.keyboard.press('[')
       const testView = await narrow.page.evaluate(() => document.documentElement.scrollWidth)
       await narrow.page.locator('.foundations-entry').click()
       await waitForFrame(narrow.page, 'colors')

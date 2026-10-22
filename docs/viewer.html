@@ -263,9 +263,11 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <strong>Stage.</strong> The test's path and the
             <a href="#viewport">viewport toolbar</a> with the <a href="#live">Live</a> toggle, the
-            sizes and the background swatches, above the replayed frame or the test in Live. A note
-            under a replayed frame names the fonts and stylesheets that did not load in your
-            browser, and says when the frame has only a light variant to show on the dark canvas.
+            sizes and the background swatches, above the replayed frame or the test in Live. A path
+            too long for the row gives up its <code>describe</code> blocks first, then ends the
+            test's name in an ellipsis, and its title shows it whole. A note under a replayed frame
+            names the fonts and stylesheets that did not load in your browser, and says when the
+            frame has only a light variant to show on the dark canvas.
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
@@ -285,6 +287,22 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           The <a href="examples/react-browser/#test=66477549da04&amp;frame=2">Counter increments</a>
           test in the browser-mode example has three frames. Step through them with
           <kbd>←</kbd> and <kbd>→</kbd>.
+        </p>
+
+        <h3 id="layout-panels">Hiding the panels</h3>
+        <p>
+          The first row of a test, an overview and Foundations starts and ends with a toggle. The
+          one on the left hides or shows the sidebar, the one on the right the inspector, and the
+          center takes the space. <kbd>[</kbd> and <kbd>]</kbd> do the same. A toggle looks pressed
+          while its panel shows. <kbd>/</kbd> and a click on a tag in the inspector show a hidden
+          sidebar, since both need it.
+        </p>
+        <p>
+          Until you toggle a panel, the window's width decides: below 1100 px the inspector starts
+          hidden, below 800 px the sidebar too, and a window that grows past those widths shows them
+          again. A panel you toggled stays as you left it. The browser keeps that per project, like
+          the sidebar's width. It is not part of the link. Without storage it lasts until you
+          reload.
         </p>
 
         <h3 id="layout-theme">Theme</h3>
@@ -394,6 +412,16 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 </td>
               </tr>
               <tr>
+                <td class="nowrap"><kbd>[</kbd> <kbd>]</kbd></td>
+                <td>anywhere</td>
+                <td>
+                  Hides or shows the sidebar and the inspector, as the
+                  <a href="#layout-panels">panel toggles</a> do. Not with <kbd>Ctrl</kbd> or
+                  <kbd>Meta</kbd> held, except as part of <kbd>AltGr</kbd>, which some keyboard
+                  layouts need for a bracket.
+                </td>
+              </tr>
+              <tr>
                 <td class="nowrap"><kbd>Esc</kbd></td>
                 <td>the search field</td>
                 <td>Clears the search and leaves the field.</td>
@@ -420,7 +448,8 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           and until the manifest has loaded. They are also off while the sidebar's edge has focus.
           While the frame of a test in Live has focus, keys go to the component, as
           <a href="#live">Live</a> explains. In <a href="foundations.html">Foundations</a>, only
-          <kbd>/</kbd> works, and it focuses the token filter when the page has one.
+          <kbd>/</kbd>, <kbd>[</kbd> and <kbd>]</kbd> work, and <kbd>/</kbd> focuses the token
+          filter when the page has one.
         </p>
 
         <h2 id="viewport">
