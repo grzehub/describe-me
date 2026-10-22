@@ -720,6 +720,17 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                   from this run. The <a href="#live-preview">live preview</a> loads the same file.
                 </td>
               </tr>
+              <tr id="manifest-project">
+                <td><code>project</code></td>
+                <td class="nowrap"><code>string</code></td>
+                <td class="nowrap">before 0.10</td>
+                <td>
+                  The name of the project: the <code>name</code> of the nearest
+                  <code>package.json</code> at or above the root, else the root directory's name.
+                  The viewer's header and tab title show it; without it the header shows the
+                  describe(me) wordmark.
+                </td>
+              </tr>
               <tr id="manifest-modules">
                 <td><code>modules</code></td>
                 <td class="nowrap"><code>ManifestModule[]</code></td>

@@ -6,8 +6,17 @@ function stat(count: number, label: string, tone?: 'pass' | 'fail'): HTMLElement
   return el('span', { class: tone ? `stat ${tone}` : 'stat' }, el('b', {}, String(count)), label)
 }
 
+/** The sygnet, which the stylesheet draws, and the project's name, or the wordmark when the manifest has none. */
+function brand(project: string | undefined): HTMLElement {
+  if (project !== undefined) {
+    return el('span', { class: 'wordmark' }, project)
+  }
+
+  return el('span', { class: 'wordmark' }, 'describe', el('span', { class: 'me' }, '(me)'))
+}
+
 /**
- * The header's children: wordmark, pass/fail counts, what could not be
+ * The header's children: the brand, pass/fail counts, what could not be
  * documented and the time of the last run.
  */
 export function renderHeader(): HTMLElement[] {
@@ -22,13 +31,7 @@ export function renderHeader(): HTMLElement[] {
     summary.append(stat(failed, 'failed', 'fail'))
   }
 
-  const wordmark = el(
-    'span',
-    { class: 'wordmark' },
-    'describe',
-    el('span', { class: 'me' }, '(me)'),
-  )
-
+  const wordmark = brand(manifest?.project)
   const when = manifest ? new Date(manifest.generatedAt).toLocaleTimeString() : '…'
   const issues = manifest ? renderDiagnosticsMenu(manifest) : null
   const updated = el(

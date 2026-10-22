@@ -807,6 +807,13 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
         </h2>
 
         <p>
+          The header opens with the sygnet and the name of the project, the <code>name</code> of the
+          nearest <code>package.json</code> at or above the Vitest root, else the root directory's
+          name. The tab's title carries it too, as <code>&lt;project&gt; · describe-me</code>, so
+          two viewers tell apart.
+        </p>
+
+        <p>
           The issues chip in the header counts what this run could not document: setup problems,
           anonymous components, components without props docs, missing assets, fonts that nothing
           loads and remote stylesheet hosts. It opens a list with links to the tests, with setup

@@ -32,6 +32,7 @@ import { isRecordedTest } from './is-recorded-test.js'
 import { printDiagnostics } from './print-diagnostics.js'
 import { ProjectPaths } from './project-paths.js'
 import { readGenerator } from './read-generator.js'
+import { readProjectName } from './read-project-name.js'
 import { RecordedSheets } from './recorded-sheets.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
@@ -132,6 +133,7 @@ export default class DescribeMeReporter implements Reporter {
   private readonly foundations: FoundationsOption
   private root = process.cwd()
   private configFile: string | undefined
+  private project: string | undefined
   private outDir = ''
   private paths!: ProjectPaths
   private snapshots!: SnapshotStore
@@ -162,6 +164,7 @@ export default class DescribeMeReporter implements Reporter {
     this.root = vitest.config.root
     // A script that calls the reporter directly passes no Vite server, so there is no file to name.
     this.configFile = this.relativeConfigFile(vitest.vite?.config.configFile)
+    this.project = readProjectName(this.root)
     this.outDir = resolve(this.root, this.outDirOption)
     this.paths = new ProjectPaths(this.root)
     this.snapshots = new SnapshotStore(this.outDir)
@@ -303,6 +306,7 @@ export default class DescribeMeReporter implements Reporter {
       root: this.root,
       // Always this run's, never the previous manifest's. `undefined` leaves it out of the JSON.
       configFile: this.configFile,
+      project: this.project,
       modules,
       components,
       assetsMissing,

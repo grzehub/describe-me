@@ -2,6 +2,7 @@ import { renderFoundationsInspector } from './foundations-inspector.js'
 import { foundationsShown } from './foundations-shown.js'
 import { showFoundations } from './foundations-view.js'
 import { renderHeader } from './header.js'
+import { pageTitle } from './page-title.js'
 import { renderMain } from './main-panel.js'
 import { renderOverview } from './overview.js'
 import { renderOverviewInspector } from './overview-inspector.js'
@@ -84,6 +85,7 @@ function showTest(center: HTMLElement): void {
 export function renderAll(): void {
   const { headerInfo, banner, center, inspector } = regions()
   headerInfo.replaceChildren(...renderHeader())
+  document.title = pageTitle(state.manifest)
 
   const text = versionBanner(state.manifest)
   banner.textContent = text ?? ''
