@@ -56,7 +56,15 @@ export function regions(): Regions {
   })
 
   const tree = el('div', { class: 'tree' })
-  const sidebar = el('aside', { class: 'sidebar' }, search, tagFilter, foundationsNav, tree)
+  const sidebar = el(
+    'aside',
+    { class: 'sidebar', id: 'sidebar' },
+    search,
+    tagFilter,
+    foundationsNav,
+    tree,
+  )
+
   // Outside the sidebar, which scrolls, so the handle stays put while the tree moves.
   const sidebarHandle = el('div', {
     class: 'sidebar-handle',
@@ -69,7 +77,7 @@ export function regions(): Regions {
   })
 
   const center = el('div', { class: 'center' })
-  const inspector = el('aside', { class: 'inspector' })
+  const inspector = el('aside', { class: 'inspector', id: 'inspector' })
   const columns = el('div', { class: 'body' }, sidebar, sidebarHandle, center, inspector)
 
   document.getElementById('app')!.replaceChildren(header, banner, columns)

@@ -1,4 +1,5 @@
 import { el } from './el.js'
+import { renderPanelToggle } from './panel-toggle.js'
 import { renderViewportControls } from './viewport-controls.js'
 
 export interface TestView {
@@ -20,8 +21,9 @@ export interface TestView {
 let built: TestView | null = null
 
 /**
- * The column that shows one test: crumbs and toolbar, the replay stage, a note
- * on the frame and the frame timeline. Built once, then filled in place.
+ * The column that shows one test: the panel toggles around the crumbs and the
+ * toolbar, the replay stage, a note on the frame and the frame timeline. Built
+ * once, then filled in place.
  */
 export function testView(): TestView {
   if (built) {
@@ -33,7 +35,15 @@ export function testView(): TestView {
   const stage = el('div', { class: 'stage' }, frames)
   const note = el('div', { class: 'stage-note', role: 'status', hidden: true })
   const timeline = el('div', { class: 'timeline' })
-  const crumbs = el('div', { class: 'crumbs' }, path, renderViewportControls())
+  const crumbs = el(
+    'div',
+    { class: 'crumbs' },
+    renderPanelToggle('sidebar'),
+    path,
+    renderViewportControls(),
+    renderPanelToggle('inspector'),
+  )
+
   const main = el('main', { class: 'main' }, crumbs, stage, note, timeline)
 
   built = { main, path, stage, frames, note, timeline }

@@ -10,6 +10,7 @@ import { foundationsModelOf } from './foundations-model-of.js'
 import { foundationsRetry } from './foundations-retry.js'
 import type { FoundationsLoad } from './load-foundations.js'
 import { loadFoundations } from './load-foundations.js'
+import { renderPanelToggle } from './panel-toggle.js'
 import type { StageBackground } from './parse-stage-background.js'
 import { sectionMatches } from './section-matches.js'
 import { buildSpecimenFrame } from './specimen-frame.js'
@@ -214,8 +215,10 @@ function buildPanel(generatedAt: string, load: FoundationsLoad): Panel {
   const head = el(
     'div',
     { class: 'overview-head foundations-head' },
+    renderPanelToggle('sidebar'),
     el('h1', {}, 'Foundations'),
     el('div', { class: 'overview-meta' }, metaText(load)),
+    renderPanelToggle('inspector'),
   )
 
   // Without the filter on the page, `/` falls back to the sidebar search.

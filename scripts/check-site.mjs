@@ -39,7 +39,10 @@
  * with `live=1&frame=1` opens Live. The sidebar's edge sets its width with ← →
  * and by dragging, a double-click sets it back, frames ignore the pointer
  * during a drag and the stage refits after it, and each viewer keeps its own
- * width after a reload. The viewer's theme switch sets the chrome's colors and
+ * width after a reload. The panel toggles of a test and of an overview, and
+ * `[` `]`, hide and show the sidebar and the inspector, react-browser keeps
+ * that after a reload, `/` shows the sidebar, and a narrow window starts with
+ * them hidden until it widens. The viewer's theme switch sets the chrome's colors and
  * survives a reload, the stored theme is set before `<body>`, a repaint keeps a
  * focused theme button focused and the switch works without storage until a
  * reload. Under `auto` the theme, and a change of the system's scheme under
@@ -2795,6 +2798,217 @@ async function checkSidebarWidth(browser, url) {
   }
 }
 
+/** What the panels show: each panel, the center's width and the toggles of the view on screen. */
+function panelLayout(page) {
+  return page.evaluate(() => {
+    const shown = (selector) => !document.querySelector(selector).hidden
+    const toggles = [...document.querySelectorAll('.panel-toggle button')].filter(
+      (button) => button.offsetParent !== null,
+    )
+
+    return {
+      sidebar: shown('.sidebar'),
+      handle: shown('.sidebar-handle'),
+      inspector: shown('.inspector'),
+      center: Math.round(document.querySelector('.center').getBoundingClientRect().width),
+      toggles: toggles.map(
+        (button) => `${button.dataset.panel}=${button.getAttribute('aria-expanded')}`,
+      ),
+    }
+  })
+}
+
+/** Whether the panels settle as `expected` says, with both toggles of the view in step. */
+async function showsPanels(page, step, expected) {
+  const want = {
+    sidebar: expected.sidebar,
+    handle: expected.sidebar,
+    inspector: expected.inspector,
+    center: expected.center,
+    toggles: [`sidebar=${expected.sidebar}`, `inspector=${expected.inspector}`],
+  }
+
+  const deadline = Date.now() + SIDEBAR_TIMEOUT
+  let shown = null
+
+  while (Date.now() < deadline) {
+    shown = await panelLayout(page)
+
+    if (JSON.stringify(shown) === JSON.stringify(want)) {
+      return null
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+
+  return `${step}: ${JSON.stringify(shown)}, expected ${JSON.stringify(want)}`
+}
+
+/** Each step acts, then the panels must settle as it expects. Returns the first problem or `null`. */
+async function panelSteps(page, steps) {
+  for (const { step, act, expected } of steps) {
+    await act()
+
+    const problem = await showsPanels(page, step, expected)
+
+    if (problem) {
+      return problem
+    }
+  }
+
+  return null
+}
+
+/** The toggles and keys in a test, then after a reload, then in an overview, at 1280 px. */
+async function panelToggleSteps(page, key) {
+  const both = 1280 - SIDEBAR.default - 320
+  const crumbsToggle = (panel) => page.locator(`.crumbs .panel-toggle [data-panel=${panel}]`)
+  const overviewToggle = (panel) =>
+    page.locator(`.overview-head .panel-toggle [data-panel=${panel}]`)
+
+  const hiding = await panelSteps(page, [
+    {
+      step: 'at the start',
+      act: async () => {},
+      expected: { sidebar: true, inspector: true, center: both },
+    },
+    {
+      step: 'after the sidebar toggle',
+      act: () => crumbsToggle('sidebar').click(),
+      expected: { sidebar: false, inspector: true, center: 960 },
+    },
+    {
+      step: 'after ]',
+      act: () => page.keyboard.press(']'),
+      expected: { sidebar: false, inspector: false, center: 1280 },
+    },
+  ])
+
+  if (hiding) {
+    return hiding
+  }
+
+  const stored = await page.evaluate((name) => localStorage.getItem(name), key)
+
+  if (stored !== '{"sidebar":false,"inspector":false}') {
+    return `${key} holds ${stored}, expected {"sidebar":false,"inspector":false}`
+  }
+
+  await page.reload()
+  await page.locator('.crumbs').waitFor({ timeout: VIEWER_TIMEOUT })
+
+  const reloaded = await panelSteps(page, [
+    {
+      step: 'after a reload',
+      act: async () => {},
+      expected: { sidebar: false, inspector: false, center: 1280 },
+    },
+    {
+      step: 'after /',
+      act: () => page.keyboard.press('/'),
+      expected: { sidebar: true, inspector: false, center: 1280 - SIDEBAR.default },
+    },
+  ])
+
+  if (reloaded) {
+    return reloaded
+  }
+
+  const focused = await page.evaluate(() => document.activeElement?.className)
+
+  if (focused !== 'sidebar-search') {
+    return `after / the focus is on ${focused}, expected the search`
+  }
+
+  await page.locator('.module-button').first().click()
+  await page.locator('.overview-head').waitFor({ timeout: VIEWER_TIMEOUT })
+
+  return panelSteps(page, [
+    {
+      step: 'after the inspector toggle of an overview',
+      act: () => overviewToggle('inspector').click(),
+      expected: { sidebar: true, inspector: true, center: both },
+    },
+    {
+      step: 'after [ in an overview',
+      act: () => page.keyboard.press('['),
+      expected: { sidebar: false, inspector: true, center: 960 },
+    },
+  ])
+}
+
+/** A window that the reader never toggled panels in: 1000 and 700 px, then wider again. */
+async function panelWindowSteps(browser, url, test) {
+  const cases = [
+    { width: 1000, sidebar: true, inspector: false, center: 1000 - SIDEBAR.default },
+    { width: 700, sidebar: false, inspector: false, center: 700 },
+  ]
+
+  for (const { width, ...expected } of cases) {
+    const { context, page, failures } = await openLivePage(browser, url)
+
+    try {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto(test)
+      await page.locator('.crumbs').waitFor({ timeout: VIEWER_TIMEOUT })
+
+      let problem = await showsPanels(page, `at ${width} px`, expected)
+
+      if (!problem && width === 700) {
+        await page.setViewportSize({ width: 1280, height: 800 })
+        problem = await showsPanels(page, 'from 700 px widened to 1280 px', {
+          sidebar: true,
+          inspector: true,
+          center: 1280 - SIDEBAR.default - 320,
+        })
+      }
+
+      const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+      if (problems.length > 0) {
+        return problems.join('; ')
+      }
+    } finally {
+      await context.close()
+    }
+  }
+
+  return null
+}
+
+/** The panel toggles and `[` `]` in react-browser, and the window's defaults, in contexts of their own. */
+async function checkSidePanels(browser, url) {
+  const label = 'panels'
+  const { context, page, failures } = await openLivePage(browser, url)
+  const key = `describe-me:panels:${readSiteManifest('react-browser').root}`
+  const test = `${url}examples/react-browser/#test=${testIdOf('react-browser', 'Counter > increments')}&frame=1`
+
+  try {
+    await page.goto(test)
+    await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
+    await page.locator(RECORDED_IFRAME).waitFor({ state: 'visible', timeout: VIEWER_TIMEOUT })
+
+    const problem =
+      (await panelToggleSteps(page, key)) ?? (await panelWindowSteps(browser, url, test))
+
+    const problems = [problem, ...failures].filter((entry) => entry !== null)
+
+    if (problems.length > 0) {
+      return problems.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      'check-site: the panel toggles and [ ] hide and show the sidebar and the inspector in a test and in an overview of examples/react-browser/, keep that after a reload, / shows the sidebar, and a window of 1000 px starts without the inspector, one of 700 px without either and widened to 1280 px shows both',
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: ${errorMessage(error)}`, ...failures.map((entry) => `${label}: ${entry}`)]
+  } finally {
+    await context.close()
+  }
+}
+
 /** What each viewer theme shows. Under `system` the background depends on the machine. */
 const THEMES = {
   system: { attribute: null, scheme: 'light dark', stored: null },
@@ -3397,6 +3611,7 @@ try {
 
   problems.push(...(await checkLiveLoadingReducedMotion(browser, url)))
   problems.push(...(await checkSidebarWidth(browser, url)))
+  problems.push(...(await checkSidePanels(browser, url)))
 
   for (const name of exampleNames) {
     problems.push(...(await checkViewerTheme(browser, url, name)))
@@ -3418,5 +3633,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project and let the viewer theme pick the stage only under auto`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, hide and show the side panels and let the viewer theme pick the stage only under auto`,
 )

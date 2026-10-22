@@ -81,7 +81,11 @@ export async function openViewer(browser, url, options = {}) {
 /** Load the viewer at `hash` and wait for its sidebar. */
 export async function gotoViewer(viewer, url, hash = '') {
   await viewer.page.goto(`${url}${hash}`)
-  await viewer.page.locator('.tree .test').first().waitFor({ timeout: VIEW_TIMEOUT })
+  // Attached, not visible: on a narrow window the sidebar starts hidden.
+  await viewer.page
+    .locator('.tree .test')
+    .first()
+    .waitFor({ state: 'attached', timeout: VIEW_TIMEOUT })
 }
 
 /** Change the link as a user would, which the viewer reads on `hashchange`. */

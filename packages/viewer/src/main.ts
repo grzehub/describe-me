@@ -10,6 +10,7 @@ import { renderAll } from './render-all.js'
 import { renderFrame } from './render-frame.js'
 import { setRerender } from './rerender.js'
 import { wireSearchField } from './search-field.js'
+import { showPanels } from './show-panels.js'
 import { wireSidebarHandle } from './sidebar-handle.js'
 import { stateHash } from './state-hash.js'
 import { readHash, state } from './state.js'
@@ -49,6 +50,9 @@ listenToLive()
 watchViewerTheme()
 wireSearchField(regions().search)
 wireSidebarHandle(regions().sidebarHandle)
+// A panel the reader never toggled follows the window's width.
+window.addEventListener('resize', () => showPanels())
+showPanels()
 
 loadManifest().catch((err) => {
   const { headerInfo, center } = regions()

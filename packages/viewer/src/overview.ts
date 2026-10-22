@@ -1,6 +1,7 @@
 import type { ComponentDoc, ManifestTest } from '@describe-me/core/types'
 import { computeCoverage } from './coverage.js'
 import { el } from './el.js'
+import { renderPanelToggle } from './panel-toggle.js'
 import { renderPropsTable } from './props-table.js'
 import { componentNamesInScope } from './scope-components.js'
 import { renderStatesGallery } from './states-gallery.js'
@@ -25,8 +26,10 @@ function renderHead(key: string, tests: ManifestTest[], docs: Record<string, Com
   return el(
     'div',
     { class: 'overview-head' },
+    renderPanelToggle('sidebar'),
     el('h1', {}, titleOf(key)),
     el('div', { class: 'overview-meta' }, parts.join(' · ')),
+    renderPanelToggle('inspector'),
   )
 }
 

@@ -10,12 +10,14 @@ export function renderMain(): void {
   const { path, timeline } = testView()
 
   path.replaceChildren()
+  path.title = test ? [...test.path, test.name].join(' › ') : ''
   if (test) {
+    const parents = el('span', { class: 'parents' })
     for (const part of test.path) {
-      path.append(el('span', {}, part), el('span', { class: 'sep' }, '›'))
+      parents.append(el('span', {}, part), el('span', { class: 'sep' }, '›'))
     }
 
-    path.append(el('span', { class: 'cur' }, test.name))
+    path.append(parents, el('span', { class: 'cur' }, test.name))
   }
 
   timeline.replaceChildren()

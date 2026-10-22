@@ -2,8 +2,12 @@ import type { ManifestTest } from '@describe-me/core/types'
 import { el } from './el.js'
 import { shownTags } from './shown-tags.js'
 import { filterByTag, state } from './state.js'
+import { togglePanel } from './toggle-panel.js'
 
-/** The test's tags in the inspector. One narrows the sidebar to its tests, and again shows all. */
+/**
+ * The test's tags in the inspector. One narrows the sidebar to its tests, and
+ * shows a hidden sidebar, and again shows all.
+ */
 export function tagButtons(test: ManifestTest): HTMLElement | null {
   const tags = shownTags(test)
 
@@ -20,7 +24,13 @@ export function tagButtons(test: ManifestTest): HTMLElement | null {
         class: `tag${active ? ' active' : ''}`,
         'aria-pressed': String(active),
         title: active ? 'show every test' : `show only the tests tagged ${tag}`,
-        click: () => filterByTag(active ? null : tag),
+        click: () => {
+          if (!active) {
+            togglePanel('sidebar', true)
+          }
+
+          filterByTag(active ? null : tag)
+        },
       },
       tag,
     )

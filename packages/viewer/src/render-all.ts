@@ -9,6 +9,7 @@ import { renderOverviewInspector } from './overview-inspector.js'
 import { regions } from './regions.js'
 import { renderFrame } from './render-frame.js'
 import { renderTree } from './render-tree.js'
+import { showPanels } from './show-panels.js'
 import { showSidebarWidth } from './show-sidebar-width.js'
 import { state } from './state.js'
 import { testView } from './test-view.js'
@@ -101,4 +102,7 @@ export function renderAll(): void {
   } else {
     showTest(center)
   }
+
+  // Last, so the toggles of a view mounted above, or mounted again from a cache, are in step.
+  showPanels()
 }
