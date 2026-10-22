@@ -1,5 +1,13 @@
 # @describe-me/react
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [[`71a008c`](https://github.com/grzehub/describe-me/commit/71a008ca85bd06eecaf576674fbaccd18ff601ca), [`73474c5`](https://github.com/grzehub/describe-me/commit/73474c59dc261149d908e324b0641bf3070c0542)]:
+  - @describe-me/vitest@0.10.0
+  - @describe-me/core@0.10.0
+
 ## 0.9.0
 
 ### Patch Changes
