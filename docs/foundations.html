@@ -222,10 +222,11 @@
               <tr>
                 <td>Typography</td>
                 <td>
-                  a sample line in the family, the weight or the size with its line height, in the
-                  whole style of a composite typography token, or in a <code>font</code> shorthand.
-                  Weights, tracking and leading paint their sample in the theme's sans font, and the
-                  leading sample wraps over at least two lines
+                  a sample line in the family, the weight, the size with its line height, the line
+                  height or the letter spacing, in the whole style of a composite typography token,
+                  or in a <code>font</code> shorthand. A line height's sample wraps over at least
+                  two lines. The Tailwind theme's weights, tracking and leading paint their sample
+                  in the theme's sans font
                 </td>
               </tr>
               <tr>
@@ -270,9 +271,10 @@
           The field in the toolbar filters the tokens by name and value. Every word must occur, in
           any case, in a token's name or in its raw light or dark value. So <code>brand</code> finds
           <code>--color-brand-500</code>, and <code>0.7 0.18 285</code> finds the tokens whose name
-          or values hold all three. A pair shows whole when either of its tokens matches. While the
-          field holds text, each section button counts its matches, and a section without one shows
-          <code>no token matches</code>.
+          or values hold all three. A pair shows whole when either of its tokens matches, and a
+          <a href="#type-styles">type style</a> when the name of one of its custom properties does.
+          While the field holds text, each section button counts its matches, and a section without
+          one shows <code>no token matches</code>.
         </p>
         <p>
           <kbd>/</kbd> focuses the field while Foundations is open. <kbd>Esc</kbd> clears it and
@@ -510,6 +512,30 @@
           The tokens of a plain theme module group by their parent path, so
           <code>colors.ink</code> shows in a block <code>Colors</code>, <code>colors.*</code>, as in
           the <a href="examples/react-jsdom/#foundations=colors">jsdom example</a>.
+        </p>
+
+        <h3 id="type-styles">Type styles</h3>
+        <p>
+          A custom property whose name holds <code>font-family</code>, <code>font-weight</code>,
+          <code>font-size</code>, <code>line-height</code> or <code>letter-spacing</code> shows in
+          Typography with a sample of that part. The part may sit anywhere in the name and be
+          written in camelCase, in the plural or as one word, as in <code>--font-size-lg</code>,
+          <code>--heading-fontSize</code>, <code>--chakra-font-sizes-md</code> or
+          <code>--font-lineheight-1</code>. It wins over the Tailwind prefixes, so
+          <code>--font-size-lg</code> is a size and not a font family.
+        </p>
+        <p>
+          Custom properties that end in a part and share the name before it form one type style, as
+          Style Dictionary and Tokens Studio write them. <code>--type-title-font-size</code>,
+          <code>--type-title-line-height</code> and <code>--type-title-font-weight</code> show as
+          one token, <code>--type-title-*</code>: a sample line in the whole style, the font size as
+          its value, and its parts under it. A style needs a font size and at least one other part,
+          so <code>--link-font-weight</code> and <code>--link-letter-spacing</code> stay two rows.
+          The sample paints through the custom properties, so the dark variant applies, and the
+          parts show their light values. Styles group by name prefix like any custom property, so
+          <code>--type-title-*</code> and <code>--type-body-*</code> form a block <code>Type</code>,
+          <code>--type-*</code>. Custom properties that a preset takes, such as
+          <code>--mui-*</code>, never form a style.
         </p>
 
         <h2 id="dark-variant">

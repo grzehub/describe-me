@@ -4,9 +4,10 @@
  * ids, readable titles, prefixes and counts, the `default` badge of Tailwind
  * and of Material UI per section and per background, pair tiles with their
  * WCAG contrast, the spacing scales, drop and text shadows, the token filter
- * and `/`, the Material UI setup hint, and the synthetic copies of
- * copies.mjs. The MUI output without its theme module has no specimen frame,
- * so check-view.mjs covers it. Every page opens through `openViewer()`.
+ * and `/`, the Material UI setup hint, the type styles composed from custom
+ * properties, and the synthetic copies of copies.mjs. The MUI output without
+ * its theme module has no specimen frame, so check-view.mjs covers it. Every
+ * page opens through `openViewer()`.
  */
 import {
   CHAKRA_COPY,
@@ -14,6 +15,7 @@ import {
   MUI_DEFAULT_DARK_PRIMARY,
   MUI_VARIABLES_ONLY,
   MUI_WITHOUT_THEME,
+  TYPE_STYLES_COPY,
 } from './copies.mjs'
 import {
   gotoViewer,
@@ -150,6 +152,33 @@ const CHAKRA_TITLES = [
   ['shadows', 'Chakra shadows'],
   ['motion', 'Chakra durations'],
 ]
+
+const TYPE_STYLES_BLOCKS = [
+  ['prefix-font', 'Font', '--font-*', 2],
+  ['prefix-type', 'Type', '--type-*', 3],
+  ['prefix-font-size', 'Font size', '--font-size-*', 2],
+  ['prefix-line-height', 'Line height', '--line-height-*', 2],
+  ['prefix-letter-spacing', 'Letter spacing', '--letter-spacing-*', 2],
+  ['custom-properties', 'Custom properties', null, 3],
+]
+
+/** The computed style of each token's sample in the copy, at the frame's 20px sample size and 15px paragraph size. */
+const TYPE_STYLES_SAMPLES = {
+  '--type-display-*': {
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    fontSize: '48px',
+    fontWeight: '700',
+    lineHeight: '52.8px',
+    letterSpacing: '-0.96px',
+  },
+  '--type-title-*': { fontSize: '32px', fontWeight: '600', lineHeight: '40px' },
+  '--type-body-*': { fontSize: '16px', lineHeight: '24px' },
+  '--heading-*': { fontSize: '24px', lineHeight: '32px' },
+  '--font-size-lg': { fontSize: '18px' },
+  '--line-height-tight': { lineHeight: '18.75px' },
+  '--letter-spacing-wide': { letterSpacing: '1px' },
+  '--link-font-weight': { fontWeight: '500' },
+}
 
 function same(actual, expected) {
   return {
@@ -1093,6 +1122,117 @@ async function checkChakra(check, page) {
   )
 }
 
+/** The named computed properties of each token's sample. */
+function sampleStyles(page, wanted) {
+  return page.evaluate((pins) => {
+    const doc = globalThis.specimenFrame().contentDocument
+    const tokens = Array.from(doc.querySelectorAll('[data-token]'))
+
+    return Object.fromEntries(
+      Object.entries(pins).map(([name, properties]) => {
+        const sample = tokens
+          .find((token) => token.dataset.token === name)
+          ?.querySelector('[data-specimen]')
+
+        if (!sample) {
+          return [name, null]
+        }
+
+        const style = doc.defaultView.getComputedStyle(sample)
+
+        return [name, Object.fromEntries(Object.keys(properties).map((key) => [key, style[key]]))]
+      }),
+    )
+  }, wanted)
+}
+
+function tokenTexts(page, name) {
+  return page.evaluate((wanted) => {
+    const token = Array.from(
+      globalThis.specimenFrame().contentDocument.querySelectorAll('[data-token]'),
+    ).find((candidate) => candidate.dataset.token === wanted)
+
+    return {
+      value: token?.querySelector('[data-value]')?.textContent ?? null,
+      parts: token?.querySelector('.fd-parts')?.textContent ?? null,
+    }
+  }, name)
+}
+
+async function checkTypeStyles(check, page) {
+  const label = TYPE_STYLES_COPY
+
+  await check(
+    `${label}: the entry reads custom properties and the sections Colors 1, Typography 14`,
+    async () =>
+      same(
+        { entry: await entryText(page), sections: await sectionButtons(page) },
+        {
+          entry: 'custom properties',
+          sections: [
+            ['Colors', 1],
+            ['Typography', 14],
+          ],
+        },
+      ),
+  )
+
+  await showSection(page, 'typography')
+  const blocks = await readBlocks(page)
+
+  await check(
+    `${label}: each --type-<style>-* is one composite token, part-first scales form blocks, and a stem without a font size stays two rows`,
+    () =>
+      same(
+        {
+          blocks: blocks.map(titled),
+          type: findBlock({ typography: blocks }, 'typography', 'prefix-type')?.names,
+          rest: findBlock({ typography: blocks }, 'typography', 'custom-properties')?.names,
+        },
+        {
+          blocks: TYPE_STYLES_BLOCKS,
+          type: ['--type-display-*', '--type-title-*', '--type-body-*'],
+          rest: ['--link-font-weight', '--link-letter-spacing', '--heading-*'],
+        },
+      ),
+  )
+
+  await check(
+    `${label}: a composite paints its whole style through its custom properties, and a size, a line height, a letter spacing and a weight each paint a sample`,
+    async () => same(await sampleStyles(page, TYPE_STYLES_SAMPLES), TYPE_STYLES_SAMPLES),
+  )
+
+  await check(
+    `${label}: --type-display-* lists its parts in order, and --type-body-* shows its resolved font size`,
+    async () =>
+      same(
+        {
+          display: (await tokenTexts(page, '--type-display-*')).parts,
+          body: (await tokenTexts(page, '--type-body-*')).value,
+        },
+        {
+          display:
+            'fontFamily var(--font-sans) · fontWeight 700 · fontSize 3rem · lineHeight 1.1 · letterSpacing -0.02em',
+          body: 'var(--font-size-md) → 1rem',
+        },
+      ),
+  )
+
+  await check(
+    `${label}: the filter finds --type-title-* by the name of a custom property it is made of`,
+    async () => {
+      const field = page.locator('.foundations .foundations-filter')
+      await field.fill('--type-title-font-size')
+      await waitForCount(page, 'typography', 1)
+      const shown = await shownTokens(page)
+      await field.press('Escape')
+      await waitForCount(page, 'typography', 14)
+
+      return same(shown, ['--type-title-*'])
+    },
+  )
+}
+
 async function checkPlain(check, label, page, expected) {
   await check(
     `${label}: Colors shows ${expected.map((block) => `${block[0]} ${block[3]}`).join(', ')}`,
@@ -1119,6 +1259,7 @@ const CASES = {
   [MUI_WITHOUT_THEME]: (check, page) => checkMuiWithoutTheme(check, page),
   [MUI_DEFAULT_DARK_PRIMARY]: (check, page) => checkDefaultDarkPrimary(check, page),
   [CHAKRA_COPY]: (check, page) => checkChakra(check, page),
+  [TYPE_STYLES_COPY]: (check, page) => checkTypeStyles(check, page),
   'react-jsdom': (check, page) =>
     checkPlain(check, 'react-jsdom', page, [
       ['theme-colors', 'Colors', 'colors.*', 3],
