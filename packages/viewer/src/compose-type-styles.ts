@@ -5,8 +5,8 @@ import { typographyPart } from './typography-part.js'
 /** In the order a style's row lists them, as Material UI's variants do. */
 const PART_ORDER: TypographyPartName[] = [
   'fontFamily',
-  'fontWeight',
   'fontSize',
+  'fontWeight',
   'lineHeight',
   'letterSpacing',
 ]

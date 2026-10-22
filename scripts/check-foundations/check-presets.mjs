@@ -1212,7 +1212,7 @@ async function checkTypeStyles(check, page) {
         },
         {
           display:
-            'fontFamily var(--font-sans) · fontWeight 700 · fontSize 3rem · lineHeight 1.1 · letterSpacing -0.02em',
+            'fontFamily var(--font-sans) · fontSize 3rem · fontWeight 700 · lineHeight 1.1 · letterSpacing -0.02em',
           body: 'var(--font-size-md) → 1rem',
         },
       ),
