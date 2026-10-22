@@ -4,18 +4,23 @@
  * `examples/` stays untouched: a Chakra UI project with custom properties
  * only, a project whose type styles are custom properties named
  * `--<style>-<part>`, as Style Dictionary and Tokens Studio write them, a
- * Material UI project without a theme module or `--mui-*`, the mui
- * output without its theme module, and the `MUI_CLASSIC=1` output with a
- * primary whose dark mode is Material UI's default.
+ * project whose plain theme module holds type styles, a Material UI project
+ * without a theme module or `--mui-*`, the mui output without its theme
+ * module, and the `MUI_CLASSIC=1` output with a primary whose dark mode is
+ * Material UI's default.
  */
 import { cpSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { objectThemeTokens } from '../../packages/vitest/dist/object-theme-tokens.js'
 
 /** A Chakra UI project, from react-browser's output. */
 export const CHAKRA_COPY = 'Chakra copy'
 
 /** A project without a design system whose type styles are custom properties, from react-browser's output. */
 export const TYPE_STYLES_COPY = 'Type styles copy'
+
+/** A project whose plain theme module holds type styles, from react-jsdom's output. */
+export const THEME_TYPE_STYLES_COPY = 'Theme type styles copy'
 
 /** A Material UI project with neither a theme module nor `--mui-*`, from the `MUI_CLASSIC=1` output. */
 export const MUI_WITHOUT_THEME = 'MUI without theme'
@@ -83,6 +88,34 @@ const TYPE_STYLES_ROOT = [
   ['--heading-fontSize', '1.5rem'],
   ['--heading-lineHeight', '2rem'],
 ]
+
+/**
+ * Three type styles, one in numbers, a style of one part, which stays a size,
+ * and weights and a line height written as strings.
+ */
+const TYPE_STYLES_THEME = {
+  colors: { brand: '#2b5cff' },
+  typography: {
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    display: {
+      fontFamily: 'ui-serif, Georgia, serif',
+      fontSize: 48,
+      fontWeight: 700,
+      lineHeight: 1.1,
+      letterSpacing: -1,
+    },
+    title: {
+      fontSize: '2rem',
+      fontWeight: '600',
+      lineHeight: '2.5rem',
+      textTransform: 'uppercase',
+    },
+    body: { fontSize: '1rem', lineHeight: '1.5' },
+    caption: { fontSize: '0.75rem' },
+    fontWeights: { regular: '400', bold: 'bold' },
+    lineHeights: { tight: '1.25' },
+  },
+}
 
 function rule(selector, declarations) {
   const body = declarations.map(([name, value]) => `  ${name}: ${value};`).join('\n')
@@ -158,6 +191,28 @@ export function writeTypeStylesCopy(source, dir) {
   )
 }
 
+/** The theme type styles copy of react-jsdom's output in `source`, written to `dir`, with the object adapter's tokens. */
+export function writeThemeTypeStylesCopy(source, dir) {
+  const { tokens } = objectThemeTokens(TYPE_STYLES_THEME)
+
+  copyWith(
+    source,
+    dir,
+    (foundations) => ({
+      version: 1,
+      systems: foundations.systems,
+      theme: { module: 'src/theme.ts', export: 'theme', adapter: 'object' },
+      tokenSheets: [],
+      fontSheets: [],
+      cssSources: [],
+      tokens,
+      errors: [],
+      duration: 0,
+    }),
+    (summary) => ({ ...summary, tokens: tokens.length }),
+  )
+}
+
 /** The `MUI_CLASSIC=1` output in `source` without its theme, with one custom property of its own. */
 export function writeMuiWithoutTheme(source, dir) {
   copyWith(
@@ -202,6 +257,7 @@ export function writeMuiDefaultDarkPrimary(source, dir) {
 export const COPIES = {
   [CHAKRA_COPY]: { from: 'react-browser', write: writeChakraCopy },
   [TYPE_STYLES_COPY]: { from: 'react-browser', write: writeTypeStylesCopy },
+  [THEME_TYPE_STYLES_COPY]: { from: 'react-jsdom', write: writeThemeTypeStylesCopy },
   [MUI_WITHOUT_THEME]: { from: 'mui, MUI_CLASSIC=1', write: writeMuiWithoutTheme },
   [MUI_VARIABLES_ONLY]: { from: 'mui', write: writeMuiVariablesOnly },
   [MUI_DEFAULT_DARK_PRIMARY]: { from: 'mui, MUI_CLASSIC=1', write: writeMuiDefaultDarkPrimary },
