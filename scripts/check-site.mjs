@@ -3670,7 +3670,10 @@ let browser = null
 let problems = [...scanned.problems]
 
 try {
-  browser = await launchChromium()
+  // Grayscale text. With LCD text, the edge of a glyph in a frame gets colored
+  // fringes or not depending on how Chromium composites the stage, which a
+  // theme switch can change, and a comparison of pixels would see that.
+  browser = await launchChromium({ args: ['--disable-lcd-text'] })
 
   // With the emulation off, as everywhere here, headless Chromium's scheme is light.
   const context = await browser.newContext({ colorScheme: null })

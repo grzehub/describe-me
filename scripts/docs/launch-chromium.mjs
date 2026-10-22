@@ -1,11 +1,14 @@
 import { loadPlaywright } from './load-playwright.mjs'
 
-/** A headless Chromium from Playwright, with the install command in the error when it is missing. */
-export async function launchChromium() {
+/**
+ * A headless Chromium from Playwright, with the install command in the error
+ * when it is missing. `args` go to Chromium as they are.
+ */
+export async function launchChromium({ args = [] } = {}) {
   const { chromium } = loadPlaywright()
 
   try {
-    return await chromium.launch()
+    return await chromium.launch({ args })
   } catch (error) {
     const reason = error instanceof Error ? error.message.split('\n')[0] : String(error)
 
