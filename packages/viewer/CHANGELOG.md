@@ -1,5 +1,25 @@
 # describe-me
 
+## 0.10.0
+
+### Minor Changes
+
+- [#112](https://github.com/grzehub/describe-me/pull/112) [`23ae356`](https://github.com/grzehub/describe-me/commit/23ae356b2e9b20792278482a7370e6ee82e9b700) Thanks [@grzehub](https://github.com/grzehub)! - The viewer can hide its sidebar and its inspector. The first row of a test, an overview and Foundations starts with a toggle for the sidebar and ends with one for the inspector, and `[` and `]` do the same. Until you toggle a panel, the window's width decides: below 1100 px the inspector starts hidden, below 800 px the sidebar too. A toggled panel stays as you left it, kept per project in `localStorage` like the sidebar's width. `/` and a tag in the inspector show a hidden sidebar.
+
+  A test's path too long for its row gives up its `describe` blocks first, then ends the test's name in an ellipsis, and its title shows it whole.
+
+- [#109](https://github.com/grzehub/describe-me/pull/109) [`71a008c`](https://github.com/grzehub/describe-me/commit/71a008ca85bd06eecaf576674fbaccd18ff601ca) Thanks [@grzehub](https://github.com/grzehub)! - `describe-me dev` serves the live preview through its own port, under `/__describe-me/`, so the viewer and Live share one address, and one forwarded port, in a container or a web IDE such as Codespaces or StackBlitz, reaches both. The live server still runs on a free port on localhost, now with `/__describe-me/` as its Vite `base`, so its modules and HMR socket sit under that path, and the CLI proxies every request and websocket under the path to it. `__live.json` says `ready` with the base `__describe-me/`, relative to the viewer, the way a static site says `__live/`. `createLiveServer()` in `@describe-me/vitest/live` returns `origin`, the server's `http://localhost:<port>`, next to `base`; a live server of an earlier version has none, and the viewer then opens its absolute base as before.
+
+- [#111](https://github.com/grzehub/describe-me/pull/111) [`73474c5`](https://github.com/grzehub/describe-me/commit/73474c59dc261149d908e324b0641bf3070c0542) Thanks [@grzehub](https://github.com/grzehub)! - The viewer's header shows the project's name after the sygnet, and the tab's title reads `<project> · describe-me`, so two viewers tell apart. The reporter writes the name to the manifest's new `project` field: the `name` of the nearest package.json at or above the Vitest root, else the root directory's name. A manifest without it, from an earlier version, keeps the `describe(me)` wordmark.
+
+### Patch Changes
+
+- [#106](https://github.com/grzehub/describe-me/pull/106) [`f1916c6`](https://github.com/grzehub/describe-me/commit/f1916c68548c280ee5edaf8464c148bb28fe0e64) Thanks [@grzehub](https://github.com/grzehub)! - The viewer's header carries the brand: the sygnet before the wordmark, which now reads `describe(me)`, and the same drawing as the favicon of the page.
+
+- [#113](https://github.com/grzehub/describe-me/pull/113) [`a9fffdc`](https://github.com/grzehub/describe-me/commit/a9fffdc68e233657b49311f7ee034c8b22cfcf96) Thanks [@grzehub](https://github.com/grzehub)! - The sidebar's edge lights up as a line as thin as its border, on that border, so a hovered or focused edge no longer paints over the stage.
+- Updated dependencies [[`73474c5`](https://github.com/grzehub/describe-me/commit/73474c59dc261149d908e324b0641bf3070c0542)]:
+  - @describe-me/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
