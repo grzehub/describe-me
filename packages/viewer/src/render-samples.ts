@@ -1,9 +1,6 @@
 import type { BlockLayout, FoundationItem } from './build-foundations-model.js'
 import type { SpecimenBuild } from './specimen-build.js'
-
-const LETTERS = 'Aa Bb Cc 0123'
-const PARAGRAPH =
-  'Leading sets the room between lines, so this sample runs over at least two of them.'
+import { typeSample } from './type-sample.js'
 
 /**
  * Rows for font weights, tracking or leading, each with a sample in that
@@ -30,9 +27,7 @@ export function renderSamples(
       styles['font-family'] = font
     }
 
-    const sample = build.painted('p', wraps ? 'fd-sample fd-paragraph' : 'fd-sample', styles)
-    sample.textContent = wraps ? PARAGRAPH : LETTERS
-    rows.append(build.showRow(item, sample))
+    rows.append(build.showRow(item, typeSample(build, styles, wraps)))
   }
 
   return rows

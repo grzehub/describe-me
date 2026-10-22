@@ -1,4 +1,6 @@
 import type { FoundationGroup, FoundationTokenType } from '@describe-me/core/types'
+import type { TypographyPartName } from './typography-part.js'
+import { typographyPart } from './typography-part.js'
 
 /** The section and type a custom property goes to. */
 export interface CustomPropertyClass {
@@ -79,11 +81,19 @@ const WORD_RULES: WordRule[] = [
   { group: 'spacing', words: ['spacing', 'space', 'gap'] },
 ]
 
+const PART_TYPES: Record<Exclude<TypographyPartName, 'lineHeight'>, FoundationTokenType> = {
+  fontFamily: 'fontFamily',
+  fontWeight: 'fontWeight',
+  fontSize: 'dimension',
+  letterSpacing: 'dimension',
+}
+
 const CSS_WIDE_KEYWORDS = ['inherit', 'initial', 'unset', 'revert', 'revert-layer']
 const MAX_DEPTH = 8
 /** Bounds the work on references that fan out at every level. */
 const MAX_SUBSTITUTIONS = 256
 const DURATION = /^-?(?:\d+(?:\.\d+)?|\.\d+)m?s$/i
+const NUMBER = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/
 const CAMEL_BOUNDARY = /([a-z0-9])([A-Z])/g
 
 /** The index of the `)` that closes the `(` at `open`, or -1. */
@@ -182,6 +192,21 @@ function isColor(value: string, others: ReadonlyMap<string, string>): boolean {
   return CSS.supports('color', resolved)
 }
 
+/** A line height is a `number` when it resolves to one, such as `1.5`, and a `dimension` otherwise. */
+function partType(
+  part: TypographyPartName,
+  value: string,
+  others: ReadonlyMap<string, string>,
+): FoundationTokenType {
+  if (part === 'lineHeight') {
+    const resolved = substitute(value.trim(), others, 0, { left: MAX_SUBSTITUTIONS })?.trim()
+
+    return resolved !== undefined && NUMBER.test(resolved) ? 'number' : 'dimension'
+  }
+
+  return PART_TYPES[part]
+}
+
 /** `--fontSize-lg` as `['font', 'size', 'lg']`. */
 function wordsOf(name: string): string[] {
   return name
@@ -208,8 +233,10 @@ function groupByWords(name: string): FoundationGroup | undefined {
 }
 
 /**
- * The section and type of a custom property, from its value, its name's
- * prefix or its words. `others` holds the light values of the other custom
+ * The section and type of a custom property, from its value, the typography
+ * part its name holds, its name's prefix or its words. The part wins over the
+ * prefix, so `--font-size-lg` is a size although Tailwind would read
+ * `--font-*` as a family. `others` holds the light values of the other custom
  * properties, which `var()` references resolve to.
  */
 export function classifyCustomProperty(
@@ -219,6 +246,12 @@ export function classifyCustomProperty(
 ): CustomPropertyClass {
   if (isColor(value, others)) {
     return { group: 'colors', type: 'color' }
+  }
+
+  const part = typographyPart(name)?.part
+
+  if (part) {
+    return { group: 'typography', type: partType(part, value, others) }
   }
 
   const rule = PREFIX_RULES.find((candidate) => name.startsWith(candidate.prefix))

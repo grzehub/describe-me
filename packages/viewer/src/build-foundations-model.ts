@@ -5,6 +5,7 @@ import type {
   FoundationTokenType,
 } from '@describe-me/core/types'
 import { classifyCustomProperty } from './classify-custom-property.js'
+import { composeTypeStyles } from './compose-type-styles.js'
 import type { DarkVariant } from './detect-dark-variant.js'
 import { detectDarkVariant } from './detect-dark-variant.js'
 import { FOUNDATION_SECTIONS } from './foundation-sections.js'
@@ -34,6 +35,8 @@ export interface FoundationItem {
   /** The value printed next to it. */
   raw: Schemed
   parts?: Record<string, string>
+  /** The custom property behind each part of a style composed from them, keyed like `parts`. */
+  members?: Record<string, string>
 }
 
 /** A background and its foreground, shown as one tile with their contrast. */
@@ -221,15 +224,19 @@ function muiSource(file: Foundations): 'theme' | 'property' | null {
   return file.systems.some((system) => system.id === 'mui') ? 'property' : null
 }
 
-/** Presets claim items in this order: Material UI, shadcn/ui, Tailwind, then the generic one. */
+/**
+ * Presets claim items in this order: Material UI, shadcn/ui, Tailwind, then
+ * the generic one, which gets what is left with its type styles composed.
+ */
 function presetBlocks(file: Foundations, placed: PlacedItem[]): SectionBlock[] {
   const source = muiSource(file)
   const mui = source ? muiBlocks(placed, source) : { blocks: [], rest: placed }
   const shadcnUsed = file.systems.some((system) => system.id === 'shadcn')
   const shadcn = shadcnUsed ? shadcnBlocks(mui.rest) : { blocks: [], rest: mui.rest }
   const tailwind = tailwindBlocks(shadcn.rest)
+  const generic = genericBlocks(composeTypeStyles(tailwind.rest))
 
-  return [...mui.blocks, ...shadcn.blocks, ...tailwind.blocks, ...genericBlocks(tailwind.rest)]
+  return [...mui.blocks, ...shadcn.blocks, ...tailwind.blocks, ...generic]
 }
 
 function sectionsOf(blocks: SectionBlock[]): FoundationSection[] {

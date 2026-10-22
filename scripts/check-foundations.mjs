@@ -34,9 +34,10 @@
  * variant. `check-foundations/check-presets.mjs` adds the design-system blocks
  * of every output, the `default` badges of Material UI per section under both
  * backgrounds, the WCAG contrast of pair tiles, the token filter and `/`, and
- * synthetic copies: a Chakra UI project, a Material UI project without a theme
- * module, which shows the setup hint, MUI's output without its theme module,
- * and the classic MUI output with a default dark primary. It prints how long
+ * synthetic copies: a Chakra UI project, a project whose type styles are
+ * custom properties named `--<style>-<part>`, a Material UI project without a
+ * theme module, which shows the setup hint, MUI's output without its theme
+ * module, and the classic MUI output with a default dark primary. It prints how long
  * collecting took per output. Run after `pnpm build` and every example's
  * tests. Exits 1 on any failure.
  *

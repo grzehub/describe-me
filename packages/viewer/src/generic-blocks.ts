@@ -3,9 +3,12 @@ import type { FoundationItem, PlacedItem, SectionBlock } from './build-foundatio
 import { FOUNDATION_SECTIONS } from './foundation-sections.js'
 import { readableTitle } from './readable-title.js'
 
-/** A name without its leading `--`, split at its dashes. */
+/**
+ * A name without its leading `--`, split at its dashes. The `*` of a composed
+ * style such as `--type-title-*` is not a segment.
+ */
 function segmentsOf(name: string): string[] {
-  return name.split('-').filter((segment) => segment !== '')
+  return name.split('-').filter((segment) => segment !== '' && segment !== '*')
 }
 
 /** The first two segments of a longer name, the first of a name of two, none for one. */

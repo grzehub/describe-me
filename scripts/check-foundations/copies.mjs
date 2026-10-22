@@ -2,7 +2,9 @@
  * Synthetic copies of example outputs for the preset cases of
  * check-foundations, each written into a directory of its own so that
  * `examples/` stays untouched: a Chakra UI project with custom properties
- * only, a Material UI project without a theme module or `--mui-*`, the mui
+ * only, a project whose type styles are custom properties named
+ * `--<style>-<part>`, as Style Dictionary and Tokens Studio write them, a
+ * Material UI project without a theme module or `--mui-*`, the mui
  * output without its theme module, and the `MUI_CLASSIC=1` output with a
  * primary whose dark mode is Material UI's default.
  */
@@ -11,6 +13,9 @@ import { join } from 'node:path'
 
 /** A Chakra UI project, from react-browser's output. */
 export const CHAKRA_COPY = 'Chakra copy'
+
+/** A project without a design system whose type styles are custom properties, from react-browser's output. */
+export const TYPE_STYLES_COPY = 'Type styles copy'
 
 /** A Material UI project with neither a theme module nor `--mui-*`, from the `MUI_CLASSIC=1` output. */
 export const MUI_WITHOUT_THEME = 'MUI without theme'
@@ -47,6 +52,36 @@ const CHAKRA_ROOT = [
 const CHAKRA_DARK = [
   ['--chakra-colors-bg', '#18181b'],
   ['--chakra-colors-fg', '#fafafa'],
+]
+
+/**
+ * Three styles of `--type-*`, one camelCase style, scales named by their part
+ * first, and a stem without a font size, which stays two rows.
+ */
+const TYPE_STYLES_ROOT = [
+  ['--brand', '#2b5cff'],
+  ['--font-sans', 'ui-sans-serif, system-ui, sans-serif'],
+  ['--font-mono', 'ui-monospace, monospace'],
+  ['--type-display-font-family', 'var(--font-sans)'],
+  ['--type-display-font-size', '3rem'],
+  ['--type-display-line-height', '1.1'],
+  ['--type-display-font-weight', '700'],
+  ['--type-display-letter-spacing', '-0.02em'],
+  ['--type-title-font-size', '2rem'],
+  ['--type-title-line-height', '2.5rem'],
+  ['--type-title-font-weight', '600'],
+  ['--type-body-font-size', 'var(--font-size-md)'],
+  ['--type-body-line-height', '1.5'],
+  ['--font-size-md', '1rem'],
+  ['--font-size-lg', '1.125rem'],
+  ['--line-height-tight', '1.25'],
+  ['--line-height-loose', '2'],
+  ['--letter-spacing-tight', '-0.01em'],
+  ['--letter-spacing-wide', '0.05em'],
+  ['--link-font-weight', '500'],
+  ['--link-letter-spacing', '0.01em'],
+  ['--heading-fontSize', '1.5rem'],
+  ['--heading-lineHeight', '2rem'],
 ]
 
 function rule(selector, declarations) {
@@ -104,6 +139,25 @@ export function writeChakraCopy(source, dir) {
   )
 }
 
+/** The type styles copy of react-browser's output in `source`, written to `dir`. */
+export function writeTypeStylesCopy(source, dir) {
+  copyWith(
+    source,
+    dir,
+    () => ({
+      version: 1,
+      systems: [],
+      tokenSheets: [{ cssText: rule(':root', TYPE_STYLES_ROOT) }],
+      fontSheets: [],
+      cssSources: [],
+      tokens: [],
+      errors: [],
+      duration: 0,
+    }),
+    () => ({ systems: [], tokens: TYPE_STYLES_ROOT.length }),
+  )
+}
+
 /** The `MUI_CLASSIC=1` output in `source` without its theme, with one custom property of its own. */
 export function writeMuiWithoutTheme(source, dir) {
   copyWith(
@@ -147,6 +201,7 @@ export function writeMuiDefaultDarkPrimary(source, dir) {
 /** Each copy by label: the output it is made from and how. */
 export const COPIES = {
   [CHAKRA_COPY]: { from: 'react-browser', write: writeChakraCopy },
+  [TYPE_STYLES_COPY]: { from: 'react-browser', write: writeTypeStylesCopy },
   [MUI_WITHOUT_THEME]: { from: 'mui, MUI_CLASSIC=1', write: writeMuiWithoutTheme },
   [MUI_VARIABLES_ONLY]: { from: 'mui', write: writeMuiVariablesOnly },
   [MUI_DEFAULT_DARK_PRIMARY]: { from: 'mui, MUI_CLASSIC=1', write: writeMuiDefaultDarkPrimary },
