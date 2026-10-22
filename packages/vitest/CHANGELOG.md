@@ -1,5 +1,17 @@
 # @describe-me/vitest
 
+## 0.11.0
+
+### Minor Changes
+
+- [#117](https://github.com/grzehub/describe-me/pull/117) [`06219e2`](https://github.com/grzehub/describe-me/commit/06219e27f53f01ed39d87cb390479e7b658bac0f) Thanks [@grzehub](https://github.com/grzehub)! - A plain theme module's type styles are one token each. An object with a `fontSize` and at least one more of `fontFamily`, `fontWeight`, `lineHeight`, `letterSpacing` and `textTransform`, such as `typography.title`, becomes a typography token with its parts, as Material UI's variants are, so Foundations shows it as one sample line in the whole style. A number is in px for a size and a letter spacing, as React writes it, in Material UI's variants too. A weight or a line height written as a string, such as `'600'` or `'1.5'`, now counts as one when its path names it, where it used to land in Other.
+
+### Patch Changes
+
+- Updated dependencies [[`4985c9d`](https://github.com/grzehub/describe-me/commit/4985c9d91ac66c3f731e688b4de47f6aabcb0911)]:
+  - describe-me@0.11.0
+  - @describe-me/core@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
