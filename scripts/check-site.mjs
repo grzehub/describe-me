@@ -39,10 +39,20 @@
  * with `live=1&frame=1` opens Live. The sidebar's edge sets its width with ← →
  * and by dragging, a double-click sets it back, frames ignore the pointer
  * during a drag and the stage refits after it, and each viewer keeps its own
- * width after a reload. The panel toggles of a test and of an overview, and
- * `[` `]`, hide and show the sidebar and the inspector, react-browser keeps
- * that after a reload, `/` shows the sidebar, and a narrow window starts with
- * them hidden until it widens. The viewer's theme switch sets the chrome's colors and
+ * width after a reload. react-browser's sidebar shows the groups of its
+ * config: a link without a test opens the first row, groups and files come
+ * in the config's order with the ungrouped file last, a closed group stays
+ * closed after a reload and ↑ ↓ follow the tree past it, a link and a click
+ * open closed groups, the search finds tests by a group's name, and a group
+ * of one file under its own name, in either case, shows as that file, even
+ * over a stale closed state. Under a search and a tag a group row is a plain
+ * label and a group without a match drops out, a closed parent hides a nested
+ * one-file group, and a group whose files lose every test drops out. The same
+ * manifest without groups, and the other viewers, show no group. The panel
+ * toggles of a test and of an overview, and `[` `]`, hide and show the
+ * sidebar and the inspector, react-browser keeps that after a reload, `/`
+ * shows the sidebar, and a narrow window starts with them hidden until it
+ * widens. The viewer's theme switch sets the chrome's colors and
  * survives a reload, the stored theme is set before `<body>`, a repaint keeps a
  * focused theme button focused and the switch works without storage until a
  * reload. Under `auto` the theme, and a change of the system's scheme under
@@ -3609,6 +3619,767 @@ async function checkSidebarWidth(browser, url) {
   }
 }
 
+// The sidebar that `sidebar.groups` in examples/react-browser/vitest.config.ts gives: a group as
+// [its name, its blocks], a file as its path. Postcard is a group of one file under its own name.
+const GROUPED_SIDEBAR = [
+  [
+    'Components',
+    [
+      ['Inputs', ['src/Counter.test.tsx', 'src/SearchBox.test.tsx']],
+      'src/Button.test.tsx',
+      'src/Chip.test.tsx',
+      'src/Menu.test.tsx',
+    ],
+  ],
+  'src/Postcard.test.tsx',
+  ['Styles', ['src/StyledText.test.tsx']],
+  'src/Naming.test.tsx',
+]
+
+const GROUPS = {
+  name: 'react-browser',
+  first: 'Counter > increments',
+  inputs: ['Components', 'Inputs'],
+  naming: 'Naming > names Button variant=secondary inside a context provider',
+  moves: [
+    {
+      from: 'Postcard > shows a photo on a patterned card',
+      key: 'ArrowDown',
+      to: 'Naming > names Button variant=secondary inside a context provider',
+    },
+    { key: 'ArrowUp', to: 'Postcard > shows a photo on a patterned card' },
+    {
+      from: 'SearchBox > clears the query',
+      key: 'ArrowDown',
+      to: 'Button > variants > renders primary by default',
+    },
+  ],
+  linked: 'SearchBox > submits the typed query',
+  menu: 'Menu > selects an item and reports it',
+  postcard: {
+    file: 'src/Postcard.test.tsx',
+    test: 'Postcard > shows a photo on a patterned card',
+    describe: 'Card',
+  },
+  // Groups whose files a routed copy leaves without a shown test, one nested and one at the top level.
+  emptied: [['Components', 'Inputs'], ['Styles']],
+}
+
+const GROUPS_TIMEOUT = 5_000
+
+/** GROUPED_SIDEBAR, with every ungrouped file of the manifest at its end, in the manifest's order. */
+function groupedOutline(manifest) {
+  const files = new Set(shownTests(manifest).map((test) => test.moduleId))
+  const ungrouped = manifest.modules
+    .filter((mod) => !mod.group && files.has(mod.id))
+    .map((mod) => mod.id)
+
+  return [...GROUPED_SIDEBAR.filter((entry) => !ungrouped.includes(entry)), ...ungrouped]
+}
+
+/** The shown tests of a group and its subgroups. */
+function testsInGroup(manifest, path) {
+  const groups = new Map(manifest.modules.map((mod) => [mod.id, mod.group ?? []]))
+
+  return shownTests(manifest).filter((test) =>
+    path.every((name, i) => groups.get(test.moduleId)[i] === name),
+  )
+}
+
+/** The outline with only the files of `keep`, and without the groups that lose every file. */
+function outlineOf(outline, keep) {
+  return outline.flatMap((entry) => {
+    if (typeof entry === 'string') {
+      return keep.has(entry) ? [entry] : []
+    }
+
+    const blocks = outlineOf(entry[1], keep)
+
+    return blocks.length > 0 ? [[entry[0], blocks]] : []
+  })
+}
+
+/** The sidebar as an outline: a group as [its name, its blocks], a file as its path. */
+function sidebarOutline(page) {
+  return page.evaluate(() => {
+    const read = (container) =>
+      [...container.children].flatMap((block) => {
+        if (block.matches('.group')) {
+          const body = block.querySelector(':scope > .group-body')
+          const name = block.querySelector(':scope > .group-row .group-name')?.textContent
+
+          return [[name, body ? read(body) : []]]
+        }
+
+        return block.matches('.module') ? [block.querySelector('.module-path')?.textContent] : []
+      })
+
+    return read(document.querySelector('.tree'))
+  })
+}
+
+function groupRow(page, path) {
+  return page.locator(`.group[data-group="${path}"] > .group-row`)
+}
+
+/** Whether every group row of `states` settles on its `aria-expanded`, `null` for no row. */
+async function showsGroups(page, states) {
+  return page
+    .waitForFunction(
+      (expected) =>
+        Object.entries(expected).every(([path, value]) => {
+          const row = document.querySelector(`.group[data-group="${path}"] > .group-row`)
+
+          return (row?.getAttribute('aria-expanded') ?? null) === value
+        }),
+      states,
+      { timeout: GROUPS_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+}
+
+/** The group rows as `data-group=aria-expanded`, for a problem's text. */
+function groupStates(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('.group-row')]
+      .map((row) => `${row.parentElement.dataset.group}=${row.getAttribute('aria-expanded')}`)
+      .join(', '),
+  )
+}
+
+/** Whether the link settles on the test `id`. */
+async function linksTo(page, id) {
+  return page
+    .waitForFunction(
+      (test) => new URLSearchParams(location.hash.slice(1)).get('test') === test,
+      id,
+      { timeout: GROUPS_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+}
+
+/** The full name of the test the link names, for a problem's text. */
+async function linkedTest(page) {
+  const id = (await pageLink(page)).get('test')
+  const test = shownTests(readSiteManifest(GROUPS.name)).find((candidate) => candidate.id === id)
+
+  return test?.fullName ?? id
+}
+
+/** The title of the active test row once it shows, or `null`. */
+async function activeRow(page) {
+  const row = page.locator('.tree .test.active')
+
+  return row
+    .waitFor({ state: 'visible', timeout: GROUPS_TIMEOUT })
+    .then(() => row.getAttribute('title'))
+    .catch(() => null)
+}
+
+function storedCollapsed(page, key) {
+  return page.evaluate((name) => JSON.parse(localStorage.getItem(name) ?? '[]'), key)
+}
+
+/** What a click on a group row could change: the closed groups, the rows and the link. */
+async function sidebarState(page, key) {
+  return JSON.stringify({
+    stored: await storedCollapsed(page, key),
+    rows: await rowCount(page),
+    link: await page.evaluate(() => location.hash),
+  })
+}
+
+/**
+ * A problem when a group row under a search or a tag is more than a label: not
+ * a div holding only its name, or a click on it that changes anything.
+ */
+async function filteredRowsProblem(page, key, when) {
+  const rows = await page.locator('.group-row').evaluateAll((all) =>
+    all.map((row) => ({
+      group: row.parentElement.dataset.group,
+      tag: row.tagName.toLowerCase(),
+      expanded: row.getAttribute('aria-expanded'),
+      children: [...row.children].map((child) => child.className).join(' '),
+    })),
+  )
+
+  const odd = rows.filter(
+    (row) => row.tag !== 'div' || row.expanded !== null || row.children !== 'group-name',
+  )
+
+  if (rows.length === 0 || odd.length > 0) {
+    return `${when} the group rows are ${JSON.stringify(odd.length > 0 ? odd : rows)}, expected divs holding only their name`
+  }
+
+  const before = await sidebarState(page, key)
+
+  await page.locator('.group-row').first().click()
+
+  const after = await sidebarState(page, key)
+
+  if (after !== before) {
+    return `${when} a click on the ${rows[0].group} row changed ${before} to ${after}`
+  }
+
+  return null
+}
+
+/** Serve the page a changed copy of the manifest until the returned function is called. */
+async function routeManifest(page, name, change) {
+  const pattern = `**/examples/${name}/__data/manifest.json`
+
+  await page.route(pattern, async (route) => {
+    const response = await route.fetch()
+    const json = await response.json()
+
+    change(json)
+
+    return route.fulfill({ response, json })
+  })
+
+  return () => page.unroute(pattern)
+}
+
+/** The Postcard tests moved into `describe('Card')`, so the group's name no longer heads its file. */
+function renameDescribe(manifest) {
+  const { file, describe } = GROUPS.postcard
+  const mod = manifest.modules.find((candidate) => candidate.id === file)
+
+  for (const test of mod.tests) {
+    test.fullName = [describe, ...test.path.slice(1), test.name].join(' > ')
+    test.path = [describe, ...test.path.slice(1)]
+  }
+}
+
+/** A change that lists the Postcard group, and its file, at `path` instead. */
+function movePostcard(path) {
+  const move = (group) => (group[0] === 'Postcard' ? [...path, ...group.slice(1)] : group)
+
+  return (manifest) => {
+    manifest.sidebar.groups = manifest.sidebar.groups.map(move)
+
+    for (const mod of manifest.modules) {
+      if (mod.group) {
+        mod.group = move(mod.group)
+      }
+    }
+  }
+}
+
+/** The files of GROUPS.emptied left with the closing frame only, so withoutEmptyTests() drops them. */
+function emptyGroups(manifest) {
+  const emptied = new Set(GROUPS.emptied.map((path) => JSON.stringify(path)))
+
+  for (const mod of manifest.modules) {
+    if (!emptied.has(JSON.stringify(mod.group ?? []))) {
+      continue
+    }
+
+    for (const test of mod.tests) {
+      test.frames = test.frames.filter((frame) => frame.kind === 'end')
+    }
+  }
+}
+
+function withoutGroups(manifest) {
+  delete manifest.sidebar
+
+  for (const mod of manifest.modules) {
+    delete mod.group
+  }
+}
+
+/** a: a plain link opens the sidebar's first row, and the groups show in the config's order, open. */
+async function groupOrderStep(page, base, expected) {
+  const firstId = testIdOf(GROUPS.name, GROUPS.first)
+
+  await freshLoad(page, base)
+
+  if (!(await linksTo(page, firstId))) {
+    return `a plain link names ${await linkedTest(page)} in its test, expected ${GROUPS.first}`
+  }
+
+  const first = await page
+    .locator('.tree .test')
+    .first()
+    .evaluate((row) => ({ title: row.title, active: row.classList.contains('active') }))
+
+  if (first.title !== GROUPS.first || !first.active) {
+    return `the first row is ${first.title}${first.active ? '' : ', not active'}, expected the active ${GROUPS.first}`
+  }
+
+  await freshLoad(page, `${base}#test=${firstId}&live=0`)
+
+  if (!(await showsRows(page, expected.total))) {
+    return `the tree shows ${await rowCount(page)} tests, expected ${expected.total}`
+  }
+
+  const outline = JSON.stringify(await sidebarOutline(page))
+
+  if (outline !== JSON.stringify(expected.outline)) {
+    return `the sidebar reads ${outline}, expected ${JSON.stringify(expected.outline)}`
+  }
+
+  const rows = await page
+    .locator('.group-row')
+    .evaluateAll((all) =>
+      all.map(
+        (row) => `${row.tagName.toLowerCase()}[aria-expanded=${row.getAttribute('aria-expanded')}]`,
+      ),
+    )
+
+  if (rows.length === 0 || rows.some((row) => row !== 'button[aria-expanded=true]')) {
+    return `the group rows are ${rows.join(', ') || 'none'}, expected open buttons`
+  }
+
+  if ((await page.locator('.group[data-group="Postcard"]').count()) > 0) {
+    return 'Postcard shows as a group, not as its one file'
+  }
+
+  return null
+}
+
+/** b: a click closes Styles and hides its file's rows, and it stays closed after a reload. */
+async function closedGroupStep(page, expected) {
+  const shown = expected.total - expected.styles
+
+  await groupRow(page, 'Styles').click()
+
+  for (const when of ['after a click on Styles', 'after a reload']) {
+    if (when === 'after a reload') {
+      await page.reload()
+      await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
+    }
+
+    if (!(await showsGroups(page, { Styles: 'false' }))) {
+      return `${when} the groups are ${await groupStates(page)}, expected Styles=false`
+    }
+
+    if (!(await showsRows(page, shown))) {
+      return `${when} the tree shows ${await rowCount(page)} tests, expected ${shown}`
+    }
+  }
+
+  return null
+}
+
+/** c: ↑ ↓ follow the tree's order, past the closed Styles. */
+async function groupArrowStep(page, base) {
+  for (const { from, key, to } of GROUPS.moves) {
+    if (from) {
+      await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, from)}&live=0`)
+      await activeRow(page)
+    }
+
+    await pressInViewer(page, key)
+
+    if (!(await linksTo(page, testIdOf(GROUPS.name, to)))) {
+      const name = key === 'ArrowDown' ? '↓' : '↑'
+
+      return `${name} names ${await linkedTest(page)} in the link, expected ${to}`
+    }
+  }
+
+  return null
+}
+
+/** Whether the linked test's groups show open and its row active, or a problem. */
+async function opensLinked(page, when) {
+  if (!(await showsGroups(page, { Components: 'true', 'Components/Inputs': 'true' }))) {
+    return `${when} the groups are ${await groupStates(page)}, expected Components and Inputs open`
+  }
+
+  const active = await activeRow(page)
+
+  if (active !== GROUPS.linked) {
+    return `${when} the active row is ${active ?? 'not shown'}, expected ${GROUPS.linked}`
+  }
+
+  return null
+}
+
+/** d: a link to a test inside closed groups opens them, and they stay open after a reload. */
+async function linkIntoGroupsStep(page, base) {
+  await groupRow(page, 'Components/Inputs').click()
+
+  if (!(await showsGroups(page, { Components: 'true', 'Components/Inputs': 'false' }))) {
+    return `after closing Inputs the groups are ${await groupStates(page)}`
+  }
+
+  await groupRow(page, 'Components').click()
+
+  if (!(await showsGroups(page, { Components: 'false', 'Components/Inputs': null }))) {
+    return `after closing Components the groups are ${await groupStates(page)}`
+  }
+
+  await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, GROUPS.linked)}&live=0`)
+
+  const linked = await opensLinked(page, 'after the link')
+
+  if (linked) {
+    return linked
+  }
+
+  await page.reload()
+
+  return opensLinked(page, 'after a reload')
+}
+
+/**
+ * e: the search finds the tests of a group by its name, its group rows are
+ * plain labels, and a click on a test opens its groups.
+ */
+async function groupSearchStep(page, key, expected) {
+  const search = page.locator('.sidebar-search')
+  const [outer, inner] = GROUPS.inputs
+
+  await groupRow(page, outer).click()
+
+  if (!(await showsGroups(page, { [outer]: 'false' }))) {
+    return `after closing ${outer} the groups are ${await groupStates(page)}`
+  }
+
+  await search.fill('inputs')
+
+  if (!(await showsRows(page, expected.inputs.length))) {
+    return `"inputs" shows ${await rowCount(page)} tests, expected ${expected.inputs.length}`
+  }
+
+  const outline = JSON.stringify(await sidebarOutline(page))
+  const files = [...new Set(expected.inputs.map((test) => test.moduleId))]
+  const want = JSON.stringify([[outer, [[inner, files]]]])
+
+  if (outline !== want) {
+    return `"inputs" leaves ${outline}, expected ${want}`
+  }
+
+  const plain = await filteredRowsProblem(page, key, 'under "inputs"')
+
+  if (plain) {
+    return plain
+  }
+
+  await search.fill('inputs reset')
+
+  if (!(await showsRows(page, 1))) {
+    return `"inputs reset" shows ${await rowCount(page)} tests, expected 1`
+  }
+
+  const row = page.locator('.tree .test').first()
+  const picked = await row.getAttribute('title')
+
+  await row.click()
+  await search.press('Escape')
+
+  const path = GROUPS.inputs.join('/')
+
+  if (!(await showsGroups(page, { [outer]: 'true', [path]: 'true' }))) {
+    return `after a click on ${picked} and Esc the groups are ${await groupStates(page)}`
+  }
+
+  const active = await activeRow(page)
+
+  return active === picked ? null : `the active row is ${active ?? 'not shown'}, expected ${picked}`
+}
+
+/** Whether the Postcard file and its test row sit at the top level, with no group row named after it. */
+async function showsPostcardFile(page, when) {
+  const { file, test } = GROUPS.postcard
+  const names = await page.locator('.group-name').allTextContents()
+
+  if (names.some((name) => name.toLowerCase() === 'postcard')) {
+    return `${when} a Postcard group row shows (${names.join(', ')})`
+  }
+
+  const block = page.locator('.tree > .module', {
+    has: page.locator('.module-path', { hasText: file }),
+  })
+
+  if ((await block.locator(`.test[title="${test}"]`).count()) !== 1) {
+    return `${when} the top level has no ${file} block with the row ${test}`
+  }
+
+  return null
+}
+
+/** f: a group of one file under its own name, in any case, shows as that file, over a stale closed state. */
+async function oneFileGroupStep(page, base, key) {
+  const menu = `${base}#test=${testIdOf(GROUPS.name, GROUPS.menu)}&live=0`
+  const unrouteCard = await routeManifest(page, GROUPS.name, renameDescribe)
+
+  await freshLoad(page, menu)
+  await activeRow(page)
+
+  if ((await groupRow(page, 'Postcard').count()) !== 1) {
+    return `with the describe renamed to ${GROUPS.postcard.describe}, no Postcard group row shows`
+  }
+
+  const before = await storedCollapsed(page, key)
+
+  await groupRow(page, 'Postcard').click()
+
+  const added = (await storedCollapsed(page, key)).filter((entry) => !before.includes(entry))
+
+  if (added.length !== 1) {
+    return `closing the Postcard group added ${JSON.stringify(added)} to ${key}, expected one entry`
+  }
+
+  await unrouteCard()
+  await page.reload()
+  await activeRow(page)
+
+  if (!(await storedCollapsed(page, key)).includes(added[0])) {
+    return `the reload dropped ${added[0]} from ${key}`
+  }
+
+  const real = await showsPostcardFile(page, 'with a stale closed Postcard group')
+
+  if (real) {
+    return real
+  }
+
+  await pressInViewer(page, 'ArrowDown')
+
+  if (!(await linksTo(page, testIdOf(GROUPS.name, GROUPS.postcard.test)))) {
+    return `↓ from ${GROUPS.menu} names ${await linkedTest(page)}, expected ${GROUPS.postcard.test}`
+  }
+
+  const unrouteLower = await routeManifest(page, GROUPS.name, movePostcard(['postcard']))
+
+  await page.reload()
+  await activeRow(page)
+
+  const lower = await showsPostcardFile(page, 'with the group named postcard')
+
+  await unrouteLower()
+
+  return lower
+}
+
+/** g: the same manifest without groups, and the viewers whose manifests have none, show no group. */
+async function withoutGroupsStep(page, url, base, manifest) {
+  const unroute = await routeManifest(page, GROUPS.name, withoutGroups)
+  const files = new Set(shownTests(manifest).map((test) => test.moduleId))
+  const order = manifest.modules.filter((mod) => files.has(mod.id)).map((mod) => mod.id)
+
+  await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, GROUPS.first)}&live=0`)
+  await activeRow(page)
+
+  const groups = await page.locator('.group').count()
+  const paths = await page.locator('.tree > .module .module-path').allTextContents()
+
+  await unroute()
+
+  if (groups > 0 || JSON.stringify(paths) !== JSON.stringify(order)) {
+    return `without groups the sidebar has ${groups} groups and the files ${paths.join(', ')}, expected none and ${order.join(', ')}`
+  }
+
+  for (const name of exampleNames.filter((example) => example !== GROUPS.name)) {
+    const first = shownTests(readSiteManifest(name))[0]
+
+    await freshLoad(page, `${url}examples/${name}/#test=${first.id}&live=0`)
+    await activeRow(page)
+
+    const shown = await page.locator('.group').count()
+
+    if (shown > 0) {
+      return `examples/${name}/ shows ${shown} groups, its manifest has none`
+    }
+  }
+
+  return null
+}
+
+/** i: a tag leaves out the groups without a tagged test, and its group rows are plain labels. */
+async function groupTagStep(page, base, key, expected) {
+  const { tag } = TAGGED
+
+  await freshLoad(page, `${base}#test=${expected.tagged[0].id}&tag=${tag}&live=0`)
+  await activeRow(page)
+
+  if (!(await showsRows(page, expected.tagged.length))) {
+    return `#tag=${tag} shows ${await rowCount(page)} tests, expected ${expected.tagged.length}`
+  }
+
+  const outline = JSON.stringify(await sidebarOutline(page))
+  const files = new Set(expected.tagged.map((test) => test.moduleId))
+  const want = JSON.stringify(outlineOf(expected.outline, files))
+
+  if (outline !== want) {
+    return `#tag=${tag} leaves ${outline}, expected ${want}`
+  }
+
+  return filteredRowsProblem(page, key, `under #tag=${tag}`)
+}
+
+/**
+ * j: a closed parent hides a group shown as its file, in the tree and for ↓,
+ * and the open parent shows it before its own files.
+ */
+async function nestedFileGroupStep(page, base, expected) {
+  const { file, test } = GROUPS.postcard
+  const unroute = await routeManifest(page, GROUPS.name, movePostcard(['Styles', 'Postcard']))
+  const shown = expected.total - expected.styles - expected.postcard
+
+  await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, GROUPS.menu)}&live=0`)
+  await activeRow(page)
+
+  if ((await groupRow(page, 'Styles').getAttribute('aria-expanded')) === 'true') {
+    await groupRow(page, 'Styles').click()
+  }
+
+  if (!(await showsGroups(page, { Styles: 'false' })) || !(await showsRows(page, shown))) {
+    return `with Postcard in a closed Styles the groups are ${await groupStates(page)} and the tree shows ${await rowCount(page)} tests, expected ${shown}`
+  }
+
+  await pressInViewer(page, 'ArrowDown')
+
+  if (!(await linksTo(page, testIdOf(GROUPS.name, GROUPS.naming)))) {
+    return `↓ from ${GROUPS.menu} past a closed Styles names ${await linkedTest(page)}, expected ${GROUPS.naming}`
+  }
+
+  await groupRow(page, 'Styles').click()
+
+  const isStyles = (entry) => Array.isArray(entry) && entry[0] === 'Styles'
+  const styles = (await sidebarOutline(page)).find(isStyles)
+  const own = expected.outline.find(isStyles)[1]
+  const want = JSON.stringify(['Styles', [file, ...own]])
+  const rows = await page.locator(`.tree .test[title="${test}"]`).count()
+
+  await unroute()
+
+  if (JSON.stringify(styles) !== want || rows !== 1) {
+    return `with Styles open it reads ${JSON.stringify(styles)} with ${rows} rows of ${test}, expected ${want} with one`
+  }
+
+  return null
+}
+
+/** k: listed groups whose files lose every test to withoutEmptyTests() drop out, nested or at the top level. */
+async function emptiedGroupsStep(page, base, manifest, expected) {
+  const unroute = await routeManifest(page, GROUPS.name, emptyGroups)
+  const emptied = new Set(GROUPS.emptied.map((path) => JSON.stringify(path)))
+  const keep = new Set(
+    manifest.modules
+      .filter((mod) => !emptied.has(JSON.stringify(mod.group ?? [])))
+      .map((mod) => mod.id),
+  )
+
+  const shown = expected.total - expected.inputs.length - expected.styles
+  const want = JSON.stringify(outlineOf(expected.outline, keep))
+
+  await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, GROUPS.menu)}&live=0`)
+  await activeRow(page)
+
+  const rows = (await showsRows(page, shown)) ? shown : await rowCount(page)
+  const outline = JSON.stringify(await sidebarOutline(page))
+
+  await unroute()
+
+  if (rows !== shown || outline !== want) {
+    return `with ${GROUPS.emptied.map((path) => path.join('/')).join(' and ')} emptied the sidebar reads ${outline} with ${rows} tests, expected ${want} with ${shown}`
+  }
+
+  return null
+}
+
+/** What the steps expect, from the manifest the viewer loads, or a problem when it cannot prove them. */
+function groupExpectations(manifest) {
+  const expected = {
+    total: shownTests(manifest).length,
+    styles: testsInGroup(manifest, ['Styles']).length,
+    inputs: testsInGroup(manifest, GROUPS.inputs),
+    postcard: testsInGroup(manifest, ['Postcard']).length,
+    tagged: shownTests(manifest).filter((test) => test.tags?.includes(TAGGED.tag)),
+    outline: groupedOutline(manifest),
+  }
+
+  // Only the group's name may match, or the search step proves nothing.
+  const named = expected.inputs.filter((test) =>
+    [test.fullName, test.moduleId, test.component?.name ?? '', ...(test.tags ?? [])].some((field) =>
+      field.toLowerCase().includes('inputs'),
+    ),
+  )
+
+  if (expected.styles === 0 || expected.inputs.length === 0 || expected.postcard === 0) {
+    return { problem: 'the manifest has no shown test in Styles, Components/Inputs or Postcard' }
+  }
+
+  if (expected.tagged.length === 0) {
+    return { problem: `the manifest has no shown test tagged ${TAGGED.tag}` }
+  }
+
+  if (named.length > 0) {
+    return {
+      problem: `${named.map((test) => test.fullName).join(', ')} hold "inputs" outside the group's name`,
+    }
+  }
+
+  return { expected }
+}
+
+/**
+ * react-browser's sidebar groups, the same manifest without them and the
+ * viewers without groups, then routed copies with a tag, a nested one-file
+ * group and emptied groups, in a context of its own so the closed groups stay
+ * there. h is the last check: no page error and no failed request.
+ */
+async function checkSidebarGroups(browser, url) {
+  const label = `examples/${GROUPS.name}/ sidebar groups`
+  const manifest = readSiteManifest(GROUPS.name)
+  const { expected, problem } = groupExpectations(manifest)
+
+  if (problem) {
+    return [`${label}: ${problem}`]
+  }
+
+  const base = `${url}examples/${GROUPS.name}/`
+  const key = `describe-me:collapsed:${manifest.root}`
+  const { context, page, failures } = await openLivePage(browser, url)
+  const steps = [
+    ['a', () => groupOrderStep(page, base, expected)],
+    ['b', () => closedGroupStep(page, expected)],
+    ['c', () => groupArrowStep(page, base)],
+    ['d', () => linkIntoGroupsStep(page, base)],
+    ['e', () => groupSearchStep(page, key, expected)],
+    ['f', () => oneFileGroupStep(page, base, key)],
+    ['g', () => withoutGroupsStep(page, url, base, manifest)],
+    ['i', () => groupTagStep(page, base, key, expected)],
+    ['j', () => nestedFileGroupStep(page, base, expected)],
+    ['k', () => emptiedGroupsStep(page, base, manifest, expected)],
+  ]
+
+  let current = steps[0][0]
+
+  try {
+    for (const [step, run] of steps) {
+      current = step
+
+      const found = await run()
+
+      if (found) {
+        return [`step ${step}: ${found}`, ...failures].map((entry) => `${label}: ${entry}`)
+      }
+    }
+
+    if (failures.length > 0) {
+      return failures.map((entry) => `${label}: ${entry}`)
+    }
+
+    console.log(
+      `check-site: examples/${GROUPS.name}/ opens its first sidebar row, shows its groups in config order, keeps a closed group after a reload, skips it with ↑ ↓, opens closed groups for a link and a click, finds tests by a group's name, shows a one-file group as its file, and the other viewers show no group. Under a search and a tag, group rows are plain labels and groups without a match drop out, a closed parent hides a nested one-file group, and groups whose files lose every test drop out`,
+    )
+
+    return []
+  } catch (error) {
+    return [`${label}: step ${current}: ${[errorMessage(error), ...failures].join(', ')}`]
+  } finally {
+    await context.close()
+  }
+}
+
 /** What the panels show: each panel, the center's width and the toggles of the view on screen. */
 function panelLayout(page) {
   return page.evaluate(() => {
@@ -4522,6 +5293,7 @@ try {
 
   problems.push(...(await checkLiveLoadingReducedMotion(browser, url)))
   problems.push(...(await checkSidebarWidth(browser, url)))
+  problems.push(...(await checkSidebarGroups(browser, url)))
   problems.push(...(await checkSidePanels(browser, url)))
 
   for (const name of exampleNames) {
@@ -4544,5 +5316,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, hide and show the side panels and let the viewer theme pick the stage only under auto`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, show react-browser's sidebar groups and none in the other viewers, hide and show the side panels and let the viewer theme pick the stage only under auto`,
 )

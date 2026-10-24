@@ -2,8 +2,11 @@ import type { ManifestModule, ManifestTest } from '@describe-me/core/types'
 import { CollapsedSuites } from './collapsed-suites.js'
 import { el } from './el.js'
 import { filterActive } from './filter-active.js'
+import { groupAsFile } from './group-as-file.js'
+import { groupKey } from './group-key.js'
 import { matchesFilter } from './matches-filter.js'
 import { shownTags } from './shown-tags.js'
+import { sidebarTree, type GroupNode } from './sidebar-tree.js'
 import { soleSuite } from './sole-suite.js'
 import { select, selectSuite, state } from './state.js'
 import { suiteKey } from './suite-key.js'
@@ -12,7 +15,7 @@ import { buildTree, type SuiteNode } from './tree.js'
 
 /** What every row of one repaint needs to know. `collapsed` is `null` while a filter is on. */
 interface Walk {
-  moduleId: string
+  mod: ManifestModule
   collapsed: CollapsedSuites | null
   onToggle: () => void
 }
@@ -103,7 +106,7 @@ function renderRows(node: SuiteNode, path: string[], walk: Walk): DocumentFragme
   const rows = document.createDocumentFragment()
   for (const child of node.children) {
     if (!('suites' in child)) {
-      if (matchesFilter(child, walk.moduleId)) {
+      if (matchesFilter(child, walk.mod)) {
         rows.append(testButton(child))
       }
 
@@ -121,7 +124,7 @@ function renderRows(node: SuiteNode, path: string[], walk: Walk): DocumentFragme
 
 /** A suite and its rows, or `null` when a filter leaves nothing in it. */
 function renderSuite(node: SuiteNode, path: string[], walk: Walk): HTMLElement | null {
-  const key = suiteKey(walk.moduleId, path)
+  const key = suiteKey(walk.mod.id, path)
   const header = headerRow(suiteButton(node.name, key), node.name, key, walk)
 
   if (walk.collapsed?.has(key)) {
@@ -142,7 +145,7 @@ function renderModule(
   collapsed: CollapsedSuites | null,
   onToggle: () => void,
 ): HTMLElement | null {
-  const walk: Walk = { moduleId: mod.id, collapsed, onToggle }
+  const walk: Walk = { mod, collapsed, onToggle }
   // On the whole tree, so a module header keeps its shape while a filter narrows it.
   const root = buildTree(mod)
   const only = soleSuite(root)
@@ -167,6 +170,72 @@ function renderModule(
   return el('div', { class: 'module' }, header, el('div', { class: 'suite root' }, rows))
 }
 
+/**
+ * A group's row. Without a filter it is one button that opens or closes the
+ * group, with an arrow in front of the name, and it never selects anything.
+ */
+function groupRow(
+  node: GroupNode,
+  collapsed: CollapsedSuites | null,
+  onToggle: () => void,
+): HTMLElement {
+  const name = el('span', { class: 'group-name' }, node.name)
+  if (!collapsed) {
+    return el('div', { class: 'group-row', title: node.name }, name)
+  }
+
+  const key = groupKey(node.path)
+
+  return el(
+    'button',
+    {
+      class: 'group-row',
+      'aria-expanded': String(!collapsed.has(key)),
+      title: node.name,
+      click: () => {
+        collapsed.toggle(key)
+        onToggle()
+      },
+    },
+    el('span', { class: 'group-arrow', 'aria-hidden': 'true' }),
+    name,
+  )
+}
+
+/**
+ * A group block with its subgroups and then its files, or `null` when a
+ * filter leaves nothing in it. A group that `groupAsFile()` picks is that
+ * file's block, with no row and no state of its own.
+ */
+function renderGroup(
+  node: GroupNode,
+  collapsed: CollapsedSuites | null,
+  onToggle: () => void,
+): HTMLElement | null {
+  const asFile = groupAsFile(node)
+  if (asFile) {
+    return renderModule(asFile, collapsed, onToggle)
+  }
+
+  const block = { class: 'group', 'data-group': node.path.join('/') }
+  const row = groupRow(node, collapsed, onToggle)
+
+  if (collapsed?.has(groupKey(node.path))) {
+    return el('div', block, row)
+  }
+
+  const blocks = [
+    ...node.groups.map((group) => renderGroup(group, collapsed, onToggle)),
+    ...node.modules.map((mod) => renderModule(mod, collapsed, onToggle)),
+  ].filter((child): child is HTMLElement => child !== null)
+
+  if (!collapsed && blocks.length === 0) {
+    return null
+  }
+
+  return el('div', block, row, el('div', { class: 'group-body' }, ...blocks))
+}
+
 /** What the empty sidebar says, naming the search, the tag or both. */
 function noMatches(): string {
   const query = state.query.trim()
@@ -181,8 +250,9 @@ function noMatches(): string {
 }
 
 /**
- * One block per test module, each holding its suite tree, or a line saying the
- * filter found nothing. `onToggle` repaints after a module or suite opens or closes.
+ * The sidebar's groups, then the test modules without a group, each module
+ * holding its suite tree, or a line saying the filter found nothing.
+ * `onToggle` repaints after a group, module or suite opens or closes.
  */
 export function renderSidebar(onToggle: () => void): HTMLElement[] {
   const manifest = state.manifest
@@ -192,9 +262,11 @@ export function renderSidebar(onToggle: () => void): HTMLElement[] {
 
   const filtered = filterActive()
   const collapsed = filtered ? null : CollapsedSuites.for(manifest.root)
-  const blocks = manifest.modules
-    .map((mod) => renderModule(mod, collapsed, onToggle))
-    .filter((block): block is HTMLElement => block !== null)
+  const tree = sidebarTree(manifest)
+  const blocks = [
+    ...tree.groups.map((group) => renderGroup(group, collapsed, onToggle)),
+    ...tree.modules.map((mod) => renderModule(mod, collapsed, onToggle)),
+  ].filter((block): block is HTMLElement => block !== null)
 
   if (blocks.length === 0 && filtered) {
     return [el('div', { class: 'empty' }, noMatches())]
