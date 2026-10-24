@@ -66,18 +66,18 @@
  * react-browser: the ghost button's hover, the disabled button's hover and
  * none after `unhover()`, a hover and then a click that focuses without
  * `focus-visible` and leaves no hover although the pointer stays on the
- * button, a hover before a double and a triple click and none after them, a
- * ring after `tab()`, and a search field with focus inside its form. In
- * react-jsdom: the hover of `hover()` and none after `unhover()`, the hover of
- * every enter and over event of `fireEvent` and none after every leave and
- * out event, in the function form too, a click without `focus-visible`, a
- * ring after `tab()` that a hover keeps and a click ends along with the
- * hover, then `keyboard()` and `type()` bringing it back and `dblClick()`,
- * `tripleClick()` and `pointer()` ending it with the hover, `fireEvent.click`
- * without any state, and `focus-visible` on a text field that `type()` focuses
- * and on a textarea and a contenteditable element after a click, but not on an
- * element whose contenteditable is false. A missing test fails, as with the
- * naming rule.
+ * button, a hover before a double click, a triple click, `wheel()` and
+ * `dropTo()` and none after each, a ring after `tab()`, and a search field
+ * with focus inside its form. In react-jsdom: the hover of `hover()` and none
+ * after `unhover()`, the hover of every enter and over event of `fireEvent`
+ * and none after every leave and out event, in the function form too, a click
+ * without `focus-visible`, a ring after `tab()` that a hover keeps and a click
+ * ends along with the hover, then `keyboard()` and `type()` bringing it back
+ * and `dblClick()`, `tripleClick()` and `pointer()` ending it with the hover,
+ * `fireEvent.click` without any state, and `focus-visible` on a text field
+ * that `type()` focuses and on a textarea and a contenteditable element after
+ * a click, but not on an element whose contenteditable is false. A missing
+ * test fails, as with the naming rule.
  *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
@@ -852,12 +852,17 @@ function fireEventHoverCase([frame, hovered]) {
 }
 
 // The steps of the react-browser spinner test after its click: the frame, which one of those
-// that start alike, and whether it hovers. A double and a triple click end a hover.
+// that start alike, and whether it hovers. A double and a triple click, a wheel and a drop end
+// a hover, although the pointer stays on the button.
 const SPINNER_STEPS = [
   ['hover(', 1, true],
   ['dblClick(', 1, false],
   ['hover(', 2, true],
   ['tripleClick(', 1, false],
+  ['hover(', 3, true],
+  ['wheel(', 1, false],
+  ['hover(', 4, true],
+  ['dropTo(', 1, false],
 ]
 
 /** A named case of one step of SPINNER_STEPS. */

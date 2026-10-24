@@ -71,11 +71,16 @@ describe('Button', () => {
       await expect.element(button).toHaveAttribute('aria-busy', 'true')
       await userEvent.click(button, { force: true })
 
-      // A double and a triple click end a hover too, as a click does.
+      // A double and a triple click, a wheel and a drop end a hover too, as a click does.
+      // The wheel goes up, so the page does not scroll.
       await button.hover()
       await button.dblClick({ force: true })
       await button.hover()
       await button.tripleClick({ force: true })
+      await button.hover()
+      await button.wheel({ direction: 'up' })
+      await button.hover()
+      await button.dropTo(button)
       expect(onClick).not.toHaveBeenCalled()
     })
 

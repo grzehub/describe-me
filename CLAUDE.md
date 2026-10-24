@@ -31,7 +31,7 @@ pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
 pnpm check-asset-store   # CSS references, copied CSS, preview head, asset GC, and machine paths in snapshots, error texts and `assetsMissing`, after pnpm build
 pnpm check-font-audit   # which font families count as missing, after pnpm build
 pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after pnpm build
-pnpm check-frame-timing   # frame compaction and renderFrame validation, after pnpm build
+pnpm check-frame-timing   # frame compaction, renderFrame validation and when an interaction notes its gesture, after pnpm build
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
