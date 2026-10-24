@@ -102,7 +102,9 @@ body {
   color: var(--ink);
   font-size: 14px;
 }
-.field input {
+.field input,
+.field textarea,
+.field [contenteditable] {
   font: inherit;
   padding: 8px 10px;
   color: var(--ink);

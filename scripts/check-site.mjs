@@ -63,12 +63,16 @@
  * stripped of its states, as a frame recorded before 0.12, shows no hover and
  * no state class. Rules added to the snapshots of two frames match as in the
  * test: `:is()`, `:where()`, a state in a string, `@media`, `@supports`,
- * `@layer`, nesting, negations, an escaped colon and a pseudo-element. In
- * react-jsdom: the hover of `hover()` and none after `unhover()`, the hover of
- * `fireEvent.mouseEnter`, of `pointerOver` and of the function form of
- * `mouseover`, none after `mouseLeave` and `mouseout`, the ring of `tab()`,
- * which a hover keeps and a click ends, and a text field's default ring. In
- * shadcn the rings of a Button, whose outline stays
+ * `@layer`, nesting, negations, an escaped colon and a pseudo-element. So do
+ * rules added to the preview head's stylesheet, which loads after the frame is
+ * built, and to a sheet it imports. In react-jsdom: the hover of `hover()` and
+ * none after `unhover()`, the hover of `fireEvent.mouseEnter`, of
+ * `pointerOver` and of the function form of `mouseover`, none after
+ * `mouseLeave` and `mouseout`, the ring of `tab()`, which a hover keeps, a
+ * click ends, `keyboard()` and `type()` bring back, and `dblClick()`,
+ * `tripleClick()` and `pointer()` end with the hover, and the default ring of
+ * a text field, a textarea and a contenteditable element, but none when
+ * contenteditable is false. In shadcn the rings of a Button, whose outline stays
  * `none` under Tailwind's layered `outline-none`, and of an Input, and in
  * Material UI the hover background of a button. No request to the site may
  * fail and the page may throw no error. Remote requests are answered locally,
@@ -965,12 +969,85 @@ const STATE_FRAMES = {
       shows: 'neither ring nor hover after a click',
     },
     {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'keyboard(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': INK },
+      shows: 'the ring that keyboard() brings back',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'dblClick(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither after dblClick()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'type(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': INK },
+      shows: 'the ring that type() brings back',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'tripleClick(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither after tripleClick()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'hover(',
+      nth: 4,
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': ACCENT },
+      shows: 'both before pointer()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'pointer(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither after it',
+    },
+    {
       test: 'TextField > shows focus while typing',
       kind: 'action',
       label: 'type(',
       element: 'input',
       expected: { 'outline-style': 'auto' },
       shows: "a text field's default ring",
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'click(textarea',
+      element: 'textarea',
+      expected: { 'outline-style': 'auto' },
+      shows: "a textarea's after a click",
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'click(textbox "Notes"',
+      element: '[aria-label="Notes"]',
+      expected: { 'outline-style': 'auto' },
+      shows: "a contenteditable element's",
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'click(textbox "Read only"',
+      element: '[aria-label="Read only"]',
+      expected: { 'outline-style': 'none' },
+      shows: 'none when contenteditable is false',
     },
   ],
   shadcn: [
@@ -1059,8 +1136,11 @@ const FOCUS_FORMS = {
   },
 }
 
-/** A test of the site's manifest by its full name, with its first frame of `kind` whose label starts with `label`. */
-function stateFrame(name, { test: fullName, kind, label }) {
+/**
+ * A test of the site's manifest by its full name, with the frame of `kind`
+ * whose label starts with `label`: the first one, or the `nth` from 1.
+ */
+function stateFrame(name, { test: fullName, kind, label, nth = 1 }) {
   const test = readSiteManifest(name)
     .modules.flatMap((module) => module.tests)
     .find((candidate) => candidate.fullName === fullName)
@@ -1069,12 +1149,14 @@ function stateFrame(name, { test: fullName, kind, label }) {
     throw new Error(`the manifest has no test "${fullName}"`)
   }
 
-  const index = test.frames.findIndex(
-    (frame) => frame.kind === kind && frame.label.startsWith(label),
+  const indexes = test.frames.flatMap((frame, index) =>
+    frame.kind === kind && frame.label.startsWith(label) ? [index] : [],
   )
 
-  if (index === -1) {
-    throw new Error(`${fullName} has no ${kind} frame whose label starts with ${label}`)
+  const index = indexes[nth - 1]
+
+  if (index === undefined) {
+    throw new Error(`${fullName} has no ${kind} frame ${nth} whose label starts with ${label}`)
   }
 
   return { id: test.id, index, snapshot: test.frames[index].snapshot, fullName }
@@ -1343,13 +1425,91 @@ async function stateFormsStep(context, url, name, entry, forms) {
   }
 }
 
-/** react-browser's thumbnail, an old frame and the selector forms. Returns a problem or `null`. */
+// Rules for react-browser's preview head, whose stylesheet loads after the frame is built, and
+// for a sheet it imports. Only the viewer's rewrite makes them match the recorded states.
+const HEAD_IMPORT = 'dm-head-import.css'
+const HEAD_FORMS = {
+  head: '.btn-ghost:hover { --dm-head-hover: 1 }\n.btn:focus-visible { --dm-head-focus-visible: 1 }',
+  imported:
+    '.btn-ghost:hover { --dm-import-hover: 1 }\n.btn:focus-visible { --dm-import-focus-visible: 1 }',
+}
+
+/** The URLs of the CSS assets that the preview head of an example links. */
+function headSheetUrls(url, name) {
+  const head = readSiteManifest(name).head ?? ''
+
+  return Array.from(
+    head.matchAll(/describe-me-asset:([0-9a-f]{16}\.css)/g),
+    (match) => `${url}examples/${name}/__data/assets/${match[1]}`,
+  )
+}
+
+/**
+ * The preview head's sheets, with HEAD_FORMS added and an `@import` of
+ * HEAD_IMPORT, match the ghost hover frame and the keyboard frame as in the
+ * test. Routing turns the cache off, so the sheet loads after each frame is
+ * built. Returns a problem or `null`.
+ */
+async function previewHeadStep(context, url, name) {
+  const sheets = headSheetUrls(url, name)
+
+  if (sheets.length === 0) {
+    return 'the preview head links no stylesheet of the project'
+  }
+
+  const page = await context.newPage()
+  const routed = { head: false, imported: false }
+
+  try {
+    for (const sheet of sheets) {
+      await page.route(sheet, async (route) => {
+        const response = await route.fetch()
+        const body = `@import url("${HEAD_IMPORT}");\n${await response.text()}\n${HEAD_FORMS.head}`
+
+        routed.head = true
+        await route.fulfill({ response, body })
+      })
+    }
+
+    await page.route(`**/examples/${name}/__data/assets/${HEAD_IMPORT}`, (route) => {
+      routed.imported = true
+
+      return route.fulfill({ status: 200, contentType: 'text/css', body: HEAD_FORMS.imported })
+    })
+
+    const cases = [
+      [GHOST_HOVER_FRAME, { '--dm-head-hover': '1', '--dm-import-hover': '1' }],
+      [KEYBOARD_FRAME, { '--dm-head-focus-visible': '1', '--dm-import-focus-visible': '1' }],
+    ]
+
+    for (const [entry, expected] of cases) {
+      const selector = await openStateFrame(page, url, name, stateFrame(name, entry))
+      const problem = await showsStyle(page, { frame: selector, selector: entry.element }, expected)
+
+      if (problem) {
+        return `the preview head of ${entry.test}: ${problem}`
+      }
+    }
+
+    return routed.head && routed.imported
+      ? null
+      : 'the preview head sheet or its import never went through the route'
+  } finally {
+    await page.close()
+  }
+}
+
+/**
+ * react-browser's thumbnail, an old frame, the selector forms and the preview
+ * head. Returns a problem or `null`.
+ */
 async function browserStateSteps(context, page, url, name) {
   const steps = [
     () => stateThumbStep(page, url, name),
     () => oldStateFrameStep(context, url, name),
     () => stateFormsStep(context, url, name, GHOST_HOVER_FRAME, HOVER_FORMS),
     () => stateFormsStep(context, url, name, KEYBOARD_FRAME, FOCUS_FORMS),
+    () => previewHeadStep(context, url, name),
   ]
 
   for (const step of steps) {
@@ -1370,7 +1530,7 @@ const FORM_COUNT =
 const MORE_STATE_STEPS = {
   'react-browser': {
     steps: browserStateSteps,
-    shows: `its thumbnail, none in an old frame stripped of its states, and ${FORM_COUNT} selector forms`,
+    shows: `its thumbnail, none in an old frame stripped of its states, ${FORM_COUNT} selector forms, and a preview-head sheet that loads after the frame and the sheet it imports`,
   },
 }
 

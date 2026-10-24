@@ -257,7 +257,10 @@ it('does not go below the minimum', async () =&gt; {
                   >
                   or after
                   <a href="examples/react-browser/#test=f6389adb809c&amp;frame=2">a click</a>,
-                  although the click leaves the pointer on the button.
+                  although the click leaves the pointer on the button. The loading button loses its
+                  hover after
+                  <a href="examples/react-browser/#test=f98c899a3981&amp;frame=3">a double click</a>
+                  and a triple click as well.
                 </td>
               </tr>
               <tr>
@@ -415,6 +418,25 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
                   >, which a hover keeps and
                   <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=3">a click</a> takes
                   away.
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=4"
+                    ><code>user.keyboard</code></a
+                  >
+                  and
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=7"
+                    ><code>user.type</code></a
+                  >
+                  bring it back, and
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=6"
+                    ><code>user.dblClick</code></a
+                  >,
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=9"
+                    ><code>user.tripleClick</code></a
+                  >
+                  and
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=12"
+                    ><code>user.pointer</code></a
+                  >
+                  take it away with the hover.
                 </td>
               </tr>
               <tr>
@@ -423,7 +445,18 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
                   <a href="examples/react-jsdom/#test=ad61fa200a1f&amp;frame=1"
                     ><code>user.type</code> focuses the field</a
                   >, and its styles leave the focus ring to the browser, so the frame shows the
-                  default one.
+                  default one. A click gives it to
+                  <a href="examples/react-jsdom/#test=ad61fa200a1f&amp;frame=2"
+                    >a <code>multiline</code> field</a
+                  >
+                  and to
+                  <a href="examples/react-jsdom/#test=ad61fa200a1f&amp;frame=3"
+                    >a <code>contenteditable</code> element</a
+                  >
+                  too, but not to
+                  <a href="examples/react-jsdom/#test=ad61fa200a1f&amp;frame=4"
+                    >one whose <code>contenteditable</code> is false</a
+                  >.
                 </td>
               </tr>
               <tr>

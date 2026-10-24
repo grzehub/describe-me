@@ -66,8 +66,16 @@ describe('Button', () => {
         </Button>,
       )
 
-      await expect.element(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true')
-      await userEvent.click(screen.getByRole('button'), { force: true })
+      const button = screen.getByRole('button')
+
+      await expect.element(button).toHaveAttribute('aria-busy', 'true')
+      await userEvent.click(button, { force: true })
+
+      // A double and a triple click end a hover too, as a click does.
+      await button.hover()
+      await button.dblClick({ force: true })
+      await button.hover()
+      await button.tripleClick({ force: true })
       expect(onClick).not.toHaveBeenCalled()
     })
 

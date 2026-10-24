@@ -99,6 +99,18 @@ describe('Disclosure', () => {
     await user.hover(button)
     await user.click(button)
 
+    // keyboard() and type() bring the ring back. A double click, a triple click and a press
+    // through pointer() take it away with the hover, as a click does.
+    await user.keyboard('{Shift}')
+    await user.hover(button)
+    await user.dblClick(button)
+    await user.type(button, '{Shift}', { skipClick: true })
+    await user.hover(button)
+    await user.tripleClick(button)
+    await user.keyboard('{Shift}')
+    await user.hover(button)
+    await user.pointer('[MouseLeft]')
+
     expect(document.activeElement).toBe(button)
   })
 })
