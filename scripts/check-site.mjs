@@ -57,14 +57,18 @@
  * replay the hover and focus their tests recorded, on the stage of a frame
  * link and in a thumbnail, with the pointer off the stage. In react-browser:
  * the ghost button's hover, also in its thumbnail, a disabled button without
- * it, the ring of `tab()` and none after a click, and a search field's ring
- * with its `:focus-within` border. The ghost hover frame stripped of its
- * states, as a frame recorded before 0.12, shows no hover and no state class.
- * Rules added to the snapshots of two frames match as in the test: `:is()`,
- * `:where()`, a state in a string, `@media`, `@supports`, `@layer`, nesting,
- * negations, an escaped colon and a pseudo-element. In react-jsdom the hover
- * of `hover()` and of `fireEvent.mouseEnter`, the ring of `tab()` and a text
- * field's default ring. In shadcn the rings of a Button, whose outline stays
+ * it, the ring of `tab()`, a hover before a click and neither ring nor hover
+ * after the click, which leaves the pointer on the button, and a search
+ * field's ring with its `:focus-within` border. The ghost hover frame
+ * stripped of its states, as a frame recorded before 0.12, shows no hover and
+ * no state class. Rules added to the snapshots of two frames match as in the
+ * test: `:is()`, `:where()`, a state in a string, `@media`, `@supports`,
+ * `@layer`, nesting, negations, an escaped colon and a pseudo-element. In
+ * react-jsdom: the hover of `hover()` and none after `unhover()`, the hover of
+ * `fireEvent.mouseEnter`, of `pointerOver` and of the function form of
+ * `mouseover`, none after `mouseLeave` and `mouseout`, the ring of `tab()`,
+ * which a hover keeps and a click ends, and a text field's default ring. In
+ * shadcn the rings of a Button, whose outline stays
  * `none` under Tailwind's layered `outline-none`, and of an Input, and in
  * Material UI the hover background of a button. No request to the site may
  * fail and the page may throw no error. Remote requests are answered locally,
@@ -785,7 +789,8 @@ async function checkGalleries(context, url, name) {
   }
 }
 
-// --hover and --ink of examples/react-browser/src/styles.css, and --accent of examples/react-jsdom.
+// --hover, --ink and --accent of examples/react-browser/src/styles.css. react-jsdom has the same --ink
+// and --accent.
 const GHOST_HOVER = 'rgb(242, 242, 242)'
 const INK = 'rgb(17, 17, 17)'
 const ACCENT = 'rgb(43, 92, 255)'
@@ -840,10 +845,18 @@ const STATE_FRAMES = {
     {
       test: 'Button > states > calls onClick when enabled',
       kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: 'the hover before a click',
+    },
+    {
+      test: 'Button > states > calls onClick when enabled',
+      kind: 'action',
       label: 'click(',
       element: 'button',
       expected: { 'outline-style': 'none', 'background-color': INK },
-      shows: 'neither ring nor hover after a click',
+      shows: 'neither ring nor hover after the click, with the pointer still on the button',
     },
     {
       test: 'SearchBox > outlines the field while it has focus',
@@ -872,6 +885,14 @@ const STATE_FRAMES = {
       shows: 'the hover of hover()',
     },
     {
+      test: 'Disclosure > highlights the button on hover',
+      kind: 'action',
+      label: 'unhover(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none after unhover()',
+    },
+    {
       test: 'Disclosure > highlights the button on mouseEnter',
       kind: 'render',
       label: '<',
@@ -888,12 +909,60 @@ const STATE_FRAMES = {
       shows: 'the hover of mouseEnter',
     },
     {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseLeave(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none after mouseLeave',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'pointerOver(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: 'the hover of pointerOver',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseover(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: "the hover of fireEvent's function form",
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseout(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none after its mouseout',
+    },
+    {
       test: 'Disclosure > shows a focus ring from the keyboard',
       kind: 'action',
       label: 'tab(',
       element: 'button',
       expected: { 'outline-style': 'solid', 'outline-width': '2px' },
       shows: 'the ring of tab()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': ACCENT },
+      shows: 'a hover that keeps the ring',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'click(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither ring nor hover after a click',
     },
     {
       test: 'TextField > shows focus while typing',

@@ -50,17 +50,38 @@ describe('Disclosure', () => {
   })
 
   it('highlights the button on hover', async () => {
+    const user = userEvent.setup()
     const screen = render(<Disclosure label="show details">the details</Disclosure>)
+    const button = screen.getByRole('button', { name: 'show details' })
 
-    await userEvent.setup().hover(screen.getByRole('button', { name: 'show details' }))
+    await user.hover(button)
+
+    expect(screen.queryByText('the details')).toBeNull()
+
+    await user.unhover(button)
 
     expect(screen.queryByText('the details')).toBeNull()
   })
 
   it('highlights the button on mouseEnter', () => {
     const screen = render(<Disclosure label="show details">the details</Disclosure>)
+    const button = screen.getByRole('button', { name: 'show details' })
 
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'show details' }))
+    fireEvent.mouseEnter(button)
+
+    expect(screen.queryByText('the details')).toBeNull()
+
+    // Every enter and over event hovers the button in its frame, and every leave and out event
+    // ends that.
+    fireEvent.mouseLeave(button)
+    fireEvent.mouseOver(button)
+    fireEvent.mouseOut(button)
+    fireEvent.pointerEnter(button)
+    fireEvent.pointerLeave(button)
+    fireEvent.pointerOver(button)
+    fireEvent.pointerOut(button)
+    fireEvent(button, new MouseEvent('mouseover', { bubbles: true }))
+    fireEvent(button, new MouseEvent('mouseout', { bubbles: true }))
 
     expect(screen.queryByText('the details')).toBeNull()
   })
@@ -68,9 +89,16 @@ describe('Disclosure', () => {
   it('shows a focus ring from the keyboard', async () => {
     const user = userEvent.setup()
     const screen = render(<Disclosure label="show details">the details</Disclosure>)
+    const button = screen.getByRole('button', { name: 'show details' })
 
     await user.tab()
 
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'show details' }))
+    expect(document.activeElement).toBe(button)
+
+    // A hover keeps the ring, and a click takes both the ring and the hover away.
+    await user.hover(button)
+    await user.click(button)
+
+    expect(document.activeElement).toBe(button)
   })
 })

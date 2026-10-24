@@ -949,12 +949,14 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             states it had. Each rule that names a state is rewritten to match the class as well,
             nested rules included: <code>.btn:hover</code> becomes
             <code>.btn:is(:hover, .\:hover)</code>, in place, so
-            <code>:not(:focus-visible)</code> reads the class too. A state after a pseudo-element,
-            such as <code>::-webkit-scrollbar-thumb:hover</code>, stays as it is. The real states
-            still match, so your own pointer over the frame hovers it. Sheets from another origin
-            stay as they are. The browser's default focus ring comes first in
-            <code>&lt;head&gt;</code>, in a cascade layer that every page rule beats. A frame
-            without states replays as rrweb builds it.
+            <code>:not(:focus-visible)</code> reads the class too. The rewrite leaves a state after
+            a pseudo-element as it is, as in <code>::part(label):focus-visible</code>. A rule with a
+            hover after a pseudo-element never gets that far: rrweb's own copy of it, such as
+            <code>::-webkit-scrollbar-thumb.\:hover</code>, is invalid, so the browser drops the
+            whole rule while rrweb builds the frame, as before 0.12. The real states still match, so
+            your own pointer over the frame hovers it. Sheets from another origin stay as they are.
+            The browser's default focus ring comes first in <code>&lt;head&gt;</code>, in a cascade
+            layer that every page rule beats. A frame without states replays as rrweb builds it.
           </li>
           <li>
             Builds the new frame in a hidden slot next to the visible one, and swaps it in once its

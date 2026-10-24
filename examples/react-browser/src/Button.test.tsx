@@ -34,6 +34,7 @@ describe('Button', () => {
     it('calls onClick when enabled', async () => {
       const onClick = vi.fn()
       const screen = await render(<Button onClick={onClick}>Click me</Button>)
+      await screen.getByRole('button').hover()
       await userEvent.click(screen.getByRole('button'))
       expect(onClick).toHaveBeenCalledTimes(1)
     })
@@ -53,6 +54,8 @@ describe('Button', () => {
       await button.hover()
 
       expect(getComputedStyle(button.element()).backgroundColor).toBe('rgb(17, 17, 17)')
+
+      await button.unhover()
     })
 
     it('shows a spinner while loading and swallows clicks', async () => {

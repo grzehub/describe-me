@@ -251,8 +251,13 @@ it('does not go below the minimum', async () =&gt; {
                   >, the ring of
                   <a href="examples/react-browser/#test=12e47dac9009&amp;frame=1"
                     ><code>userEvent.tab()</code></a
-                  >, and none after
-                  <a href="examples/react-browser/#test=f6389adb809c&amp;frame=1">a click</a>.
+                  >, and neither after
+                  <a href="examples/react-browser/#test=15739ac78d5c&amp;frame=2"
+                    ><code>.unhover()</code></a
+                  >
+                  or after
+                  <a href="examples/react-browser/#test=f6389adb809c&amp;frame=2">a click</a>,
+                  although the click leaves the pointer on the button.
                 </td>
               </tr>
               <tr>
@@ -394,13 +399,22 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
                   <a href="examples/react-jsdom/#test=dff5b4fdff77&amp;frame=1"
                     ><code>user.hover</code></a
                   >
-                  and
+                  until
+                  <a href="examples/react-jsdom/#test=dff5b4fdff77&amp;frame=2"
+                    ><code>user.unhover</code></a
+                  >, and
                   <a href="examples/react-jsdom/#test=f1009b861586&amp;frame=1"
                     ><code>fireEvent.mouseEnter</code></a
-                  >, and
+                  >
+                  and every other enter or over event until
+                  <a href="examples/react-jsdom/#test=f1009b861586&amp;frame=2"
+                    >a leave or out event</a
+                  >.
                   <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=1"
                     ><code>user.tab</code> shows the focus ring</a
-                  >.
+                  >, which a hover keeps and
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=3">a click</a> takes
+                  away.
                 </td>
               </tr>
               <tr>

@@ -62,14 +62,17 @@
  * to `html`, is hovered too. At most one element has `focus`, never `html` or
  * `body`, `focus-visible` appears only with `focus`, and `focus-within` sits
  * on exactly the focused element and its ancestors. The full check also holds
- * named tests to the states their frames must show, per example directory: in
- * react-browser the ghost button's and the disabled button's hover, a click
- * that focuses without `focus-visible` and leaves no hover, a ring after
- * `tab()` and a search field with focus inside its form, and in react-jsdom
- * the hover of `hover()` and of `fireEvent.mouseEnter`, a click without
- * `focus-visible`, a ring after `tab()`, `fireEvent.click` without any state
- * and a text field that `type()` focuses. A missing test fails, as with the
- * naming rule.
+ * named tests to the states their frames must show, per example directory. In
+ * react-browser: the ghost button's hover, the disabled button's hover and
+ * none after `unhover()`, a hover and then a click that focuses without
+ * `focus-visible` and leaves no hover although the pointer stays on the
+ * button, a ring after `tab()`, and a search field with focus inside its
+ * form. In react-jsdom: the hover of `hover()` and none after `unhover()`,
+ * the hover of every enter and over event of `fireEvent` and none after every
+ * leave and out event, in the function form too, a click without
+ * `focus-visible`, a ring after `tab()` that a hover keeps and a click ends
+ * along with the hover, `fireEvent.click` without any state and a text field
+ * that `type()` focuses. A missing test fails, as with the naming rule.
  *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
@@ -831,6 +834,33 @@ const HOVER_LABELS = ['hover(', 'mouseenter(', 'mouseover(', 'pointerenter(', 'p
 const UNHOVER_LABELS = ['unhover(', 'mouseleave(', 'mouseout(', 'pointerleave(', 'pointerout(']
 
 /**
+ * A named case of the react-jsdom test that fires every hover event of
+ * `fireEvent`: the frame of an enter or over event hovers the button, and the
+ * frame of a leave or out event has no hover.
+ */
+function fireEventHoverCase([frame, hovered]) {
+  const test = 'Disclosure > highlights the button on mouseEnter'
+
+  return hovered
+    ? { test, frame, element: 'button', has: ['hover'] }
+    : { test, frame, nowhere: ['hover'] }
+}
+
+// The frames after the first `mouseEnter(`, and whether each hovers. The last two are the
+// function form, `fireEvent(element, new MouseEvent('mouseover'))`.
+const FIRE_EVENT_HOVERS = [
+  ['mouseLeave(', false],
+  ['mouseOver(', true],
+  ['mouseOut(', false],
+  ['pointerEnter(', true],
+  ['pointerLeave(', false],
+  ['pointerOver(', true],
+  ['pointerOut(', false],
+  ['mouseover(', true],
+  ['mouseout(', false],
+]
+
+/**
  * What the full check expects of named tests, per example directory: the
  * first frame whose label starts with `frame`, the first element of the
  * frame with the tag `element`, the states it `has` and `lacks`, and the
@@ -847,6 +877,13 @@ const STATE_CASES = {
       nowhere: ['focus'],
     },
     { test: 'Button > states > is disabled', frame: 'hover(', element: 'button', has: ['hover'] },
+    { test: 'Button > states > is disabled', frame: 'unhover(', nowhere: ['hover'] },
+    {
+      test: 'Button > states > calls onClick when enabled',
+      frame: 'hover(',
+      element: 'button',
+      has: ['hover'],
+    },
     {
       test: 'Button > states > calls onClick when enabled',
       frame: 'click(',
@@ -882,12 +919,14 @@ const STATE_CASES = {
       has: ['hover'],
       nowhere: ['focus'],
     },
+    { test: 'Disclosure > highlights the button on hover', frame: 'unhover(', nowhere: ['hover'] },
     {
       test: 'Disclosure > highlights the button on mouseEnter',
       frame: 'mouseEnter(',
       element: 'button',
       has: ['hover'],
     },
+    ...FIRE_EVENT_HOVERS.map(fireEventHoverCase),
     {
       test: 'Disclosure > opens through the direct API',
       frame: 'click(',
@@ -901,6 +940,20 @@ const STATE_CASES = {
       frame: 'tab(',
       element: 'button',
       has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      frame: 'hover(',
+      element: 'button',
+      has: ['hover', 'focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      frame: 'click(',
+      element: 'button',
+      has: ['focus', 'focus-within'],
+      lacks: ['focus-visible'],
+      nowhere: ['hover'],
     },
     { test: 'Disclosure > opens with fireEvent', stateless: true },
     {
