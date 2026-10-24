@@ -45,11 +45,14 @@
  * closed after a reload and ↑ ↓ follow the tree past it, a link and a click
  * open closed groups, the search finds tests by a group's name, and a group
  * of one file under its own name, in either case, shows as that file, even
- * over a stale closed state. The same manifest without groups, and the other
- * viewers, show no group. The panel toggles of a test and of an overview, and
- * `[` `]`, hide and show the sidebar and the inspector, react-browser keeps
- * that after a reload, `/` shows the sidebar, and a narrow window starts with
- * them hidden until it widens. The viewer's theme switch sets the chrome's colors and
+ * over a stale closed state. Under a search and a tag a group row is a plain
+ * label and a group without a match drops out, a closed parent hides a nested
+ * one-file group, and a group whose files lose every test drops out. The same
+ * manifest without groups, and the other viewers, show no group. The panel
+ * toggles of a test and of an overview, and `[` `]`, hide and show the
+ * sidebar and the inspector, react-browser keeps that after a reload, `/`
+ * shows the sidebar, and a narrow window starts with them hidden until it
+ * widens. The viewer's theme switch sets the chrome's colors and
  * survives a reload, the stored theme is set before `<body>`, a repaint keeps a
  * focused theme button focused and the switch works without storage until a
  * reload. Under `auto` the theme, and a change of the system's scheme under
@@ -3637,6 +3640,7 @@ const GROUPS = {
   name: 'react-browser',
   first: 'Counter > increments',
   inputs: ['Components', 'Inputs'],
+  naming: 'Naming > names Button variant=secondary inside a context provider',
   moves: [
     {
       from: 'Postcard > shows a photo on a patterned card',
@@ -3657,6 +3661,8 @@ const GROUPS = {
     test: 'Postcard > shows a photo on a patterned card',
     describe: 'Card',
   },
+  // Groups whose files a routed copy leaves without a shown test, one nested and one at the top level.
+  emptied: [['Components', 'Inputs'], ['Styles']],
 }
 
 const GROUPS_TIMEOUT = 5_000
@@ -3678,6 +3684,19 @@ function testsInGroup(manifest, path) {
   return shownTests(manifest).filter((test) =>
     path.every((name, i) => groups.get(test.moduleId)[i] === name),
   )
+}
+
+/** The outline with only the files of `keep`, and without the groups that lose every file. */
+function outlineOf(outline, keep) {
+  return outline.flatMap((entry) => {
+    if (typeof entry === 'string') {
+      return keep.has(entry) ? [entry] : []
+    }
+
+    const blocks = outlineOf(entry[1], keep)
+
+    return blocks.length > 0 ? [[entry[0], blocks]] : []
+  })
 }
 
 /** The sidebar as an outline: a group as [its name, its blocks], a file as its path. */
@@ -3763,6 +3782,50 @@ function storedCollapsed(page, key) {
   return page.evaluate((name) => JSON.parse(localStorage.getItem(name) ?? '[]'), key)
 }
 
+/** What a click on a group row could change: the closed groups, the rows and the link. */
+async function sidebarState(page, key) {
+  return JSON.stringify({
+    stored: await storedCollapsed(page, key),
+    rows: await rowCount(page),
+    link: await page.evaluate(() => location.hash),
+  })
+}
+
+/**
+ * A problem when a group row under a search or a tag is more than a label: not
+ * a div holding only its name, or a click on it that changes anything.
+ */
+async function filteredRowsProblem(page, key, when) {
+  const rows = await page.locator('.group-row').evaluateAll((all) =>
+    all.map((row) => ({
+      group: row.parentElement.dataset.group,
+      tag: row.tagName.toLowerCase(),
+      expanded: row.getAttribute('aria-expanded'),
+      children: [...row.children].map((child) => child.className).join(' '),
+    })),
+  )
+
+  const odd = rows.filter(
+    (row) => row.tag !== 'div' || row.expanded !== null || row.children !== 'group-name',
+  )
+
+  if (rows.length === 0 || odd.length > 0) {
+    return `${when} the group rows are ${JSON.stringify(odd.length > 0 ? odd : rows)}, expected divs holding only their name`
+  }
+
+  const before = await sidebarState(page, key)
+
+  await page.locator('.group-row').first().click()
+
+  const after = await sidebarState(page, key)
+
+  if (after !== before) {
+    return `${when} a click on the ${rows[0].group} row changed ${before} to ${after}`
+  }
+
+  return null
+}
+
 /** Serve the page a changed copy of the manifest until the returned function is called. */
 async function routeManifest(page, name, change) {
   const pattern = `**/examples/${name}/__data/manifest.json`
@@ -3790,15 +3853,32 @@ function renameDescribe(manifest) {
   }
 }
 
-/** The Postcard group renamed to `postcard`, in the list and in its file. */
-function lowerPostcard(manifest) {
-  const lower = (path) => (path[0] === 'Postcard' ? ['postcard', ...path.slice(1)] : path)
+/** A change that lists the Postcard group, and its file, at `path` instead. */
+function movePostcard(path) {
+  const move = (group) => (group[0] === 'Postcard' ? [...path, ...group.slice(1)] : group)
 
-  manifest.sidebar.groups = manifest.sidebar.groups.map(lower)
+  return (manifest) => {
+    manifest.sidebar.groups = manifest.sidebar.groups.map(move)
+
+    for (const mod of manifest.modules) {
+      if (mod.group) {
+        mod.group = move(mod.group)
+      }
+    }
+  }
+}
+
+/** The files of GROUPS.emptied left with the closing frame only, so withoutEmptyTests() drops them. */
+function emptyGroups(manifest) {
+  const emptied = new Set(GROUPS.emptied.map((path) => JSON.stringify(path)))
 
   for (const mod of manifest.modules) {
-    if (mod.group) {
-      mod.group = lower(mod.group)
+    if (!emptied.has(JSON.stringify(mod.group ?? []))) {
+      continue
+    }
+
+    for (const test of mod.tests) {
+      test.frames = test.frames.filter((frame) => frame.kind === 'end')
     }
   }
 }
@@ -3947,8 +4027,11 @@ async function linkIntoGroupsStep(page, base) {
   return opensLinked(page, 'after a reload')
 }
 
-/** e: the search finds the tests of a group by its name, and a click on one opens its groups. */
-async function groupSearchStep(page, expected) {
+/**
+ * e: the search finds the tests of a group by its name, its group rows are
+ * plain labels, and a click on a test opens its groups.
+ */
+async function groupSearchStep(page, key, expected) {
   const search = page.locator('.sidebar-search')
   const [outer, inner] = GROUPS.inputs
 
@@ -3970,6 +4053,12 @@ async function groupSearchStep(page, expected) {
 
   if (outline !== want) {
     return `"inputs" leaves ${outline}, expected ${want}`
+  }
+
+  const plain = await filteredRowsProblem(page, key, 'under "inputs"')
+
+  if (plain) {
+    return plain
   }
 
   await search.fill('inputs reset')
@@ -4057,7 +4146,7 @@ async function oneFileGroupStep(page, base, key) {
     return `↓ from ${GROUPS.menu} names ${await linkedTest(page)}, expected ${GROUPS.postcard.test}`
   }
 
-  const unrouteLower = await routeManifest(page, GROUPS.name, lowerPostcard)
+  const unrouteLower = await routeManifest(page, GROUPS.name, movePostcard(['postcard']))
 
   await page.reload()
   await activeRow(page)
@@ -4103,12 +4192,107 @@ async function withoutGroupsStep(page, url, base, manifest) {
   return null
 }
 
+/** i: a tag leaves out the groups without a tagged test, and its group rows are plain labels. */
+async function groupTagStep(page, base, key, expected) {
+  const { tag } = TAGGED
+
+  await freshLoad(page, `${base}#test=${expected.tagged[0].id}&tag=${tag}&live=0`)
+  await activeRow(page)
+
+  if (!(await showsRows(page, expected.tagged.length))) {
+    return `#tag=${tag} shows ${await rowCount(page)} tests, expected ${expected.tagged.length}`
+  }
+
+  const outline = JSON.stringify(await sidebarOutline(page))
+  const files = new Set(expected.tagged.map((test) => test.moduleId))
+  const want = JSON.stringify(outlineOf(expected.outline, files))
+
+  if (outline !== want) {
+    return `#tag=${tag} leaves ${outline}, expected ${want}`
+  }
+
+  return filteredRowsProblem(page, key, `under #tag=${tag}`)
+}
+
+/**
+ * j: a closed parent hides a group shown as its file, in the tree and for ↓,
+ * and the open parent shows it before its own files.
+ */
+async function nestedFileGroupStep(page, base, expected) {
+  const { file, test } = GROUPS.postcard
+  const unroute = await routeManifest(page, GROUPS.name, movePostcard(['Styles', 'Postcard']))
+  const shown = expected.total - expected.styles - expected.postcard
+
+  await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, GROUPS.menu)}&live=0`)
+  await activeRow(page)
+
+  if ((await groupRow(page, 'Styles').getAttribute('aria-expanded')) === 'true') {
+    await groupRow(page, 'Styles').click()
+  }
+
+  if (!(await showsGroups(page, { Styles: 'false' })) || !(await showsRows(page, shown))) {
+    return `with Postcard in a closed Styles the groups are ${await groupStates(page)} and the tree shows ${await rowCount(page)} tests, expected ${shown}`
+  }
+
+  await pressInViewer(page, 'ArrowDown')
+
+  if (!(await linksTo(page, testIdOf(GROUPS.name, GROUPS.naming)))) {
+    return `↓ from ${GROUPS.menu} past a closed Styles names ${await linkedTest(page)}, expected ${GROUPS.naming}`
+  }
+
+  await groupRow(page, 'Styles').click()
+
+  const isStyles = (entry) => Array.isArray(entry) && entry[0] === 'Styles'
+  const styles = (await sidebarOutline(page)).find(isStyles)
+  const own = expected.outline.find(isStyles)[1]
+  const want = JSON.stringify(['Styles', [file, ...own]])
+  const rows = await page.locator(`.tree .test[title="${test}"]`).count()
+
+  await unroute()
+
+  if (JSON.stringify(styles) !== want || rows !== 1) {
+    return `with Styles open it reads ${JSON.stringify(styles)} with ${rows} rows of ${test}, expected ${want} with one`
+  }
+
+  return null
+}
+
+/** k: listed groups whose files lose every test to withoutEmptyTests() drop out, nested or at the top level. */
+async function emptiedGroupsStep(page, base, manifest, expected) {
+  const unroute = await routeManifest(page, GROUPS.name, emptyGroups)
+  const emptied = new Set(GROUPS.emptied.map((path) => JSON.stringify(path)))
+  const keep = new Set(
+    manifest.modules
+      .filter((mod) => !emptied.has(JSON.stringify(mod.group ?? [])))
+      .map((mod) => mod.id),
+  )
+
+  const shown = expected.total - expected.inputs.length - expected.styles
+  const want = JSON.stringify(outlineOf(expected.outline, keep))
+
+  await freshLoad(page, `${base}#test=${testIdOf(GROUPS.name, GROUPS.menu)}&live=0`)
+  await activeRow(page)
+
+  const rows = (await showsRows(page, shown)) ? shown : await rowCount(page)
+  const outline = JSON.stringify(await sidebarOutline(page))
+
+  await unroute()
+
+  if (rows !== shown || outline !== want) {
+    return `with ${GROUPS.emptied.map((path) => path.join('/')).join(' and ')} emptied the sidebar reads ${outline} with ${rows} tests, expected ${want} with ${shown}`
+  }
+
+  return null
+}
+
 /** What the steps expect, from the manifest the viewer loads, or a problem when it cannot prove them. */
 function groupExpectations(manifest) {
   const expected = {
     total: shownTests(manifest).length,
     styles: testsInGroup(manifest, ['Styles']).length,
     inputs: testsInGroup(manifest, GROUPS.inputs),
+    postcard: testsInGroup(manifest, ['Postcard']).length,
+    tagged: shownTests(manifest).filter((test) => test.tags?.includes(TAGGED.tag)),
     outline: groupedOutline(manifest),
   }
 
@@ -4119,8 +4303,12 @@ function groupExpectations(manifest) {
     ),
   )
 
-  if (expected.styles === 0 || expected.inputs.length === 0) {
-    return { problem: 'the manifest has no shown test in Styles or in Components/Inputs' }
+  if (expected.styles === 0 || expected.inputs.length === 0 || expected.postcard === 0) {
+    return { problem: 'the manifest has no shown test in Styles, Components/Inputs or Postcard' }
+  }
+
+  if (expected.tagged.length === 0) {
+    return { problem: `the manifest has no shown test tagged ${TAGGED.tag}` }
   }
 
   if (named.length > 0) {
@@ -4133,8 +4321,10 @@ function groupExpectations(manifest) {
 }
 
 /**
- * react-browser's sidebar groups, then the same manifest without them and the
- * viewers without groups, in a context of its own so the closed groups stay there.
+ * react-browser's sidebar groups, the same manifest without them and the
+ * viewers without groups, then routed copies with a tag, a nested one-file
+ * group and emptied groups, in a context of its own so the closed groups stay
+ * there. h is the last check: no page error and no failed request.
  */
 async function checkSidebarGroups(browser, url) {
   const label = `examples/${GROUPS.name}/ sidebar groups`
@@ -4153,9 +4343,12 @@ async function checkSidebarGroups(browser, url) {
     ['b', () => closedGroupStep(page, expected)],
     ['c', () => groupArrowStep(page, base)],
     ['d', () => linkIntoGroupsStep(page, base)],
-    ['e', () => groupSearchStep(page, expected)],
+    ['e', () => groupSearchStep(page, key, expected)],
     ['f', () => oneFileGroupStep(page, base, key)],
     ['g', () => withoutGroupsStep(page, url, base, manifest)],
+    ['i', () => groupTagStep(page, base, key, expected)],
+    ['j', () => nestedFileGroupStep(page, base, expected)],
+    ['k', () => emptiedGroupsStep(page, base, manifest, expected)],
   ]
 
   let current = steps[0][0]
@@ -4176,7 +4369,7 @@ async function checkSidebarGroups(browser, url) {
     }
 
     console.log(
-      `check-site: examples/${GROUPS.name}/ opens its first sidebar row, shows its groups in config order, keeps a closed group after a reload, skips it with ↑ ↓, opens closed groups for a link and a click, finds tests by a group's name, shows a one-file group as its file, and the other viewers show no group`,
+      `check-site: examples/${GROUPS.name}/ opens its first sidebar row, shows its groups in config order, keeps a closed group after a reload, skips it with ↑ ↓, opens closed groups for a link and a click, finds tests by a group's name, shows a one-file group as its file, and the other viewers show no group. Under a search and a tag, group rows are plain labels and groups without a match drop out, a closed parent hides a nested one-file group, and groups whose files lose every test drop out`,
     )
 
     return []
