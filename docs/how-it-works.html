@@ -372,11 +372,12 @@
           <li>
             <strong>Interactions</strong> Each patched interaction calls
             <code>beforeInteraction()</code>, which takes a render frame still held back. Then the
-            interaction runs, and <code>capture('action', label)</code> settles and serializes.
-            Settling waits one macrotask on real timers, which is enough for React to commit, also
-            under fake timers. It does not wait for <code>requestAnimationFrame</code>, because a
-            frame holds the DOM and its styles, not layout. In jsdom the wait runs with React's act
-            flag off, as Testing Library's own waits do. User-event in jsdom under
+            interaction runs, the wrapper reports what it did to hover and focus with
+            <code>noteGesture()</code>, and <code>capture('action', label)</code> settles and
+            serializes. Settling waits one macrotask on real timers, which is enough for React to
+            commit, also under fake timers. It does not wait for <code>requestAnimationFrame</code>,
+            because a frame holds the DOM and its styles, not layout. In jsdom the wait runs with
+            React's act flag off, as Testing Library's own waits do. User-event in jsdom under
             <code>@testing-library/react</code> skips the settle.
           </li>
           <li>
@@ -494,16 +495,22 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
 
         <p>
           Each wrapper runs the original through <code>record-action.ts</code>: take a held-back
-          render frame, run the interaction, then capture. It counts how deep the calls are nested
-          in the current test, so a gesture that delegates to another records one frame, for the
-          outermost call. <code>userEvent.click()</code> delegates to the locator's
-          <code>click()</code>, and the direct API of user-event delegates to an instance. A marker
-          on each wrapper keeps a second patch from wrapping it again.
+          render frame, run the interaction, report what it did to hover and focus with
+          <code>recorder.noteGesture()</code>, then capture. Reported after the interaction, a
+          gesture never shows in the render frame before it, and one that throws changes nothing.
+          The wrapper counts how deep the calls are nested in the current test, so a gesture that
+          delegates to another records one frame, for the outermost call. Every call reports its
+          gesture, so the outermost one is reported last. <code>userEvent.click()</code> delegates
+          to the locator's <code>click()</code>, and the direct API of user-event delegates to an
+          instance. A marker on each wrapper keeps a second patch from wrapping it again.
         </p>
 
         <p>
           In jsdom, <code>fireEvent</code> is not patched. The adapter exports its own, which
-          records one frame per call. <a href="writing-stories.html#frames">Writing stories</a>
+          records one frame per call. Its enter and over events report a hover with
+          <code>recorder.noteGesture()</code> too, and its leave and out events the end of one,
+          after the event and before its frame.
+          <a href="writing-stories.html#frames">Writing stories</a>
           lists the methods that record, and
           <a href="configuration.html#plugin">What the plugin changes</a> lists every other change
           to your config.
@@ -538,6 +545,19 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           So <code>materialize-adopted-styles.ts</code> copies their rules into a temporary
           <code>&lt;style&gt;</code> for the length of each capture. It does this for the document,
           not for shadow roots.
+        </p>
+
+        <p>
+          Right before it serializes, the recorder reads which elements are in
+          <code>:hover</code>, <code>:focus</code>, <code>:focus-visible</code> and
+          <code>:focus-within</code>. In browser mode the browser decides, and in a DOM environment
+          the gestures the adapters reported, as
+          <a href="environments.html#both">Environments</a> explains.
+          <code>serialize-document.ts</code> finds the nodes of those elements through rrweb's
+          mirror and writes their states into the serialized tree as
+          <code>data-describe-me-states</code>, such as
+          <code>focus focus-visible focus-within</code>. The page never gets the attribute, so
+          neither the test nor a component's <code>MutationObserver</code> sees a change.
         </p>
 
         <p>
@@ -922,6 +942,21 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             rule gives the page the iframe's color scheme, which comes from the
             <a href="viewer.html#viewport-background">background switch</a>, and under
             <code>auto</code> from the page or the viewer theme.
+          </li>
+          <li>
+            In a frame with states, gives each marked element the classes <code>:hover</code>,
+            <code>:focus</code>, <code>:focus-visible</code> and <code>:focus-within</code> of the
+            states it had. Each rule that names a state is rewritten to match the class as well,
+            nested rules included: <code>.btn:hover</code> becomes
+            <code>.btn:is(:hover, .\:hover)</code>, in place, so
+            <code>:not(:focus-visible)</code> reads the class too. The rewrite leaves a state after
+            a pseudo-element as it is, as in <code>::part(label):focus-visible</code>. A rule with a
+            hover after a pseudo-element never gets that far: rrweb's own copy of it, such as
+            <code>::-webkit-scrollbar-thumb.\:hover</code>, is invalid, so the browser drops the
+            whole rule while rrweb builds the frame, as before 0.12. The real states still match, so
+            your own pointer over the frame hovers it. Sheets from another origin stay as they are.
+            The browser's default focus ring comes first in <code>&lt;head&gt;</code>, in a cascade
+            layer that every page rule beats. A frame without states replays as rrweb builds it.
           </li>
           <li>
             Builds the new frame in a hidden slot next to the visible one, and swaps it in once its

@@ -1,6 +1,7 @@
 import { elementLabel } from '@describe-me/core'
 import { describeArg } from './describe-arg.js'
-import { recordAction } from './record-action.js'
+import { gestureOf } from './gesture-of.js'
+import { recordAction, type ActionGesture } from './record-action.js'
 import { testingLibraryWrapsInAct } from './testing-library-wraps-in-act.js'
 
 /** Every interaction of user-event 14 that can change what the page shows. */
@@ -34,6 +35,19 @@ function labelFor(method: string, args: unknown[]): string {
   return `${method}(${parts.join(', ')})`
 }
 
+/** A DOM environment has no pointer, so `hover(element)` names where it rests. */
+function gestureFor(method: string, args: unknown[]): ActionGesture | undefined {
+  const kind = gestureOf(method)
+
+  if (kind !== 'hover') {
+    return kind === undefined ? undefined : { kind }
+  }
+
+  const [target] = args
+
+  return typeof Element !== 'undefined' && target instanceof Element ? { kind, target } : { kind }
+}
+
 function patchMethods(target: Patchable): void {
   for (const method of METHODS) {
     const original = target[method]
@@ -47,6 +61,7 @@ function patchMethods(target: Patchable): void {
     const wrapped: Method = (...args) =>
       recordAction(labelFor(method, args), async () => original.apply(target, args), {
         settle: !testingLibraryWrapsInAct(),
+        gesture: gestureFor(method, args),
       })
 
     wrapped[PATCHED] = true

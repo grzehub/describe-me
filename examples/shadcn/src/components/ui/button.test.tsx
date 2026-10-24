@@ -1,6 +1,7 @@
 import { Mail } from 'lucide-react'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { render } from 'vitest-browser-react'
+import { userEvent } from 'vitest/browser'
 import { Button } from './button'
 
 const variants = ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const
@@ -24,6 +25,16 @@ describe('Button', () => {
   it('renders destructive', async () => {
     const screen = await render(<Button variant="destructive">Delete project</Button>)
     await expect.element(screen.getByRole('button')).toHaveAttribute('data-variant', 'destructive')
+  })
+
+  it('shows its focus ring from the keyboard', async () => {
+    const screen = await render(<Button>Continue</Button>)
+
+    // userEvent.keyboard() focuses this frame before it types, userEvent.tab() does not.
+    window.focus()
+    await userEvent.tab()
+
+    await expect.element(screen.getByRole('button')).toHaveFocus()
   })
 
   // An app's theme switch sets the class on <html>. It comes off in onTestFinished, which

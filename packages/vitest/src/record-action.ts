@@ -1,5 +1,16 @@
 import { recorder } from '@describe-me/core'
-import type { CaptureOptions } from '@describe-me/core'
+import type { CaptureOptions, GestureKind } from '@describe-me/core'
+
+/** What one interaction did to hover and focus. `target` is the element a hover rests on. */
+export interface ActionGesture {
+  kind: GestureKind
+  target?: Element
+}
+
+/** How `recordAction()` takes its frame, and the gesture it notes first. */
+export interface RecordActionOptions extends Pick<CaptureOptions, 'settle'> {
+  gesture?: ActionGesture
+}
 
 /**
  * Nesting depth of the interactions in flight, and the test they started in.
@@ -13,11 +24,12 @@ const nesting = { generation: -1, depth: 0 }
 /**
  * Run one user interaction and record a frame for it, but only for the outermost call.
  * `settle: false` takes the frame as soon as the interaction resolves, without a wait.
+ * The gesture is noted for nested calls too, so the outermost one is noted last.
  */
 export async function recordAction<T>(
   label: string,
   run: () => Promise<T>,
-  options: Pick<CaptureOptions, 'settle'> = {},
+  options: RecordActionOptions = {},
 ): Promise<T> {
   const generation = recorder.generation
 
@@ -37,6 +49,15 @@ export async function recordAction<T>(
     if (generation === nesting.generation) {
       nesting.depth--
     }
+  }
+
+  const { gesture } = options
+
+  // Noted once the gesture is done, so the render frame that
+  // `beforeInteraction()` took never shows it, and one that threw changes
+  // nothing. A gesture that outlived its test is dropped.
+  if (gesture !== undefined && generation === recorder.generation) {
+    recorder.noteGesture(gesture.kind, gesture.target)
   }
 
   if (generation === nesting.generation && nesting.depth === 0) {

@@ -53,11 +53,32 @@
  * memory, a long props table folds in the overview and in the inspector, and
  * stays unfolded through a frame step and a visit to another test until the
  * page reloads. In every viewer the overview of a module with several
- * components paints the thumbnails of each component's gallery. No request to
- * the site may fail and the page may throw no error. Remote requests are
- * answered locally, so remote fonts never decide the result. Before Chromium
- * starts, every file of site/ is read as bytes, and none may name the checkout
- * or the home directory. Run after `pnpm site:build`.
+ * components paints the thumbnails of each component's gallery. Frames
+ * replay the hover and focus their tests recorded, on the stage of a frame
+ * link and in a thumbnail, with the pointer off the stage. In react-browser:
+ * the ghost button's hover, also in its thumbnail, a disabled button without
+ * it, the ring of `tab()`, a hover before a click and neither ring nor hover
+ * after the click, which leaves the pointer on the button, and a search
+ * field's ring with its `:focus-within` border. The ghost hover frame
+ * stripped of its states, as a frame recorded before 0.12, shows no hover and
+ * no state class. Rules added to the snapshots of two frames match as in the
+ * test: `:is()`, `:where()`, a state in a string, `@media`, `@supports`,
+ * `@layer`, nesting, negations, an escaped colon and a pseudo-element. So do
+ * rules added to the preview head's stylesheet, which loads after the frame is
+ * built, and to a sheet it imports. In react-jsdom: the hover of `hover()` and
+ * none after `unhover()`, the hover of `fireEvent.mouseEnter`, of
+ * `pointerOver` and of the function form of `mouseover`, none after
+ * `mouseLeave` and `mouseout`, the ring of `tab()`, which a hover keeps, a
+ * click ends, `keyboard()` and `type()` bring back, and `dblClick()`,
+ * `tripleClick()` and `pointer()` end with the hover, and the default ring of
+ * a text field, a textarea and a contenteditable element, but none when
+ * contenteditable is false. In shadcn the rings of a Button, whose outline stays
+ * `none` under Tailwind's layered `outline-none`, and of an Input, and in
+ * Material UI the hover background of a button. No request to the site may
+ * fail and the page may throw no error. Remote requests are answered locally,
+ * so remote fonts never decide the result. Before Chromium starts, every file
+ * of site/ is read as bytes, and none may name the checkout or the home
+ * directory. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
@@ -770,6 +791,796 @@ async function checkGalleries(context, url, name) {
   } finally {
     await page.close()
   }
+}
+
+// --hover, --ink and --accent of examples/react-browser/src/styles.css. react-jsdom has the same --ink
+// and --accent.
+const GHOST_HOVER = 'rgb(242, 242, 242)'
+const INK = 'rgb(17, 17, 17)'
+const ACCENT = 'rgb(43, 92, 255)'
+const STATES_ATTRIBUTE = 'data-describe-me-states'
+const STATE_WAIT = 5_000
+const STATE_SETTLE_MS = 300
+const STATE_SETTLE_READS = 10
+
+const GHOST_HOVER_FRAME = {
+  test: 'Button > states > highlights a ghost button on hover',
+  kind: 'action',
+  label: 'hover(',
+  element: 'button',
+  expected: { 'background-color': GHOST_HOVER },
+  shows: "the ghost button's hover on the stage",
+}
+
+const KEYBOARD_FRAME = {
+  test: 'Button > states > shows a focus ring from the keyboard',
+  kind: 'action',
+  label: 'tab(',
+  element: 'button',
+  expected: { 'outline-style': 'solid', 'outline-width': '2px' },
+  shows: 'the ring of tab()',
+}
+
+/**
+ * Frames that must show what their test showed, per example: the test, the
+ * frame by its kind and label prefix, the element and its computed values. A
+ * `differs` property must have another value than in the test's render frame.
+ */
+const STATE_FRAMES = {
+  'react-browser': [
+    GHOST_HOVER_FRAME,
+    {
+      test: 'Button > variants > renders ghost',
+      kind: 'render',
+      label: '<',
+      element: 'button',
+      expected: { 'background-color': NO_BACKGROUND },
+      shows: 'none on renders ghost',
+    },
+    {
+      test: 'Button > states > is disabled',
+      kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none on a disabled button',
+    },
+    KEYBOARD_FRAME,
+    {
+      test: 'Button > states > calls onClick when enabled',
+      kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: 'the hover before a click',
+    },
+    {
+      test: 'Button > states > calls onClick when enabled',
+      kind: 'action',
+      label: 'click(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither ring nor hover after the click, with the pointer still on the button',
+    },
+    {
+      test: 'SearchBox > outlines the field while it has focus',
+      kind: 'action',
+      label: 'fill(',
+      element: 'input',
+      expected: { 'outline-style': 'solid', 'outline-width': '2px', 'border-top-color': INK },
+      shows: "the search field's ring and its :focus-within border",
+    },
+  ],
+  'react-jsdom': [
+    {
+      test: 'Disclosure > highlights the button on hover',
+      kind: 'render',
+      label: '<',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'no hover before hover()',
+    },
+    {
+      test: 'Disclosure > highlights the button on hover',
+      kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: 'the hover of hover()',
+    },
+    {
+      test: 'Disclosure > highlights the button on hover',
+      kind: 'action',
+      label: 'unhover(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none after unhover()',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'render',
+      label: '<',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'no hover before mouseEnter',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseEnter(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: 'the hover of mouseEnter',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseLeave(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none after mouseLeave',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'pointerOver(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: 'the hover of pointerOver',
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseover(',
+      element: 'button',
+      expected: { 'background-color': ACCENT },
+      shows: "the hover of fireEvent's function form",
+    },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      kind: 'action',
+      label: 'mouseout(',
+      element: 'button',
+      expected: { 'background-color': INK },
+      shows: 'none after its mouseout',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'tab(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'outline-width': '2px' },
+      shows: 'the ring of tab()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': ACCENT },
+      shows: 'a hover that keeps the ring',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'click(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither ring nor hover after a click',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'keyboard(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': INK },
+      shows: 'the ring that keyboard() brings back',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'dblClick(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither after dblClick()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'type(',
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': INK },
+      shows: 'the ring that type() brings back',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'tripleClick(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither after tripleClick()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'hover(',
+      nth: 4,
+      element: 'button',
+      expected: { 'outline-style': 'solid', 'background-color': ACCENT },
+      shows: 'both before pointer()',
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      kind: 'action',
+      label: 'pointer(',
+      element: 'button',
+      expected: { 'outline-style': 'none', 'background-color': INK },
+      shows: 'neither after it',
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'type(',
+      element: 'input',
+      expected: { 'outline-style': 'auto' },
+      shows: "a text field's default ring",
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'click(textarea',
+      element: 'textarea',
+      expected: { 'outline-style': 'auto' },
+      shows: "a textarea's after a click",
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'click(textbox "Notes"',
+      element: '[aria-label="Notes"]',
+      expected: { 'outline-style': 'auto' },
+      shows: "a contenteditable element's",
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      kind: 'action',
+      label: 'click(textbox "Read only"',
+      element: '[aria-label="Read only"]',
+      expected: { 'outline-style': 'none' },
+      shows: 'none when contenteditable is false',
+    },
+  ],
+  shadcn: [
+    {
+      test: 'Button > shows its focus ring from the keyboard',
+      kind: 'action',
+      label: 'tab(',
+      element: 'button',
+      expected: { 'outline-style': 'none' },
+      differs: 'box-shadow',
+      shows:
+        "the Button's ring as a box-shadow with outline none, under Tailwind's layered outline-none",
+    },
+    {
+      test: 'Input > shows its focus ring',
+      kind: 'action',
+      label: 'click(',
+      element: 'input',
+      expected: {},
+      differs: 'box-shadow',
+      shows: "the Input's ring",
+    },
+  ],
+  mui: [
+    {
+      test: 'PlanCard > highlights its button on hover',
+      kind: 'action',
+      label: 'hover(',
+      element: 'button',
+      expected: {},
+      differs: 'background-color',
+      shows: 'the hover background of Choose Pro',
+    },
+  ],
+}
+
+// Rules added to the ghost button's hover frame. Each custom property reads `1` where the
+// replay matches its rule, as the test would have.
+const HOVER_FORMS = {
+  css: [
+    '.btn-ghost:is(:hover, .dm-never) { --dm-is: 1 }',
+    ':where(.btn-ghost:hover, .dm-never) { --dm-where: 1 }',
+    '.btn-ghost[data-dm=":hover, :focus"], .btn-ghost:hover { --dm-string: 1 }',
+    '@media (min-width: 1px) { .btn-ghost:hover { --dm-media: 1 } }',
+    '@supports (display: grid) { .btn-ghost:hover { --dm-supports: 1 } }',
+    '@layer dm { .btn-ghost:hover { --dm-layer: 1 } }',
+    '.btn-ghost { &:hover { --dm-nested: 1 } }',
+    '.btn-ghost:hover:not(:focus-visible) { --dm-not-focus-visible: 1 }',
+    '.btn-ghost:not(:hover) { --dm-not-hover: 1 }',
+    '.btn-ghost:focus { --dm-focus: 1 }',
+  ].join('\n'),
+  expected: {
+    '--dm-is': '1',
+    '--dm-where': '1',
+    '--dm-string': '1',
+    '--dm-media': '1',
+    '--dm-supports': '1',
+    '--dm-layer': '1',
+    '--dm-nested': '1',
+    '--dm-not-focus-visible': '1',
+    '--dm-not-hover': '',
+    '--dm-focus': '',
+  },
+}
+
+// The same on the keyboard frame, where rrweb's own `.\:hover` copies of a rule cannot help. A
+// state in a string, after an escaped colon or after a pseudo-element stays as it is, and the
+// rest of its list is rewritten. The button gets the `data-dm` that the string names. rrweb's own
+// copy of a `::-webkit-scrollbar-thumb:hover` rule is invalid and drops the whole rule, so
+// `::part()` stands in for the pseudo-element.
+const FOCUS_FORMS = {
+  attributes: { 'data-dm': ':hover, :focus' },
+  css: [
+    ':where(.btn:focus-visible, .dm-never) { --dm-where-focus-visible: 1 }',
+    '.btn:not(:focus, .dm-never) { --dm-not-focus: 1 }',
+    '.btn[data-dm=":hover, :focus"] { --dm-in-string: 1 }',
+    '.dm\\:focus, .btn:focus-visible { --dm-escaped: 1 }',
+    '::part(dm):focus-visible, .btn:focus-visible { --dm-pseudo-element: 1 }',
+  ].join('\n'),
+  expected: {
+    '--dm-where-focus-visible': '1',
+    '--dm-not-focus': '',
+    '--dm-in-string': '1',
+    '--dm-escaped': '1',
+    '--dm-pseudo-element': '1',
+  },
+}
+
+/**
+ * A test of the site's manifest by its full name, with the frame of `kind`
+ * whose label starts with `label`: the first one, or the `nth` from 1.
+ */
+function stateFrame(name, { test: fullName, kind, label, nth = 1 }) {
+  const test = readSiteManifest(name)
+    .modules.flatMap((module) => module.tests)
+    .find((candidate) => candidate.fullName === fullName)
+
+  if (!test) {
+    throw new Error(`the manifest has no test "${fullName}"`)
+  }
+
+  const indexes = test.frames.flatMap((frame, index) =>
+    frame.kind === kind && frame.label.startsWith(label) ? [index] : [],
+  )
+
+  const index = indexes[nth - 1]
+
+  if (index === undefined) {
+    throw new Error(`${fullName} has no ${kind} frame ${nth} whose label starts with ${label}`)
+  }
+
+  return { id: test.id, index, snapshot: test.frames[index].snapshot, fullName }
+}
+
+/** Opens a recorded frame on the stage, on the light background. Resolves to its iframe's selector. */
+async function openStateFrame(page, url, name, frame) {
+  const selector = `.stage-slot[data-test="${frame.id}"][data-frame="${frame.index}"]:not(.incoming) iframe`
+
+  await page.goto(`${url}examples/${name}/#test=${frame.id}&frame=${frame.index}&bg=light`)
+  await page.locator(selector).waitFor({ state: 'attached', timeout: VIEWER_TIMEOUT })
+
+  return selector
+}
+
+/**
+ * The computed `properties` of the first element at `selector` in the iframe
+ * at `frame`, read in the page and trimmed. With `expected`, whether they show
+ * it, for `waitForFunction()`. A value `{ not }` must differ from `not`.
+ */
+function frameStyle({ frame, selector, properties, expected }) {
+  const iframe = document.querySelector(frame)
+  const element = iframe?.contentDocument?.querySelector(selector)
+  const view = iframe?.contentWindow
+
+  if (!element || !view) {
+    return expected === undefined ? null : false
+  }
+
+  const style = view.getComputedStyle(element)
+  const seen = Object.fromEntries(
+    properties.map((property) => [property, style.getPropertyValue(property).trim()]),
+  )
+
+  if (expected === undefined) {
+    return seen
+  }
+
+  return Object.entries(expected).every(([property, value]) =>
+    typeof value === 'object' ? seen[property] !== value.not : seen[property] === value,
+  )
+}
+
+/**
+ * Waits until the element shows `expected`, with the pointer off the stage,
+ * because a real hover still matches the replayed rules. Material UI and
+ * shadcn/ui transition colors and shadows. Returns a problem or `null`.
+ */
+async function showsStyle(page, target, expected) {
+  const read = { ...target, properties: Object.keys(expected) }
+
+  await page.mouse.move(0, 0)
+
+  const shown = await page
+    .waitForFunction(frameStyle, { ...read, expected }, { timeout: STATE_WAIT })
+    .then(() => true)
+    .catch(() => false)
+
+  if (shown) {
+    return null
+  }
+
+  const seen = await page.evaluate(frameStyle, read)
+
+  return `<${target.selector}> shows ${JSON.stringify(seen)}, expected ${JSON.stringify(expected)}`
+}
+
+/** The computed `property` once two reads agree, so a transition has ended. */
+async function settledStyle(page, target, property) {
+  const read = { ...target, properties: [property] }
+
+  await page.mouse.move(0, 0)
+
+  let last = JSON.stringify(await page.evaluate(frameStyle, read))
+
+  for (let i = 0; i < STATE_SETTLE_READS; i++) {
+    await page.waitForTimeout(STATE_SETTLE_MS)
+
+    const next = JSON.stringify(await page.evaluate(frameStyle, read))
+
+    if (next === last) {
+      break
+    }
+
+    last = next
+  }
+
+  return JSON.parse(last)?.[property] ?? null
+}
+
+/** One case of STATE_FRAMES: its frame shows `expected`, and `differs` changed since the render frame. */
+async function stateFrameStep(page, url, name, entry) {
+  const frame = stateFrame(name, entry)
+  const expected = { ...entry.expected }
+
+  if (entry.differs !== undefined) {
+    const render = stateFrame(name, { test: entry.test, kind: 'render', label: '' })
+    const selector = await openStateFrame(page, url, name, render)
+    const before = await settledStyle(
+      page,
+      { frame: selector, selector: entry.element },
+      entry.differs,
+    )
+
+    if (before === null) {
+      return `${entry.test}, frame ${render.index}: no <${entry.element}>`
+    }
+
+    expected[entry.differs] = { not: before }
+  }
+
+  const selector = await openStateFrame(page, url, name, frame)
+  const problem = await showsStyle(page, { frame: selector, selector: entry.element }, expected)
+
+  return problem ? `${entry.test}, frame ${frame.index}: ${problem}` : null
+}
+
+/** The ghost button's hover frame in its tile of the overview of Button.test.tsx. */
+async function stateThumbStep(page, url, name) {
+  const ghost = GHOST_HOVER_FRAME
+  const { id } = stateFrame(name, ghost)
+  const moduleId = readSiteManifest(name).modules.find((candidate) =>
+    candidate.tests.some((test) => test.id === id),
+  ).id
+
+  const tile = `.tile[title="${ghost.test}"]`
+  const frame = `${tile} .thumb iframe`
+
+  await page.goto(`${url}examples/${name}/#suite=${encodeURIComponent(moduleId)}&bg=light`)
+  await page.locator(tile).scrollIntoViewIfNeeded({ timeout: VIEWER_TIMEOUT })
+  await page.locator(frame).waitFor({ state: 'attached', timeout: VIEWER_TIMEOUT })
+
+  const problem = await showsStyle(page, { frame, selector: ghost.element }, ghost.expected)
+
+  return problem ? `the thumbnail of ${ghost.test}: ${problem}` : null
+}
+
+function walkSerialized(node, visit) {
+  visit(node)
+
+  for (const child of node.childNodes ?? []) {
+    walkSerialized(child, visit)
+  }
+}
+
+/** A frame recorded before 0.12: the same snapshot without the attribute. */
+function stripStates(tree) {
+  walkSerialized(tree, (node) => {
+    delete node.attributes?.[STATES_ATTRIBUTE]
+  })
+}
+
+/**
+ * A `<style>` with the rules of `forms` at the end of the snapshot's
+ * `<head>`, under an id no node has, and the attributes of `forms` on the
+ * first element with the tag `element`.
+ */
+function addForms(tree, forms, element) {
+  let largest = 0
+  let head = null
+  let target = null
+
+  walkSerialized(tree, (node) => {
+    largest = Math.max(largest, node.id ?? 0)
+
+    if (node.tagName === 'head') {
+      head = node
+    }
+
+    if (node.tagName === element && target === null) {
+      target = node
+    }
+  })
+
+  Object.assign(target.attributes, forms.attributes ?? {})
+  head.childNodes.push({
+    type: 2,
+    tagName: 'style',
+    attributes: { _cssText: forms.css },
+    childNodes: [],
+    id: largest + 1,
+  })
+}
+
+/**
+ * Opens a frame on a fresh page whose snapshot `change` rewrote, so the
+ * viewer's cache of snapshots cannot answer it. Resolves to the page, the
+ * frame's selector and whether the route ran.
+ */
+async function openChangedFrame(context, url, name, frame, change) {
+  const page = await context.newPage()
+  const routed = { done: false }
+
+  await page.route(`**/examples/${name}/__data/${frame.snapshot}`, async (route) => {
+    const response = await route.fetch()
+    const tree = await response.json()
+
+    change(tree)
+    routed.done = true
+    await route.fulfill({ response, body: JSON.stringify(tree) })
+  })
+
+  const selector = await openStateFrame(page, url, name, frame)
+
+  return { page, selector, routed }
+}
+
+/** The class names of a replayed frame that start with `:`, read in the page. */
+function stateClassNames(frame) {
+  const frameDocument = document.querySelector(frame)?.contentDocument
+
+  return Array.from(frameDocument?.querySelectorAll('*') ?? []).flatMap((element) =>
+    Array.from(element.classList).filter((name) => name.startsWith(':')),
+  )
+}
+
+/** The ghost hover frame without its states replays as before: no hover and no state class. */
+async function oldStateFrameStep(context, url, name) {
+  const ghost = GHOST_HOVER_FRAME
+  const opened = await openChangedFrame(context, url, name, stateFrame(name, ghost), stripStates)
+
+  try {
+    const problem = await showsStyle(
+      opened.page,
+      { frame: opened.selector, selector: ghost.element },
+      { 'background-color': NO_BACKGROUND },
+    )
+
+    const classes = await opened.page.evaluate(stateClassNames, opened.selector)
+
+    if (!opened.routed.done) {
+      return 'the old frame: its snapshot never went through the route'
+    }
+
+    if (problem) {
+      return `the old frame without states: ${problem}`
+    }
+
+    return classes.length > 0
+      ? `the old frame without states has the classes ${classes.join(' ')}`
+      : null
+  } finally {
+    await opened.page.close()
+  }
+}
+
+/** Rules of `forms` added to a frame's snapshot match its element exactly as in the test. */
+async function stateFormsStep(context, url, name, entry, forms) {
+  const change = (tree) => addForms(tree, forms, entry.element)
+  const opened = await openChangedFrame(context, url, name, stateFrame(name, entry), change)
+
+  try {
+    const problem = await showsStyle(
+      opened.page,
+      { frame: opened.selector, selector: entry.element },
+      forms.expected,
+    )
+
+    if (!opened.routed.done) {
+      return `the selector forms of ${entry.test}: its snapshot never went through the route`
+    }
+
+    return problem ? `the selector forms of ${entry.test}: ${problem}` : null
+  } finally {
+    await opened.page.close()
+  }
+}
+
+// Rules for react-browser's preview head, whose stylesheet loads after the frame is built, and
+// for a sheet it imports. Only the viewer's rewrite makes them match the recorded states.
+const HEAD_IMPORT = 'dm-head-import.css'
+const HEAD_FORMS = {
+  head: '.btn-ghost:hover { --dm-head-hover: 1 }\n.btn:focus-visible { --dm-head-focus-visible: 1 }',
+  imported:
+    '.btn-ghost:hover { --dm-import-hover: 1 }\n.btn:focus-visible { --dm-import-focus-visible: 1 }',
+}
+
+/** The URLs of the CSS assets that the preview head of an example links. */
+function headSheetUrls(url, name) {
+  const head = readSiteManifest(name).head ?? ''
+
+  return Array.from(
+    head.matchAll(/describe-me-asset:([0-9a-f]{16}\.css)/g),
+    (match) => `${url}examples/${name}/__data/assets/${match[1]}`,
+  )
+}
+
+/**
+ * The preview head's sheets, with HEAD_FORMS added and an `@import` of
+ * HEAD_IMPORT, match the ghost hover frame and the keyboard frame as in the
+ * test. Routing turns the cache off, so the sheet loads after each frame is
+ * built. Returns a problem or `null`.
+ */
+async function previewHeadStep(context, url, name) {
+  const sheets = headSheetUrls(url, name)
+
+  if (sheets.length === 0) {
+    return 'the preview head links no stylesheet of the project'
+  }
+
+  const page = await context.newPage()
+  const routed = { head: false, imported: false }
+
+  try {
+    for (const sheet of sheets) {
+      await page.route(sheet, async (route) => {
+        const response = await route.fetch()
+        const body = `@import url("${HEAD_IMPORT}");\n${await response.text()}\n${HEAD_FORMS.head}`
+
+        routed.head = true
+        await route.fulfill({ response, body })
+      })
+    }
+
+    await page.route(`**/examples/${name}/__data/assets/${HEAD_IMPORT}`, (route) => {
+      routed.imported = true
+
+      return route.fulfill({ status: 200, contentType: 'text/css', body: HEAD_FORMS.imported })
+    })
+
+    const cases = [
+      [GHOST_HOVER_FRAME, { '--dm-head-hover': '1', '--dm-import-hover': '1' }],
+      [KEYBOARD_FRAME, { '--dm-head-focus-visible': '1', '--dm-import-focus-visible': '1' }],
+    ]
+
+    for (const [entry, expected] of cases) {
+      const selector = await openStateFrame(page, url, name, stateFrame(name, entry))
+      const problem = await showsStyle(page, { frame: selector, selector: entry.element }, expected)
+
+      if (problem) {
+        return `the preview head of ${entry.test}: ${problem}`
+      }
+    }
+
+    return routed.head && routed.imported
+      ? null
+      : 'the preview head sheet or its import never went through the route'
+  } finally {
+    await page.close()
+  }
+}
+
+/**
+ * react-browser's thumbnail, an old frame, the selector forms and the preview
+ * head. Returns a problem or `null`.
+ */
+async function browserStateSteps(context, page, url, name) {
+  const steps = [
+    () => stateThumbStep(page, url, name),
+    () => oldStateFrameStep(context, url, name),
+    () => stateFormsStep(context, url, name, GHOST_HOVER_FRAME, HOVER_FORMS),
+    () => stateFormsStep(context, url, name, KEYBOARD_FRAME, FOCUS_FORMS),
+    () => previewHeadStep(context, url, name),
+  ]
+
+  for (const step of steps) {
+    const problem = await step()
+
+    if (problem) {
+      return problem
+    }
+  }
+
+  return null
+}
+
+const FORM_COUNT =
+  Object.keys(HOVER_FORMS.expected).length + Object.keys(FOCUS_FORMS.expected).length
+
+// The steps of an example beyond STATE_FRAMES, and what they show.
+const MORE_STATE_STEPS = {
+  'react-browser': {
+    steps: browserStateSteps,
+    shows: `its thumbnail, none in an old frame stripped of its states, ${FORM_COUNT} selector forms, and a preview-head sheet that loads after the frame and the sheet it imports`,
+  },
+}
+
+/** Every hover and focus case of one example. Returns a problem or `null`. */
+async function exampleStateSteps(context, page, url, name) {
+  for (const entry of STATE_FRAMES[name]) {
+    const problem = await stateFrameStep(page, url, name, entry)
+
+    if (problem) {
+      return problem
+    }
+  }
+
+  return MORE_STATE_STEPS[name]?.steps(context, page, url, name) ?? null
+}
+
+/** Hover and focus in a replayed frame, a frame link and a thumbnail, one example at a time. */
+async function checkPseudoStates(context, url) {
+  const problems = []
+
+  for (const name of exampleNames) {
+    const label = `examples/${name}/ hover and focus`
+    const page = await context.newPage()
+    const failures = []
+
+    page.on('pageerror', (error) => failures.push(`page error: ${errorMessage(error)}`))
+
+    try {
+      const problem = await exampleStateSteps(context, page, url, name)
+      const found = [problem, ...failures].filter((entry) => entry !== null)
+
+      if (found.length > 0) {
+        problems.push(...found.map((entry) => `${label}: ${entry}`))
+        continue
+      }
+
+      const shown = [
+        ...STATE_FRAMES[name].map((entry) => entry.shows),
+        MORE_STATE_STEPS[name]?.shows,
+      ].filter(Boolean)
+
+      console.log(`check-site: examples/${name}/ replays hover and focus: ${shown.join(', ')}`)
+    } catch (error) {
+      problems.push(`${label}: ${errorMessage(error)}`)
+    } finally {
+      await page.close()
+    }
+  }
+
+  return problems
 }
 
 /**
@@ -3691,6 +4502,8 @@ try {
     problems.push(...(await checkGalleries(context, url, name)))
   }
 
+  problems.push(...(await checkPseudoStates(context, url)))
+
   for (const name of exampleNames) {
     problems.push(...(await checkLive(browser, url, name)))
   }
@@ -3731,5 +4544,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, hide and show the side panels and let the viewer theme pick the stage only under auto`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, hide and show the side panels and let the viewer theme pick the stage only under auto`,
 )

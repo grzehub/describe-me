@@ -1,5 +1,6 @@
 import { page } from 'vitest/browser'
 import { actionLabel } from './action-label.js'
+import { gestureOf } from './gesture-of.js'
 import { recordAction } from './record-action.js'
 
 /** Locator methods that act on the page. Query methods (`getByRole`, `nth`, ...) are left alone. */
@@ -62,10 +63,14 @@ export function patchLocators(): void {
       continue
     }
 
+    // The browser finds what is under the pointer, so a hover needs no target.
+    const kind = gestureOf(method)
+    const gesture = kind === undefined ? undefined : { kind }
+
     const wrapped: ActionMethod & { [PATCHED]?: true } = function (this: LocatorLike, ...args) {
       const label = actionLabel(method, this.selector, args)
 
-      return recordAction(label, () => original.apply(this, args))
+      return recordAction(label, () => original.apply(this, args), { gesture })
     }
 
     wrapped[PATCHED] = true

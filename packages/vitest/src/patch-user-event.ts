@@ -1,5 +1,6 @@
 import { userEvent } from 'vitest/browser'
 import { actionLabel } from './action-label.js'
+import { gestureOf } from './gesture-of.js'
 import { recordAction } from './record-action.js'
 
 /**
@@ -23,10 +24,13 @@ export function patchUserEvent(): void {
       continue
     }
 
+    const kind = gestureOf(method)
+    const gesture = kind === undefined ? undefined : { kind }
+
     const wrapped: UserEventMethod & { [PATCHED]?: true } = (...args) => {
       const label = actionLabel(method, undefined, args)
 
-      return recordAction(label, () => original.apply(userEvent, args))
+      return recordAction(label, () => original.apply(userEvent, args), { gesture })
     }
 
     wrapped[PATCHED] = true

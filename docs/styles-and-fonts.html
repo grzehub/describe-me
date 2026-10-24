@@ -96,11 +96,9 @@
         </p>
         <p>
           So a style shows when it was on the page during the test, in a form rrweb can read. The
-          <a href="#techniques">table below</a> says which forms that covers. Pseudo-class states
-          such as <code>:hover</code> and <code>:focus</code> are not captured (<a
-            href="environments.html#both"
-            >both environments</a
-          >).
+          <a href="#techniques">table below</a> says which forms that covers. Each frame also
+          records hover and focus, and the replay applies their rules. <code>:active</code> is not
+          recorded (<a href="environments.html#both">both environments</a>).
         </p>
         <p>
           <a href="configuration.html#option-previewHead"><code>previewHead</code></a> is the one

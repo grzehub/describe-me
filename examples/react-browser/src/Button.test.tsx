@@ -34,13 +34,28 @@ describe('Button', () => {
     it('calls onClick when enabled', async () => {
       const onClick = vi.fn()
       const screen = await render(<Button onClick={onClick}>Click me</Button>)
+      await screen.getByRole('button').hover()
       await userEvent.click(screen.getByRole('button'))
       expect(onClick).toHaveBeenCalledTimes(1)
     })
 
+    it('highlights a ghost button on hover', async () => {
+      const screen = await render(<Button variant="ghost">Learn more</Button>)
+      const button = screen.getByRole('button')
+      await button.hover()
+
+      expect(getComputedStyle(button.element()).backgroundColor).toBe('rgb(242, 242, 242)')
+    })
+
     it('is disabled', async () => {
       const screen = await render(<Button disabled>Unavailable</Button>)
-      await expect.element(screen.getByRole('button')).toBeDisabled()
+      const button = screen.getByRole('button')
+      await expect.element(button).toBeDisabled()
+      await button.hover()
+
+      expect(getComputedStyle(button.element()).backgroundColor).toBe('rgb(17, 17, 17)')
+
+      await button.unhover()
     })
 
     it('shows a spinner while loading and swallows clicks', async () => {
@@ -51,9 +66,34 @@ describe('Button', () => {
         </Button>,
       )
 
-      await expect.element(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true')
-      await userEvent.click(screen.getByRole('button'), { force: true })
+      const button = screen.getByRole('button')
+
+      await expect.element(button).toHaveAttribute('aria-busy', 'true')
+      await userEvent.click(button, { force: true })
+
+      // A double and a triple click, a wheel and a drop end a hover too, as a click does.
+      // The wheel goes up, so the page does not scroll.
+      await button.hover()
+      await button.dblClick({ force: true })
+      await button.hover()
+      await button.tripleClick({ force: true })
+      await button.hover()
+      await button.wheel({ direction: 'up' })
+      await button.hover()
+      await button.dropTo(button)
       expect(onClick).not.toHaveBeenCalled()
+    })
+
+    it('shows a focus ring from the keyboard', async () => {
+      const screen = await render(<Button>Continue</Button>)
+      const button = screen.getByRole('button')
+
+      // userEvent.keyboard() focuses this frame before it types, userEvent.tab() does not.
+      window.focus()
+      await userEvent.tab()
+
+      await expect.element(button).toHaveFocus()
+      expect(getComputedStyle(button.element()).outlineStyle).toBe('solid')
     })
   })
 

@@ -48,4 +48,69 @@ describe('Disclosure', () => {
 
     expect(screen.getByText('the details')).toBeDefined()
   })
+
+  it('highlights the button on hover', async () => {
+    const user = userEvent.setup()
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+    const button = screen.getByRole('button', { name: 'show details' })
+
+    await user.hover(button)
+
+    expect(screen.queryByText('the details')).toBeNull()
+
+    await user.unhover(button)
+
+    expect(screen.queryByText('the details')).toBeNull()
+  })
+
+  it('highlights the button on mouseEnter', () => {
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+    const button = screen.getByRole('button', { name: 'show details' })
+
+    fireEvent.mouseEnter(button)
+
+    expect(screen.queryByText('the details')).toBeNull()
+
+    // Every enter and over event hovers the button in its frame, and every leave and out event
+    // ends that.
+    fireEvent.mouseLeave(button)
+    fireEvent.mouseOver(button)
+    fireEvent.mouseOut(button)
+    fireEvent.pointerEnter(button)
+    fireEvent.pointerLeave(button)
+    fireEvent.pointerOver(button)
+    fireEvent.pointerOut(button)
+    fireEvent(button, new MouseEvent('mouseover', { bubbles: true }))
+    fireEvent(button, new MouseEvent('mouseout', { bubbles: true }))
+
+    expect(screen.queryByText('the details')).toBeNull()
+  })
+
+  it('shows a focus ring from the keyboard', async () => {
+    const user = userEvent.setup()
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+    const button = screen.getByRole('button', { name: 'show details' })
+
+    await user.tab()
+
+    expect(document.activeElement).toBe(button)
+
+    // A hover keeps the ring, and a click takes both the ring and the hover away.
+    await user.hover(button)
+    await user.click(button)
+
+    // keyboard() and type() bring the ring back. A double click, a triple click and a press
+    // through pointer() take it away with the hover, as a click does.
+    await user.keyboard('{Shift}')
+    await user.hover(button)
+    await user.dblClick(button)
+    await user.type(button, '{Shift}', { skipClick: true })
+    await user.hover(button)
+    await user.tripleClick(button)
+    await user.keyboard('{Shift}')
+    await user.hover(button)
+    await user.pointer('[MouseLeft]')
+
+    expect(document.activeElement).toBe(button)
+  })
 })

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach } from 'vitest'
 import { META_KEY, recorder } from '@describe-me/core'
-import type { AroundWait } from '@describe-me/core'
+import type { AroundWait, RecorderEnvironment } from '@describe-me/core'
 import { fileFilter } from './file-filter.js'
 import type { RuntimeOptions } from './runtime-options.js'
 import { tagFilter } from './tag-filter.js'
@@ -13,14 +13,19 @@ import { tagFilter } from './tag-filter.js'
  * for unrecorded tests too, because Testing Library's auto-cleanup is off in
  * jsdom. Concurrent tests would share the one recorder, so they are not
  * recorded. The hooks destructure the context, because Vitest rejects any
- * other first parameter in a test that has `test.extend` fixtures.
+ * other first parameter in a test that has `test.extend` fixtures. Each setup
+ * file names its `environment`, which decides how frames read hover and focus.
  */
-export function registerRecordingHooks(options: RuntimeOptions, aroundWait?: AroundWait): void {
+export function registerRecordingHooks(
+  options: RuntimeOptions,
+  environment: RecorderEnvironment,
+  aroundWait?: AroundWait,
+): void {
   const isRecordedFile = fileFilter(options)
   const isRecordedTags = tagFilter(options.stories)
   let warnedConcurrent = false
 
-  recorder.configure({ renderFrame: options.renderFrame, aroundWait })
+  recorder.configure({ renderFrame: options.renderFrame, aroundWait, environment })
 
   beforeEach(({ task }) => {
     if (task.concurrent) {

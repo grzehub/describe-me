@@ -11,6 +11,16 @@ describe('SearchBox', { tags: ['forms'] }, () => {
     await expect.element(screen.getByRole('button', { name: 'Search' })).toBeEnabled()
   })
 
+  it('outlines the field while it has focus', async () => {
+    const screen = await render(<SearchBox />)
+    const field = screen.getByRole('searchbox')
+    await field.fill('rrweb')
+
+    const style = getComputedStyle(field.element())
+    expect(style.outlineWidth).toBe('2px')
+    expect(style.borderTopColor).toBe('rgb(17, 17, 17)')
+  })
+
   it('submits the typed query', async () => {
     const onSearch = vi.fn()
     const screen = await render(<SearchBox onSearch={onSearch} />)

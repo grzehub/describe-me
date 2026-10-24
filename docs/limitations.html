@@ -145,8 +145,14 @@
               </tr>
               <tr id="limit-pseudo-classes">
                 <td>
-                  States such as <code>:hover</code> or <code>:focus-visible</code> are not part of
-                  the DOM, so no snapshot holds them. See
+                  Frames record hover and focus, but not <code>:active</code>, and not a hover your
+                  own code fakes, for example with <code>dispatchEvent()</code>. The rules of a
+                  stylesheet from another origin keep their real pseudo-classes in the replay, and
+                  so does a state after a pseudo-element, such as
+                  <code>::part(label):focus-visible</code>. A rule with a hover after a
+                  pseudo-element, such as <code>::-webkit-scrollbar-thumb:hover</code>, is missing
+                  from the replay, as before 0.12. rrweb's own copy of it is invalid, so the browser
+                  drops the whole rule. States inside a shadow tree are not recorded. See
                   <a href="environments.html#both">Environments</a>.
                 </td>
                 <td><span class="badge env">both</span></td>
@@ -596,8 +602,9 @@
         </h2>
 
         <p>
-          A frame is the DOM at one moment, so what is not in the DOM is not in the frame:
-          <a href="#limit-pseudo-classes">pseudo-class states</a> and a
+          A frame is the DOM at one moment, with its hover and focus. What else is not in the DOM is
+          not in the frame:
+          <a href="#limit-pseudo-classes"><code>:active</code> and a faked hover</a>, and a
           <a href="#limit-fire-event-in-act"
             ><code>fireEvent</code> that React has not flushed yet</a
           >. <a href="#limit-concurrent-tests">Concurrent tests</a> and tests a

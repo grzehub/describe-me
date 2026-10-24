@@ -46,6 +46,22 @@ export const ASSET_URL_PREFIX = 'describe-me-asset:' as const
 export const STYLE_URL_PREFIX = 'describe-me-style:' as const
 
 /**
+ * Attribute that holds an element's states in a stored snapshot, as names
+ * separated by spaces, always in the order `hover focus focus-visible
+ * focus-within`. Only the serialized tree has it, never the page.
+ */
+export const PSEUDO_STATES_ATTRIBUTE = 'data-describe-me-states' as const
+
+/** A pseudo-class state that a frame records for an element. */
+export type PseudoState = 'hover' | 'focus' | 'focus-visible' | 'focus-within'
+
+/** Where the tests run. These are the values of the plugin's `environment` option. */
+export type RecorderEnvironment = 'browser' | 'dom'
+
+/** What a gesture did to hover and focus, as adapters report it to `recorder.noteGesture()`. */
+export type GestureKind = 'hover' | 'unhover' | 'pointer' | 'keyboard'
+
+/**
  * When the render frame is taken. `'eager'`: right after mount. `'lazy'`:
  * right before the test's next interaction, or at the end of the test.
  * `{ pending, timeout }`: as soon as nothing matches the CSS selector
@@ -67,6 +83,12 @@ export interface RecorderOptions {
    * it runs `wait` as is.
    */
   aroundWait?: AroundWait
+  /**
+   * Where the tests run, which decides how a frame reads hover and focus. It
+   * is kept when omitted, like `aroundWait`, and is `'dom'` until a setup
+   * file sets it.
+   */
+  environment?: RecorderEnvironment
 }
 
 /** Options for `recorder.capture()`. */

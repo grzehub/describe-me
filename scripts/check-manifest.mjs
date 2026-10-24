@@ -49,11 +49,41 @@
  * and the full check expects `@describe-me/vitest` at the version in
  * `packages/vitest/package.json`.
  *
+ * Both modes check the hover and focus states of frames. A
+ * `data-describe-me-states` value holds only `hover`, `focus`,
+ * `focus-visible` and `focus-within`, each at most once, in that order. A
+ * hover gesture frame is one whose label, or its part after the last ` · `
+ * (where a `step()` took the frame over), starts with `hover(`,
+ * `mouseEnter(`, `mouseOver(`, `pointerEnter(` or `pointerOver(`, in any
+ * case, and an unhover frame one that starts with `unhover(`, `mouseLeave(`,
+ * `mouseOut(`, `pointerLeave(` or `pointerOut(`. Within a test, no frame has
+ * `hover` before its first hover gesture frame, or from an unhover frame
+ * until the next hover gesture frame. Every ancestor of a hovered element, up
+ * to `html`, is hovered too. At most one element has `focus`, never `html` or
+ * `body`, `focus-visible` appears only with `focus`, and `focus-within` sits
+ * on exactly the focused element and its ancestors. The full check also holds
+ * named tests to the states their frames must show, per example directory. In
+ * react-browser: the ghost button's hover, the disabled button's hover and
+ * none after `unhover()`, a hover and then a click that focuses without
+ * `focus-visible` and leaves no hover although the pointer stays on the
+ * button, a hover before a double click, a triple click, `wheel()` and
+ * `dropTo()` and none after each, a ring after `tab()`, and a search field
+ * with focus inside its form. In react-jsdom: the hover of `hover()` and none
+ * after `unhover()`, the hover of every enter and over event of `fireEvent`
+ * and none after every leave and out event, in the function form too, a click
+ * without `focus-visible`, a ring after `tab()` that a hover keeps and a click
+ * ends along with the hover, then `keyboard()` and `type()` bringing it back
+ * and `dblClick()`, `tripleClick()` and `pointer()` ending it with the hover,
+ * `fireEvent.click` without any state, and `focus-visible` on a text field
+ * that `type()` focuses and on a textarea and a contenteditable element after
+ * a click, but not on an element whose contenteditable is false. A missing
+ * test fails, as with the naming rule.
+ *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { cssReferences } from '../packages/core/dist/css-references.js'
 import { manifestDiagnostics } from '../packages/core/dist/manifest-diagnostics.js'
 
@@ -801,6 +831,482 @@ function extractionProblemsIn(store) {
   return problems
 }
 
+const STATES_ATTRIBUTE = 'data-describe-me-states'
+// The order of PSEUDO_STATES_ATTRIBUTE in packages/core/src/types.ts.
+const STATE_ORDER = ['hover', 'focus', 'focus-visible', 'focus-within']
+// Labels of the frames whose gesture starts or ends a hover, in lower case.
+const HOVER_LABELS = ['hover(', 'mouseenter(', 'mouseover(', 'pointerenter(', 'pointerover(']
+const UNHOVER_LABELS = ['unhover(', 'mouseleave(', 'mouseout(', 'pointerleave(', 'pointerout(']
+
+/**
+ * A named case of the react-jsdom test that fires every hover event of
+ * `fireEvent`: the frame of an enter or over event hovers the button, and the
+ * frame of a leave or out event has no hover.
+ */
+function fireEventHoverCase([frame, hovered]) {
+  const test = 'Disclosure > highlights the button on mouseEnter'
+
+  return hovered
+    ? { test, frame, element: 'button', has: ['hover'] }
+    : { test, frame, nowhere: ['hover'] }
+}
+
+// The steps of the react-browser spinner test after its click: the frame, which one of those
+// that start alike, and whether it hovers. A double and a triple click, a wheel and a drop end
+// a hover, although the pointer stays on the button.
+const SPINNER_STEPS = [
+  ['hover(', 1, true],
+  ['dblClick(', 1, false],
+  ['hover(', 2, true],
+  ['tripleClick(', 1, false],
+  ['hover(', 3, true],
+  ['wheel(', 1, false],
+  ['hover(', 4, true],
+  ['dropTo(', 1, false],
+]
+
+/** A named case of one step of SPINNER_STEPS. */
+function spinnerStepCase([frame, nth, hovered]) {
+  const test = 'Button > states > shows a spinner while loading and swallows clicks'
+
+  return hovered
+    ? { test, frame, nth, element: 'button', has: ['hover'] }
+    : { test, frame, nth, nowhere: ['hover'] }
+}
+
+// The steps of the react-jsdom keyboard test after its first click: the frame, which one of
+// those that start alike, whether the button keeps its ring, and whether it is hovered. A
+// keyboard gesture brings the ring back, and each pointer gesture ends the ring and the hover.
+const KEYBOARD_STEPS = [
+  ['keyboard(', 1, true, false],
+  ['hover(', 2, true, true],
+  ['dblClick(', 1, false, false],
+  ['type(', 1, true, false],
+  ['hover(', 3, true, true],
+  ['tripleClick(', 1, false, false],
+  ['keyboard(', 2, true, false],
+  ['hover(', 4, true, true],
+  ['pointer(', 1, false, false],
+]
+
+/** A named case of one step of KEYBOARD_STEPS. */
+function keyboardStepCase([frame, nth, ring, hovered]) {
+  const states = ring ? ['focus', 'focus-visible', 'focus-within'] : ['focus', 'focus-within']
+  const testCase = {
+    test: 'Disclosure > shows a focus ring from the keyboard',
+    frame,
+    nth,
+    element: 'button',
+    has: hovered ? ['hover', ...states] : states,
+    lacks: ring ? [] : ['focus-visible'],
+  }
+
+  return hovered ? testCase : { ...testCase, nowhere: ['hover'] }
+}
+
+// The frames after the first `mouseEnter(`, and whether each hovers. The last two are the
+// function form, `fireEvent(element, new MouseEvent('mouseover'))`.
+const FIRE_EVENT_HOVERS = [
+  ['mouseLeave(', false],
+  ['mouseOver(', true],
+  ['mouseOut(', false],
+  ['pointerEnter(', true],
+  ['pointerLeave(', false],
+  ['pointerOver(', true],
+  ['pointerOut(', false],
+  ['mouseover(', true],
+  ['mouseout(', false],
+]
+
+/**
+ * What the full check expects of named tests, per example directory: the
+ * frame whose label starts with `frame`, the first such frame or the `nth`,
+ * the first element of the frame with states that matches `element` (a tag,
+ * or a tag with one attribute), the states it `has` and `lacks`, and the
+ * states no element of the frame has. A `stateless` test has no state in any
+ * frame.
+ */
+const STATE_CASES = {
+  'react-browser': [
+    {
+      test: 'Button > states > highlights a ghost button on hover',
+      frame: 'hover(',
+      element: 'button',
+      has: ['hover'],
+      nowhere: ['focus'],
+    },
+    { test: 'Button > states > is disabled', frame: 'hover(', element: 'button', has: ['hover'] },
+    { test: 'Button > states > is disabled', frame: 'unhover(', nowhere: ['hover'] },
+    {
+      test: 'Button > states > calls onClick when enabled',
+      frame: 'hover(',
+      element: 'button',
+      has: ['hover'],
+    },
+    {
+      test: 'Button > states > calls onClick when enabled',
+      frame: 'click(',
+      element: 'button',
+      has: ['focus', 'focus-within'],
+      lacks: ['focus-visible'],
+      nowhere: ['hover'],
+    },
+    {
+      test: 'Button > states > shows a focus ring from the keyboard',
+      frame: 'tab(',
+      element: 'button',
+      has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    ...SPINNER_STEPS.map(spinnerStepCase),
+    {
+      test: 'SearchBox > outlines the field while it has focus',
+      frame: 'fill(',
+      element: 'input',
+      has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'SearchBox > outlines the field while it has focus',
+      frame: 'fill(',
+      element: 'form',
+      has: ['focus-within'],
+    },
+  ],
+  'react-jsdom': [
+    {
+      test: 'Disclosure > highlights the button on hover',
+      frame: 'hover(',
+      element: 'button',
+      has: ['hover'],
+      nowhere: ['focus'],
+    },
+    { test: 'Disclosure > highlights the button on hover', frame: 'unhover(', nowhere: ['hover'] },
+    {
+      test: 'Disclosure > highlights the button on mouseEnter',
+      frame: 'mouseEnter(',
+      element: 'button',
+      has: ['hover'],
+    },
+    ...FIRE_EVENT_HOVERS.map(fireEventHoverCase),
+    {
+      test: 'Disclosure > opens through the direct API',
+      frame: 'click(',
+      element: 'button',
+      has: ['focus', 'focus-within'],
+      lacks: ['focus-visible'],
+      nowhere: ['hover'],
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      frame: 'tab(',
+      element: 'button',
+      has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      frame: 'hover(',
+      element: 'button',
+      has: ['hover', 'focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'Disclosure > shows a focus ring from the keyboard',
+      frame: 'click(',
+      element: 'button',
+      has: ['focus', 'focus-within'],
+      lacks: ['focus-visible'],
+      nowhere: ['hover'],
+    },
+    ...KEYBOARD_STEPS.map(keyboardStepCase),
+    { test: 'Disclosure > opens with fireEvent', stateless: true },
+    {
+      test: 'TextField > shows focus while typing',
+      frame: 'type(',
+      element: 'input',
+      has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      frame: 'click(textarea',
+      element: 'textarea',
+      has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      frame: 'click(textbox "Notes"',
+      element: 'div[aria-label="Notes"]',
+      has: ['focus', 'focus-visible', 'focus-within'],
+    },
+    {
+      test: 'TextField > shows focus while typing',
+      frame: 'click(textbox "Read only"',
+      element: 'div[aria-label="Read only"]',
+      has: ['focus', 'focus-within'],
+      lacks: ['focus-visible'],
+    },
+  ],
+}
+
+/** Each element of a serialized tree with states: its node, its value and its element ancestors. */
+function markedElementsIn(node, ancestors = [], marked = []) {
+  const isElement = node.type === ELEMENT_NODE
+  const value = isElement ? node.attributes?.[STATES_ATTRIBUTE] : undefined
+
+  if (value !== undefined) {
+    marked.push({ node, value, ancestors: [...ancestors] })
+  }
+
+  if (isElement) {
+    ancestors.push(node)
+  }
+
+  for (const child of childrenOf(node)) {
+    markedElementsIn(child, ancestors, marked)
+  }
+
+  if (isElement) {
+    ancestors.pop()
+  }
+
+  return marked
+}
+
+/** Why a value breaks the format of `data-describe-me-states`, or null. */
+function stateValueProblem(value) {
+  if (typeof value !== 'string') {
+    return `is ${JSON.stringify(value)}, not a string`
+  }
+
+  const order = value.split(' ').map((name) => STATE_ORDER.indexOf(name))
+
+  if (order.includes(-1)) {
+    return `"${value}" names a state other than ${STATE_ORDER.join(', ')}`
+  }
+
+  if (order.some((index, i) => i > 0 && index <= order[i - 1])) {
+    return `"${value}" repeats a state or leaves the order ${STATE_ORDER.join(' ')}`
+  }
+
+  return null
+}
+
+/** The states of one frame's snapshot, element by element, and what breaks the format. */
+function frameStates(serialized) {
+  const states = new Map()
+  const problems = []
+
+  for (const { node, value, ancestors } of markedElementsIn(serialized)) {
+    const problem = stateValueProblem(value)
+
+    if (problem) {
+      problems.push(`<${node.tagName}> ${STATES_ATTRIBUTE} ${problem}`)
+    } else {
+      states.set(node, { names: value.split(' '), ancestors })
+    }
+  }
+
+  return { states, problems }
+}
+
+function hasState(states, node, state) {
+  return states.get(node)?.names.includes(state) ?? false
+}
+
+/** Hover covers whole chains, and focus one element, with `focus-within` on it and its ancestors. */
+function frameRuleProblems(states) {
+  const problems = []
+  const marked = [...states]
+  const focused = marked.filter(([node]) => hasState(states, node, 'focus'))
+
+  for (const [node, { names, ancestors }] of marked) {
+    const unhovered = ancestors.find((ancestor) => !hasState(states, ancestor, 'hover'))
+
+    if (names.includes('hover') && unhovered) {
+      problems.push(`<${node.tagName}> has hover, but its ancestor <${unhovered.tagName}> has not`)
+    }
+
+    if (names.includes('focus-visible') && !names.includes('focus')) {
+      problems.push(`<${node.tagName}> has focus-visible without focus`)
+    }
+  }
+
+  if (focused.length > 1) {
+    return [...problems, `${focused.length} elements have focus`]
+  }
+
+  const [node, mark] = focused[0] ?? []
+
+  if (node && ['html', 'body'].includes(node.tagName)) {
+    problems.push(`<${node.tagName}> has focus`)
+  }
+
+  const within = new Set(node ? [node, ...mark.ancestors] : [])
+
+  for (const element of new Set([...within, ...states.keys()])) {
+    if (hasState(states, element, 'focus-within') !== within.has(element)) {
+      problems.push(
+        `<${element.tagName}> ${within.has(element) ? 'lacks' : 'has'} focus-within, expected it on the focused element and its ancestors only`,
+      )
+    }
+  }
+
+  return problems
+}
+
+/** Whether a frame's gesture starts a hover, ends one, or neither. */
+function hoverGestureOf(label) {
+  const texts = [label, label.split(' · ').at(-1)].map((text) => text.toLowerCase())
+  const startsWithOne = (prefixes) =>
+    texts.some((text) => prefixes.some((prefix) => text.startsWith(prefix)))
+
+  if (startsWithOne(HOVER_LABELS)) {
+    return 'hover'
+  }
+
+  return startsWithOne(UNHOVER_LABELS) ? 'unhover' : null
+}
+
+// `tag` or `tag[attribute="value"]`.
+const ELEMENT_SPEC = /^([a-z][a-z0-9-]*)(?:\[([\w-]+)="([^"]*)"\])?$/
+
+/** Whether a serialized node is the element that a case's `element` names. */
+function isCaseElement(node, spec) {
+  const [, tag, attribute, value] = ELEMENT_SPEC.exec(spec)
+
+  return node.tagName === tag && (attribute === undefined || node.attributes?.[attribute] === value)
+}
+
+/** The `nth` frame of a test, from 1, whose label or its part after the last ` · ` starts with `prefix`. */
+function nthFrame(test, prefix, nth = 1) {
+  const frames = test.frames.filter((candidate) => {
+    const texts = [candidate.label, candidate.label.split(' · ').at(-1)]
+
+    return texts.some((text) => text.startsWith(prefix))
+  })
+
+  return frames[nth - 1]
+}
+
+/** The named test's problem with its frame, or null. */
+function stateCaseProblem(testCase, test, statesOfFrame) {
+  if (testCase.stateless) {
+    const shown = test.frames.find((frame) => statesOfFrame(frame).size > 0)
+
+    return shown ? `frame ${shown.id} (${shown.label}) has states, expected none` : null
+  }
+
+  const frame = nthFrame(test, testCase.frame, testCase.nth)
+
+  if (!frame) {
+    return `no frame ${testCase.nth ?? 1} that starts with ${testCase.frame}`
+  }
+
+  const states = statesOfFrame(frame)
+  const element = testCase.element
+    ? [...states.keys()].find((node) => isCaseElement(node, testCase.element))
+    : undefined
+
+  const names = element ? states.get(element).names : []
+  const where = `frame ${frame.id} (${frame.label})`
+  const missing = (testCase.has ?? []).filter((state) => !names.includes(state))
+  const extra = (testCase.lacks ?? []).filter((state) => names.includes(state))
+  const anywhere = (testCase.nowhere ?? []).filter((state) =>
+    [...states.keys()].some((node) => hasState(states, node, state)),
+  )
+
+  if (missing.length > 0 || extra.length > 0) {
+    const expected = [
+      missing.length > 0 ? `with ${missing.join(' ')}` : '',
+      extra.length > 0 ? `without ${extra.join(' ')}` : '',
+    ].filter(Boolean)
+
+    return `${where}: <${testCase.element}> has "${names.join(' ')}", expected it ${expected.join(' and ')}`
+  }
+
+  return anywhere.length > 0
+    ? `${where}: an element has ${anywhere.join(' ')}, expected none`
+    : null
+}
+
+/** Not in `--structure-only`: the named tests of the example the manifest belongs to. */
+function stateCaseProblems(manifest, path, statesOfFrame) {
+  const example = basename(dirname(dirname(resolve(path))))
+  const tests = manifest.modules.flatMap((module) => module.tests)
+  const problems = []
+
+  for (const testCase of STATE_CASES[example] ?? []) {
+    const test = tests.find((candidate) => candidate.fullName === testCase.test)
+
+    if (!test) {
+      problems.push(`${testCase.test}: no such test, so its hover and focus went unchecked`)
+      continue
+    }
+
+    const problem = stateCaseProblem(testCase, test, statesOfFrame)
+
+    if (problem) {
+      problems.push(`${testCase.test}: ${problem}`)
+    }
+  }
+
+  return problems
+}
+
+/**
+ * The hover and focus states of every frame. Returns the problems and how
+ * many frames have states. Snapshot files that are missing or broken are left
+ * to the snapshot checks.
+ */
+function pseudoStateProblemsIn(manifest, path) {
+  const byFile = new Map()
+  const problems = []
+  let frames = 0
+
+  const statesOfFrame = (frame) => {
+    if (!byFile.has(frame.snapshot)) {
+      const serialized = readSnapshot(resolve(dirname(path), frame.snapshot))
+      const read = isSerializedDocument(serialized)
+        ? frameStates(serialized)
+        : { states: new Map(), problems: [] }
+
+      byFile.set(frame.snapshot, { ...read, rules: frameRuleProblems(read.states) })
+    }
+
+    return byFile.get(frame.snapshot).states
+  }
+
+  for (const test of manifest.modules.flatMap((module) => module.tests)) {
+    let hovering = false
+
+    for (const frame of test.frames) {
+      const states = statesOfFrame(frame)
+      const read = byFile.get(frame.snapshot)
+      const gesture = hoverGestureOf(frame.label)
+      const where = `${test.fullName}: frame ${frame.id} (${frame.label})`
+
+      hovering = gesture === null ? hovering : gesture === 'hover'
+
+      for (const problem of [...read.problems, ...read.rules]) {
+        problems.push(`${where}: ${problem}`)
+      }
+
+      if (states.size > 0) {
+        frames++
+      }
+
+      if (!hovering && [...states.keys()].some((node) => hasState(states, node, 'hover'))) {
+        problems.push(
+          `${where}: has hover, but no hover gesture frame comes before it since the last unhover`,
+        )
+      }
+    }
+  }
+
+  if (!structureOnly) {
+    problems.push(...stateCaseProblems(manifest, path, statesOfFrame))
+  }
+
+  return { problems, frames }
+}
+
 // `names Badge tone=danger inside a ThemeProvider`: the component, then the rest of the name.
 const NAMING_TEST = /^names ([A-Z]\S*)(.*)$/
 
@@ -871,6 +1377,7 @@ for (const path of paths) {
   const tests = manifest.modules.flatMap((module) => module.tests)
   const snapshots = snapshotProblemsIn(manifest, path)
   const store = storeProblemsIn(manifest, path)
+  const states = pseudoStateProblemsIn(manifest, path)
   const problems = emptinessProblemsIn(manifest)
   problems.push(...closingFrameProblemsIn(manifest, path))
   problems.push(...orderProblemsIn(manifest))
@@ -891,6 +1398,7 @@ for (const path of paths) {
 
   problems.push(...snapshots.problems)
   problems.push(...store.problems)
+  problems.push(...states.problems)
 
   if (problems.length > 0) {
     failed = true
@@ -904,7 +1412,7 @@ for (const path of paths) {
 
   const frames = tests.flatMap((test) => test.frames).length
   const files = `${snapshots.files.length} snapshot files, ${store.chunks} style chunks`
-  const counts = `${tests.length} tests, ${frames} frames, ${files}`
+  const counts = `${tests.length} tests, ${frames} frames (${states.frames} with states), ${files}`
 
   if (structureOnly) {
     console.log(`check-manifest: ok — ${path}: ${counts} (structure only)`)
