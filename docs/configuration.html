@@ -378,6 +378,16 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                   >).
                 </td>
               </tr>
+              <tr id="option-sidebar">
+                <td><code>sidebar</code></td>
+                <td class="nowrap"><code>{ groups }</code></td>
+                <td class="nowrap">no groups</td>
+                <td>
+                  Groups of test files in the sidebar. <code>groups</code> maps a group path, with
+                  <code>/</code> between levels, to a glob or a list of globs. A file joins the
+                  first group that matches it (<a href="#sidebar-groups">sidebar groups</a>).
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -563,6 +573,122 @@ describe-me: stories: 'tagged' needs test tags, which arrived in Vitest 4.1. Thi
           Your config may type its tags by extending Vitest's <code>TestTags</code> interface. Add
           <code>'docs' | 'no-docs'</code> to that type then. describe-me does not extend it itself,
           because a typed list would reject your other tags.
+        </p>
+
+        <h2 id="sidebar-groups">
+          Sidebar groups
+          <a class="anchor" href="#sidebar-groups" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          Without groups, the sidebar lists the recorded test files in path order.
+          <code>sidebar.groups</code> sorts them into named groups, which can nest, such as one
+          group per layer of a design system or per feature. Each key is a group path with
+          <code>/</code> between levels, and each value a glob or a list of globs:
+        </p>
+
+        <p class="file">vitest.config.ts</p>
+        <pre><code>describeMe({
+  sidebar: {
+    groups: {
+      Foundations: 'src/tokens/**',
+      'Components/Forms': 'src/components/{Input,Select,Checkbox}/**',
+      Components: 'src/components/**',
+      'Features/*': 'src/features/*/**',
+    },
+  },
+})</code></pre>
+
+        <p>Six test files land in these groups, in sidebar order:</p>
+        <pre>
+Foundations
+  src/tokens/Colors.test.tsx
+Components
+  Forms
+    src/components/Input/Input.test.tsx
+  src/components/Button/Button.test.tsx
+Features
+  auth
+    src/features/auth/Login.test.tsx
+  checkout
+    src/features/checkout/Cart.test.tsx
+src/App.test.tsx</pre>
+
+        <h3>Which group a file joins</h3>
+        <ul>
+          <li>The unit is the test file. All of its tests sit in its group.</li>
+          <li>
+            Globs are matched against the path of the test file from the Vitest root, as
+            <code>include</code> is: with picomatch, dotfiles included, and a leading
+            <code>./</code> ignored.
+          </li>
+          <li>
+            A file joins the first key that matches it, in the order the config lists them. So a
+            narrower key goes above a broader one, as <code>'Components/Forms'</code> sits above
+            <code>Components</code>.
+          </li>
+          <li>A file that no key matches has no group, and comes after the groups.</li>
+          <li>
+            Each level of a key is trimmed. A level that is exactly <code>*</code> takes the name of
+            the folder that the glob's <code>*</code> segment matched, so
+            <code>src/features/checkout/Cart.test.tsx</code> joins the group
+            <code>Features/checkout</code>. A key has at most one such level. Each of its globs
+            needs a segment that is exactly <code>*</code>, before any <code>**</code> and not the
+            last, and a file right in <code>src/features/</code> gets no group from it. Any other
+            level is a name, even one with a <code>*</code> in it.
+          </li>
+          <li>
+            JavaScript lists integer-like keys, such as <code>'1'</code> or <code>'2024'</code>,
+            before the others, so they are matched first whatever their written order.
+          </li>
+        </ul>
+
+        <h3>Order</h3>
+        <ul>
+          <li>
+            Groups on one level come in the order the config first names them. A key such as
+            <code>'Components/Forms'</code> names <code>Components</code> too, so
+            <code>Components</code> takes that place even when its own key comes later.
+          </li>
+          <li>The groups of a <code>*</code> level come in alphabetical order.</li>
+          <li>In a group, its subgroups come before its files, and the files are in path order.</li>
+          <li>A group without a test file, directly or in a subgroup, is left out.</li>
+        </ul>
+
+        <h3>Errors and warnings</h3>
+        <p>
+          A malformed option throws before any test runs: a <code>sidebar</code> or
+          <code>groups</code> that is not an object, another key next to <code>groups</code>, an
+          empty key or level, two <code>*</code> levels, a value that is not a non-empty glob or a
+          non-empty list of them, or a glob of a <code>*</code> key without its
+          <code>*</code> segment:
+        </p>
+        <pre>
+describe-me: sidebar.groups['Features/*'] names its groups after a * segment, so the glob 'src/features/**' needs a segment that is exactly *, before any ** and not the last</pre>
+
+        <p>
+          A key that gets no test file adds a setup warning, which the run prints at its end and the
+          viewer lists with its issues (<a href="troubleshooting.html#diag-setupWarnings"
+            ><code>setupWarnings</code></a
+          >). When earlier keys take the files it matches, the warning names them, as with
+          <code>Components</code> above <code>'Components/Forms'</code>:
+        </p>
+        <pre>
+describe-me: sidebar.groups['Components/Forms'] gets no test file, because an earlier key takes the 3 files it matches: 'Components'. Move it above that key or narrow that key's globs.</pre>
+
+        <h3>Which files take part</h3>
+        <p>
+          Only recorded files take part, so <code>include</code> and <code>exclude</code> decide
+          which (<a href="#include-exclude">which tests record</a>). With
+          <code>test.projects</code> entries that set their own <code>root</code>, the paths are
+          still relative to the Vitest root.
+        </p>
+        <p>
+          The viewer and the CLI read the groups only from the manifest (<a
+            href="how-it-works.html#manifest-sidebar"
+            ><code>sidebar</code> in the manifest</a
+          >). A change to the option takes a test run to show. Any run, even of one file, groups
+          every file of the manifest again.
         </p>
 
         <h2 id="render-frame">
@@ -800,7 +926,10 @@ export default defineConfig({
               <tr>
                 <td><code>setupWarnings</code></td>
                 <td class="nowrap">none</td>
-                <td>Problems in the project's setup. The plugin fills it.</td>
+                <td>
+                  Problems in the project's setup. The plugin fills it, and the reporter adds its
+                  own, such as a sidebar group that gets no test file.
+                </td>
               </tr>
               <tr>
                 <td><code>foundations</code></td>
@@ -808,6 +937,14 @@ export default defineConfig({
                 <td>
                   What the reporter writes to <code>foundations.json</code>, as the plugin's
                   <code>foundations</code>. <code>false</code> switches it off.
+                </td>
+              </tr>
+              <tr>
+                <td><code>sidebar</code></td>
+                <td class="nowrap">no groups</td>
+                <td>
+                  Groups of test files in the viewer's sidebar, as the plugin's
+                  <code>sidebar</code>. A key that gets no test file adds a setup warning.
                 </td>
               </tr>
             </tbody>
@@ -1034,6 +1171,7 @@ describeMe({
           <li><a href="#options">Options</a></li>
           <li><a href="#include-exclude">Which tests record</a></li>
           <li><a href="#stories">Which tests become stories</a></li>
+          <li><a href="#sidebar-groups">Sidebar groups</a></li>
           <li><a href="#render-frame">Render frame timing</a></li>
           <li><a href="#reporters">Reporters</a></li>
           <li><a href="#separate-config">A config of its own</a></li>

@@ -79,6 +79,20 @@
  * a click, but not on an element whose contenteditable is false. A missing
  * test fails, as with the naming rule.
  *
+ * Both modes check the sidebar groups. With `manifest.sidebar`,
+ * `sidebar.groups` is a non-empty list of distinct paths, each a non-empty
+ * list of non-empty strings. The list is depth first: the first path has one
+ * segment, and the parent of every later path is a prefix of the path right
+ * before it. Every module `group` is listed, and every listed path is a
+ * module's group or a prefix of one. Without `manifest.sidebar`, no module
+ * has a `group`. Both modes also hold the examples to their config, per
+ * example directory: in react-browser, each test file of its
+ * `sidebar.groups` is in the manifest with exactly its group, Naming.test.tsx
+ * without one, any other module (such as a `bench/` one) without one, and
+ * `sidebar.groups` is the list its config gives. react-jsdom, shadcn and mui
+ * have no `sidebar` and no `group`. Any other directory gets only the rules
+ * above.
+ *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
 import { createHash } from 'node:crypto'
@@ -1307,6 +1321,126 @@ function pseudoStateProblemsIn(manifest, path) {
   return { problems, frames }
 }
 
+/**
+ * The groups each example's config gives, per example directory: the group of
+ * every listed module, `null` for one without, and `sidebar.groups`, `null`
+ * for no `sidebar`. A module that is not listed has no group.
+ */
+const SIDEBAR_GROUPS = {
+  'react-browser': {
+    modules: {
+      'src/Button.test.tsx': ['Components'],
+      'src/Chip.test.tsx': ['Components'],
+      'src/Counter.test.tsx': ['Components', 'Inputs'],
+      'src/Menu.test.tsx': ['Components'],
+      'src/Naming.test.tsx': null,
+      'src/Postcard.test.tsx': ['Postcard'],
+      'src/SearchBox.test.tsx': ['Components', 'Inputs'],
+      'src/StyledText.test.tsx': ['Styles'],
+    },
+    groups: [['Components'], ['Components', 'Inputs'], ['Postcard'], ['Styles']],
+  },
+  'react-jsdom': { modules: {}, groups: null },
+  shadcn: { modules: {}, groups: null },
+  mui: { modules: {}, groups: null },
+}
+
+function isGroupPath(value) {
+  return Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString)
+}
+
+function isPrefix(prefix, path) {
+  return prefix.length <= path.length && prefix.every((name, i) => path[i] === name)
+}
+
+/** What any manifest promises about its groups, with the paths it lists if they are well formed. */
+function sidebarShapeProblems(manifest) {
+  const grouped = manifest.modules.filter((module) => 'group' in module)
+
+  if (manifest.sidebar === undefined) {
+    return grouped.map((module) => `${module.id}: has a group, but the manifest has no sidebar`)
+  }
+
+  const groups = manifest.sidebar?.groups
+
+  if (!Array.isArray(groups) || groups.length === 0 || !groups.every(isGroupPath)) {
+    return [`sidebar.groups is not a non-empty list of paths: ${JSON.stringify(groups)}`]
+  }
+
+  const problems = []
+  const keys = groups.map((path) => JSON.stringify(path))
+
+  for (const [i, key] of keys.entries()) {
+    if (keys.indexOf(key) !== i) {
+      problems.push(`sidebar.groups lists ${key} twice`)
+    }
+  }
+
+  if (groups[0].length !== 1) {
+    problems.push(`sidebar.groups starts with ${keys[0]}, expected a top-level group`)
+  }
+
+  for (let i = 1; i < groups.length; i++) {
+    if (!isPrefix(groups[i].slice(0, -1), groups[i - 1])) {
+      problems.push(`sidebar.groups lists ${keys[i]} right after ${keys[i - 1]}, not depth first`)
+    }
+  }
+
+  for (const module of grouped) {
+    if (!isGroupPath(module.group) || !keys.includes(JSON.stringify(module.group))) {
+      problems.push(`${module.id}: group ${JSON.stringify(module.group)} is not in sidebar.groups`)
+    }
+  }
+
+  for (const [i, path] of groups.entries()) {
+    if (!grouped.some((module) => isPrefix(path, module.group ?? []))) {
+      problems.push(`sidebar.groups lists ${keys[i]}, which holds no module`)
+    }
+  }
+
+  return problems
+}
+
+/** The groups of the example the manifest belongs to, as its config gives them. */
+function sidebarCaseProblems(manifest, path) {
+  const expected = SIDEBAR_GROUPS[basename(dirname(dirname(resolve(path))))]
+
+  if (expected === undefined) {
+    return []
+  }
+
+  const problems = []
+  const groupOf = (module) => JSON.stringify(module.group ?? null)
+
+  for (const [id, group] of Object.entries(expected.modules)) {
+    const module = manifest.modules.find((candidate) => candidate.id === id)
+
+    if (!module) {
+      problems.push(`${id}: not in the manifest, so its sidebar group went unchecked`)
+    } else if (groupOf(module) !== JSON.stringify(group)) {
+      problems.push(`${id}: group ${groupOf(module)}, expected ${JSON.stringify(group)}`)
+    }
+  }
+
+  for (const module of manifest.modules) {
+    if (!(module.id in expected.modules) && 'group' in module) {
+      problems.push(`${module.id}: group ${groupOf(module)}, expected none`)
+    }
+  }
+
+  const groups = JSON.stringify(manifest.sidebar?.groups ?? null)
+
+  if (groups !== JSON.stringify(expected.groups)) {
+    problems.push(`sidebar.groups is ${groups}, expected ${JSON.stringify(expected.groups)}`)
+  }
+
+  return problems
+}
+
+function sidebarProblemsIn(manifest, path) {
+  return [...sidebarShapeProblems(manifest), ...sidebarCaseProblems(manifest, path)]
+}
+
 // `names Badge tone=danger inside a ThemeProvider`: the component, then the rest of the name.
 const NAMING_TEST = /^names ([A-Z]\S*)(.*)$/
 
@@ -1383,6 +1517,7 @@ for (const path of paths) {
   problems.push(...orderProblemsIn(manifest))
   problems.push(...idProblemsIn(manifest))
   problems.push(...generatorProblemsIn(manifest), ...projectProblemsIn(manifest))
+  problems.push(...sidebarProblemsIn(manifest, path))
   if (!structureOnly) {
     problems.push(...problemsIn(manifest))
     problems.push(...stableIdProblemsIn(manifest))
@@ -1412,7 +1547,9 @@ for (const path of paths) {
 
   const frames = tests.flatMap((test) => test.frames).length
   const files = `${snapshots.files.length} snapshot files, ${store.chunks} style chunks`
-  const counts = `${tests.length} tests, ${frames} frames (${states.frames} with states), ${files}`
+  const groups = manifest.sidebar?.groups.length ?? 0
+  const sidebar = groups > 0 ? `, ${groups} sidebar groups` : ''
+  const counts = `${tests.length} tests, ${frames} frames (${states.frames} with states), ${files}${sidebar}`
 
   if (structureOnly) {
     console.log(`check-manifest: ok — ${path}: ${counts} (structure only)`)

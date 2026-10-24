@@ -254,7 +254,8 @@
                   <code
                     >{ outDir?: string; include?: string | string[]; exclude?: string | string[];
                     stories?: 'all' | 'tagged'; previewHead?: string; setupWarnings?: string[];
-                    foundations?: false | { theme?: string } }</code
+                    foundations?: false | { theme?: string }; sidebar?: { groups?: Record&lt;string,
+                    string | string[]&gt; } }</code
                   >
                 </td>
                 <td>
@@ -1144,8 +1145,11 @@
               </tr>
               <tr>
                 <td><code>ManifestModule</code></td>
-                <td><code>{ id: string; tests: ManifestTest[] }</code></td>
-                <td>A test file, by its path from the project root, and its recorded tests.</td>
+                <td><code>{ id: string; group?: string[]; tests: ManifestTest[] }</code></td>
+                <td>
+                  A test file, by its path from the project root, its sidebar group and its recorded
+                  tests.
+                </td>
               </tr>
               <tr>
                 <td><code>PropKind</code></td>
@@ -1186,7 +1190,7 @@
                 <td>
                   <code
                     >{ version, generator?, generatedAt, root, configFile?, project?, modules,
-                    components, assetsMissing?, head?, fontsMissing?, remoteStylesheets?,
+                    sidebar?, components, assetsMissing?, head?, fontsMissing?, remoteStylesheets?,
                     setupWarnings?, foundations? }</code
                   >
                 </td>

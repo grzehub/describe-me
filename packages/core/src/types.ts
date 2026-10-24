@@ -187,6 +187,12 @@ export interface ManifestTest {
 export interface ManifestModule {
   /** module path relative to project root */
   id: string
+  /**
+   * The module's sidebar group, outermost first, from the plugin's
+   * `sidebar.groups`. Absent for a file that no group matches, without the
+   * option, and in manifests written before 0.12.
+   */
+  group?: string[]
   tests: ManifestTest[]
 }
 
@@ -249,6 +255,13 @@ export interface Manifest {
    */
   project?: string
   modules: ManifestModule[]
+  /**
+   * The sidebar groups that hold a test file, directly or in a subgroup, each
+   * as its path from the outermost group, in sidebar order: depth first, each
+   * group before its subgroups. Absent without `sidebar.groups`, when no file
+   * has a group, and in manifests written before 0.12.
+   */
+  sidebar?: { groups: string[][] }
   /** Keyed by component name, as reported by the framework adapter. */
   components: Record<string, ComponentDoc>
   /**
@@ -276,9 +289,10 @@ export interface Manifest {
    */
   remoteStylesheets?: RemoteStylesheet[]
   /**
-   * Problems the plugin found in the project's setup, one sentence each.
-   * Absent when there are none and in manifests written before 0.5.1, which
-   * counts as empty.
+   * Problems the plugin or the reporter found in the project's setup, such as
+   * a sidebar group that gets no test file, one sentence each. Absent when
+   * there are none and in manifests written before 0.5.1, which counts as
+   * empty.
    */
   setupWarnings?: string[]
   /**
@@ -325,7 +339,10 @@ export interface ManifestDiagnostics {
   fontsMissing: FontMissing[]
   /** Hosts that frames load stylesheets from. */
   remoteStylesheets: RemoteStylesheet[]
-  /** Problems in the project's setup that can make tests fail. */
+  /**
+   * Problems in the project's setup, such as a dependency that can make tests
+   * fail or a sidebar group that gets no test file.
+   */
   setupWarnings: string[]
   /** Problems reading the design-system foundations. */
   foundationsErrors: string[]

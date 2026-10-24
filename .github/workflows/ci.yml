@@ -47,6 +47,7 @@ jobs:
       - run: pnpm check-act-parity
       - run: pnpm check-projects
       - run: pnpm check-stories
+      - run: pnpm check-sidebar-groups
       - run: pnpm check-live
       - run: pnpm check-foundations
 
