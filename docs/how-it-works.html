@@ -507,8 +507,9 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
 
         <p>
           In jsdom, <code>fireEvent</code> is not patched. The adapter exports its own, which
-          records one frame per call. Its enter, over, leave and out events report a hover with
-          <code>recorder.noteGesture()</code> too, after the event and before its frame.
+          records one frame per call. Its enter and over events report a hover with
+          <code>recorder.noteGesture()</code> too, and its leave and out events the end of one,
+          after the event and before its frame.
           <a href="writing-stories.html#frames">Writing stories</a>
           lists the methods that record, and
           <a href="configuration.html#plugin">What the plugin changes</a> lists every other change
@@ -948,10 +949,12 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             states it had. Each rule that names a state is rewritten to match the class as well,
             nested rules included: <code>.btn:hover</code> becomes
             <code>.btn:is(:hover, .\:hover)</code>, in place, so
-            <code>:not(:focus-visible)</code> reads the class too. The real states still match, so
-            your own pointer over the frame hovers it. Sheets from another origin stay as they are.
-            The browser's default focus ring comes first in <code>&lt;head&gt;</code>, in a cascade
-            layer that every page rule beats. A frame without states replays as rrweb builds it.
+            <code>:not(:focus-visible)</code> reads the class too. A state after a pseudo-element,
+            such as <code>::-webkit-scrollbar-thumb:hover</code>, stays as it is. The real states
+            still match, so your own pointer over the frame hovers it. Sheets from another origin
+            stay as they are. The browser's default focus ring comes first in
+            <code>&lt;head&gt;</code>, in a cascade layer that every page rule beats. A frame
+            without states replays as rrweb builds it.
           </li>
           <li>
             Builds the new frame in a hidden slot next to the visible one, and swaps it in once its
