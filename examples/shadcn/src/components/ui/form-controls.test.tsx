@@ -14,6 +14,12 @@ describe('Input', () => {
     const screen = await render(<Input className="w-[280px]" placeholder="Read only" disabled />)
     await expect.element(screen.getByRole('textbox')).toBeDisabled()
   })
+
+  it('shows its focus ring', async () => {
+    const screen = await render(<Input className="w-[280px]" placeholder="you@example.com" />)
+    await screen.getByRole('textbox').click()
+    await expect.element(screen.getByRole('textbox')).toHaveFocus()
+  })
 })
 
 describe('Switch', () => {

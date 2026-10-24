@@ -48,4 +48,29 @@ describe('Disclosure', () => {
 
     expect(screen.getByText('the details')).toBeDefined()
   })
+
+  it('highlights the button on hover', async () => {
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+
+    await userEvent.setup().hover(screen.getByRole('button', { name: 'show details' }))
+
+    expect(screen.queryByText('the details')).toBeNull()
+  })
+
+  it('highlights the button on mouseEnter', () => {
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'show details' }))
+
+    expect(screen.queryByText('the details')).toBeNull()
+  })
+
+  it('shows a focus ring from the keyboard', async () => {
+    const user = userEvent.setup()
+    const screen = render(<Disclosure label="show details">the details</Disclosure>)
+
+    await user.tab()
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'show details' }))
+  })
 })

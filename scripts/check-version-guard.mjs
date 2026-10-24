@@ -124,6 +124,11 @@ await expectRejected('0.5.1 recorder: rejected', 'recorder-0-5-1', { protocol: 1
   'protocol 1',
 ])
 
+await expectRejected('0.11 recorder: rejected', 'recorder-0-11', { protocol: 2, flush() {} }, [
+  SAME_VERSION,
+  'protocol 2',
+])
+
 await expectRejected(
   '0.4 recorder: rejected',
   'recorder-0-4',

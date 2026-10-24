@@ -19,14 +19,14 @@ pnpm build            # tsc for core, react, vitest and the viewer CLI
 pnpm --filter describe-me typecheck   # viewer sources, after pnpm build
 pnpm lint:fix         # eslint --fix + prettier --write (run before finishing)
 pnpm lint && pnpm format:check
-cd examples/react-browser && pnpm test          # 25 tests, browser mode
-cd examples/react-jsdom && pnpm test          # 28 tests, jsdom (23 in the manifest)
+cd examples/react-browser && pnpm test          # 28 tests, browser mode
+cd examples/react-jsdom && pnpm test          # 32 tests, jsdom (27 in the manifest)
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
-cd examples/shadcn && pnpm test   # 13 tests, browser mode, Tailwind 4 and shadcn/ui
-cd examples/mui && pnpm test   # 6 tests, jsdom, Material UI with cssVariables
+cd examples/shadcn && pnpm test   # 15 tests, browser mode, Tailwind 4 and shadcn/ui
+cd examples/mui && pnpm test   # 7 tests, jsdom, Material UI with cssVariables
 cd examples/mui && MUI_CLASSIC=1 pnpm test   # the same tests with the classic theme, without cssVariables, into node_modules/.describe-me-classic
 cd examples/mui && MUI_THEME=off pnpm test   # the same tests with the classic theme and without foundations.theme, into node_modules/.describe-me-no-theme
-pnpm check-manifest   # react-browser and react-jsdom in full with --require-fonts, shadcn and mui with --structure-only, after running every example's tests
+pnpm check-manifest   # react-browser and react-jsdom in full with --require-fonts, shadcn and mui with --structure-only, and the hover and focus states of frames, after running every example's tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
 pnpm check-asset-store   # CSS references, copied CSS, preview head, asset GC, and machine paths in snapshots, error texts and `assetsMissing`, after pnpm build
 pnpm check-font-audit   # which font families count as missing, after pnpm build
@@ -49,7 +49,7 @@ pnpm check-docs       # docs/ pages: skeleton, tokens, links, deep links, code s
 pnpm site:build       # docs/ plus the four example viewers with Live → site/ [--no-vendor-fonts], after pnpm build and every example's tests
 pnpm site:serve       # serve site/ at http://localhost:6060/ [--port n]
 pnpm site             # site:build, then site:serve
-pnpm check-site       # no file of the site names the checkout or the home directory, docs.css applies, every viewer loads, react-browser shows and filters by its tag forms and folds a long props table, an overview with several components paints every gallery in every viewer, a link to a test opens it in Live in every viewer and Live shows its loading state (the dimmed recorded frame until the first status, one slot after leaving Live or picking another test while it loads, and reduced motion), the stage background (bg sets the canvas and the frames' color scheme, the canvas takes the page's background, dark also applies the dark variant and gives the Material UI frame its dark card and primary, and no frame it opens says it has only a light variant, in replay, in Live and in the overview), the sidebar's edge sets the width from the keyboard and by dragging, per project and kept after a reload, the panel toggles and [ ] hide and show the sidebar and the inspector, kept after a reload, and a narrow window starts with them hidden, and the viewer theme (it survives a reload, under auto picks the canvas and the frames' color scheme, and under light, dark and transparent changes nothing), and in react-browser live=0, frame, an old live=1 link, L, ↑ ↓, the timeline, a thumbnail and a preview that is starting or off give the recorded frame or Live as the link says, in Chromium, after pnpm site:build
+pnpm check-site       # no file of the site names the checkout or the home directory, docs.css applies, every viewer loads, react-browser shows and filters by its tag forms and folds a long props table, an overview with several components paints every gallery in every viewer, hover and focus in a replayed frame, a frame link and a thumbnail (selector forms, an old frame without states, and the default ring under a layered reset), a link to a test opens it in Live in every viewer and Live shows its loading state (the dimmed recorded frame until the first status, one slot after leaving Live or picking another test while it loads, and reduced motion), the stage background (bg sets the canvas and the frames' color scheme, the canvas takes the page's background, dark also applies the dark variant and gives the Material UI frame its dark card and primary, and no frame it opens says it has only a light variant, in replay, in Live and in the overview), the sidebar's edge sets the width from the keyboard and by dragging, per project and kept after a reload, the panel toggles and [ ] hide and show the sidebar and the inspector, kept after a reload, and a narrow window starts with them hidden, and the viewer theme (it survives a reload, under auto picks the canvas and the frames' color scheme, and under light, dark and transparent changes nothing), and in react-browser live=0, frame, an old live=1 link, L, ↑ ↓, the timeline, a thumbnail and a preview that is starting or off give the recorded frame or Live as the link says, in Chromium, after pnpm site:build
 pnpm docs:screenshots [page.html …]   # light and dark, 1280 and 390 px wide [--out dir]
 pnpm docs:link react-browser "<full test name>" [frame]   # a deep link into an example viewer for a docs page
 pnpm demo:record [submits|rejects|foundations …] [--out dir]   # the demo videos of the shadcn viewer for the README and social media, as WebM, MP4 and GIF into demo/, after pnpm site:build, needs ffmpeg

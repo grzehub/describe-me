@@ -410,11 +410,55 @@ describeMe({ environment: 'browser' })</code></pre>
         <pre>describe-me: concurrent tests are not recorded (src/Menu.test.tsx)</pre>
 
         <p>
-          <strong>Pseudo-class states do not survive a snapshot.</strong> States such as
-          <code>:hover</code> or <code>:focus-visible</code> are not part of the DOM, so no frame
-          shows them. A hover shows up only when the component puts it into the DOM, for example as
-          a class or an attribute.
+          <strong>Hover and focus are recorded.</strong> Each frame records which elements were in
+          <code>:hover</code>, <code>:focus</code>, <code>:focus-visible</code> and
+          <code>:focus-within</code>, and the viewer replays their rules, as in
+          <a href="examples/react-browser/#test=25e4ce75555a&amp;frame=1"
+            >the frame of a ghost button on hover</a
+          >.
         </p>
+
+        <ul>
+          <li>
+            <strong>Both environments.</strong> <code>:focus</code> is the focused element, and
+            <code>:focus-within</code> is that element and its ancestors.
+          </li>
+          <li>
+            <strong>Browser mode.</strong> The browser decides <code>:focus-visible</code> and
+            <code>:hover</code>. A hover shows only while <code>hover()</code> is the test's last
+            pointer gesture, because a click leaves the pointer over its target.
+          </li>
+          <li>
+            <strong>DOM environments.</strong>
+            <ul>
+              <li>
+                <code>hover()</code> and <code>fireEvent.mouseEnter</code>, <code>mouseOver</code>,
+                <code>pointerEnter</code> and <code>pointerOver</code> hover the element and its
+                ancestors.
+              </li>
+              <li>
+                <code>unhover()</code>, <code>fireEvent.mouseLeave</code>, <code>mouseOut</code>,
+                <code>pointerLeave</code> and <code>pointerOut</code>, and <code>click</code>,
+                <code>dblClick</code>, <code>tripleClick</code> and <code>pointer</code> end it.
+              </li>
+              <li>
+                <code>:focus-visible</code> goes to a text field, or to the focused element after
+                <code>tab</code>, <code>keyboard</code> or <code>type</code>, until the next
+                <code>click</code>, <code>dblClick</code>, <code>tripleClick</code> or
+                <code>pointer</code>.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Not recorded.</strong> <code>:active</code>, and a hover your own code fakes,
+            for example with <code>dispatchEvent(new MouseEvent('mouseover'))</code>. The frame
+            shows only what such code changed in the DOM.
+          </li>
+          <li>
+            <strong>Live</strong> mounts the real component, so its hover and focus follow your own
+            pointer and keyboard.
+          </li>
+        </ul>
 
         <h2 id="choosing">
           Which one to use

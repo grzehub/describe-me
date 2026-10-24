@@ -245,7 +245,14 @@ it('does not go below the minimum', async () =&gt; {
                   <a href="examples/react-browser/#test=f98c899a3981&amp;frame=1"
                     >a loading button</a
                   >
-                  that swallows the click.
+                  that swallows the click. Frames show hover and focus:
+                  <a href="examples/react-browser/#test=25e4ce75555a&amp;frame=1"
+                    ><code>.hover()</code> on a ghost button</a
+                  >, the ring of
+                  <a href="examples/react-browser/#test=12e47dac9009&amp;frame=1"
+                    ><code>userEvent.tab()</code></a
+                  >, and none after
+                  <a href="examples/react-browser/#test=f6389adb809c&amp;frame=1">a click</a>.
                 </td>
               </tr>
               <tr>
@@ -383,6 +390,26 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
                     ><code>userEvent.click</code></a
                   >, with one frame per click either way. A <code>step()</code> names
                   <a href="examples/react-jsdom/#test=a7f4d7422f6a&amp;frame=2">close it again</a>.
+                  Hover follows
+                  <a href="examples/react-jsdom/#test=dff5b4fdff77&amp;frame=1"
+                    ><code>user.hover</code></a
+                  >
+                  and
+                  <a href="examples/react-jsdom/#test=f1009b861586&amp;frame=1"
+                    ><code>fireEvent.mouseEnter</code></a
+                  >, and
+                  <a href="examples/react-jsdom/#test=4038aa616d64&amp;frame=1"
+                    ><code>user.tab</code> shows the focus ring</a
+                  >.
+                </td>
+              </tr>
+              <tr>
+                <td class="name"><code>TextField</code></td>
+                <td>
+                  <a href="examples/react-jsdom/#test=ad61fa200a1f&amp;frame=1"
+                    ><code>user.type</code> focuses the field</a
+                  >, and its styles leave the focus ring to the browser, so the frame shows the
+                  default one.
                 </td>
               </tr>
               <tr>

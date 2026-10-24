@@ -157,6 +157,10 @@
             test and hand its frames to the reporter
           </li>
           <li>
+            sets the recorder's <code>environment</code> to <code>'browser'</code>, so the browser
+            decides the hover and <code>:focus-visible</code> of each frame
+          </li>
+          <li>
             reads <code>include</code>, <code>exclude</code> and <code>renderFrame</code> from the
             plugin
           </li>
@@ -193,6 +197,10 @@
           <li>
             registers the same hooks as <code>@describe-me/vitest/setup</code>, with the act flag
             off while the recorder waits, as in Testing Library's own waits
+          </li>
+          <li>
+            sets the recorder's <code>environment</code> to <code>'dom'</code>, so the hover and
+            <code>:focus-visible</code> of each frame follow the test's gestures
           </li>
           <li>
             reads <code>include</code>, <code>exclude</code> and <code>renderFrame</code> from the
@@ -576,7 +584,9 @@
                 <td><code>const fireEvent: FireEvent</code></td>
                 <td>
                   Testing Library's <code>fireEvent</code>, the function and each method. Every call
-                  records one frame, labelled like <code>click(button "Save")</code>.
+                  records one frame, labelled like <code>click(button "Save")</code>. The enter and
+                  over events, such as <code>mouseEnter</code>, hover their element in the frame,
+                  and the leave and out events end that hover.
                 </td>
               </tr>
               <tr>
@@ -848,8 +858,8 @@
                 <td><code>configure</code></td>
                 <td><code>configure(options: RecorderOptions): void</code></td>
                 <td>
-                  Sets when the render frame is taken and what runs around each wait. The setup
-                  files call it with the plugin's options.
+                  Sets when the render frame is taken, what runs around each wait and where the
+                  tests run. The setup files call it with the plugin's options.
                   <a href="configuration.html#without-plugin">Without the plugin</a>, you call it in
                   a setup file of your own.
                 </td>
@@ -878,29 +888,32 @@
         <p>
           Adapters and setup files call the rest of <code>class Recorder</code> in
           <code>packages/core/src/recorder.ts</code>: <code>begin()</code>, <code>capture()</code>,
-          <code>beforeInteraction()</code>, <code>end()</code>, <code>onTeardown()</code> and
-          <code>teardown()</code>, and they read <code>generation</code>, <code>isActive</code> and
-          <code>protocol</code>. <a href="how-it-works.html#recording">One test, step by step</a>
-          shows when each one runs.
+          <code>beforeInteraction()</code>, <code>noteGesture(kind, target?)</code>,
+          <code>end()</code>, <code>onTeardown()</code> and <code>teardown()</code>, and they read
+          <code>generation</code>, <code>isActive</code> and <code>protocol</code>. An adapter calls
+          <code>noteGesture()</code> after each interaction and before its frame, with what the
+          interaction did to hover and focus. The recorder's protocol is 3.
+          <a href="how-it-works.html#recording">One test, step by step</a> shows when each one runs.
         </p>
 
         <p>
-          The root entry point also exports the 45 names of
+          The root entry point also exports the 49 names of
           <a href="#entry-core-types"><code>@describe-me/core/types</code></a
           >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
           <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
           <code>ASSET_URL_PREFIX</code>, <code>STYLE_URL_PREFIX</code>,
-          <code>RenderFrameMode</code>, <code>AroundWait</code>, <code>RecorderOptions</code>,
-          <code>CaptureOptions</code>, <code>Frame</code>, <code>TestRecord</code>,
-          <code>META_KEY</code>, <code>DOCS_TAG</code>, <code>NO_DOCS_TAG</code>,
-          <code>TestState</code>, <code>ManifestFrame</code>, <code>ManifestTest</code>,
-          <code>ManifestModule</code>, <code>PropKind</code>, <code>PropDoc</code>,
-          <code>ComponentDoc</code>, <code>ManifestGenerator</code>, <code>Manifest</code>,
-          <code>FontMissing</code>, <code>RemoteStylesheet</code>, <code>ANONYMOUS_COMPONENT</code>,
-          <code>ManifestDiagnostics</code>, <code>DesignSystemId</code>,
-          <code>FoundationGroup</code>, <code>FoundationTokenType</code>,
-          <code>FoundationToken</code>, <code>FoundationsSheet</code>,
-          <code>FoundationsSystem</code>, <code>Foundations</code>,
+          <code>PSEUDO_STATES_ATTRIBUTE</code>, <code>PseudoState</code>,
+          <code>RecorderEnvironment</code>, <code>GestureKind</code>, <code>RenderFrameMode</code>,
+          <code>AroundWait</code>, <code>RecorderOptions</code>, <code>CaptureOptions</code>,
+          <code>Frame</code>, <code>TestRecord</code>, <code>META_KEY</code>, <code>DOCS_TAG</code>,
+          <code>NO_DOCS_TAG</code>, <code>TestState</code>, <code>ManifestFrame</code>,
+          <code>ManifestTest</code>, <code>ManifestModule</code>, <code>PropKind</code>,
+          <code>PropDoc</code>, <code>ComponentDoc</code>, <code>ManifestGenerator</code>,
+          <code>Manifest</code>, <code>FontMissing</code>, <code>RemoteStylesheet</code>,
+          <code>ANONYMOUS_COMPONENT</code>, <code>ManifestDiagnostics</code>,
+          <code>DesignSystemId</code>, <code>FoundationGroup</code>,
+          <code>FoundationTokenType</code>, <code>FoundationToken</code>,
+          <code>FoundationsSheet</code>, <code>FoundationsSystem</code>, <code>Foundations</code>,
           <code>ManifestFoundations</code>, <code>LiveStatus</code>,
           <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>, <code>LiveReport</code>,
           <code>LiveMessage</code>, <code>VIEWER_MESSAGE_SOURCE</code>,
@@ -979,6 +992,41 @@
                 </td>
               </tr>
               <tr>
+                <td><code>PSEUDO_STATES_ATTRIBUTE</code></td>
+                <td><code>'data-describe-me-states'</code></td>
+                <td>
+                  The attribute that holds an element's states in a stored snapshot, as names
+                  separated by spaces, always in the order
+                  <code>hover focus focus-visible focus-within</code>. Only the serialized tree has
+                  it, never the page.
+                </td>
+              </tr>
+              <tr>
+                <td><code>PseudoState</code></td>
+                <td><code>'hover' | 'focus' | 'focus-visible' | 'focus-within'</code></td>
+                <td>A pseudo-class state that a frame records for an element.</td>
+              </tr>
+              <tr>
+                <td><code>RecorderEnvironment</code></td>
+                <td><code>'browser' | 'dom'</code></td>
+                <td>
+                  Where the tests run, which decides how a frame reads hover and focus. These are
+                  the values of the plugin's
+                  <a href="configuration.html#option-environment"><code>environment</code></a>
+                  option.
+                </td>
+              </tr>
+              <tr>
+                <td><code>GestureKind</code></td>
+                <td><code>'hover' | 'unhover' | 'pointer' | 'keyboard'</code></td>
+                <td>
+                  What a gesture did, for <code>recorder.noteGesture()</code>.
+                  <code>hover</code> rests the pointer on an element, <code>unhover</code> ends the
+                  hover, <code>pointer</code> also ends keyboard mode and
+                  <code>keyboard</code> starts it.
+                </td>
+              </tr>
+              <tr>
                 <td><code>RenderFrameMode</code></td>
                 <td>
                   <code>'eager' | 'lazy' | { pending: string; timeout?: number }</code>
@@ -1000,9 +1048,16 @@
               <tr>
                 <td><code>RecorderOptions</code></td>
                 <td>
-                  <code>{ renderFrame?: RenderFrameMode; aroundWait?: AroundWait }</code>
+                  <code
+                    >{ renderFrame?: RenderFrameMode; aroundWait?: AroundWait; environment?:
+                    RecorderEnvironment }</code
+                  >
                 </td>
-                <td>The options of <code>recorder.configure()</code>.</td>
+                <td>
+                  The options of <code>recorder.configure()</code>. <code>aroundWait</code> and
+                  <code>environment</code> are kept when omitted, and <code>environment</code> is
+                  <code>'dom'</code> until a setup file sets it.
+                </td>
               </tr>
               <tr>
                 <td><code>CaptureOptions</code></td>

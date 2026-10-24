@@ -279,9 +279,8 @@
             <a href="environments.html#jsdom-limits">Limitations in jsdom</a>.
           </li>
           <li>
-            Pseudo-class states such as <code>:hover</code> or <code>:focus-visible</code> are not
-            in the DOM, so no frame shows them. See
-            <a href="environments.html#both">Limits in both environments</a>.
+            <code>:active</code> is not recorded. Hover and focus are, and in jsdom they follow the
+            test's gestures. See <a href="environments.html#both">Limits in both environments</a>.
           </li>
         </ul>
 

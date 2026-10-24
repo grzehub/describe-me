@@ -1,6 +1,7 @@
 import { compactFrames, type FrameSlot } from './compact-frames.js'
 import { pageHasContent } from './page-has-content.js'
 import { PendingRender } from './pending-render.js'
+import { readPseudoStates, type GestureState } from './read-pseudo-states.js'
 import { realTimers } from './real-timers.js'
 import { serializeDocument } from './serialize-document.js'
 import { settle } from './settle.js'
@@ -10,6 +11,8 @@ import {
   type CaptureOptions,
   type ComponentInfo,
   type FrameKind,
+  type GestureKind,
+  type RecorderEnvironment,
   type RecorderOptions,
   type RenderFrameMode,
   type TestRecord,
@@ -21,9 +24,13 @@ type Teardown = () => void
  * Bump it whenever the contract between the recorder and the adapters or setup
  * files changes: a method or property added, removed or changed in meaning.
  */
-const RECORDER_PROTOCOL = 2
+const RECORDER_PROTOCOL = 3
 
 type DeferredMode = Exclude<RenderFrameMode, 'eager'>
+
+function noGestures(): GestureState {
+  return { hovering: false, target: null, keyboard: false }
+}
 
 function isValidSelector(selector: string): boolean {
   try {
@@ -39,7 +46,7 @@ function isValidSelector(selector: string): boolean {
  * Test-side recorder, running wherever the tests run: the browser-mode iframe
  * or jsdom. `begin()` in beforeEach. `flush()`, the closing capture, `end()`
  * then `teardown()` in afterEach. Framework adapters call `capture()`,
- * `beforeInteraction()`, `setComponent()` and `onTeardown()`.
+ * `beforeInteraction()`, `noteGesture()`, `setComponent()` and `onTeardown()`.
  */
 class Recorder {
   /** Which contract this recorder follows, so another copy of core can refuse it. */
@@ -53,6 +60,9 @@ class Recorder {
   private pending: PendingRender | null = null
   private renderFrame: RenderFrameMode = 'eager'
   private aroundWait: AroundWait = (wait) => wait()
+  private environment: RecorderEnvironment = 'dom'
+  // Reset by `begin()` and `end()`, so no gesture and no element outlives its test.
+  private gestures: GestureState = noGestures()
   private component?: ComponentInfo
   private startedAt = 0
   private active = false
@@ -65,6 +75,7 @@ class Recorder {
     this.slots = []
     this.inFlight.clear()
     this.clearDeferred()
+    this.gestures = noGestures()
     this.component = undefined
     this.startedAt = realTimers.now()
     this.active = true
@@ -85,15 +96,19 @@ class Recorder {
 
   /**
    * Choose when the render frame is taken, from the next render capture on,
-   * and what runs around each wait. The setup files call it with the plugin's
-   * options. A `pending` selector the DOM rejects falls back to `'lazy'` with
-   * a warning.
+   * what runs around each wait and where the tests run. The setup files call
+   * it with the plugin's options. A `pending` selector the DOM rejects falls
+   * back to `'lazy'` with a warning.
    */
   configure(options: RecorderOptions): void {
     const renderFrame = options.renderFrame ?? 'eager'
 
     if (options.aroundWait !== undefined) {
       this.aroundWait = options.aroundWait
+    }
+
+    if (options.environment !== undefined) {
+      this.environment = options.environment
     }
 
     if (
@@ -185,6 +200,35 @@ class Recorder {
   }
 
   /**
+   * Report what a gesture did to hover and focus, after it ran and before its
+   * frame is taken. `hover` rests the pointer on `target`, `unhover` ends the
+   * hover, `pointer` also ends keyboard mode, and `keyboard` starts it.
+   */
+  noteGesture(kind: GestureKind, target?: Element): void {
+    if (!this.active) {
+      return
+    }
+
+    if (kind === 'keyboard') {
+      this.gestures.keyboard = true
+      return
+    }
+
+    if (kind === 'hover') {
+      this.gestures.hovering = true
+      this.gestures.target = target ?? null
+      return
+    }
+
+    this.gestures.hovering = false
+    this.gestures.target = null
+
+    if (kind === 'pointer') {
+      this.gestures.keyboard = false
+    }
+  }
+
+  /**
    * Take a deferred render frame now. Adapters call it before an interaction
    * changes the page: an event, a `step()` body, another render, an unmount.
    */
@@ -233,6 +277,7 @@ class Recorder {
     this.active = false
     this.currentGeneration++
     this.clearDeferred()
+    this.gestures = noGestures()
 
     // The reporter needs the origin rrweb resolved every URL against. Optional
     // chaining, because a DOM environment is not guaranteed to define `location`.
@@ -308,7 +353,7 @@ class Recorder {
       return
     }
 
-    const snapshot = serializeDocument()
+    const snapshot = serializeDocument(readPseudoStates(this.environment, this.gestures))
 
     if (snapshot === null) {
       return

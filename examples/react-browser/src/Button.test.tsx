@@ -38,9 +38,21 @@ describe('Button', () => {
       expect(onClick).toHaveBeenCalledTimes(1)
     })
 
+    it('highlights a ghost button on hover', async () => {
+      const screen = await render(<Button variant="ghost">Learn more</Button>)
+      const button = screen.getByRole('button')
+      await button.hover()
+
+      expect(getComputedStyle(button.element()).backgroundColor).toBe('rgb(242, 242, 242)')
+    })
+
     it('is disabled', async () => {
       const screen = await render(<Button disabled>Unavailable</Button>)
-      await expect.element(screen.getByRole('button')).toBeDisabled()
+      const button = screen.getByRole('button')
+      await expect.element(button).toBeDisabled()
+      await button.hover()
+
+      expect(getComputedStyle(button.element()).backgroundColor).toBe('rgb(17, 17, 17)')
     })
 
     it('shows a spinner while loading and swallows clicks', async () => {
@@ -54,6 +66,18 @@ describe('Button', () => {
       await expect.element(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true')
       await userEvent.click(screen.getByRole('button'), { force: true })
       expect(onClick).not.toHaveBeenCalled()
+    })
+
+    it('shows a focus ring from the keyboard', async () => {
+      const screen = await render(<Button>Continue</Button>)
+      const button = screen.getByRole('button')
+
+      // userEvent.keyboard() focuses this frame before it types, userEvent.tab() does not.
+      window.focus()
+      await userEvent.tab()
+
+      await expect.element(button).toHaveFocus()
+      expect(getComputedStyle(button.element()).outlineStyle).toBe('solid')
     })
   })
 

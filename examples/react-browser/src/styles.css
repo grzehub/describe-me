@@ -73,12 +73,20 @@ body {
   color: var(--paper);
 }
 /* Button sets aria-disabled while disabled or loading, and then hover changes nothing. */
-.btn-primary:hover:not([aria-disabled='true']) {
+.btn-primary:not(:disabled, [aria-disabled='true']):hover {
   background: var(--accent);
 }
-.btn-ghost:hover:not([aria-disabled='true']),
-.btn-secondary:hover:not([aria-disabled='true']) {
+.btn-ghost:not(:disabled, [aria-disabled='true']):hover,
+.btn-secondary:not(:disabled, [aria-disabled='true']):hover {
   background: var(--hover);
+}
+/* A ring for keyboard focus only. */
+.btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn:focus:not(:focus-visible) {
+  outline: none;
 }
 .btn:disabled,
 .btn[aria-disabled='true'] {
@@ -168,6 +176,13 @@ body {
 }
 .searchbox input::placeholder {
   color: var(--muted);
+}
+.searchbox input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.searchbox-field:focus-within input {
+  border-color: var(--ink);
 }
 /* The clear button below takes the place of the browser's own. */
 .searchbox input::-webkit-search-cancel-button {
