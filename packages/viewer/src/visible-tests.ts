@@ -1,7 +1,8 @@
-import type { ManifestTest } from '@describe-me/core/types'
+import type { ManifestModule, ManifestTest } from '@describe-me/core/types'
 import { CollapsedSuites } from './collapsed-suites.js'
 import { filterActive } from './filter-active.js'
 import { matchesFilter } from './matches-filter.js'
+import { sidebarModules } from './sidebar-modules.js'
 import { soleSuite } from './sole-suite.js'
 import { state } from './state.js'
 import { suiteKey } from './suite-key.js'
@@ -9,14 +10,14 @@ import { buildTree, type SuiteNode } from './tree.js'
 
 function collect(
   node: SuiteNode,
-  moduleId: string,
+  mod: ManifestModule,
   path: string[],
   collapsed: CollapsedSuites | null,
   into: ManifestTest[],
 ): void {
   for (const child of node.children) {
     if (!('suites' in child)) {
-      if (matchesFilter(child, moduleId)) {
+      if (matchesFilter(child, mod)) {
         into.push(child)
       }
 
@@ -24,15 +25,16 @@ function collect(
     }
 
     const childPath = [...path, child.name]
-    if (!collapsed?.has(suiteKey(moduleId, childPath))) {
-      collect(child, moduleId, childPath, collapsed, into)
+    if (!collapsed?.has(suiteKey(mod.id, childPath))) {
+      collect(child, mod, childPath, collapsed, into)
     }
   }
 }
 
 /**
  * The tests the sidebar shows, in its order, after the search, the tag filter
- * and the collapsed suites. It walks the same tree by the same rules as the sidebar.
+ * and the collapsed groups and suites. It walks the same tree by the same
+ * rules as the sidebar.
  */
 export function visibleTests(): ManifestTest[] {
   const manifest = state.manifest
@@ -44,13 +46,13 @@ export function visibleTests(): ManifestTest[] {
   const collapsed = filterActive() ? null : CollapsedSuites.for(manifest.root)
   const tests: ManifestTest[] = []
 
-  for (const mod of manifest.modules) {
+  for (const mod of sidebarModules(manifest, collapsed)) {
     const root = buildTree(mod)
     const only = soleSuite(root)
     const path = only ? [only.name] : []
 
     if (!collapsed?.has(suiteKey(mod.id, path))) {
-      collect(only ?? root, mod.id, path, collapsed, tests)
+      collect(only ?? root, mod, path, collapsed, tests)
     }
   }
 

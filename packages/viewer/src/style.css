@@ -651,21 +651,26 @@ a {
   border-radius: var(--r-sm);
   color: var(--ink-3);
 }
-.twisty::before {
+.twisty::before,
+.group-arrow::before {
   content: '';
   border-style: solid;
   border-width: 4px 0 4px 5px;
   border-color: transparent transparent transparent currentColor;
   transition: transform 0.12s;
 }
-.twisty[aria-expanded='true']::before {
+.twisty[aria-expanded='true']::before,
+.group-row[aria-expanded='true'] > .group-arrow::before {
   transform: rotate(90deg);
 }
 .twisty:hover {
   background: var(--hover);
   color: var(--ink);
 }
-.module + .module {
+.module + .module,
+.module + .group,
+.group + .module,
+.group + .group {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--line-soft);
@@ -714,7 +719,43 @@ a {
   font-weight: 500;
 }
 
+/* A group's name is a label over its files, as the docs site labels its nav groups. */
+.group-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 25px;
+  margin-bottom: 4px;
+  padding-right: 9px;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+  text-align: left;
+}
+div.group-row {
+  padding-left: 9px;
+}
+button.group-row:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.group-arrow {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 25px;
+}
+.group-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* One hairline per nesting level: the tree stays readable without deep indents. */
+.group-body,
 .suite:not(.root) {
   margin-left: 9px;
   padding-left: 9px;

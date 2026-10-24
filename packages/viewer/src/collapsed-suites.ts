@@ -1,9 +1,9 @@
 const instances = new Map<string, CollapsedSuites>()
 
 /**
- * The sidebar's collapsed modules and suites, by `suiteKey()`, kept in
- * `localStorage` per project because several projects share
- * `localhost:6006`. Without storage it still works for the page's lifetime.
+ * The sidebar's collapsed groups, modules and suites, by `groupKey()` and
+ * `suiteKey()`, kept in `localStorage` per project because several projects
+ * share `localhost:6006`. Without storage it still works for the page's lifetime.
  */
 export class CollapsedSuites {
   private readonly storageKey: string

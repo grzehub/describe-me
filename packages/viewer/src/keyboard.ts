@@ -40,7 +40,7 @@ function nearestShown(shown: ManifestTest[], id: string, step: 1 | -1): Manifest
 
 /**
  * The next or previous test the sidebar shows. From a test hidden in a
- * collapsed suite, that is the nearest shown row in sidebar order. From a test
+ * collapsed group or suite, that is the nearest shown row in sidebar order. From a test
  * the search or the tag filter leaves out, ↓ enters at the first match and ↑
  * at the last.
  */
