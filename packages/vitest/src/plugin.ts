@@ -95,6 +95,13 @@ export interface DescribeMeOptions {
    * `false` switches them off. Default: on, without a theme module.
    */
   foundations?: false | { theme?: string }
+  /**
+   * Groups of test files in the viewer's sidebar. `groups` maps a group path,
+   * with `/` between levels, to a glob or a list of globs relative to the root,
+   * matched like `include`. A file joins the first group that matches it.
+   * Default: no groups.
+   */
+  sidebar?: { groups?: Record<string, string | string[]> }
 }
 
 type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number]
@@ -166,6 +173,7 @@ export function describeMe(options: DescribeMeOptions = {}): VitePlugin {
         previewHead: options.previewHead,
         setupWarnings,
         foundations: options.foundations,
+        sidebar: options.sidebar,
       })
 
       // Vite concatenates our list with the user's. Any list replaces the

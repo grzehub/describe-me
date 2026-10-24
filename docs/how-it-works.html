@@ -660,7 +660,8 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         <p>
           A filtered run, such as <code>vitest run Button.test.tsx</code>, starts from the previous
           manifest. Modules whose file is gone or no longer recorded are dropped, the rest stay. A
-          test skipped in the run keeps its previous entry.
+          test skipped in the run keeps its previous entry. Every module, kept or new, gets its
+          sidebar group from this run's options.
         </p>
 
         <p>
@@ -756,8 +757,19 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                 <td class="nowrap"><code>ManifestModule[]</code></td>
                 <td class="nowrap">never</td>
                 <td>
-                  The recorded test files, sorted by path, each with its tests and their frames.
-                  Their shape is below the table.
+                  The recorded test files, sorted by path, each with its sidebar group when it has
+                  one, its tests and their frames. Their shape is below the table.
+                </td>
+              </tr>
+              <tr id="manifest-sidebar">
+                <td><code>sidebar</code></td>
+                <td class="nowrap"><code>{ groups: string[][] }</code></td>
+                <td>before 0.12, and without groups</td>
+                <td>
+                  The <a href="configuration.html#sidebar-groups">sidebar groups</a> that hold a
+                  test file, directly or in a subgroup, each as its path from the outermost group,
+                  such as <code>["Components", "Inputs"]</code>. They are in sidebar order: depth
+                  first, each group before its subgroups. Also absent when no file has a group.
                 </td>
               </tr>
               <tr id="manifest-components">
@@ -814,9 +826,10 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                 <td class="nowrap"><code>string[]</code></td>
                 <td class="nowrap">before 0.5.1</td>
                 <td>
-                  Problems the plugin found in the project's setup, one sentence each. They come
-                  from this run only, never from the previous manifest. Absent when there are none,
-                  which counts as empty.
+                  Problems the plugin or the reporter found in the project's setup, one sentence
+                  each, such as a sidebar group that gets no test file. They come from this run
+                  only, never from the previous manifest. Absent when there are none, which counts
+                  as empty.
                 </td>
               </tr>
               <tr id="manifest-foundations">
@@ -840,7 +853,9 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         <ul>
           <li>
             A module (<code>ManifestModule</code>) has an <code>id</code>, the test file's path from
-            the root, and its <code>tests</code>.
+            the root, its <code>group</code> and its <code>tests</code>. The <code>group</code> is
+            the file's sidebar group, outermost first, absent for a file without one and before
+            0.12.
           </li>
           <li>
             A test (<code>ManifestTest</code>) has an <code>id</code>: the first 12 hex characters
@@ -872,6 +887,7 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         <p class="file">manifest.json, one test of the browser-mode example, shortened</p>
         <pre><code>{
   "id": "src/Menu.test.tsx",
+  "group": ["Components"],
   "tests": [
     {
       "id": "d5b51b54fed9",

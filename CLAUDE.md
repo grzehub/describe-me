@@ -26,7 +26,7 @@ cd examples/shadcn && pnpm test   # 15 tests, browser mode, Tailwind 4 and shadc
 cd examples/mui && pnpm test   # 7 tests, jsdom, Material UI with cssVariables
 cd examples/mui && MUI_CLASSIC=1 pnpm test   # the same tests with the classic theme, without cssVariables, into node_modules/.describe-me-classic
 cd examples/mui && MUI_THEME=off pnpm test   # the same tests with the classic theme and without foundations.theme, into node_modules/.describe-me-no-theme
-pnpm check-manifest   # react-browser and react-jsdom in full with --require-fonts, shadcn and mui with --structure-only, and the hover and focus states of frames, after running every example's tests
+pnpm check-manifest   # react-browser and react-jsdom in full with --require-fonts, shadcn and mui with --structure-only, the hover and focus states of frames, and the sidebar groups of react-browser, none in the other examples, after running every example's tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
 pnpm check-asset-store   # CSS references, copied CSS, preview head, asset GC, and machine paths in snapshots, error texts and `assetsMissing`, after pnpm build
 pnpm check-font-audit   # which font families count as missing, after pnpm build
@@ -37,6 +37,7 @@ pnpm check-version-guard   # recorder protocol guard and manifest generator, aft
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
 pnpm check-projects   # inline test.projects record and unmount, and one with extends: false keeps Testing Library's cleanup, on examples/react-jsdom with PROJECTS=1, after pnpm build and the jsdom example's tests
 pnpm check-stories   # stories: 'all' / 'tagged' and the docs / no-docs tags, on examples/react-jsdom/stories, after pnpm build
+pnpm check-sidebar-groups   # sidebar.groups on the built plugin and reporter: the option's errors, the first match, the * segment, the order of groups, stale fields and the empty-group warnings, after pnpm build
 pnpm check-live   # every test of all four examples mounted in the live preview and in a static build served under a sub-path, the viewer's messages to the live page, the live page's background reports, Live in every example's viewer through describe-me dev from a plain link, and from an old live=1 link in react-browser, and the live fixtures of react-browser and react-jsdom under Vitest, in the live preview and in the static build, in Chromium, after pnpm build and every example's tests
 pnpm check-foundations   # foundations.json of all four examples (shadcn, MUI on CSS variables, with MUI_CLASSIC=1 and with MUI_THEME=off, react-jsdom with its theme, react-browser), the option, the CSS scan, the adapters and the error paths, and the Foundations view in Chromium on a static build of every output and of synthetic Chakra UI, type-style and Material UI copies: the design-system presets, the type styles composed from custom properties and from a plain theme module, the WCAG contrast of pairs, the token filter, the Material UI defaults, the Material UI setup hint and the note of the classic MUI frame on the dark canvas, after pnpm build and every example's tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight

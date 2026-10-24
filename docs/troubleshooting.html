@@ -192,11 +192,14 @@
                   >
                 </td>
                 <td>
-                  The plugin found a problem in your setup that can make tests fail. The only one
-                  today: the browser build of styled-components with a tslib older than 2.5.3.
-                  Upgrade styled-components to 6.1.10 or later, or override tslib to 2.5.3 or later.
-                  See
-                  <a href="styles-and-fonts.html#styled-components">styled-components</a>.
+                  The plugin or the reporter found a problem in your setup. The plugin warns about
+                  the browser build of styled-components with a tslib older than 2.5.3, which can
+                  make tests fail. Upgrade styled-components to 6.1.10 or later, or override tslib
+                  to 2.5.3 or later. See
+                  <a href="styles-and-fonts.html#styled-components">styled-components</a>. The
+                  reporter warns about a key of <code>sidebar.groups</code> that gets no test file.
+                  Fix its globs, move the key above the keys that take its files, or remove it. See
+                  <a href="configuration.html#sidebar-groups">Sidebar groups</a>.
                 </td>
               </tr>
               <tr id="diag-foundationsErrors">
@@ -566,13 +569,14 @@
               </tr>
               <tr>
                 <td>
-                  "include and exclude expect non-empty glob strings" or "renderFrame expects …"
-                  before any test runs.
+                  "include and exclude expect non-empty glob strings", "renderFrame expects …" or
+                  "sidebar …" before any test runs.
                 </td>
                 <td>An option has a value the plugin does not accept.</td>
                 <td>
-                  Fix the option. See <a href="configuration.html#option-include">include</a> and
-                  <a href="configuration.html#render-frame">Render frame timing</a>.
+                  Fix the option. See <a href="configuration.html#option-include">include</a>,
+                  <a href="configuration.html#render-frame">Render frame timing</a> and
+                  <a href="configuration.html#sidebar-groups">Sidebar groups</a>.
                 </td>
               </tr>
               <tr>

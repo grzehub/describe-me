@@ -34,6 +34,7 @@ export const sections = {
     'plugin',
     'options',
     'include-exclude',
+    'sidebar-groups',
     'render-frame',
     'reporters',
     'separate-config',

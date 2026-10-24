@@ -34,6 +34,7 @@ import { ProjectPaths } from './project-paths.js'
 import { readGenerator } from './read-generator.js'
 import { readProjectName } from './read-project-name.js'
 import { RecordedSheets } from './recorded-sheets.js'
+import { sidebarGroups } from './sidebar-groups.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
 import type { StoriesMode } from './stories-mode.js'
@@ -41,6 +42,7 @@ import { StyleStore } from './style-store.js'
 import { tagFilter } from './tag-filter.js'
 import { testPath } from './test-path.js'
 import { validateFoundations, type FoundationsOption } from './validate-foundations.js'
+import { validateSidebar, type SidebarOption } from './validate-sidebar.js'
 
 export interface DescribeMeReporterOptions {
   /** Output directory, relative to the Vitest root. Default: `.describe-me` */
@@ -67,7 +69,10 @@ export interface DescribeMeReporterOptions {
    * Project files it links are copied into the output directory. Default: none.
    */
   previewHead?: string
-  /** Problems in the project's setup, filled by the plugin. Default: none. */
+  /**
+   * Problems in the project's setup, filled by the plugin. The reporter adds
+   * its own, such as a sidebar group that gets no test file. Default: none.
+   */
   setupWarnings?: string[]
   /**
    * The design-system foundations the reporter writes to `foundations.json`.
@@ -76,6 +81,13 @@ export interface DescribeMeReporterOptions {
    * `false` switches them off. Default: on, without a theme module.
    */
   foundations?: false | { theme?: string }
+  /**
+   * Groups of test files in the viewer's sidebar. `groups` maps a group path,
+   * with `/` between levels, to a glob or a list of globs relative to the root,
+   * matched like `include`. A file joins the first group that matches it.
+   * Default: no groups.
+   */
+  sidebar?: { groups?: Record<string, string | string[]> }
 }
 
 type ManifestError = NonNullable<ManifestTest['errors']>[number]
@@ -131,6 +143,7 @@ export default class DescribeMeReporter implements Reporter {
   private readonly generator: ManifestGenerator | undefined
   private readonly setupWarnings: string[]
   private readonly foundations: FoundationsOption
+  private readonly sidebar: SidebarOption
   private root = process.cwd()
   private configFile: string | undefined
   private project: string | undefined
@@ -158,6 +171,7 @@ export default class DescribeMeReporter implements Reporter {
     this.setupWarnings = options.setupWarnings ?? []
     // Here too, because the reporter also runs without the plugin.
     this.foundations = validateFoundations(options.foundations)
+    this.sidebar = validateSidebar(options.sidebar)
   }
 
   onInit(vitest: Vitest): void {
@@ -282,9 +296,14 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   async onTestRunEnd(): Promise<void> {
-    const modules = Array.from(this.modules.values()).sort((left, right) =>
+    const sorted = Array.from(this.modules.values()).sort((left, right) =>
       left.id.localeCompare(right.id),
     )
+
+    // On every module, those kept from the last run included, so a filtered
+    // run regroups the whole manifest and never warns about a key whose files it skipped.
+    const grouped = sidebarGroups(sorted, this.sidebar)
+    const { modules } = grouped
 
     const components = await collectComponentDocsSafely(
       this.root,
@@ -308,6 +327,7 @@ export default class DescribeMeReporter implements Reporter {
       configFile: this.configFile,
       project: this.project,
       modules,
+      sidebar: grouped.groups.length > 0 ? { groups: grouped.groups } : undefined,
       components,
       assetsMissing,
     }
@@ -325,9 +345,12 @@ export default class DescribeMeReporter implements Reporter {
     this.assets.collectGarbage([...snapshotFiles, ...styleFiles], head === undefined ? [] : [head])
     this.auditFonts(manifest)
 
-    // Never seeded from the last run: the plugin checks the setup on every start.
-    if (this.setupWarnings.length > 0) {
-      manifest.setupWarnings = this.setupWarnings.map((warning) => this.paths.inText(warning))
+    // Never seeded from the last run: the plugin checks the setup on every
+    // start, and the sidebar groups are worked out again on every run.
+    const setupWarnings = [...this.setupWarnings, ...grouped.warnings]
+
+    if (setupWarnings.length > 0) {
+      manifest.setupWarnings = setupWarnings.map((warning) => this.paths.inText(warning))
     }
 
     // After the garbage collection, so every snapshot and chunk it reads exists.

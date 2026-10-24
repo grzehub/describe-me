@@ -25,6 +25,7 @@
     "check-act-parity": "node scripts/check-act-parity.mjs",
     "check-projects": "node scripts/check-projects.mjs",
     "check-stories": "node scripts/check-stories.mjs",
+    "check-sidebar-groups": "node scripts/check-sidebar-groups.mjs",
     "check-live": "node scripts/check-live.mjs",
     "check-foundations": "node scripts/check-foundations.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me",

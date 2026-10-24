@@ -51,6 +51,17 @@ const previewHead = `
   <link rel="stylesheet" href="/src/assets/fonts/fonts.css">
 `
 
+// A file joins the first key that matches it, so the narrower Components/Inputs
+// comes before Components. Naming.test.tsx matches no key and stays ungrouped.
+const sidebar = {
+  groups: {
+    'Components/Inputs': 'src/{Counter,SearchBox}.test.tsx',
+    Components: 'src/{Button,Chip,Counter,Menu,SearchBox}.test.tsx',
+    Postcard: 'src/Postcard.test.tsx',
+    Styles: 'src/StyledText.test.tsx',
+  },
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -58,6 +69,9 @@ export default defineConfig({
     describeMe({
       enabled,
       previewHead,
+      // The idle and live fixture runs record no file of src/ into their own
+      // directories, where every group would warn that it stays empty.
+      ...(liveFixtures || idle ? {} : { sidebar }),
       ...(idle ? { exclude: '**', outDir: 'node_modules/.describe-me-idle' } : {}),
       ...(liveFixtures ? { outDir: 'node_modules/.describe-me-live-fixtures' } : {}),
     }),
