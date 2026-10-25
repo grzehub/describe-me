@@ -142,7 +142,11 @@
                 <td><code>typescript</code></td>
                 <td class="nowrap"><code>^5.0.0 || ^6.0.0</code></td>
                 <td class="nowrap"><code>@describe-me/vitest</code></td>
-                <td>Optional. The reporter reads component props with it, for the props table.</td>
+                <td>
+                  Optional. The reporter reads component props with it, for the props table.
+                  TypeScript 7 has no compiler API it can use, so with it the run records without
+                  props and warns once.
+                </td>
               </tr>
               <tr id="version-testing-library-user-event">
                 <td><code>@testing-library/user-event</code></td>

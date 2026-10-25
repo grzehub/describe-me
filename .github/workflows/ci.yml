@@ -44,6 +44,7 @@ jobs:
       - run: pnpm check-asset-store
       - run: pnpm check-styled-components
       - run: pnpm check-version-guard
+      - run: pnpm check-typescript
       - run: pnpm check-act-parity
       - run: pnpm check-projects
       - run: pnpm check-stories

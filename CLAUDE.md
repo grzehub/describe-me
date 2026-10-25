@@ -34,6 +34,7 @@ pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after 
 pnpm check-frame-timing   # frame compaction, renderFrame validation and when an interaction notes its gesture, after pnpm build
 pnpm check-styled-components   # the tslib alias and setup warning for styled-components, after pnpm build
 pnpm check-version-guard   # recorder protocol guard and manifest generator, after pnpm build
+pnpm check-typescript   # the props reader with TypeScript 7, without TypeScript and when it throws, never failing the run, after pnpm build
 pnpm check-act-parity   # act warnings with and without recording in examples/react-jsdom, after pnpm build
 pnpm check-projects   # inline test.projects record and unmount, and one with extends: false keeps Testing Library's cleanup, on examples/react-jsdom with PROJECTS=1, after pnpm build and the jsdom example's tests
 pnpm check-stories   # stories: 'all' / 'tagged' and the docs / no-docs tags, on examples/react-jsdom/stories, after pnpm build

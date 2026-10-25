@@ -22,6 +22,7 @@
     "check-frame-timing": "node scripts/check-frame-timing.mjs",
     "check-styled-components": "node scripts/check-styled-components.mjs",
     "check-version-guard": "node scripts/check-version-guard.mjs",
+    "check-typescript": "node scripts/check-typescript.mjs",
     "check-act-parity": "node scripts/check-act-parity.mjs",
     "check-projects": "node scripts/check-projects.mjs",
     "check-stories": "node scripts/check-stories.mjs",

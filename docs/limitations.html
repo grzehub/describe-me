@@ -175,6 +175,16 @@
                 </td>
                 <td><span class="badge status-planned">planned</span></td>
               </tr>
+              <tr id="limit-typescript-7">
+                <td>
+                  The reporter reads props with the compiler API of TypeScript 5 and 6. TypeScript 7
+                  has none it can use, so a project on it gets no props tables. The run records as
+                  usual and warns once. See <a href="writing-stories.html#props">Props</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>Install <code>typescript</code> 6 for the props tables.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
               <tr id="limit-projects-include">
                 <td>
                   With <code>test.projects</code> entries that set their own <code>root</code>,
@@ -610,8 +620,8 @@
           >. <a href="#limit-concurrent-tests">Concurrent tests</a> and tests a
           <a href="#limit-filtered-run">filtered run</a> skips record nothing new. A
           <a href="#limit-naming-wrappers">wrapper that ignores <code>children</code></a> needs you
-          to name the test, and
-          <a href="#limit-projects-include">projects with their own root</a> need
+          to name the test, props tables need <a href="#limit-typescript-7">TypeScript 5 or 6</a>,
+          and <a href="#limit-projects-include">projects with their own root</a> need
           <code>**/</code> globs. Recording costs time, see
           <a href="#limit-overhead">Performance</a>, and needs
           <a href="#limit-lockstep">one version of every package</a>. 0.5.2 fixed
