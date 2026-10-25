@@ -1,5 +1,14 @@
 # @describe-me/vitest
 
+## 0.12.1
+
+### Patch Changes
+
+- [#132](https://github.com/grzehub/describe-me/pull/132) [`5e8913d`](https://github.com/grzehub/describe-me/commit/5e8913db94e8586e1cc01dfdada94c5b64f6e332) Thanks [@grzehub](https://github.com/grzehub)! - A run with TypeScript 7 installed no longer fails at its end. TypeScript 7, `latest` on npm since July, imports fine but has no compiler API that the props reader can use, and the reader threw: every test passed, yet Vitest reported an unhandled `TypeError` and exited with 1, and the reporter wrote no manifest. The reporter now warns once, `typescript 7.0.2 has no compiler API that describe-me can use, component props will not be documented`, and writes the manifest without props tables, as it does without TypeScript. Props tables still need TypeScript 5 or 6. Any other error while reading props warns with its message and leaves only the props out.
+- Updated dependencies []:
+  - @describe-me/core@0.12.1
+  - describe-me@0.12.1
+
 ## 0.12.0
 
 ### Minor Changes
