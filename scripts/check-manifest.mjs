@@ -89,9 +89,10 @@
  * example directory: in react-browser, each test file of its
  * `sidebar.groups` is in the manifest with exactly its group, Naming.test.tsx
  * without one, any other module (such as a `bench/` one) without one, and
- * `sidebar.groups` is the list its config gives. react-jsdom, shadcn and mui
- * have no `sidebar` and no `group`. Any other directory gets only the rules
- * above.
+ * `sidebar.groups` is the list its config gives; in shadcn, the files of
+ * `src/components/ui/` are under `Components/ui` and the signup card under
+ * `Components`. react-jsdom and mui have no `sidebar` and no `group`. Any
+ * other directory gets only the rules above.
  *
  * Usage: `node scripts/check-manifest.mjs [--structure-only] [--require-fonts] <path/to/manifest.json> [...more]`
  */
@@ -1341,7 +1342,16 @@ const SIDEBAR_GROUPS = {
     groups: [['Components'], ['Components', 'Inputs'], ['Postcard'], ['Styles']],
   },
   'react-jsdom': { modules: {}, groups: null },
-  shadcn: { modules: {}, groups: null },
+  shadcn: {
+    modules: {
+      'src/components/signup-card.test.tsx': ['Components'],
+      'src/components/ui/button.test.tsx': ['Components', 'ui'],
+      'src/components/ui/card.test.tsx': ['Components', 'ui'],
+      'src/components/ui/feedback.test.tsx': ['Components', 'ui'],
+      'src/components/ui/form-controls.test.tsx': ['Components', 'ui'],
+    },
+    groups: [['Components'], ['Components', 'ui']],
+  },
   mui: { modules: {}, groups: null },
 }
 
