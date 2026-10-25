@@ -48,7 +48,8 @@
  * over a stale closed state. Under a search and a tag a group row is a plain
  * label and a group without a match drops out, a closed parent hides a nested
  * one-file group, and a group whose files lose every test drops out. The same
- * manifest without groups, and the other viewers, show no group. The panel
+ * manifest without groups shows no group, and every other viewer shows as
+ * many groups as its manifest lists. The panel
  * toggles of a test and of an overview, and `[` `]`, hide and show the
  * sidebar and the inspector, react-browser keeps that after a reload, `/`
  * shows the sidebar, and a narrow window starts with them hidden until it
@@ -4158,7 +4159,7 @@ async function oneFileGroupStep(page, base, key) {
   return lower
 }
 
-/** g: the same manifest without groups, and the viewers whose manifests have none, show no group. */
+/** g: the same manifest without groups shows no group, and every other viewer as many as its manifest lists. */
 async function withoutGroupsStep(page, url, base, manifest) {
   const unroute = await routeManifest(page, GROUPS.name, withoutGroups)
   const files = new Set(shownTests(manifest).map((test) => test.moduleId))
@@ -4177,15 +4178,17 @@ async function withoutGroupsStep(page, url, base, manifest) {
   }
 
   for (const name of exampleNames.filter((example) => example !== GROUPS.name)) {
-    const first = shownTests(readSiteManifest(name))[0]
+    const other = readSiteManifest(name)
+    const first = shownTests(other)[0]
+    const listed = other.sidebar?.groups.length ?? 0
 
     await freshLoad(page, `${url}examples/${name}/#test=${first.id}&live=0`)
     await activeRow(page)
 
     const shown = await page.locator('.group').count()
 
-    if (shown > 0) {
-      return `examples/${name}/ shows ${shown} groups, its manifest has none`
+    if (shown !== listed) {
+      return `examples/${name}/ shows ${shown} groups, its manifest lists ${listed}`
     }
   }
 
@@ -4369,7 +4372,7 @@ async function checkSidebarGroups(browser, url) {
     }
 
     console.log(
-      `check-site: examples/${GROUPS.name}/ opens its first sidebar row, shows its groups in config order, keeps a closed group after a reload, skips it with ↑ ↓, opens closed groups for a link and a click, finds tests by a group's name, shows a one-file group as its file, and the other viewers show no group. Under a search and a tag, group rows are plain labels and groups without a match drop out, a closed parent hides a nested one-file group, and groups whose files lose every test drop out`,
+      `check-site: examples/${GROUPS.name}/ opens its first sidebar row, shows its groups in config order, keeps a closed group after a reload, skips it with ↑ ↓, opens closed groups for a link and a click, finds tests by a group's name, shows a one-file group as its file, and the other viewers show the groups of their manifests. Under a search and a tag, group rows are plain labels and groups without a match drop out, a closed parent hides a nested one-file group, and groups whose files lose every test drop out`,
     )
 
     return []
