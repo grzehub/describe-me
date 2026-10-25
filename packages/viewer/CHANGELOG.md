@@ -1,5 +1,20 @@
 # describe-me
 
+## 0.12.0
+
+### Minor Changes
+
+- [#123](https://github.com/grzehub/describe-me/pull/123) [`bb1b669`](https://github.com/grzehub/describe-me/commit/bb1b66968d84c4e35f2772a2a48af1f9f30247df) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - Frames show hover and focus. Each frame records which elements were in `:hover`, `:focus`, `:focus-visible` and `:focus-within`, and the viewer replays them on the stage, in the overview, in frame links and in static builds. In browser mode the browser decides, and a hover shows only while `hover()` is the test's last pointer gesture. In jsdom and other DOM environments `hover()`, `unhover()`, the clicks and the enter, over, leave and out events of `fireEvent` move the hover, and `:focus-visible` follows a text field or the last keyboard gesture. `:active` is not recorded. Frames recorded before 0.12 replay as before.
+
+  `@describe-me/core/types` exports `PSEUDO_STATES_ATTRIBUTE`, the attribute that holds the states in a stored snapshot, and the types `PseudoState`, `RecorderEnvironment` and `GestureKind`. `RecorderOptions` takes `environment`, which the setup files set. Adapters report gestures with `recorder.noteGesture(kind, target?)`. The recorder protocol is 3, so all describe-me packages must be on 0.12 together.
+
+- [#128](https://github.com/grzehub/describe-me/pull/128) [`8d92ded`](https://github.com/grzehub/describe-me/commit/8d92ded48094c0813fb9afd2a9997e0d21e02863) Thanks [@grzehub-bot](https://github.com/grzehub-bot)! - The viewer's sidebar shows the groups of `sidebar.groups`. A group is a row with an arrow and its name, and a click on the row opens or closes it. The viewer keeps closed groups per project, as it keeps collapsed suites. Groups come in the order of the config, a group's subgroups before its files, and files without a group come last. ↑ ↓ skip closed groups, opening a test opens its groups, and the search also matches the names of a file's groups. A group without subgroups whose one file has a single `describe` of the group's name, in any case, shows as that file alone. A link without a test opens the first test of the sidebar. A manifest without groups shows the sidebar as before.
+
+### Patch Changes
+
+- Updated dependencies [[`bb1b669`](https://github.com/grzehub/describe-me/commit/bb1b66968d84c4e35f2772a2a48af1f9f30247df), [`c647ac5`](https://github.com/grzehub/describe-me/commit/c647ac5b2ac24a007adbded9eed65c70d09ec95f)]:
+  - @describe-me/core@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
