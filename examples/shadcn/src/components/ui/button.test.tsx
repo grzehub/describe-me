@@ -27,6 +27,16 @@ describe('Button', () => {
     await expect.element(screen.getByRole('button')).toHaveAttribute('data-variant', 'destructive')
   })
 
+  it('highlights a ghost button on hover', async () => {
+    const screen = await render(<Button variant="ghost">Learn more</Button>)
+    const button = screen.getByRole('button')
+
+    await button.hover()
+
+    // A ghost button paints no background until the pointer is over it.
+    expect(getComputedStyle(button.element()).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  })
+
   it('shows its focus ring from the keyboard', async () => {
     const screen = await render(<Button>Continue</Button>)
 

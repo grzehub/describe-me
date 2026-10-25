@@ -698,6 +698,9 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
           <code>src/test-setup.ts</code> imports <code>index.css</code> for every test file, as the
           app's entry would. The page paints the <code>--background</code> token, as the shadcn
           setup does.
+          <a href="configuration.html#sidebar-groups"><code>sidebar.groups</code></a> mirrors
+          <code>src/components</code>: the shadcn primitives sit under <code>Components / ui</code>,
+          the app's own component next to them.
         </p>
 
         <p class="file">examples/shadcn/src/index.css</p>
@@ -747,6 +750,11 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
                     >every variant in the dark variant</a
                   >
                   is dark in every frame.
+                  <a href="examples/shadcn/#test=a694dc984136&amp;frame=1"
+                    >A ghost button on hover</a
+                  >
+                  keeps its hover in the closing frame, with the background the utility paints
+                  there.
                 </td>
               </tr>
               <tr>

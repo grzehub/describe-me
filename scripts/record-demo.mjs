@@ -4,7 +4,7 @@
  * scenario, in headless Chromium. Writes <name>.webm, <name>.mp4 and
  * <name>.gif. Needs pnpm site:build first, and ffmpeg on the PATH.
  *
- * Usage: `node scripts/record-demo.mjs [submits|rejects|foundations …] [--out dir]`
+ * Usage: `node scripts/record-demo.mjs [submits|rejects|foundations|states …] [--out dir]`
  */
 import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs'
 import { join, resolve } from 'node:path'

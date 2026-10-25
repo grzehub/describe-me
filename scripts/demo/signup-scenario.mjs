@@ -65,13 +65,13 @@ export async function signupScenario(stage, story) {
 
   await stage.term([
     { kind: 'prompt', text: '$ vitest run' },
-    { kind: 'ok', text: '  ✓ 13 tests passed' },
+    { kind: 'ok', text: '  ✓ 16 tests passed' },
   ])
 
   await stage.pause(700)
   await stage.term([
     { kind: 'prompt', text: '$ vitest run' },
-    { kind: 'ok', text: '  ✓ 13 tests passed' },
+    { kind: 'ok', text: '  ✓ 16 tests passed' },
     { kind: 'prompt', text: '$ describe-me dev' },
     { kind: 'url', text: '  viewer at http://localhost:4173' },
   ])
