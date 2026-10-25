@@ -504,7 +504,11 @@ recorder.setComponent({
           <code>node_modules</code>, such as those of <code>ButtonHTMLAttributes</code>, are left
           out. When the export is not registered, the reporter finds the file through the test's
           import of the component. Without TypeScript installed, the reporter warns and documents no
-          props.
+          props. It reads them with the compiler API of TypeScript 5 and 6, so with TypeScript 7 it
+          also warns, once, and the run records without props (<a
+            href="limitations.html#limit-typescript-7"
+            >the limit</a
+          >).
         </p>
 
         <p>

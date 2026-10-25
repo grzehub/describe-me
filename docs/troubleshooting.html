@@ -134,7 +134,7 @@
                 <td>
                   The reporter could not read the props of these named components. Host elements
                   such as <code>div</code> never count. Check that the component is exported from a
-                  TypeScript module and that <code>typescript</code> is installed. See
+                  TypeScript module and that <code>typescript</code> 5 or 6 is installed. See
                   <a href="writing-stories.html#props">Props</a>.
                 </td>
               </tr>
@@ -333,6 +333,33 @@
                 <td>
                   Install <code>typescript</code> as a dev dependency. See
                   <a href="installation.html#version-typescript">Installation</a>.
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code
+                    >typescript 7.0.2 has no compiler API that describe-me can use, component props
+                    will not be documented</code
+                  >
+                </td>
+                <td>
+                  At the end of a run where a recorded test rendered a component and the installed
+                  <code>typescript</code> is 7 or later, whose package exports only its version.
+                  Once per process. Before 0.12.1 such a run failed with a <code>TypeError</code>
+                  and wrote no manifest.
+                </td>
+                <td>
+                  The run records as usual, without props tables. They need
+                  <code>typescript</code> 5 or 6. See
+                  <a href="limitations.html#limit-typescript-7">the limit</a>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>component props could not be read: …</code></td>
+                <td>At the end of a run, when reading the props throws.</td>
+                <td>
+                  The manifest of that run has no props tables. Please
+                  <a href="#report">report it</a> with the message.
                 </td>
               </tr>
               <tr>
