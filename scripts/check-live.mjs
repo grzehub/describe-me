@@ -39,9 +39,10 @@
  * brings its dark `body` color to the stage. `describe-me dev --no-live`
  * answers off and shows no toggle. The viewer pages log no error. Last, the
  * live fixtures of react-browser and react-jsdom run under Vitest and in the
- * live preview, with setup files, fixtures, around hooks, `each` and `for`
- * names, module mocks, a CSS plugin split in two by `apply`, a Node-only
- * import, `setup-failed` and `live: false`
+ * live preview, with setup files, MSW's worker under the live base, also
+ * through `describe-me dev`, fixtures, around hooks, `each` and `for` names,
+ * module mocks, a CSS plugin split in two by `apply`, a Node-only import,
+ * `setup-failed` and `live: false`
  * (scripts/check-live/check-fixtures.mjs). Then the static part builds the same
  * with `buildLive()`, serves each build under a nested path and runs the same
  * tests, statuses and fixtures against it

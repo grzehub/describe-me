@@ -29,6 +29,7 @@
     "@vitejs/plugin-react": "^5",
     "describe-me": "workspace:*",
     "jsdom": "^26.1.0",
+    "msw": "^3.0.3",
     "rrweb-snapshot": "^2.1.6",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"

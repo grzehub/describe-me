@@ -2,3 +2,9 @@ packages:
   - packages/*
   - examples/*
   - '!examples/stackblitz'
+
+peerDependencyRules:
+  allowedVersions:
+    # @vitest/mocker 5 asks for msw ^2 as an optional peer. The live fixtures
+    # of react-jsdom use msw 3, and only Vitest's browser mode reads the peer.
+    '@vitest/mocker>msw': '3'

@@ -659,7 +659,8 @@ describe('Menu', () =&gt; {
             the setup files and the test file in the browser, so an import such as
             <code>node:fs</code> or <code>msw/node</code> at the top of the test file, or a hook
             that needs one, keeps the test out of Live. For a setup file that needs Node, list a
-            browser version of it in <code>live: { setupFiles }</code>, as below.
+            browser version of it in <code>live: { setupFiles }</code>, as
+            <a href="#live-msw">MSW in Live</a> does.
           </li>
           <li>
             <strong>Give providers to <code>render</code>.</strong> Through <code>wrapper</code>,
@@ -681,6 +682,16 @@ describe('Menu', () =&gt; {
         </ul>
 
         <p>
+          Some of what Vitest does has no effect on the live page.
+          <a href="how-it-works.html#live-preview">The live preview</a> lists what it leaves out.
+        </p>
+
+        <h3 id="live-msw">
+          MSW in Live
+          <a class="anchor" href="#live-msw" aria-label="Link to this section">#</a>
+        </h3>
+
+        <p>
           A setup file with MSW's <code>setupServer</code> needs Node.
           <code>live.setupFiles</code> replaces <code>test.setupFiles</code> on the live page, so
           the same handlers can answer there through <code>setupWorker</code>. Test runs ignore it.
@@ -689,7 +700,11 @@ describe('Menu', () =&gt; {
         <p class="file">vitest.config.ts</p>
         <pre><code>import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { msw } from 'msw/vite'
 import { describeMe } from '@describe-me/vitest/plugin'
+
+<span class="dim">// set while the live preview loads this config</span>
+const live = process.env.DESCRIBE_ME_LIVE === '1'
 
 export default defineConfig({
   plugins: [
@@ -698,41 +713,86 @@ export default defineConfig({
       <span class="dim">// the live page imports these instead of test.setupFiles</span>
       live: { setupFiles: ['./src/test/setup.ts', './src/test/msw.browser.ts'] },
     }),
+    <span class="dim">// mockServiceWorker.js under the live page's base (MSW 3)</span>
+    ...(live ? [msw({ mode: 'worker-only' })] : []),
   ],
+  resolve: {
+    <span class="dim">// tests that import the server get the worker</span>
+    alias: live ? [{ find: /^(.*)\/msw\.node$/, replacement: '$1/msw.browser' }] : [],
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts', './src/test/msw.node.ts'],
   },
 })</code></pre>
 
-        <div class="pair">
-          <div>
-            <p class="file">src/test/msw.node.ts</p>
-            <pre><code>import { afterAll, beforeAll } from 'vitest'
+        <p class="file">src/test/msw.node.ts</p>
+        <pre><code>import { afterAll, afterEach, beforeAll } from 'vitest'
 import { setupServer } from 'msw/node'
 import { handlers } from './handlers'
 
-const server = setupServer(...handlers)
+export const server = setupServer(...handlers)
 
 beforeAll(() =&gt; server.listen())
+afterEach(() =&gt; server.resetHandlers())
 afterAll(() =&gt; server.close())</code></pre>
-          </div>
-          <div>
-            <p class="file">src/test/msw.browser.ts</p>
-            <pre><code>import { beforeAll } from 'vitest'
+
+        <p class="file">src/test/msw.browser.ts</p>
+        <pre><code>import { beforeAll } from 'vitest'
 import { setupWorker } from 'msw/browser'
 import { handlers } from './handlers'
 
-const worker = setupWorker(...handlers)
+<span class="dim">// the same name, for the tests' server.use()</span>
+export const server = setupWorker(...handlers)
 
-beforeAll(() =&gt; worker.start())</code></pre>
-          </div>
-        </div>
+beforeAll(async () =&gt; {
+  await server.start({
+    <span class="dim">// under the live page's base, not the root of the origin</span>
+    serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
+  })
+})</code></pre>
 
-        <p>
-          Some of what Vitest does has no effect on the live page.
-          <a href="how-it-works.html#live-preview">The live preview</a> lists what it leaves out.
-        </p>
+        <ul>
+          <li>
+            <strong>Register the worker under the live page's base.</strong>
+            <code>setupWorker</code> looks for <code>/mockServiceWorker.js</code> at the root of the
+            origin, but the live page sits under <code>/__describe-me/</code> on
+            <code>describe-me dev</code> and in a directory of its own on a static site, and only
+            that path reaches the live preview. <code>import.meta.env.BASE_URL</code> is that path
+            in both. Without it, every test in Live fails, and the detail says that MSW failed to
+            register the Service Worker.
+          </li>
+          <li>
+            <strong>Serve the script there.</strong> On MSW 3,
+            <code>msw({ mode: 'worker-only' })</code> from <code>msw/vite</code> serves the script
+            under the base and adds it to <code>describe-me build --live</code>. It adds the script
+            to every build it runs in, so keep it behind <code>DESCRIBE_ME_LIVE</code> when the
+            config also builds the app. On MSW 2, <code>npx msw init public/</code> puts the script
+            in <code>public/</code>, which Live serves under the base too, and which the build
+            copies.
+          </li>
+          <li>
+            <strong>Alias the server for tests that import it.</strong> A test that calls
+            <code>server.use()</code> imports <code>msw.node.ts</code>, and so
+            <code>msw/node</code>, which keeps it out of Live. While
+            <a href="configuration.html#env-DESCRIBE_ME_LIVE"><code>DESCRIBE_ME_LIVE</code></a> is
+            set, the alias gives it <code>msw.browser.ts</code>, the same module as the setup file,
+            and the handler of the test answers in Live as well.
+          </li>
+        </ul>
+
+        <p class="file">src/Greeting.test.tsx</p>
+        <pre><code>import { expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
+import { server } from './test/msw.node'
+import { Greeting } from './Greeting'
+
+it('greets the user', async () =&gt; {
+  server.use(http.get('/api/me', () =&gt; HttpResponse.json({ name: 'Ada' })))
+  render(&lt;Greeting /&gt;)
+  expect(await screen.findByText('Hello, Ada')).toBeDefined()
+})</code></pre>
 
         <h2 id="tips">
           Tests that read well as stories

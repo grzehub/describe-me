@@ -1,22 +1,15 @@
-// Like MSW's setupWorker: the same answers as server.node.ts, without Node.
-import greeting from './greeting.json'
+/// <reference types="vite/client" />
+// MSW's setupWorker answers the same requests in the live preview. Its worker
+// script sits under the preview's base, `/__describe-me/` on the dev server
+// and the build's own directory on a static site, where msw/vite puts it.
+import { setupWorker } from 'msw/browser'
+import { handlers } from './handlers'
 
-const realFetch = globalThis.fetch
+export const server = setupWorker(...handlers)
 
-beforeAll(() => {
-  globalThis.fetch = async (input, init) => {
-    const url = input instanceof Request ? input.url : String(input)
-
-    if (url.endsWith('/api/greeting')) {
-      return new Response(JSON.stringify(greeting), {
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
-    return realFetch(input, init)
-  }
-})
-
-afterAll(() => {
-  globalThis.fetch = realFetch
+beforeAll(async () => {
+  await server.start({
+    serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
+    quiet: true,
+  })
 })

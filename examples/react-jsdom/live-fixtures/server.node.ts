@@ -1,23 +1,19 @@
-// Like MSW's setupServer: it answers the tests' requests in Node, with stub
-// data it reads from disk. The live preview cannot load it, so
-// `live.setupFiles` lists server.browser.ts in its place.
-import { readFileSync } from 'node:fs'
+// MSW's setupServer answers the tests' requests in Node. The live preview
+// cannot load msw/node, so `live.setupFiles` lists server.browser.ts in its
+// place, and an alias gives the tests that import this file that one.
+import { setupServer } from 'msw/node'
+import { handlers } from './handlers'
 
-const body = readFileSync(`${import.meta.dirname}/greeting.json`, 'utf8')
-const realFetch = globalThis.fetch
+export const server = setupServer(...handlers)
 
 beforeAll(() => {
-  globalThis.fetch = async (input, init) => {
-    const url = input instanceof Request ? input.url : String(input)
+  server.listen()
+})
 
-    if (url.endsWith('/api/greeting')) {
-      return new Response(body, { headers: { 'Content-Type': 'application/json' } })
-    }
-
-    return realFetch(input, init)
-  }
+afterEach(() => {
+  server.resetHandlers()
 })
 
 afterAll(() => {
-  globalThis.fetch = realFetch
+  server.close()
 })

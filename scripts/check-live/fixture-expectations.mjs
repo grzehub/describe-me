@@ -87,13 +87,38 @@ async function keepsTheRealModules({ frame, page }) {
   ]
 }
 
+/**
+ * MSW's worker script under the live base controls the page. Without a
+ * service worker MSW 3 answers from the page itself, so the text alone would
+ * not prove that the script was served.
+ */
+async function controlledByTheWorker({ frame, base }) {
+  const expected = new URL('mockServiceWorker.js', base).href
+  const script = await frame
+    .locator('body')
+    .evaluate(() => navigator.serviceWorker?.controller?.scriptURL ?? null)
+
+  return script === expected ? [] : [`the page's service worker is ${script}, expected ${expected}`]
+}
+
 /** server.browser.ts from `live.setupFiles` answers the fetch, and setup.ts's `vi.mock` posts a notice. */
-async function servesTheBrowserData({ frame, page }) {
+async function servesTheBrowserData(context) {
   const text = 'Hello from the stub server'
 
   return [
-    ...(await expectVisible(frame.getByText(text), listed(text), 5_000)),
-    ...(await noticesFor(page, ['vi.mock("./analytics")'])),
+    ...(await expectVisible(context.frame.getByText(text), listed(text), 5_000)),
+    ...(await controlledByTheWorker(context)),
+    ...(await noticesFor(context.page, ['vi.mock("./analytics")'])),
+  ]
+}
+
+/** The test's `server.use()` reaches the worker through the alias from server.node.ts. */
+async function servesTheTestHandler(context) {
+  const text = 'Hello from the test'
+
+  return [
+    ...(await expectVisible(context.frame.getByText(text), listed(text), 5_000)),
+    ...(await controlledByTheWorker(context)),
   ]
 }
 
@@ -224,8 +249,13 @@ export const FIXTURE_EXPECTATIONS = {
     'Setup files > serve the data the component fetches': {
       status: 'mounted',
       covers:
-        'live.setupFiles replacing a Node-only setup file, a package entry in the setup files and vi.mock in a setup file',
+        "live.setupFiles replacing MSW's setupServer with setupWorker, whose script msw/vite serves under the live base, a package entry in the setup files and vi.mock in a setup file",
       check: servesTheBrowserData,
+    },
+    'Setup files > answer with a handler of the test': {
+      status: 'mounted',
+      covers: 'server.use() in the arrange phase, through an alias from setupServer to setupWorker',
+      check: servesTheTestHandler,
     },
     ...FIXTURES,
     ...NAME_EXPECTATIONS,
