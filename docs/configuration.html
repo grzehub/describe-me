@@ -347,8 +347,11 @@ describe-me: `test.css` is false, so imported stylesheets are stubbed and will b
                 <td>on, with <code>test.setupFiles</code></td>
                 <td>
                   The live preview. <code>setupFiles</code>, a path or a list, replaces
-                  <code>test.setupFiles</code> on the live page, for a setup file that needs Node.
-                  <code>false</code> switches the preview off, and makes
+                  <code>test.setupFiles</code> on the live page, for a setup file that needs Node,
+                  such as one with MSW's <code>setupServer</code> (<a
+                    href="writing-stories.html#live-msw"
+                    >MSW in Live</a
+                  >). <code>false</code> switches the preview off, and makes
                   <code>describe-me build --live</code> fail. Test runs ignore it (<a
                     href="writing-stories.html#live"
                     >Live</a
@@ -1000,7 +1003,8 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
         </h2>
 
         <p>
-          The CLI sets <code>DESCRIBE_ME_DIR</code> for the viewer. The other variables below are
+          The CLI sets <code>DESCRIBE_ME_DIR</code> for the viewer, and the live preview sets
+          <code>DESCRIBE_ME_LIVE</code> while it loads your config. The other variables below are
           switches of this repository's examples. The describe-me packages read none of them. The
           examples' <code>vitest.config.ts</code> files read them, for benchmarks and checks.
           <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code>,
@@ -1027,6 +1031,19 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   The data directory. <code>describe-me dev</code> and
                   <code>describe-me build</code> set it. Pass
                   <a href="viewer.html#flag-data"><code>--data</code></a> instead of setting it.
+                </td>
+              </tr>
+              <tr id="env-DESCRIBE_ME_LIVE">
+                <td><code>DESCRIBE_ME_LIVE</code></td>
+                <td><code>describeMe()</code>, and your config when it needs to</td>
+                <td>
+                  <code>1</code> while <code>createLiveServer()</code> and
+                  <code>buildLive()</code> load the config, and only then, so
+                  <code>describeMe()</code> returns its
+                  <a href="how-it-works.html#live-preview">live mode</a>. Read it in the config for
+                  what only the live page needs, such as MSW's worker script and an alias for the
+                  tests (<a href="writing-stories.html#live-msw">MSW in Live</a>), or to leave out a
+                  plugin that needs a dev server. Never set it yourself.
                 </td>
               </tr>
               <tr id="env-DESCRIBE_ME">
@@ -1079,9 +1096,12 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>node_modules/.describe-me-live-fixtures</code>. In
                   <code>examples/react-browser</code> it also adds a CSS plugin split in two by
                   <code>apply</code>, as <code>@tailwindcss/vite</code> is. In
-                  <code>examples/react-jsdom</code>, <code>no-live-setup</code> leaves out
-                  <code>live.setupFiles</code> and <code>off</code> sets <code>live: false</code>,
-                  for the live preview of the same fixtures. <code>pnpm check-live</code> sets it.
+                  <code>examples/react-jsdom</code> the setup files answer requests with MSW, and
+                  the live page gets the recipe of
+                  <a href="writing-stories.html#live-msw">MSW in Live</a>. There
+                  <code>no-live-setup</code> leaves out <code>live.setupFiles</code> and
+                  <code>off</code> sets <code>live: false</code>, for the live preview of the same
+                  fixtures. <code>pnpm check-live</code> sets it.
                 </td>
               </tr>
               <tr id="env-PROJECTS">

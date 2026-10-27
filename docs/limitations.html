@@ -469,7 +469,8 @@
                   Keep the arrange phase free of Node-only code. For a setup file, list a browser
                   version of it in
                   <a href="configuration.html#option-live"><code>live.setupFiles</code></a
-                  >.
+                  >, and alias a module of it that tests import, as
+                  <a href="writing-stories.html#live-msw">MSW in Live</a> does.
                 </td>
                 <td><span class="badge status-by-design">by design</span></td>
               </tr>
@@ -492,7 +493,10 @@
                 <td><span class="badge env">viewer</span></td>
                 <td>
                   Pass the mocked behaviour as props, or answer the requests in a setup file, such
-                  as MSW's <code>setupWorker</code> in <code>live.setupFiles</code>.
+                  as MSW's <code>setupWorker</code> in <code>live.setupFiles</code> (<a
+                    href="writing-stories.html#live-msw"
+                    >MSW in Live</a
+                  >).
                 </td>
                 <td><span class="badge status-open">open</span></td>
               </tr>
@@ -507,7 +511,11 @@
                 </td>
                 <td><span class="badge env">build</span></td>
                 <td>
-                  Leave the plugin out while <code>DESCRIBE_ME_LIVE</code> is set, as in
+                  Leave the plugin out while
+                  <a href="configuration.html#env-DESCRIBE_ME_LIVE"
+                    ><code>DESCRIBE_ME_LIVE</code></a
+                  >
+                  is set, as in
                   <code>...(process.env.DESCRIBE_ME_LIVE ? [] : [devTool()])</code>. Live under
                   <code>describe-me dev</code> then runs without it too.
                 </td>

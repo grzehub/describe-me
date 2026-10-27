@@ -4,9 +4,9 @@
  * preview on the same config, and shows every test of the fixtures manifest:
  * each one must reach the status of the expectation table, and each mounted
  * one must send a size, load once and log no error. Then react-jsdom without
- * `live.setupFiles` must report `setup-failed` for server.node.ts, and with
- * `live: false` the server must refuse to start and `describe-me dev` must
- * run without Live. Last, the optimizer's `exclude` and the name rules of
+ * `live.setupFiles` must report `setup-failed` for server.node.ts, its tests
+ * with MSW must mount through `describe-me dev` too, and with `live: false`
+ * the server must refuse to start and `describe-me dev` must run without Live. Last, the optimizer's `exclude` and the name rules of
  * both Vitest majors are checked on the built output.
  */
 import { spawnSync } from 'node:child_process'
@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { liveOptimizeDeps } from '../../packages/vitest/dist/live-optimize-deps.js'
 import { repoRoot } from '../docs/repo-root.mjs'
-import { checkLiveOffViewer, startDev, stopDev } from './dev-server.mjs'
+import { checkLiveOffViewer, startDev, stopDev, waitForPreview } from './dev-server.mjs'
 import { FIXTURE_EXPECTATIONS } from './fixture-expectations.mjs'
 import {
   checkQuiet,
@@ -42,6 +42,7 @@ export const FIXTURE_EXAMPLES = Object.keys(FIXTURE_EXPECTATIONS)
 
 const CONFIG_FILE = 'vitest.config.ts'
 const NODE_SETUP_FILE = 'live-fixtures/server.node.ts'
+const MSW_TEST_FILE = 'live-fixtures/setup-files.test.tsx'
 // The variables the example configs read, as `runFixtures` in check-act-parity.mjs clears them.
 const CLEARED_ENV = ['ACT_PARITY', 'DESCRIBE_ME', 'BENCH_MICRO', 'BENCH_OUT', 'BENCH_SKIP']
 
@@ -186,8 +187,9 @@ async function checkExampleFixtures(browser, host, name) {
 }
 
 /**
- * Without `live.setupFiles`, the Node-only setup file stops the live page at
- * `base` with `setup-failed`, which names the file and `node:fs`.
+ * Without `live.setupFiles`, the setup file with MSW's setupServer stops the
+ * live page at `base` with `setup-failed`, which names the file. The rest of
+ * the detail is what msw/node reaches for in Node, which changes with MSW.
  */
 export async function checkSetupFailedAt(browser, host, base) {
   const root = join(repoRoot, 'examples', SETUP_EXAMPLE)
@@ -205,8 +207,8 @@ export async function checkSetupFailedAt(browser, host, base) {
     const problems = []
     const detail = status.detail ?? ''
 
-    if (!detail.startsWith(`${NODE_SETUP_FILE}: `) || !detail.includes('node:fs')) {
-      problems.push(`${label}: the detail should name ${NODE_SETUP_FILE} and node:fs: ${detail}`)
+    if (!detail.startsWith(`${NODE_SETUP_FILE}: `)) {
+      problems.push(`${label}: the detail should name ${NODE_SETUP_FILE}: ${detail}`)
     }
 
     if (!(await context.frame.locator('body').innerText()).includes('setup-failed')) {
@@ -228,6 +230,50 @@ async function checkSetupFailed(browser, host) {
     return await checkSetupFailedAt(browser, host, server.base)
   } finally {
     await server.close()
+  }
+}
+
+/**
+ * The tests with MSW through `describe-me dev`, which serves the live page on
+ * its own port under `/__describe-me/` and forwards only that path, so a
+ * worker script at the root of the origin would not reach the live server.
+ */
+async function checkMswThroughDev(browser, host) {
+  const root = join(repoRoot, 'examples', SETUP_EXAMPLE)
+  const manifest = readManifest(root, SETUP_EXAMPLE, FIXTURES_DIR)
+  const modules = manifest.modules.filter((module) => module.id === MSW_TEST_FILE)
+  const names = manifestTests({ modules }).map((test) => test.fullName)
+  const expectations = Object.fromEntries(
+    Object.entries(FIXTURE_EXPECTATIONS[SETUP_EXAMPLE]).filter(([name]) => names.includes(name)),
+  )
+
+  const label = `${SETUP_EXAMPLE} MSW through describe-me dev`
+
+  if (names.length === 0) {
+    return [`${label}: the manifest has no test in ${MSW_TEST_FILE}`]
+  }
+
+  const dev = await startDev(root, FIXTURES_DIR, [], { [FIXTURE_ENV]: '1' })
+
+  try {
+    const preview = await waitForPreview(dev)
+
+    if (preview?.status !== 'ready') {
+      return [`${label}: __live.json says ${JSON.stringify(preview)}:\n${dev.output()}`]
+    }
+
+    const base = new URL(preview.base, dev.url).href
+    const context = await openHost(browser, host, label, base)
+
+    try {
+      const result = await checkFixtureTests(context, { ...manifest, modules }, expectations)
+
+      return result.problems
+    } finally {
+      await context.close()
+    }
+  } finally {
+    await stopDev(dev)
   }
 }
 
@@ -302,7 +348,13 @@ export async function checkFixtures(browser, host) {
     }
   }
 
-  for (const check of [() => checkSetupFailed(browser, host), () => checkLiveOff(browser)]) {
+  const checks = [
+    () => checkSetupFailed(browser, host),
+    () => checkMswThroughDev(browser, host),
+    () => checkLiveOff(browser),
+  ]
+
+  for (const check of checks) {
     try {
       problems.push(...(await check()))
     } catch (error) {
@@ -318,6 +370,6 @@ export async function checkFixtures(browser, host) {
 
   return {
     problems,
-    summary: `fixtures ${counts.join(', ')}, ${behaviours} behaviours, setup-failed, live: false, optimizeDeps.exclude, ${names.cases} name cases`,
+    summary: `fixtures ${counts.join(', ')}, ${behaviours} behaviours, setup-failed, MSW through describe-me dev, live: false, optimizeDeps.exclude, ${names.cases} name cases`,
   }
 }

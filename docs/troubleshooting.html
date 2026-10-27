@@ -781,10 +781,13 @@
                 <td>
                   Read the detail in red. Most often the test file, or a module it imports, needs
                   Node, such as <code>node:fs</code> or <code>msw/node</code>. Keep such code out of
-                  the test file (<a href="writing-stories.html#live">What Live runs</a>). On a
-                  static site, <code>describe-me build --live</code> warned about that import.
-                  <code>… is not in this build</code> means the manifest is newer than the build, so
-                  run <code>describe-me build --live</code> again.
+                  the test file (<a href="writing-stories.html#live">What Live runs</a>). A test
+                  that imports MSW's server for <code>server.use()</code> needs an alias (<a
+                    href="writing-stories.html#live-msw"
+                    >MSW in Live</a
+                  >). On a static site, <code>describe-me build --live</code> warned about that
+                  import. <code>… is not in this build</code> means the manifest is newer than the
+                  build, so run <code>describe-me build --live</code> again.
                 </td>
               </tr>
               <tr id="live-setup-failed">
@@ -793,8 +796,8 @@
                 <td>
                   Read which file the detail names. Most often it needs Node, as MSW's
                   <code>setupServer</code> does. List a browser version of it, such as one with
-                  <code>setupWorker</code>, in
-                  <a href="configuration.html#option-live"><code>live.setupFiles</code></a
+                  <code>setupWorker</code> (<a href="writing-stories.html#live-msw">MSW in Live</a
+                  >), in <a href="configuration.html#option-live"><code>live.setupFiles</code></a
                   >, then start <code>describe-me dev</code> again, because the live preview reads
                   the config once (<a href="writing-stories.html#live">What Live runs</a>).
                 </td>
@@ -808,7 +811,11 @@
                   detail names a fixture that fails, and an <code>aroundEach</code> or
                   <code>aroundAll</code> hook that settles without calling its run function. Code
                   that needs Node fails here too. Make the arrange phase work in the browser on its
-                  own.
+                  own. When MSW failed to register the Service Worker, the live page found no
+                  <code>mockServiceWorker.js</code> under its base (<a
+                    href="writing-stories.html#live-msw"
+                    >MSW in Live</a
+                  >).
                 </td>
               </tr>
             </tbody>

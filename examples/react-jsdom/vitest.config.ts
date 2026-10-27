@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { msw } from 'msw/vite'
 import { describeMe } from '@describe-me/vitest/plugin'
 import type { DescribeMeOptions } from '@describe-me/vitest/plugin'
 
@@ -129,6 +130,19 @@ function liveFixtureOptions(): DescribeMeOptions {
   return { outDir, live: { setupFiles } }
 }
 
+// The live preview sets DESCRIBE_ME_LIVE while it loads this config. Its page
+// needs MSW's worker script under its base, and the tests that import
+// server.node.ts for `server.use()` need server.browser.ts.
+const liveFixturePage = liveFixtures === '1' && process.env.DESCRIBE_ME_LIVE === '1'
+
+function liveFixturePlugins() {
+  return liveFixturePage ? [msw({ mode: 'worker-only' })] : []
+}
+
+function liveFixtureAliases() {
+  return liveFixturePage ? [{ find: /^(.*)\/server\.node$/, replacement: '$1/server.browser' }] : []
+}
+
 function setupFiles(): { setupFiles?: string[] } {
   if (liveFixtures !== null) {
     return { setupFiles: fixtureSetupFiles }
@@ -235,7 +249,9 @@ export default defineConfig({
       ...projectOptions(),
       ...storiesOptions(),
     }),
+    ...liveFixturePlugins(),
   ],
+  resolve: { alias: liveFixtureAliases() },
   test: {
     environment: 'jsdom',
     ...(skipped.includes('css') ? { css: false } : {}),
