@@ -1,6 +1,13 @@
+import { PAGE_URL_PREFIX } from '@describe-me/core/types'
 import type { ProjectPaths } from './project-paths.js'
 
 const DEV_ID = 'data-vite-dev-id'
+
+/**
+ * What the `href` of a link of Vitest's own page starts with, once the page
+ * URLs are rewritten: `/__vitest__/`, `/__vitest_browser__/` or `/__vitest_test__/`.
+ */
+const RUNNER_HREF = `${PAGE_URL_PREFIX}/__vitest`
 
 /** rrweb's `NodeType.Element`. */
 const ELEMENT_NODE = 2
@@ -20,12 +27,23 @@ function isNode(value: unknown): value is SerializedNode {
   return typeof value === 'object' && value !== null
 }
 
-function isScript(node: SerializedNode): boolean {
+function isElement(node: SerializedNode, tagName: string): boolean {
   return (
     node.type === ELEMENT_NODE &&
     typeof node.tagName === 'string' &&
-    node.tagName.toLowerCase() === 'script'
+    node.tagName.toLowerCase() === tagName
   )
+}
+
+/** The icon of Vitest's page or the preload of its runner, in browser mode. */
+function isRunnerLink(node: SerializedNode): boolean {
+  const href = isNode(node.attributes) ? node.attributes.href : undefined
+
+  return isElement(node, 'link') && typeof href === 'string' && href.startsWith(RUNNER_HREF)
+}
+
+function isLeftOut(node: SerializedNode): boolean {
+  return isElement(node, 'script') || isRunnerLink(node)
 }
 
 function cleanDevId(node: SerializedNode, paths: ProjectPaths): void {
@@ -52,7 +70,7 @@ function clean(node: SerializedNode, paths: ProjectPaths): void {
     return
   }
 
-  const children = node.childNodes.filter((child) => !isNode(child) || !isScript(child))
+  const children = node.childNodes.filter((child) => !isNode(child) || !isLeftOut(child))
   node.childNodes = children
 
   for (const child of children) {
@@ -63,13 +81,20 @@ function clean(node: SerializedNode, paths: ProjectPaths): void {
 }
 
 /**
- * A serialized snapshot without what names the machine that recorded it:
- * every `<script>`, which the viewer never runs, and absolute paths in Vite's
- * `data-vite-dev-id`. rrweb keeps shadow roots and iframe documents among the
- * child nodes, so they are cleaned too. Node ids stay as rrweb wrote them.
+ * A serialized snapshot without what names the machine or the run that
+ * recorded it: every `<script>`, which the viewer never runs, the links of
+ * Vitest's own page, whose files are named after their content, and absolute
+ * paths in Vite's `data-vite-dev-id`. rrweb keeps shadow roots and iframe
+ * documents among the child nodes, so they are cleaned too. Node ids stay as
+ * rrweb wrote them.
  */
 export function cleanSnapshot(json: string, paths: ProjectPaths): string {
-  if (!json.includes('"tagName":"script"') && !json.includes(`"${DEV_ID}"`)) {
+  const nothingToClean =
+    !json.includes('"tagName":"script"') &&
+    !json.includes(`"${DEV_ID}"`) &&
+    !json.includes(RUNNER_HREF)
+
+  if (nothingToClean) {
     return json
   }
 
