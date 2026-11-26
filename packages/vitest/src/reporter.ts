@@ -34,6 +34,7 @@ import { ProjectPaths } from './project-paths.js'
 import { readGenerator } from './read-generator.js'
 import { readProjectName } from './read-project-name.js'
 import { RecordedSheets } from './recorded-sheets.js'
+import { rewritePageUrls } from './rewrite-page-urls.js'
 import { sidebarGroups } from './sidebar-groups.js'
 import { SnapshotStore } from './snapshot-store.js'
 import { stableTestIds } from './stable-test-ids.js'
@@ -494,7 +495,7 @@ export default class DescribeMeReporter implements Reporter {
       label: frame.label,
       at: frame.at,
       meta: frame.meta,
-      snapshot: this.writeSnapshot(frame.snapshot, record.origin),
+      snapshot: this.writeSnapshot(frame.snapshot, record),
     }))
 
     return {
@@ -524,17 +525,17 @@ export default class DescribeMeReporter implements Reporter {
   }
 
   /**
-   * Store one frame's DOM, with asset URLs pointing into the asset store and
-   * long stylesheets moved to the style store. Assets go first, so stored CSS
-   * carries asset URLs too. Cleaning goes last, so it parses the snapshot
+   * Store one frame's DOM, with asset URLs pointing into the asset store, the
+   * other URLs of the test page's server without that server, and long
+   * stylesheets moved to the style store. Assets and page URLs go first, so
+   * stored CSS carries them too. Cleaning goes last, so it parses the snapshot
    * without its long sheets, and the stored name is the hash of the cleaned text.
    */
-  private writeSnapshot(snapshot: unknown, origin: string | undefined): string {
+  private writeSnapshot(snapshot: unknown, record: TestRecord): string {
     // A mixed install, where an older core created the global recorder, still hands over objects.
     const json = typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot)
+    const located = rewritePageUrls(this.assets.rewrite(json, record.origin), record)
 
-    return this.snapshots.write(
-      cleanSnapshot(this.styles.extract(this.assets.rewrite(json, origin)), this.paths),
-    )
+    return this.snapshots.write(cleanSnapshot(this.styles.extract(located), this.paths))
   }
 }

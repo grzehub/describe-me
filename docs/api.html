@@ -898,23 +898,24 @@
         </p>
 
         <p>
-          The root entry point also exports the 49 names of
+          The root entry point also exports the 50 names of
           <a href="#entry-core-types"><code>@describe-me/core/types</code></a
           >, which describes each one: <code>FrameKind</code>, <code>ComponentInfo</code>,
           <code>RegisteredExport</code>, <code>EXPORT_REGISTRY_KEY</code>,
           <code>ASSET_URL_PREFIX</code>, <code>STYLE_URL_PREFIX</code>,
-          <code>PSEUDO_STATES_ATTRIBUTE</code>, <code>PseudoState</code>,
-          <code>RecorderEnvironment</code>, <code>GestureKind</code>, <code>RenderFrameMode</code>,
-          <code>AroundWait</code>, <code>RecorderOptions</code>, <code>CaptureOptions</code>,
-          <code>Frame</code>, <code>TestRecord</code>, <code>META_KEY</code>, <code>DOCS_TAG</code>,
-          <code>NO_DOCS_TAG</code>, <code>TestState</code>, <code>ManifestFrame</code>,
-          <code>ManifestTest</code>, <code>ManifestModule</code>, <code>PropKind</code>,
-          <code>PropDoc</code>, <code>ComponentDoc</code>, <code>ManifestGenerator</code>,
-          <code>Manifest</code>, <code>FontMissing</code>, <code>RemoteStylesheet</code>,
-          <code>ANONYMOUS_COMPONENT</code>, <code>ManifestDiagnostics</code>,
-          <code>DesignSystemId</code>, <code>FoundationGroup</code>,
-          <code>FoundationTokenType</code>, <code>FoundationToken</code>,
-          <code>FoundationsSheet</code>, <code>FoundationsSystem</code>, <code>Foundations</code>,
+          <code>PAGE_URL_PREFIX</code>, <code>PSEUDO_STATES_ATTRIBUTE</code>,
+          <code>PseudoState</code>, <code>RecorderEnvironment</code>, <code>GestureKind</code>,
+          <code>RenderFrameMode</code>, <code>AroundWait</code>, <code>RecorderOptions</code>,
+          <code>CaptureOptions</code>, <code>Frame</code>, <code>TestRecord</code>,
+          <code>META_KEY</code>, <code>DOCS_TAG</code>, <code>NO_DOCS_TAG</code>,
+          <code>TestState</code>, <code>ManifestFrame</code>, <code>ManifestTest</code>,
+          <code>ManifestModule</code>, <code>PropKind</code>, <code>PropDoc</code>,
+          <code>ComponentDoc</code>, <code>ManifestGenerator</code>, <code>Manifest</code>,
+          <code>FontMissing</code>, <code>RemoteStylesheet</code>, <code>ANONYMOUS_COMPONENT</code>,
+          <code>ManifestDiagnostics</code>, <code>DesignSystemId</code>,
+          <code>FoundationGroup</code>, <code>FoundationTokenType</code>,
+          <code>FoundationToken</code>, <code>FoundationsSheet</code>,
+          <code>FoundationsSystem</code>, <code>Foundations</code>,
           <code>ManifestFoundations</code>, <code>LiveStatus</code>,
           <code>LIVE_MESSAGE_SOURCE</code>, <code>LIVE_PROTOCOL</code>, <code>LiveReport</code>,
           <code>LiveMessage</code>, <code>VIEWER_MESSAGE_SOURCE</code>,
@@ -990,6 +991,16 @@
                 <td>
                   The prefix of stylesheet references in stored snapshots, followed by the hashes of
                   the sheet's chunks, joined with <code>+</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>PAGE_URL_PREFIX</code></td>
+                <td><code>'describe-me-page:'</code></td>
+                <td>
+                  The prefix of URLs on the test page's server in stored snapshots, in place of its
+                  origin: <code>describe-me-page:/pricing</code>, or
+                  <code>describe-me-page:#top</code> for a link into the page itself. The viewer
+                  loads nothing from it.
                 </td>
               </tr>
               <tr>
@@ -1085,11 +1096,16 @@
               <tr>
                 <td><code>TestRecord</code></td>
                 <td>
-                  <code>{ frames: Frame[]; component?: ComponentInfo; origin?: string }</code>
+                  <code
+                    >{ frames: Frame[]; component?: ComponentInfo; origin?: string; page?: string
+                    }</code
+                  >
                 </td>
                 <td>
                   What a test hands to the reporter. <code>origin</code> is the page's
                   <code>location.origin</code>, which the reporter needs to find project assets.
+                  <code>page</code> is the page's URL when the test began, without its fragment,
+                  which the reporter takes out of links into the page itself.
                 </td>
               </tr>
               <tr>

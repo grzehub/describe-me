@@ -32,6 +32,11 @@ function noGestures(): GestureState {
   return { hovering: false, target: null, keyboard: false }
 }
 
+/** The page's URL without its fragment. A DOM environment is not guaranteed to define `location`. */
+function pageUrl(): string | undefined {
+  return globalThis.location?.href.split('#')[0]
+}
+
 function isValidSelector(selector: string): boolean {
   try {
     document.querySelector(selector)
@@ -64,6 +69,8 @@ class Recorder {
   // Reset by `begin()` and `end()`, so no gesture and no element outlives its test.
   private gestures: GestureState = noGestures()
   private component?: ComponentInfo
+  // Read when the test begins: a test may move the page with `history.pushState()`.
+  private page?: string
   private startedAt = 0
   private active = false
   // Once `cleanup()` or the setup file took the closing frame, a second one is skipped.
@@ -77,6 +84,7 @@ class Recorder {
     this.clearDeferred()
     this.gestures = noGestures()
     this.component = undefined
+    this.page = pageUrl()
     this.startedAt = realTimers.now()
     this.active = true
     this.closed = false
@@ -285,6 +293,7 @@ class Recorder {
       frames: compactFrames(this.slots),
       component: this.component,
       origin: globalThis.location?.origin,
+      page: this.page,
     }
   }
 

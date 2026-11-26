@@ -568,14 +568,27 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         </p>
 
         <p>
-          Before it stores a snapshot, the reporter removes what names the machine that recorded it.
-          Every <code>&lt;script&gt;</code> goes, wherever it sits, because the viewer never runs
-          one. Vite marks each <code>&lt;style&gt;</code> it injects with
+          Before it stores a snapshot, the reporter removes what names the machine or the run that
+          recorded it. Every <code>&lt;script&gt;</code> goes, wherever it sits, because the viewer
+          never runs one. So do the links of Vitest's own page in browser mode, its icon and the
+          preload of its runner. Vite marks each <code>&lt;style&gt;</code> it injects with
           <code>data-vite-dev-id</code>, the absolute path of the file. That path becomes relative
           to the root, such as <code>src/styles.css</code>, or starts at the last
           <code>node_modules/</code> for a file outside the root. Any other file outside the root
           loses the attribute. Values that the tests put into a frame, such as props, labels and the
           text they render, stay as they are.
+        </p>
+
+        <p id="page-urls">
+          rrweb makes every URL absolute against the test page. That page's server has another port
+          when the usual one is taken, and in browser mode its URL carries Vitest's session and the
+          path of the test file. So a URL on that server that names no project file is stored
+          without the server. <code>href="/pricing"</code> becomes
+          <code>describe-me-page:/pricing</code>, and a link into the page itself, such as
+          <code>href="#top"</code>, becomes <code>describe-me-page:#top</code>. The same DOM then
+          has the same snapshot file in every run. In the viewer such a URL loads nothing, as the
+          URL of a server that is gone did before. The reporter works on the serialized text, so a
+          URL of the test server that a component prints loses its origin too.
         </p>
 
         <p>
@@ -618,13 +631,18 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             fonts, images and stylesheets it points at.
           </li>
           <li>
+            Writes every other URL on the test page's server as <code>describe-me-page:</code> and
+            what followed the origin, or only the fragment for a link into the page itself.
+            <a href="#page-urls">What a frame holds</a> says why.
+          </li>
+          <li>
             Moves every stylesheet of 256 characters or more to <code>styles/</code>. The sheet is
             cut between top-level rules into chunks of about 4 KB, and the content of the rules
             decides where a chunk ends. So a sheet that grows from test to test shares most of its
             chunks. The snapshot keeps <code>describe-me-style:&lt;hash&gt;+&lt;hash&gt;…</code>.
           </li>
           <li>
-            Removes every <code>&lt;script&gt;</code> and writes
+            Removes every <code>&lt;script&gt;</code> and the links of Vitest's page, and writes
             <code>data-vite-dev-id</code> relative to the root, as
             <a href="#snapshot">What a frame holds</a> says.
           </li>
@@ -634,7 +652,10 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           </li>
         </ol>
 
-        <p>Assets come first, so the stored stylesheets point at the copied files too.</p>
+        <p>
+          Assets and page URLs come first, so the stored stylesheets point at the copied files and
+          name no server either.
+        </p>
 
         <p>
           After every run, garbage collection deletes the snapshots no frame points at, then the

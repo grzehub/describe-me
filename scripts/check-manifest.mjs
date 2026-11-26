@@ -14,8 +14,10 @@
  * snapshot file must also exist and hold an rrweb serialized document whose
  * ids start at 1 and carry no `rootId`, and no two files may hold the same
  * DOM (compared without rrweb's node ids). No snapshot may hold a `<script>`
- * element or a `data-vite-dev-id` that is absolute or has a `..` segment, so
- * none names the machine that recorded it. `--structure-only` runs just these
+ * element, a link of Vitest's page, an attribute that names a loopback
+ * server, which is where the test page is served, or a `data-vite-dev-id`
+ * that is absolute or has a `..` segment, so none names the machine or the
+ * run that recorded it. `--structure-only` runs just these
  * guarantees and snapshot checks, which is what a real project can promise.
  * The full check also expects `at` never to decrease within a test. In a real
  * project, captures the test did not await can overlap and break that.
@@ -124,6 +126,12 @@ const RAW_TEXT =
 
 // The same pattern as ABSOLUTE_PATH in packages/vitest/src/clean-snapshot.ts.
 const ABSOLUTE_PATH = /^(?:[\\/]|[A-Za-z]:)/
+
+/** An HTTP origin on the machine itself, which is where the test page is served. */
+const LOOPBACK_ORIGIN = /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(?::\d+)?/
+
+/** The paths of Vitest's own page in browser mode, with or without its server before them. */
+const RUNNER_PATH = /\/__vitest(?:_browser|_test)?__\//
 
 const TEST_ID = /^[0-9a-f]{12}$/
 // How far past the last occurrence of a name the next may be. The reporter leaves some tests out.
@@ -502,11 +510,38 @@ function isScript(node) {
   )
 }
 
-/** What the reporter removes before it stores a snapshot: `<script>` elements and machine paths. */
-function machineTraces(node, traces = { scripts: 0, devIds: [] }) {
+function isRunnerLink(node) {
+  return (
+    node.type === 2 &&
+    typeof node.tagName === 'string' &&
+    node.tagName.toLowerCase() === 'link' &&
+    RUNNER_PATH.test(String(node.attributes?.href))
+  )
+}
+
+/** The attributes of a node that name a loopback server, as `name="origin"`. */
+function serversIn(node) {
+  return Object.entries(node.attributes ?? {}).flatMap(([name, value]) => {
+    const origin = typeof value === 'string' ? LOOPBACK_ORIGIN.exec(value)?.[0] : undefined
+
+    return origin === undefined ? [] : [`${name}="${origin}"`]
+  })
+}
+
+/**
+ * What the reporter removes before it stores a snapshot: `<script>` elements,
+ * the links of Vitest's page, the test page's server and machine paths.
+ */
+function machineTraces(node, traces = { scripts: 0, runnerLinks: [], servers: [], devIds: [] }) {
   if (isScript(node)) {
     traces.scripts++
   }
+
+  if (isRunnerLink(node)) {
+    traces.runnerLinks.push(node.attributes.href)
+  }
+
+  traces.servers.push(...serversIn(node))
 
   const devId = node.attributes?.['data-vite-dev-id']
 
@@ -582,6 +617,14 @@ function inspectSnapshot(file, abs) {
 
   if (traces.scripts > 0) {
     problems.push(`${file}: ${traces.scripts} <script> element(s)`)
+  }
+
+  for (const href of traces.runnerLinks) {
+    problems.push(`${file}: a <link> of Vitest's page, ${href}`)
+  }
+
+  for (const server of new Set(traces.servers)) {
+    problems.push(`${file}: ${server} names the server of the test page`)
   }
 
   for (const devId of traces.devIds) {

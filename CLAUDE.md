@@ -28,7 +28,7 @@ cd examples/mui && MUI_CLASSIC=1 pnpm test   # the same tests with the classic t
 cd examples/mui && MUI_THEME=off pnpm test   # the same tests with the classic theme and without foundations.theme, into node_modules/.describe-me-no-theme
 pnpm check-manifest   # react-browser and react-jsdom in full with --require-fonts, shadcn and mui with --structure-only, the hover and focus states of frames, and the sidebar groups of react-browser, none in the other examples, after running every example's tests
 pnpm check-style-store   # stylesheet chunking and GC, after pnpm build
-pnpm check-asset-store   # CSS references, copied CSS, preview head, asset GC, and machine paths in snapshots, error texts and `assetsMissing`, after pnpm build
+pnpm check-asset-store   # CSS references, copied CSS, preview head, asset GC, machine paths in snapshots, error texts and `assetsMissing`, and the test server's URLs and the links of Vitest's page in snapshots, after pnpm build
 pnpm check-font-audit   # which font families count as missing, after pnpm build
 pnpm check-vendor-fonts   # font vendoring in describe-me build, offline, after pnpm build
 pnpm check-frame-timing   # frame compaction, renderFrame validation and when an interaction notes its gesture, after pnpm build

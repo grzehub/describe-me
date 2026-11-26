@@ -2,12 +2,16 @@ import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 
-/** A directory as the bytes to search for: its resolved and its real path, each followed by `/`. */
+/**
+ * A directory as the bytes to search for: its resolved and its real path, each
+ * followed by `/`, as written and as a URL's query carries it, percent-encoded.
+ */
 function needlesOf(dir) {
   const resolved = resolve(dir)
   const spellings = existsSync(resolved) ? [resolved, realpathSync(resolved)] : [resolved]
+  const paths = [...new Set(spellings)].map((spelling) => `${spelling}/`)
 
-  return [...new Set(spellings)].map((spelling) => Buffer.from(`${spelling}/`))
+  return [...paths, ...paths.map(encodeURIComponent)].map((path) => Buffer.from(path))
 }
 
 function filesUnder(dir) {

@@ -2,11 +2,13 @@
  * Checks how project files reach `assets/`, on the built output: the CSS
  * reference scanner of @describe-me/core, CSS files copied with their `url()`
  * and `@import` targets, the preview head, and garbage collection through CSS
- * assets. Then the machine paths in recorded data: how `ProjectPaths` writes
- * paths in error texts relative to the root, how `cleanSnapshot` drops
- * `<script>` elements and rewrites `data-vite-dev-id`, and how `missing()`
- * lists files outside the root. Every case builds its own project in a
- * temporary directory. Run after `pnpm build`.
+ * assets. Then what names the machine or the run in recorded data: how
+ * `ProjectPaths` writes paths in error texts relative to the root, how
+ * `rewritePageUrls` writes the URLs of the test page's server, how
+ * `cleanSnapshot` drops `<script>` elements and the links of Vitest's page and
+ * rewrites `data-vite-dev-id`, and how `missing()` lists files outside the
+ * root. Every case builds its own project in a temporary directory. Run after
+ * `pnpm build`.
  *
  * Usage: `node scripts/check-asset-store.mjs`
  */
@@ -28,6 +30,7 @@ import { cssReferences } from '../packages/core/dist/css-references.js'
 import { AssetStore } from '../packages/vitest/dist/asset-store.js'
 import { cleanSnapshot } from '../packages/vitest/dist/clean-snapshot.js'
 import { ProjectPaths } from '../packages/vitest/dist/project-paths.js'
+import { rewritePageUrls } from '../packages/vitest/dist/rewrite-page-urls.js'
 
 const ASSET_URL = /describe-me-asset:([0-9a-f]{16}(?:\.[a-z0-9]+)?)/
 const ASSET_NAME = /^[0-9a-f]{16}(?:\.[a-z0-9]+)?$/
@@ -119,6 +122,69 @@ const IN_TEXT_ROWS = [
   ["expected '/about' to be '/home'", "expected '/about' to be '/home'"],
   ['var _jsxFileName = "<root>/src/Badge.test.tsx"', 'var _jsxFileName = "src/Badge.test.tsx"'],
   ['not found in <root>', 'not found in .'],
+]
+
+/** A browser-mode page, whose URL carries Vitest's session and the test file's path. */
+const BROWSER_PAGE = {
+  origin: 'http://localhost:63315',
+  page: 'http://localhost:63315/?sessionId=e086b229-4ba2-4ed4-88f0-ad480bd316a5&iframeId=%2Fhome%2Fada%2Fweb%2Fsrc%2FNav.test.tsx',
+}
+
+/** The same page in the next run: another port and another session. */
+const NEXT_BROWSER_PAGE = {
+  origin: 'http://localhost:63316',
+  page: 'http://localhost:63316/?sessionId=9e562b24-e55c-4d34-8fc4-13d7bc1f2708&iframeId=%2Fhome%2Fada%2Fweb%2Fsrc%2FNav.test.tsx',
+}
+
+/** The page of a DOM environment. */
+const DOM_PAGE = { origin: 'http://localhost:3000', page: 'http://localhost:3000/' }
+
+/**
+ * How `rewritePageUrls` writes a URL, with `<page>` and `<origin>` those of
+ * the record. Each output must come back unchanged from a second pass.
+ */
+const PAGE_URL_ROWS = [
+  ['browser mode', BROWSER_PAGE, '<page>#top', 'describe-me-page:#top'],
+  ['browser mode', BROWSER_PAGE, '<page>#', 'describe-me-page:#'],
+  ['browser mode', BROWSER_PAGE, '<origin>/pricing', 'describe-me-page:/pricing'],
+  ['browser mode', BROWSER_PAGE, '<origin>/?tab=2', 'describe-me-page:/?tab=2'],
+  ['browser mode', BROWSER_PAGE, '<origin>/docs#install', 'describe-me-page:/docs#install'],
+  [
+    'browser mode',
+    BROWSER_PAGE,
+    '<origin>/__vitest__/favicon.svg',
+    'describe-me-page:/__vitest__/favicon.svg',
+  ],
+  [
+    'browser mode',
+    BROWSER_PAGE,
+    'http://localhost:633150/pricing',
+    'http://localhost:633150/pricing',
+  ],
+  ['browser mode', BROWSER_PAGE, 'https://example.com/x#top', 'https://example.com/x#top'],
+  [
+    'browser mode',
+    BROWSER_PAGE,
+    'describe-me-asset:0123456789abcdef.png',
+    'describe-me-asset:0123456789abcdef.png',
+  ],
+  ['browser mode', BROWSER_PAGE, '#icon', '#icon'],
+  ['a DOM environment', DOM_PAGE, '<page>#details', 'describe-me-page:#details'],
+  ['a DOM environment', DOM_PAGE, '<origin>/pricing', 'describe-me-page:/pricing'],
+  ['a DOM environment', DOM_PAGE, '<origin>/', 'describe-me-page:/'],
+  [
+    'an opaque origin',
+    { origin: 'null', page: 'about:blank' },
+    'about:blank#top',
+    'about:blank#top',
+  ],
+  ['no origin', {}, 'http://localhost:3000/pricing', 'http://localhost:3000/pricing'],
+  [
+    'a record without its page',
+    { origin: BROWSER_PAGE.origin },
+    `${BROWSER_PAGE.origin}/pricing#plans`,
+    'describe-me-page:/pricing#plans',
+  ],
 ]
 
 const directories = []
@@ -561,16 +627,26 @@ function machineSnapshot({ repo, root }) {
     styleWith(8, 'src/styles.css'),
     styleWith(9, 'virtual:x.css'),
     element(10, 'script', { type: 'module', src: `http://localhost:63315/@fs${repo}/x.js` }),
+    element(23, 'link', { rel: 'icon', href: 'describe-me-page:/__vitest__/favicon.svg' }),
+    element(24, 'link', {
+      rel: 'modulepreload',
+      href: 'describe-me-page:/__vitest_browser__/defineProperty-DgkPJYVE.js',
+    }),
+    element(25, 'link', { rel: 'icon', href: 'describe-me-page:/favicon.svg' }),
+    element(26, 'link', { rel: 'stylesheet', href: 'describe-me-asset:0123456789abcdef.css' }),
+    element(27, 'link', { rel: 'preload', href: 'https://example.com/__vitest__/font.woff2' }),
+    element(28, 'a', { href: 'describe-me-page:/__vitest__/' }),
   ])
 
   const shadowHost = element(14, 'div', {}, [{ ...element(15, 'script'), isShadow: true }])
   shadowHost.isShadowHost = true
 
-  const frameDocument = {
-    type: 0,
-    childNodes: [element(18, 'html', {}, [element(19, 'head', {}, [element(20, 'SCRIPT')])])],
-    id: 17,
-  }
+  const frameHead = element(19, 'head', {}, [
+    element(20, 'SCRIPT'),
+    element(29, 'LINK', { rel: 'icon', href: 'describe-me-page:/__vitest__/favicon.svg' }),
+  ])
+
+  const frameDocument = { type: 0, childNodes: [element(18, 'html', {}, [frameHead])], id: 17 }
 
   const body = element(11, 'body', {}, [
     element(12, 'svg', {}, [element(13, 'script')]),
@@ -584,6 +660,19 @@ function machineSnapshot({ repo, root }) {
 
 function isScript(node) {
   return node.type === 2 && node.tagName.toLowerCase() === 'script'
+}
+
+/** A link of Vitest's own page: its icon or the preload of its runner. */
+function isRunnerLink(node) {
+  return (
+    node.type === 2 &&
+    node.tagName.toLowerCase() === 'link' &&
+    String(node.attributes.href).startsWith('describe-me-page:/__vitest')
+  )
+}
+
+function isLeftOut(node) {
+  return isScript(node) || isRunnerLink(node)
 }
 
 /** The node and everything below it, leaving out each subtree that `skip` picks. */
@@ -638,7 +727,7 @@ function checkCleanSnapshot() {
   check(
     'cleanSnapshot: scripts in the head, the body, an SVG, a shadow root and an iframe document are gone, other ids unchanged',
     () => {
-      const kept = nodesOf(snapshot, isScript).map((node) => node.id)
+      const kept = nodesOf(snapshot, isLeftOut).map((node) => node.id)
       const left = nodesOf(tree).map((node) => node.id)
 
       return {
@@ -647,6 +736,53 @@ function checkCleanSnapshot() {
       }
     },
   )
+
+  check(
+    "cleanSnapshot: the links of Vitest's page are gone from the head and an iframe document",
+    () => {
+      const gone = nodesOf(snapshot)
+        .filter(isRunnerLink)
+        .map((node) => node.id)
+
+      return {
+        passed: sameList(gone, [23, 24, 29]) && !nodesOf(tree).some(isRunnerLink),
+        detail: `left out ${gone.join(', ')}`,
+      }
+    },
+  )
+
+  check(
+    'cleanSnapshot: a project link on the test page, an asset, a remote link and an <a> stay',
+    () => {
+      const left = new Set(nodesOf(tree).map((node) => node.id))
+      const missing = [25, 26, 27, 28].filter((id) => !left.has(id))
+
+      return { passed: missing.length === 0, detail: `missing ${missing.join(', ') || 'none'}` }
+    },
+  )
+
+  check("cleanSnapshot: a snapshot with nothing but a link of Vitest's page is cleaned", () => {
+    const link = element(4, 'link', {
+      rel: 'icon',
+      href: 'describe-me-page:/__vitest__/favicon.svg',
+    })
+
+    const only = {
+      type: 0,
+      childNodes: [element(2, 'html', {}, [element(3, 'head', {}, [link])])],
+      id: 1,
+    }
+
+    const left = nodesOf(JSON.parse(cleanSnapshot(JSON.stringify(only), paths)))
+
+    return {
+      passed: sameList(
+        left.map((node) => node.id),
+        [1, 2, 3],
+      ),
+      detail: `${left.length} nodes`,
+    }
+  })
 
   check('cleanSnapshot: a second run gives the same text', () => {
     return cleanSnapshot(cleaned, paths) === cleaned
@@ -658,6 +794,88 @@ function checkCleanSnapshot() {
       const json = '{ "type": 0, "childNodes": [], "id": 1 }'
 
       return cleanSnapshot(json, paths) === json
+    },
+  )
+}
+
+function withPage(text, { origin, page }) {
+  return text.replaceAll('<page>', page ?? '').replaceAll('<origin>', origin ?? '')
+}
+
+/** A link, a `style` attribute and a stylesheet that all point at `url`, as rrweb serializes them. */
+function pageSnapshot(url) {
+  return JSON.stringify(
+    element(2, 'body', {}, [
+      element(3, 'a', { href: url }),
+      element(4, 'div', { style: `background-image: url("${url}");` }),
+      element(5, 'style', { _cssText: `.hero { background: url(${url}) }` }),
+    ]),
+  )
+}
+
+function checkRewritePageUrls() {
+  for (const [where, record, before, after] of PAGE_URL_ROWS) {
+    check(`rewritePageUrls: ${where}, ${before} → ${after}`, () => {
+      const url = withPage(before, record)
+      const rewritten = rewritePageUrls(JSON.stringify({ href: url }), record)
+      const shown = JSON.parse(rewritten).href
+
+      return {
+        passed: shown === after && rewritePageUrls(rewritten, record) === rewritten,
+        detail: shown,
+      }
+    })
+  }
+
+  check('rewritePageUrls: a style attribute and a stylesheet lose the origin too', () => {
+    const rewritten = rewritePageUrls(pageSnapshot(`${BROWSER_PAGE.origin}/bg.png`), BROWSER_PAGE)
+
+    return {
+      passed:
+        !rewritten.includes('localhost') &&
+        rewritten.split('describe-me-page:/bg.png').length === 4,
+      detail: rewritten.match(/_cssText":"[^"]*"/)?.[0],
+    }
+  })
+
+  check('rewritePageUrls: another port and another session give the same text', () => {
+    const texts = [BROWSER_PAGE, NEXT_BROWSER_PAGE].map((record) => {
+      const json = [`${record.page}#top`, `${record.origin}/pricing`].map(pageSnapshot).join('\n')
+
+      return rewritePageUrls(json, record)
+    })
+
+    return {
+      passed: texts[0] === texts[1] && !texts[0].includes('localhost') && !texts[0].includes('ada'),
+      detail: texts[0].match(/"href":"[^"]*"/)?.[0],
+    }
+  })
+
+  check(
+    'rewritePageUrls: after the asset store, a project file is an asset and a missing one a page URL',
+    () => {
+      const root = tempDir()
+      const outDir = tempDir()
+      writeFiles(root, { 'public/logo.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>' })
+      const store = new AssetStore(outDir, root)
+      const json = JSON.stringify(
+        element(2, 'body', {}, [
+          element(3, 'img', { src: `${BROWSER_PAGE.origin}/logo.svg` }),
+          element(4, 'img', { src: `${BROWSER_PAGE.origin}/gone.png` }),
+        ]),
+      )
+
+      const [logo, gone] = JSON.parse(
+        rewritePageUrls(store.rewrite(json, BROWSER_PAGE.origin), BROWSER_PAGE),
+      ).childNodes.map((node) => node.attributes.src)
+
+      return {
+        passed:
+          ASSET_URL.test(logo) &&
+          gone === 'describe-me-page:/gone.png' &&
+          sameList(store.missing(), ['/gone.png']),
+        detail: `${logo}, ${gone}, missing ${store.missing().join(', ')}`,
+      }
     },
   )
 }
@@ -714,6 +932,7 @@ try {
   checkRewriteHead()
   checkGarbageCollection()
   checkInText()
+  checkRewritePageUrls()
   checkCleanSnapshot()
   checkMissingOutsideRoot()
 } finally {

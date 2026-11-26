@@ -46,6 +46,14 @@ export const ASSET_URL_PREFIX = 'describe-me-asset:' as const
 export const STYLE_URL_PREFIX = 'describe-me-style:' as const
 
 /**
+ * Prefix of URLs on the test page's server inside stored snapshots, in place
+ * of its origin: `describe-me-page:/pricing`, and `describe-me-page:#top` for
+ * a link into the page itself. The server has another port and session in the
+ * next run and is gone after it, so the URL loads nothing in the viewer.
+ */
+export const PAGE_URL_PREFIX = 'describe-me-page:' as const
+
+/**
  * Attribute that holds an element's states in a stored snapshot, as names
  * separated by spaces, always in the order `hover focus focus-visible
  * focus-within`. Only the serialized tree has it, never the page.
@@ -131,6 +139,12 @@ export interface TestRecord {
    * against it, so the reporter uses it to find project assets.
    */
   origin?: string
+  /**
+   * The page's URL when the test began, without its `#fragment`. In browser
+   * mode it carries Vitest's session and the test file's path. rrweb resolves
+   * a link such as `#top` against it, and the reporter takes it out again.
+   */
+  page?: string
 }
 
 export const META_KEY = 'describeMe' as const

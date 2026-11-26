@@ -575,8 +575,11 @@ describe-me: https://fonts.bunny.net/css?family=… did not download (…). It k
             issues menu (<a href="troubleshooting.html#diag-assetsMissing">assetsMissing</a>).
           </li>
           <li>
-            <strong>Left alone.</strong> Links to pages, such as <code>&lt;a href="/"&gt;</code>,
-            URLs of script files and the dev server's own paths are not assets and stay as they are.
+            <strong>Not assets.</strong> Links to pages, such as
+            <code>&lt;a href="/pricing"&gt;</code>, URLs of script files and the dev server's own
+            paths are not copied. They are stored without the test server, as
+            <code>describe-me-page:/pricing</code>, and load nothing in the viewer, see
+            <a href="how-it-works.html#page-urls">How it works</a>.
             <code>&lt;script&gt;</code> elements are dropped from the snapshot, because the viewer
             never runs them.
           </li>
