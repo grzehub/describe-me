@@ -39,3 +39,16 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           GRANT: 'contents: write, pull-requests: write'
+
+  write-all:
+    if: github.head_ref == 'spike/pr-attach'
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash spike/pr-attach/try-comment.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          GRANT: 'write-all'
