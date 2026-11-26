@@ -1,0 +1,41 @@
+# Spike, not for main: can a workflow attach an image to a pull request comment
+# with the token that Actions gives it? Each job tries a plain comment and one
+# with `--attach`, and writes what happened into its summary. It runs only for
+# the spike's own branch.
+name: spike-pr-attach
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  pull-requests-write:
+    if: github.head_ref == 'spike/pr-attach'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash spike/pr-attach/try-comment.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          GRANT: 'pull-requests: write'
+
+  contents-write:
+    if: github.head_ref == 'spike/pr-attach'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash spike/pr-attach/try-comment.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          GRANT: 'contents: write, pull-requests: write'
