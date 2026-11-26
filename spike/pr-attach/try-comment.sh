@@ -2,10 +2,11 @@
 # Spike: posts a plain comment and one with an attached image on pull request
 # $PR, with the token in $GH_TOKEN, and writes each outcome to the job summary.
 # $GRANT names the permissions the token was given. A failure is a finding, so
-# the script never fails the job.
+# the script never fails the job. Everything goes to the log too, because the
+# API does not return a job summary.
 set -u
 
-summary="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
 image="spike/pr-attach/sample/card.png"
 
 try() {
@@ -22,7 +23,7 @@ try() {
     echo '```'
     echo "$output"
     echo '```'
-  } >> "$summary"
+  } | tee -a "$summary"
 }
 
 {
@@ -30,7 +31,7 @@ try() {
   echo
   echo "$(gh --version | head -1)"
   echo
-} >> "$summary"
+} | tee -a "$summary"
 
 try "plain comment" \
   gh pr comment "$PR" --body "Spike, from Actions with \`$GRANT\`: a plain comment."
