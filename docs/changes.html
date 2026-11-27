@@ -444,12 +444,13 @@ npx playwright install chromium</code></pre>
         <p>
           A pair of changed frames looks different when a single pixel differs. There is no
           threshold. A test looks different when one of its pairs does, and gets one PNG in
-          <code>--out</code>, <code>&lt;test id&gt;.png</code>. It shows the first such pair in
-          three panels: before, after, and the changed pixels over a dimmed copy of after. Each
-          changed pixel is marked with a few around it, so a change of one pixel still shows when
-          GitHub scales the image down. An added test gets its first render frame alone. A removed
-          or moved test gets none. <code>changes.md</code> then sorts the changed tests into three
-          groups:
+          <code>--out</code>, <code>&lt;test id&gt;.png</code>. An id that is no safe file name,
+          which the reporter never writes, gives the first 12 hex characters of its SHA-1 instead.
+          The image shows the first such pair in three panels: before, after, and the changed pixels
+          over a dimmed copy of after. Each changed pixel is marked with a few around it, so a
+          change of one pixel still shows when GitHub scales the image down. An added test gets its
+          first render frame alone. A removed or moved test gets none. <code>changes.md</code> then
+          sorts the changed tests into three groups:
         </p>
 
         <ul>

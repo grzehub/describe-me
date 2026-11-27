@@ -87,7 +87,10 @@
  * 21. Playwright missing, from a `--root` without it and from the synthetic
  *     root of the manifest: exit 1, the install commands and nothing written.
  *     Chromium missing, with PLAYWRIGHT_BROWSERS_PATH at an empty directory:
- *     exit 1 and `playwright install chromium`.
+ *     exit 1 and `playwright install chromium`. With nothing to render, a
+ *     removed test and a state change, or an added test under
+ *     `--max-shots 0`, a `--root` without Playwright exits 0 and writes
+ *     `shots` with no pair and no image.
  * 22. the three groups: a CSS change that paints the same is folded without
  *     an image, one that paints a background looks different with its image,
  *     a class that no rule targets stays under Changed as `looks the same`,
@@ -101,11 +104,15 @@
  *     different, and lists the others without one. `--max-shots 0` compares
  *     and writes none. `--width 320` gives an added test a PNG 640 px wide.
  * 24. a head snapshot that holds `null`: exit 0, a warning, no look on its
- *     pair, `shots.failedPairs` 1 and the test under Changed
+ *     pair, `shots.failedPairs` 1 and the test under Changed. A font that
+ *     fails to load on both sides: exit 0, a warning for each side that names
+ *     the font, and the pair still compared.
  * 25. nothing left behind: no `packages/viewer/dist`, the same entries in
  *     `packages/viewer/node_modules` but an empty `.vite-temp`, the same
  *     `.vite`, an empty TMPDIR, the same files in both data directories, and
- *     a process that exits by itself
+ *     a process that exits by itself. The test id `../evil](x)`, no safe file
+ *     name, gets an image named after its SHA-1, inside `--out`, which
+ *     changes.md shows.
  * 26. determinism: each example against a copy with every snapshot renamed.
  *     Every test with frames is `css`, no pair looks different or fails, no
  *     PNG is written and every test is folded. Prints the frames and the time.
@@ -123,6 +130,7 @@
  * Usage: `node scripts/check-diff.mjs`
  */
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -2009,6 +2017,57 @@ async function checkPlaywrightMissing() {
       detail: exitDetail(result),
     }),
   )
+
+  await checkNothingToRender(bare)
+}
+
+/** With nothing to render, `--shots` never loads Playwright, so a root without it still works. */
+async function checkNothingToRender(bare) {
+  const module = 'src/quiet.test.tsx'
+  const kept = test(module, 'Quiet > kept', [snapshot({ text: 'kept' })])
+  const flips = test(module, 'Quiet > flips', [snapshot({ text: 'flips' })])
+  const gone = test(module, 'Quiet > gone', [snapshot({ text: 'gone' })])
+  const base = run({ tests: [kept, flips, gone] })
+  const flipped = run({ tests: [kept, { ...flips, state: 'failed' }] })
+  const added = run({
+    tests: [kept, flips, gone, test(module, 'Quiet > new', [snapshot({ text: 'new' })])],
+  })
+
+  for (const [label, head, flags, maxShots] of [
+    ['a removed test and a state change', flipped, [], 20],
+    ['an added test under --max-shots 0', added, ['--max-shots', '0'], 0],
+  ]) {
+    const { result, report, pngs, out } = shotsOut(`21. nothing to render: ${label}`, base, head, [
+      '--root',
+      bare,
+      ...flags,
+    ])
+
+    await check(
+      `21. nothing to render (${label}): exit 0 from a --root without Playwright, and shots`,
+      () => ({
+        passed:
+          isDeepStrictEqual(
+            { status: result.status, stderr: result.stderr, shots: report?.shots, pngs },
+            {
+              status: 0,
+              stderr: '',
+              shots: {
+                width: 480,
+                pixelRatio: 2,
+                maxShots,
+                pairs: 0,
+                differentPairs: 0,
+                failedPairs: 0,
+                images: 0,
+              },
+              pngs: [],
+            },
+          ) && result.stdout.endsWith(`Wrote changes.json, changes.md and 0 images to ${out}.\n`),
+        detail: `${exitDetail(result)}, stdout ${JSON.stringify(result.stdout)}, shots ${JSON.stringify(report?.shots)}`,
+      }),
+    )
+  }
 }
 
 async function checkShotGroups() {
@@ -2338,6 +2397,40 @@ async function checkShotFailure() {
       { frame: ['-'], look: undefined, failedPairs: 1, pngs: [], listed: true },
     ),
   )
+
+  await checkMissingFont()
+}
+
+/** A font that fails to load does not stop its frame, but each side that misses it warns. */
+async function checkMissingFont() {
+  const name = 'Font > is missing'
+  // The asset is in neither data directory, so the face fails on both sides.
+  const css = `${SHOT_CSS} @font-face { font-family: Missing; src: url("describe-me-asset:0000000000000000.woff2") } .box { font-family: Missing, sans-serif }`
+  const frame = (text) => [snapshot({ text, css })]
+  const base = run({ tests: [test('src/font.test.tsx', name, frame('font'))] })
+  const head = run({ tests: [test('src/font.test.tsx', name, frame('font!'))] })
+  const { result, report } = shotsOut('24. a frame without its font', base, head, [
+    '--root',
+    PLAYWRIGHT_ROOT,
+  ])
+
+  const pair = entryNamed(report ?? { tests: [] }, name)?.frames[0]
+  const lines = result.stderr.split('\n')
+  const warning = (side) =>
+    `describe-me: frame ${side} ${pair?.[side]?.snapshot} rendered without font Missing, so its pair may differ for that alone`
+
+  await check(
+    '24. a font that fails to load: exit 0, a warning per side, the pair compared',
+    () => ({
+      passed:
+        result.status === 0 &&
+        lines.includes(warning('base')) &&
+        lines.includes(warning('head')) &&
+        pair?.look === 'different' &&
+        report?.shots.failedPairs === 0,
+      detail: `${exitDetail(result)}, look ${pair?.look}`,
+    }),
+  )
 }
 
 /** Every file and directory under `dir`, or `undefined` when it does not exist. */
@@ -2358,6 +2451,15 @@ async function checkNothingLeft() {
     ],
   })
 
+  // As a file name, this id would leave --out and end the Markdown link early.
+  const unsafe = '../evil](x)'
+
+  for (const dir of [base, head]) {
+    editManifest(dir, (manifest) => {
+      manifest.modules[0].tests[0].id = unsafe
+    })
+  }
+
   const modules = join(VIEWER, 'node_modules')
   const viteTemp = join(modules, '.vite-temp')
   const entries = () =>
@@ -2373,7 +2475,7 @@ async function checkNothingLeft() {
   }
 
   const temp = tempDir()
-  const { result, pngs } = shotsOut(
+  const { result, report, markdown, pngs, out } = shotsOut(
     '25. nothing left behind',
     base,
     head,
@@ -2387,6 +2489,30 @@ async function checkNothingLeft() {
     passed: result.status === 0 && result.signal === null && pngs.length === 2,
     detail: `${exitDetail(result)}, ${JSON.stringify(pngs)}`,
   }))
+
+  const hashed = `${createHash('sha1').update(unsafe).digest('hex').slice(0, 12)}.png`
+  const appears = entryNamed(report ?? { tests: [] }, 'Left > appears')
+
+  await check(
+    '25. an id that is no safe file name: an image named after its SHA-1 inside --out, shown by changes.md',
+    () =>
+      same(
+        {
+          id: entryNamed(report ?? { tests: [] }, 'Left > renders')?.id,
+          shot: entryNamed(report ?? { tests: [] }, 'Left > renders')?.shot?.file,
+          pngs,
+          beside: readdirSync(join(out, '..')),
+          shown: markdown.includes(`](./${hashed})`),
+        },
+        {
+          id: unsafe,
+          shot: hashed,
+          pngs: [hashed, `${appears?.id}.png`].sort(),
+          beside: ['changes'],
+          shown: true,
+        },
+      ),
+  )
 
   await check(
     '25. no dist, no file in node_modules but an empty .vite-temp, the same .vite, an empty TMPDIR, the same data',
