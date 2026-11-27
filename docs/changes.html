@@ -133,11 +133,13 @@
           The command <a class="anchor" href="#command" aria-label="Link to this section">#</a>
         </h2>
 
-        <pre><code>describe-me diff --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</code></pre>
+        <pre><code>describe-me diff --base &lt;dir&gt; [--data .describe-me]
+                 [--out &lt;dir&gt; [--shots] [--width 480] [--max-shots 20] [--root &lt;dir&gt;]]</code></pre>
 
         <p>
           <code>--base</code> is the run to compare against, <code>--data</code> the current run.
-          The flags are in <a href="viewer.html#cmd-diff">Viewer and CLI</a>.
+          <code>--shots</code> and its flags add <a href="#shots">before and after images</a>. The
+          flags are in <a href="viewer.html#cmd-diff">Viewer and CLI</a>.
         </p>
 
         <ul>
@@ -153,14 +155,19 @@
             missing and never empties it.
           </li>
           <li>
+            <strong>With <code>--out &lt;dir&gt; --shots</code></strong> it also writes an image of
+            each test that looks different (<a href="#shots">before and after images</a>).
+          </li>
+          <li>
             <strong>The exit code is 0</strong> whenever it could compare, whatever changed. There
             is no threshold and no flag that turns a change into a failure.
           </li>
         </ul>
 
         <p>
-          It exits with code 1 only without <code>--base</code> or when it cannot read a run, and
-          prints one of these, with the paths as you typed them:
+          It exits with code 1 only without <code>--base</code>, when it cannot read a run, or with
+          <code>--shots</code> when a flag is out of range or Playwright or its Chromium is missing.
+          It writes nothing then and prints one of these, with the paths as you typed them:
         </p>
 
         <pre>
@@ -169,7 +176,12 @@ describe-me: no manifest at .describe-me-base/manifest.json
 describe-me: cannot read .describe-me/manifest.json: not valid JSON
 describe-me: .describe-me/manifest.json is not a describe-me manifest
 describe-me: cannot read .describe-me/snapshots/3f2a9c1d0b7e4a55.json
-describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</pre>
+describe-me: .describe-me/manifest.json names a snapshot outside .describe-me
+describe-me: --shots needs --out &lt;dir&gt;, where the images go
+describe-me: --width needs a whole number of CSS pixels from 200 to 1920, got "abc"
+describe-me: --max-shots needs a whole number from 0, got "x"
+describe-me: --shots needs Playwright, and cannot find it from /projects/app. Run npm install -D playwright and npx playwright install chromium in the project, or pass --root with a project that has it.
+describe-me: cannot start Chromium for --shots (browserType.launch: Executable doesn't exist at …). Run npx playwright install chromium in the project.</pre>
 
         <h2 id="kinds">
           What counts as a change
@@ -307,7 +319,14 @@ describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</p
                   <code>id</code>, <code>module</code> and <code>fullName</code>, a
                   <code>kind</code> when its frames changed, a <code>state</code> when its state
                   did, <code>from</code> when it moved, and its changed, added and removed
-                  <code>frames</code> with their index, label and snapshot on each side.
+                  <code>frames</code> with their index, label and snapshot on each side. With
+                  <code>--shots</code>, each changed frame has a <code>look</code>,
+                  <code>same</code> or <code>different</code>, absent when a side did not render. A
+                  changed test has <code>look</code> <code>different</code> when one of its frames
+                  does, and <code>same</code> when all of them do and no frame was added or removed.
+                  A test with an image has <code>shot</code>: the <code>file</code> in
+                  <code>--out</code> and the index of the <code>frame</code> it shows in the current
+                  run.
                 </td>
               </tr>
               <tr id="changes-components">
@@ -316,6 +335,16 @@ describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</p
                   The components whose props changed, by name, each with its
                   <code>props</code>: name, <code>change</code>, and the type, whether it is
                   required and the default on each side.
+                </td>
+              </tr>
+              <tr id="changes-shots">
+                <td><code>shots</code></td>
+                <td>
+                  Only with <code>--shots</code>: the <code>width</code> of the frames in CSS
+                  pixels, their <code>pixelRatio</code>, <code>maxShots</code>, how many distinct
+                  <code>pairs</code> of changed frames it compared, how many of them look different
+                  (<code>differentPairs</code>) or have a side that did not render
+                  (<code>failedPairs</code>), and how many <code>images</code> it wrote.
                 </td>
               </tr>
             </tbody>
@@ -327,7 +356,10 @@ describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</p
           <code>&lt;!-- describe-me:changes --&gt;</code>, by which a workflow can find its earlier
           comment, and the sentence with the counts. Then come the version note, the sections
           Changed, Props, Added, Removed and Moved, and last the tests that changed only in CSS,
-          folded. Names from the manifest are in code spans, so a test name cannot mention anyone or
+          folded. With <code>--shots</code> the section Looks different comes first, with the
+          images, and the folded tests are the CSS-only ones that look the same (<a href="#shots"
+            >the three groups</a
+          >). Names from the manifest are in code spans, so a test name cannot mention anyone or
           render HTML. The file stays within GitHub's limit of 65,536 characters. When the lists do
           not fit, each is cut and ends with <code>- and N more</code>. A shortened sample:
         </p>
@@ -356,14 +388,130 @@ describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</p
 
 &lt;/details&gt;</code></pre>
 
+        <h2 id="shots">
+          Before and after images
+          <a class="anchor" href="#shots" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          With <code>--shots</code> the command renders every changed frame before and after in
+          headless Chromium and compares the pixels. It needs <code>--out</code>, where the images
+          go:
+        </p>
+
+        <pre><code>npx describe-me diff --base .describe-me-base --out changes --shots</code></pre>
+
+        <p>
+          It takes Playwright from your project, so <code>playwright</code> is an optional peer
+          dependency of <code>describe-me</code> and only <code>--shots</code> needs it. Install it
+          and its Chromium once:
+        </p>
+
+        <pre><code>npm install -D playwright
+npx playwright install chromium</code></pre>
+
+        <p>
+          It looks for Playwright from the project root that the current run's manifest names.
+          <code>--root &lt;dir&gt;</code> names another project, such as one in browser mode next to
+          your jsdom project. Playwright and Chromium start only when there is something to render.
+        </p>
+
+        <h3>How a frame renders</h3>
+
+        <ul>
+          <li>
+            From the stored snapshot, through the viewer's own replay code, on a bare page of the
+            viewer on a Vite dev server. Frames render only in <code>describe-me diff</code>, never
+            in a test run.
+          </li>
+          <li>
+            In Chromium, in the light color scheme, <code>--width</code> CSS pixels wide (480 by
+            default) at twice the pixel density.
+          </li>
+          <li>
+            At its natural height, measured as the viewer measures it, up to 1600 CSS pixels.
+            Content that fills the viewport gets 720.
+          </li>
+          <li>
+            After its fonts and images loaded, with transitions off, CSS animations finished and the
+            text caret hidden. A font or stylesheet that failed to load does not stop the frame, but
+            the command warns, because the pair may differ for that alone.
+          </li>
+        </ul>
+
+        <h3>The images and the three groups</h3>
+
+        <p>
+          A pair of changed frames looks different when a single pixel differs. There is no
+          threshold. A test looks different when one of its pairs does, and gets one PNG in
+          <code>--out</code>, <code>&lt;test id&gt;.png</code>. It shows the first such pair in
+          three panels: before, after, and the changed pixels over a dimmed copy of after. Each
+          changed pixel is marked with a few around it, so a change of one pixel still shows when
+          GitHub scales the image down. An added test gets its first render frame alone. A removed
+          or moved test gets none. <code>changes.md</code> then sorts the changed tests into three
+          groups:
+        </p>
+
+        <ul>
+          <li><strong>Looks different</strong> comes first, each test with its image.</li>
+          <li>
+            <strong>Changed</strong> keeps the tests whose DOM changed but look the same, without an
+            image, and the tests with a frame that did not render.
+          </li>
+          <li>
+            <strong>The tests that changed only in CSS and look the same</strong> are folded last.
+          </li>
+        </ul>
+
+        <p>
+          <code>--max-shots</code> caps the images, 20 by default. The tests that look different
+          take them first, in the order of the report, then the added tests. The rest stay listed by
+          name, and the section says how many have no image. <code>--max-shots 0</code> compares and
+          writes no image. <code>--width</code> takes 200 to 1920 CSS pixels.
+        </p>
+
+        <p>
+          <code>--out</code> is never emptied, so images of an earlier run stay there, and
+          <code>changes.md</code> shows only the ones of this run. Nothing else is written: no file
+          next to the viewer, in either data directory or in a temp directory. A frame that does not
+          render gets a warning on stderr, and its pair no <code>look</code>. A shortened sample:
+        </p>
+
+        <p class="file">changes.md</p>
+        <pre><code>&lt;!-- describe-me:changes --&gt;
+
+16 of 16 tests changed (6 only in CSS). 10 of the changed tests look different.
+
+### Looks different
+
+`src/components/ui/button.test.tsx`
+
+- `Button &gt; renders the default variant`: 1 frame changed, 1 looks different
+
+  ![frame 1: before, after and the changed pixels](./e5e1c5cf428e.png)
+
+&lt;details&gt;&lt;summary&gt;6 tests changed only in CSS and look the same&lt;/summary&gt;
+
+`src/components/ui/form-controls.test.tsx`
+
+- `Input &gt; renders a placeholder`: 1 frame changed
+
+&lt;/details&gt;</code></pre>
+
         <h2 id="limits">
           What it does not see
           <a class="anchor" href="#limits" aria-label="Link to this section">#</a>
         </h2>
 
         <p>
-          It compares the recorded DOM and stylesheet text, not pixels. A CSS change that renders
-          the same is still listed, folded with the other CSS-only tests. It does not see:
+          Without <code>--shots</code> it compares the recorded DOM and stylesheet text, not pixels,
+          so a CSS change that renders the same is still listed, folded with the other CSS-only
+          tests. With <code>--shots</code> it compares pixels too, and only folds the CSS-only tests
+          that paint the same, in
+          <a href="limitations.html#limit-diff-shots-chromium">Chromium only</a>, in
+          <a href="limitations.html#limit-diff-shots-light">the light scheme only</a> and
+          <a href="limitations.html#limit-diff-shots-width">at one width</a>. Either way it does not
+          see:
         </p>
 
         <ul>
@@ -377,7 +525,11 @@ describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</p
               >another host serves and changes under the same URL</a
             >
           </li>
-          <li>the preview head and <code>foundations.json</code></li>
+          <li>
+            the preview head and <code>foundations.json</code>. A frame renders with the preview
+            head of its own run, but a change of the head alone changes no frame, so no frame is
+            rendered for it.
+          </li>
         </ul>
 
         <p>
@@ -404,6 +556,7 @@ describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</p
           <li><a href="#command">The command</a></li>
           <li><a href="#kinds">What counts as a change</a></li>
           <li><a href="#files">changes.json and changes.md</a></li>
+          <li><a href="#shots">Before and after images</a></li>
           <li><a href="#limits">What it does not see</a></li>
         </ul>
       </aside>

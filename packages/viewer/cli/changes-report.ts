@@ -14,6 +14,25 @@ export interface ChangesReport {
   tests: TestChange[]
   /** Components on both sides whose props differ, by name. */
   components: ComponentChange[]
+  /** What `--shots` compared and wrote. Absent without it. */
+  shots?: ShotsSummary
+}
+
+/** What `--shots` rendered, compared and wrote. */
+export interface ShotsSummary {
+  /** The frame width in CSS pixels. */
+  width: number
+  /** Device pixels per CSS pixel in the images. */
+  pixelRatio: number
+  /** The most images `--shots` writes. */
+  maxShots: number
+  /** Distinct pairs of changed frames compared. */
+  pairs: number
+  differentPairs: number
+  /** Pairs left without `look` because a side did not render. */
+  failedPairs: number
+  /** Images written to `--out`. */
+  images: number
 }
 
 /** One side of the comparison. */
@@ -53,6 +72,9 @@ export interface FrameCounts {
 /** `dom`: the snapshot differs without its stylesheet text. `css`: only the stylesheet text differs. */
 export type ChangeKind = 'dom' | 'css'
 
+/** How a pair of changed frames renders in Chromium. */
+export type Look = 'same' | 'different'
+
 /** A test that differs between the runs. */
 export interface TestChange {
   change: 'changed' | 'added' | 'removed' | 'moved'
@@ -63,12 +85,28 @@ export interface TestChange {
   fullName: string
   /** Only on `changed`. Absent when only the state changed. */
   kind?: ChangeKind
+  /**
+   * Only on `changed`, only with `--shots`. `different` when a pair looks
+   * different, `same` when every pair looks the same and no frame was added or
+   * removed. Absent otherwise.
+   */
+  look?: Look
+  /** The image in `--out` and the head index of the frame it shows. */
+  shot?: TestShot
   /** Only when the state differs. */
   state?: StateChange
   /** Where a moved test was in the base. */
   from?: TestPlace
   /** Changed, added and removed frames in order. Every frame of an added or removed test. Empty for a moved test. */
   frames: FrameChange[]
+}
+
+/** An image that `--shots` wrote for a test. */
+export interface TestShot {
+  /** The file name in `--out`. */
+  file: string
+  /** The head index of the frame it shows. */
+  frame: number
 }
 
 /** The state of a test on each side. */
@@ -89,6 +127,8 @@ export interface FrameChange {
   change: 'changed' | 'added' | 'removed'
   /** Only on `changed`. */
   kind?: ChangeKind
+  /** Only on `changed`, only with `--shots`. Absent when a side did not render. */
+  look?: Look
   /** Absent on `added`. */
   base?: FrameSide
   /** Absent on `removed`. */

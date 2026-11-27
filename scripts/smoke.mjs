@@ -14,6 +14,13 @@
  * and one renders nothing: each asserts `recorder.isActive` inside the test,
  * which proves that the plugin's options reach the test runtime, and neither
  * may appear in the manifest.
+ * Right after the browser-mode run, `describe-me diff --shots` runs from the
+ * tarballs against a copy of its data in which one snapshot shows another
+ * text under another name. It must exit 0 with exactly one image, which
+ * changes.md shows, write no machine path into its output and leave no
+ * `dist/` in the installed `describe-me`. This is the only check of the
+ * packed `frame.html`, and of `--shots` on the older Vite and Vitest of the
+ * smoke matrix.
  * The DOM scenario also checks the Testing Library adapter: `fireEvent` under
  * a file-level `afterEach(cleanup)` records exactly its render and click
  * frames, a `renderHook` file is unmounted after each test and stays out of
@@ -93,6 +100,7 @@
  */
 import { execFileSync, execSync } from 'node:child_process'
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -2417,6 +2425,113 @@ function verifyBuilds() {
   verifyNoMachinePaths()
 }
 
+/** The first text of a snapshot's body that shows, such as a button's label, or null. */
+function visibleText(node, inBody = false) {
+  if (node.type === 3 && inBody && node.textContent.trim() !== '') {
+    return node
+  }
+
+  if (node.tagName === 'style' || node.tagName === 'script') {
+    return null
+  }
+
+  for (const child of node.childNodes ?? []) {
+    const found = visibleText(child, inBody || node.tagName === 'body')
+
+    if (found !== null) {
+      return found
+    }
+  }
+
+  return null
+}
+
+/**
+ * A copy of the browser run's data in which one snapshot, used by one frame
+ * only, shows another text under another name, as a base for `diff --shots`.
+ * Returns the full name of the test whose frame it is.
+ */
+function changedBase(data, base) {
+  rmSync(base, { recursive: true, force: true })
+  cpSync(data, base, { recursive: true })
+
+  const manifestFile = join(base, 'manifest.json')
+  const manifest = readJson(manifestFile)
+  const tests = manifest.modules.flatMap((module) => module.tests)
+  const uses = new Map()
+
+  for (const frame of tests.flatMap((test) => test.frames)) {
+    uses.set(frame.snapshot, (uses.get(frame.snapshot) ?? 0) + 1)
+  }
+
+  for (const test of tests) {
+    for (const frame of test.frames.filter((entry) => uses.get(entry.snapshot) === 1)) {
+      const snapshot = readJson(join(base, frame.snapshot))
+      const text = visibleText(snapshot)
+
+      if (text === null) {
+        continue
+      }
+
+      text.textContent = `${text.textContent} and more`
+      const renamed = frame.snapshot.replace(/[^/]+$/, (name) => `changed-${name}`)
+      writeFileSync(join(base, renamed), JSON.stringify(snapshot))
+      rmSync(join(base, frame.snapshot))
+      frame.snapshot = renamed
+      writeFileSync(manifestFile, JSON.stringify(manifest, null, 2))
+
+      return test.fullName
+    }
+  }
+
+  throw new Error('smoke: no snapshot of the browser run shows a text of its own')
+}
+
+/**
+ * `describe-me diff --shots` from the tarballs, against a base in which one
+ * frame shows another text: exactly that test gets an image, which
+ * changes.md shows. The output names no machine path, and the installed
+ * `describe-me` gets no `dist/`.
+ */
+function verifyShots() {
+  const changed = changedBase(join(app, '.describe-me'), join(app, '.describe-me-shots-base'))
+
+  runPassing(
+    'node node_modules/describe-me/bin/describe-me.js diff --base .describe-me-shots-base --data .describe-me --out changes --shots',
+    app,
+  )
+
+  const report = readJson(join(app, 'changes', 'changes.json'))
+  const shot = report.tests.find((test) => test.fullName === changed)?.shot
+  const markdown = readFileSync(join(app, 'changes', 'changes.md'), 'utf8')
+
+  assert(
+    report.shots?.images === 1,
+    `diff --shots wrote ${report.shots?.images} images, expected 1`,
+  )
+
+  assert(
+    shot !== undefined && existsSync(join(app, 'changes', shot.file)),
+    `diff --shots wrote no image of ${changed}`,
+  )
+
+  assert(markdown.includes(`](./${shot.file})`), `changes.md does not show ${shot.file}`)
+
+  const scanned = machinePathsIn(join(app, 'changes'), {
+    'the smoke directory': work,
+    'the repository': root,
+  })
+
+  assert(scanned.problems.length === 0, `machine paths in changes/: ${scanned.problems.join(', ')}`)
+
+  assert(
+    !existsSync(join(app, 'node_modules', 'describe-me', 'dist')),
+    'diff --shots left a dist/ in the installed describe-me',
+  )
+
+  console.log(`\ndiff --shots: 1 image, of ${changed}, and no machine path in changes/`)
+}
+
 /** No built directory names the smoke projects' temp directory, the repository or the home directory. */
 function verifyNoMachinePaths() {
   const places = { 'the smoke directory': work, 'the repository': root }
@@ -2458,6 +2573,7 @@ try {
   verifySingleReact(reactVersion)
   verifyPackedPeers()
   run('pnpm exec vitest run', app)
+  verifyShots()
   run('pnpm exec vitest run --config vitest.dom.config.ts', app)
   run(`pnpm exec vitest run --config ${STYLED.config}`, app)
 

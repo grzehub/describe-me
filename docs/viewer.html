@@ -95,7 +95,8 @@
         <pre><code>describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root &lt;dir&gt;]
 describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]
                   [--live] [--root &lt;dir&gt;]
-describe-me diff  --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</code></pre>
+describe-me diff  --base &lt;dir&gt; [--data .describe-me]
+                  [--out &lt;dir&gt; [--shots] [--width 480] [--max-shots 20] [--root &lt;dir&gt;]]</code></pre>
 
         <div class="scroll">
           <table class="fields wide">
@@ -138,9 +139,11 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</
                   Compares the data directory of <code>--data</code> with the one of
                   <code>--base</code>, and lists the tests, frames and props that changed. Without
                   <code>--out</code> it prints a summary. With it, it writes
-                  <code>changes.json</code> and <code>changes.md</code>. It exits with code 0
-                  whatever changed, and with 1 without <code>--base</code> or when a manifest or a
-                  snapshot cannot be read (<a href="changes.html">Comparing runs</a>).
+                  <code>changes.json</code> and <code>changes.md</code>, and with
+                  <code>--shots</code> an image of each test that looks different. It exits with
+                  code 0 whatever changed, and with 1 without <code>--base</code>, when a manifest
+                  or a snapshot cannot be read, or when <code>--shots</code> has a flag out of range
+                  or no Playwright or Chromium (<a href="changes.html">Comparing runs</a>).
                 </td>
               </tr>
               <tr id="cmd-help">
@@ -182,9 +185,11 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</
                 <td>
                   <code>build</code>: where the static site goes. The directory is emptied first, so
                   never point it at a folder that holds other files. <code>diff</code>: where
-                  <code>changes.json</code> and <code>changes.md</code> go. <code>diff</code>
-                  creates the directory when it is missing and never empties it. Without
-                  <code>--out</code>, <code>diff</code> prints a summary and writes no file.
+                  <code>changes.json</code> and <code>changes.md</code> go, and with
+                  <code>--shots</code> the images. <code>diff</code> creates the directory when it
+                  is missing and never empties it. Without <code>--out</code>,
+                  <code>diff</code> prints a summary and writes no file, and
+                  <code>--shots</code> stops with an error.
                 </td>
               </tr>
               <tr id="flag-port">
@@ -234,7 +239,38 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</
                   picks there, the first <code>vitest.config.*</code>, then
                   <code>vite.config.*</code>. Use it before the first test run, when the manifest
                   comes from another machine, or on the <code>__data/</code> of a built site, whose
-                  manifest names the project by an id.
+                  manifest names the project by an id. <code>diff --shots</code>: the project to
+                  load Playwright from, instead of the <code>root</code> of the
+                  <code>--data</code> manifest, such as a project in browser mode next to a jsdom
+                  one.
+                </td>
+              </tr>
+              <tr id="flag-shots">
+                <td><code>--shots</code></td>
+                <td class="nowrap">off</td>
+                <td>
+                  <code>diff</code> only, with <code>--out</code>. Renders every changed frame
+                  before and after in headless Chromium, compares the pixels and writes an image of
+                  each test that looks different (<a href="changes.html#shots"
+                    >before and after images</a
+                  >). It needs Playwright and its Chromium in the project.
+                </td>
+              </tr>
+              <tr id="flag-width">
+                <td><code>--width</code></td>
+                <td class="nowrap"><code>480</code></td>
+                <td>
+                  <code>diff --shots</code> only. The width of the rendered frames in CSS pixels,
+                  200 to 1920. The images have twice as many pixels.
+                </td>
+              </tr>
+              <tr id="flag-max-shots">
+                <td><code>--max-shots</code></td>
+                <td class="nowrap"><code>20</code></td>
+                <td>
+                  <code>diff --shots</code> only. The most images to write. The tests that look
+                  different take them first, then the added tests. <code>0</code> compares and
+                  writes no image.
                 </td>
               </tr>
               <tr id="flag-no-vendor-fonts">
@@ -256,8 +292,12 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</
           </li>
           <li>
             A flag of another command is ignored, so <code>--port</code> does nothing on
-            <code>build</code>, and <code>--base</code> does nothing on <code>dev</code> and
-            <code>build</code>. Neither does <code>--root</code> without <code>--live</code>.
+            <code>build</code>, and <code>--base</code>, <code>--shots</code>,
+            <code>--width</code> and <code>--max-shots</code> do nothing on <code>dev</code> and
+            <code>build</code>. <code>--root</code> does nothing on <code>dev</code> and
+            <code>build</code> without <code>--live</code>, and <code>diff</code> without
+            <code>--shots</code> ignores <code>--width</code>, <code>--max-shots</code> and
+            <code>--root</code>.
           </li>
           <li>
             Without data, <code>build</code> warns <code>no data at …; run vitest first</code> and

@@ -3,6 +3,7 @@ import type { ChangesSection } from './changes-sections.js'
 import { changesSections } from './changes-sections.js'
 import { changesSentence } from './changes-sentence.js'
 import { countText } from './count-text.js'
+import { lookSentence } from './look-sentence.js'
 import { markdownFormat } from './markdown-format.js'
 import { versionNote } from './version-note.js'
 
@@ -33,16 +34,28 @@ function listLines(section: ChangesSection, cap: number): string[] {
   return lines[0] === '' ? lines.slice(1) : lines
 }
 
-function sectionText(section: ChangesSection, cap: number): string {
-  const list = listLines(section, cap).join('\n')
+/** With `--shots` only the CSS-only tests that look the same are folded, and the summary says so. */
+function foldedSummary(count: number, shots: boolean): string {
+  const summary = `${countText(count, 'test')} changed only in CSS`
 
-  if (section.id !== 'css') {
-    return `### ${section.title}\n\n${list}`
+  if (!shots) {
+    return summary
   }
 
-  const summary = `${countText(section.items.length, 'test')} changed only in CSS`
+  return `${summary} and ${count === 1 ? 'looks' : 'look'} the same`
+}
 
-  return `<details><summary>${summary}</summary>\n\n${list}\n\n</details>`
+function sectionText(section: ChangesSection, cap: number, shots: boolean): string {
+  const list = listLines(section, cap).join('\n')
+  const body = section.note === undefined ? list : `${list}\n\n${section.note}`
+
+  if (section.id !== 'css') {
+    return `### ${section.title}\n\n${body}`
+  }
+
+  const summary = foldedSummary(section.items.length, shots)
+
+  return `<details><summary>${summary}</summary>\n\n${body}\n\n</details>`
 }
 
 function joined(blocks: string[]): string {
@@ -83,16 +96,23 @@ function fittingCap(
 /**
  * The body of a pull request comment for a report, at most `limit`
  * characters, GitHub's comment limit by default. It starts with a marker
- * line and the summary sentence, which always stay. When the lists do not
- * fit, each is cut to fewer items and ends with `- and N more`.
+ * line and the summary sentence, with `--shots` followed by how many tests
+ * look different, which always stay. When the lists do not fit, each is cut
+ * to fewer items and ends with `- and N more`. An image belongs to its item
+ * and is cut with it.
  */
 export function changesMarkdown(report: ChangesReport, limit = 65_536): string {
   const format = markdownFormat(MAX_NAME)
   const note = versionNote(report, format)
-  const head = [MARKER, changesSentence(report), ...(note === undefined ? [] : [`> ${note}`])]
+  const sentence = [changesSentence(report), lookSentence(report)]
+    .filter((part) => part !== undefined)
+    .join(' ')
+
+  const head = [MARKER, sentence, ...(note === undefined ? [] : [`> ${note}`])]
   const sections = changesSections(report, format)
+  const shots = report.shots !== undefined
   const render = (cap: number): string =>
-    joined([...head, ...sections.map((section) => sectionText(section, cap))])
+    joined([...head, ...sections.map((section) => sectionText(section, cap, shots))])
 
   const longest = Math.max(0, ...sections.map((section) => section.items.length))
   const cap = fittingCap(render, longest, limit)

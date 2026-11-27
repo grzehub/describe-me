@@ -20,6 +20,26 @@ function framesText(frames: FrameChange[]): string | undefined {
   return parts.length === 0 ? undefined : listText(parts)
 }
 
+/** `1 looks different`, `looks the same` or `1 did not render`, from what `--shots` found. */
+function lookText(test: TestChange): string | undefined {
+  const pairs = test.frames.filter((frame) => frame.change === 'changed')
+  const different = pairs.filter((frame) => frame.look === 'different').length
+  const failed = pairs.filter((frame) => frame.look === undefined).length
+  const parts: string[] = []
+
+  if (different > 0) {
+    parts.push(`${different} ${different === 1 ? 'looks' : 'look'} different`)
+  } else if (test.look === 'same') {
+    parts.push('looks the same')
+  }
+
+  if (failed > 0) {
+    parts.push(`${failed} did not render`)
+  }
+
+  return parts.length === 0 ? undefined : parts.join(', ')
+}
+
 function movedText(test: TestChange, format: TextFormat): string | undefined {
   if (test.from === undefined) {
     return undefined
@@ -41,9 +61,10 @@ function movedText(test: TestChange, format: TextFormat): string | undefined {
 /**
  * One test of a report as a list item, without the module: its full name,
  * how many frames changed, were added and were removed, a state change, and
- * where a moved test was. Added and removed tests show their name only.
+ * where a moved test was. With `looks`, for a report with `shots`, also how
+ * its frames look. Added and removed tests show their name only.
  */
-export function testChangeText(test: TestChange, format: TextFormat): string {
+export function testChangeText(test: TestChange, format: TextFormat, looks = false): string {
   const name = format.code(test.fullName)
 
   if (test.change === 'added' || test.change === 'removed') {
@@ -52,6 +73,7 @@ export function testChangeText(test: TestChange, format: TextFormat): string {
 
   const details = [
     framesText(test.frames),
+    looks ? lookText(test) : undefined,
     test.state === undefined
       ? undefined
       : `state ${format.code(test.state.base)} → ${format.code(test.state.head)}`,
