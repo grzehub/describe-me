@@ -167,7 +167,9 @@
         <p>
           It exits with code 1 only without <code>--base</code>, when it cannot read a run, or with
           <code>--shots</code> when a flag is out of range or Playwright or its Chromium is missing.
-          It writes nothing then and prints one of these, with the paths as you typed them:
+          It writes nothing then and prints one of these. The paths of the runs are as you typed
+          them. The Playwright message names the project root as an absolute path, and the Chromium
+          message quotes the first line of Playwright's reason:
         </p>
 
         <pre>
