@@ -29,7 +29,8 @@
  *     another file with a new state, one renamed into another file and two
  *     twins with the same snapshots: one entry each, `from` and `state` on
  *     the moved ones, twins paired in head order, every frame of the added
- *     and the removed test, the frames of moved tests counted as unchanged,
+ *     and the removed test with its index, label and snapshot, the frames of
+ *     moved tests counted as unchanged,
  *     and an added and a removed test without frames do not pair. Of two
  *     tests with one id, the first counts.
  *  9. props: the exact line for a changed default, and a `PropChange` and a
@@ -43,8 +44,9 @@
  * 10. a base written before 0.5 (no `generator`, Vitest's ids, no `vitestId`,
  *     a repeated name, a module id with `\`) against a current head with the
  *     same tests: nothing added or removed, `versionsDiffer` and the version note
- * 11. two generator versions: `versionsDiffer` and the note. Equal versions:
- *     neither. The note for a head without a generator, a generator without a
+ * 11. two generator versions: `versionsDiffer` and the note. Equal versions,
+ *     and no generator on either side: neither. The note for a head without a
+ *     generator, a generator without a
  *     version, another package and a version that is no plain word, and the
  *     generator and `generatedAt` of each run in the report.
  * 12. errors, each exit 1 with stderr starting `describe-me: `: no `--base`, no
@@ -61,9 +63,9 @@
  *     changes.md of the same pair, line by line.
  * 14. length: thousands of changed tests, long names and many prop changes
  *     give `changes.md` of at most 65,536 characters (or the given limit),
- *     marker and sentence first, every list ending with `- and N more`. A
- *     limit too small for any list keeps the marker and the sentence. A name
- *     is cut to 300 characters.
+ *     marker and sentence first, every list ending with `- and N more`, where
+ *     N counts the items it leaves out. A limit too small for any list keeps
+ *     the marker and the sentence. A name is cut to 300 characters.
  * 15. Markdown safety: `@someone`, `#12`, `<img>`, `# heading`, backticks and a
  *     newline in a test name, and a component name that is no plain word,
  *     show only inside code spans. The summary keeps a name on one line.
@@ -686,6 +688,23 @@ async function checkAddedRemovedMoved() {
     ),
   )
 
+  /** Every frame of a test in a written manifest, as the report names it on that side. */
+  const sidesOf = (dir, fullName) =>
+    JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
+      .modules.flatMap((mod) => mod.tests)
+      .find((entry) => entry.fullName === fullName)
+      .frames.map((frame, index) => ({ index, label: frame.label, snapshot: frame.snapshot }))
+
+  await check('8. every frame of an added and a removed test with its label and snapshot', () =>
+    same(
+      [entryNamed(report, 'A > fresh')?.frames, entryNamed(report, 'A > gone')?.frames],
+      [
+        sidesOf(head, 'A > fresh').map((side) => ({ change: 'added', head: side })),
+        sidesOf(base, 'A > gone').map((side) => ({ change: 'removed', base: side })),
+      ],
+    ),
+  )
+
   await check('8. counts of added, removed and moved tests and of their frames', () =>
     same(report.counts, {
       tests: { changed: 0, dom: 0, css: 0, added: 2, removed: 2, moved: 5, unchanged: 1 },
@@ -980,6 +999,18 @@ async function checkVersions() {
     same(
       { versionsDiffer: equal.report?.versionsDiffer, note: equal.markdown.includes('\n> ') },
       { versionsDiffer: false, note: false },
+    ),
+  )
+
+  const neither = diffOut(run({ tests, generator: null }), run({ tests, generator: null }))
+
+  await check('11. no generator on either side: no versionsDiffer and no note', () =>
+    same(
+      { versionsDiffer: neither.report?.versionsDiffer, markdown: neither.markdown },
+      {
+        versionsDiffer: false,
+        markdown: `${MARKER}\n\nNothing changed against the base. 3 tests compared.\n`,
+      },
     ),
   )
 
@@ -1471,6 +1502,34 @@ async function checkLength() {
         detail: JSON.stringify(endings),
       }
     })
+
+    await check(
+      `14. ${label}: the N of "- and N more" counts the items each list leaves out`,
+      () => {
+        // Every prop of the report changes its type, whether it is required and its default.
+        const totals = {
+          '### Changed': 3000,
+          '### Props': 6000,
+          '### Added': 1500,
+          '### Removed': 1500,
+          '### Moved': 1500,
+          '<details>': 3000,
+        }
+
+        const lists = Object.entries(totals).map(([heading, total]) => {
+          const body = (sectionOf(markdown, heading) ?? '').replace('\n\n</details>', '').trimEnd()
+          const lines = body.split('\n')
+          const shown = lines.filter((line) => /^- (?!and \d+ more$)/.test(line)).length
+
+          return { heading, last: lines.at(-1), expected: `- and ${total - shown} more` }
+        })
+
+        return {
+          passed: lists.every((list) => list.last === list.expected),
+          detail: JSON.stringify(lists),
+        }
+      },
+    )
 
     await check(`14. ${label}: one huge name is cut`, () => ({
       passed: Math.max(...lines.map((line) => line.length)) < 2000,
