@@ -7,46 +7,66 @@
  *     `changes.md` is the marker and `Nothing changed against the base. N tests
  *     compared.` (`1 test` for one), exit 0
  *  2. one step added in the middle (`a b c` → `a x b c`): one added frame at
- *     head index 1, 3 unchanged frames, kind `dom`. One step removed (`a c`):
- *     one removed frame at base index 1. Two frames against one (`a y`): a
- *     `dom` change in order, then a removed frame.
+ *     head index 1, 3 unchanged frames, kind `dom`, also with every snapshot
+ *     file deleted, because frames with an unchanged name or in a one-sided
+ *     gap are never read. One step removed (`a c`): one removed frame at base
+ *     index 1. Two frames against one (`a y`): a `dom` change in order, then
+ *     a removed frame, each side with its index, label and snapshot.
  *  3. the same while the global stylesheet changed in every frame: 3 `css`
- *     pairs and 1 added frame
+ *     pairs and 1 added frame. Each case also checks its item in changes.md.
  *  4. a CSS-only change in an inline `_cssText`, in a `describe-me-style:`
  *     reference and in the text of a `<style>`: kind `css` each, listed inside
  *     `<details>` and not under `### Changed`
  *  5. a DOM change in a class attribute, in `data-describe-me-states` and in
  *     a `describe-me-asset:` URL: kind `dom` each
- *  6. other labels, `at`, `meta` and `duration` with the same snapshots: unchanged
+ *  6. other labels, `at`, `meta` and `duration` with the same snapshots:
+ *     unchanged, also with every snapshot file deleted
  *  7. `passed` → `failed` with the same frames: `changed` with `state` and no
- *     `kind`, under `### Changed`
- *  8. a test added, one removed, one moved within its file and one moved to
- *     another file: one entry each, `from` on the moved ones, and an added and
- *     a removed test without frames do not pair
+ *     `kind`, under `### Changed`. A test whose CSS and state both changed:
+ *     kind `css` with its state, under `### Changed` and in the summary's
+ *     Changed, never folded or counted as changed only in CSS
+ *  8. a test added, one removed, one moved within its file, one moved to
+ *     another file with a new state, one renamed into another file and two
+ *     twins with the same snapshots: one entry each, `from` and `state` on
+ *     the moved ones, twins paired in head order, every frame of the added
+ *     and the removed test, the frames of moved tests counted as unchanged,
+ *     and an added and a removed test without frames do not pair. Of two
+ *     tests with one id, the first counts.
  *  9. props: the exact line for a changed default, and a `PropChange` and a
- *     line for a prop added, removed, with a new type, newly required, newly
- *     optional, with a default it did not have and without the one it had. A
- *     component on one side only and a changed description do not count. A
- *     manifest without `components`, in the base or in the head, counts as none.
+ *     line for a prop added (with its type, required and default), removed,
+ *     with a new type, newly required, newly optional, with a default it did
+ *     not have and without the one it had. Components by name, one without a
+ *     `props` array loses them. A component on one side only and a change of
+ *     description, kind or values do not count. Props alone make the
+ *     sentence. A manifest without `components`, in the base or in the head,
+ *     counts as none.
  * 10. a base written before 0.5 (no `generator`, Vitest's ids, no `vitestId`,
  *     a repeated name, a module id with `\`) against a current head with the
  *     same tests: nothing added or removed, `versionsDiffer` and the version note
  * 11. two generator versions: `versionsDiffer` and the note. Equal versions:
- *     neither.
+ *     neither. The note for a head without a generator, a generator without a
+ *     version, another package and a version that is no plain word, and the
+ *     generator and `generatedAt` of each run in the report.
  * 12. errors, each exit 1 with stderr starting `describe-me: `: no `--base`, no
  *     manifest in the base and in the data directory, invalid JSON (without a
- *     piece of the file), a manifest that is not describe-me's, a missing
- *     snapshot file, a snapshot path outside the directory
+ *     piece of the file), a manifest.json that cannot be read, a manifest that
+ *     is not describe-me's, without modules or without any required field of a
+ *     module, a test or a frame, a missing snapshot file or one that is not
+ *     JSON, and a snapshot path outside the directory, absolute or the
+ *     directory itself
  * 13. `--out` creates a missing directory, writes both files and keeps a file
  *     that was there. Without `--out`: no file written, a summary on stdout,
  *     which has the version note, the sections Changed, Props, Added, Removed
- *     and Moved, and the number of tests that changed only in CSS.
+ *     and Moved, and the number of tests that changed only in CSS. The
+ *     changes.md of the same pair, line by line.
  * 14. length: thousands of changed tests, long names and many prop changes
  *     give `changes.md` of at most 65,536 characters (or the given limit),
- *     marker and sentence first, every list ending with `- and N more`
+ *     marker and sentence first, every list ending with `- and N more`. A
+ *     limit too small for any list keeps the marker and the sentence. A name
+ *     is cut to 300 characters.
  * 15. Markdown safety: `@someone`, `#12`, `<img>`, `# heading`, backticks and a
  *     newline in a test name, and a component name that is no plain word,
- *     show only inside code spans
+ *     show only inside code spans. The summary keeps a name on one line.
  * 16. `parseArgs`: `build` keeps `out` `describe-me-dist`, `diff --base x`
  *     gives no `out`. `--help`, and no command, print the `diff` line of the
  *     usage.
@@ -59,12 +79,21 @@
  *     Input, Switch and Alert test `css`, and the new class only in the
  *     changed run
  *
- * Run after `pnpm build` and the shadcn example's tests. Exits 1 on any failure.
+ * Run after `pnpm build` and the shadcn example's tests. Exits 1 on any
+ * failure, and when a call of the CLI does not finish within 30 s.
  *
  * Usage: `node scripts/check-diff.mjs`
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
@@ -80,6 +109,7 @@ const SHADCN_CHANGED = join(SHADCN, 'node_modules/.describe-me-changed')
 const MARKER = '<!-- describe-me:changes -->'
 const COMMENT_LIMIT = 65_536
 const NEW_CLASS = 'badge-spaced'
+const CLI_TIMEOUT = 30_000
 
 if (!existsSync(CLI)) {
   console.error('check-diff: packages/viewer/dist-cli/main.js is missing. Run pnpm build first.')
@@ -148,6 +178,21 @@ function run(options) {
   return dir
 }
 
+/** Change a written manifest in place. */
+function editManifest(dir, edit) {
+  const file = join(dir, 'manifest.json')
+  const manifest = JSON.parse(readFileSync(file, 'utf8'))
+  edit(manifest)
+  writeFileSync(file, JSON.stringify(manifest, null, 2))
+}
+
+/** The same directory without its snapshot files, so a diff that reads one fails. */
+function withoutSnapshots(dir) {
+  rmSync(join(dir, 'snapshots'), { recursive: true, force: true })
+
+  return dir
+}
+
 function test(module, name, snapshots, extra = {}) {
   const [suite, ...rest] = name.split(' > ')
   const path = rest.length === 0 ? [] : [suite, ...rest.slice(0, -1)]
@@ -162,8 +207,19 @@ function test(module, name, snapshots, extra = {}) {
   }
 }
 
+/** A command that does not exit, such as `diff` parsed as `dev`, ends the check instead of hanging it. */
 function cli(args, cwd = repoRoot) {
-  return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8' })
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd,
+    encoding: 'utf8',
+    timeout: CLI_TIMEOUT,
+  })
+
+  if (result.error !== undefined) {
+    throw new Error(`describe-me ${args.join(' ')} did not finish: ${result.error.message}`)
+  }
+
+  return result
 }
 
 /** `diff --out` into a fresh directory, with what it wrote. */
@@ -258,12 +314,33 @@ async function checkAddedStep() {
     tests: [test('src/form.test.tsx', name, steps('a{}', ['a', 'x', 'b', 'c']))],
   })
 
-  const { report } = diffOut(base, head)
+  const { report, markdown } = diffOut(base, head)
 
   await check('2. one added step: one added frame at head index 1, kind dom', () =>
     same(
-      { kind: report.tests[0]?.kind, frames: frameShapes(report.tests[0]) },
-      { kind: 'dom', frames: ['added::-:1'] },
+      {
+        kind: report.tests[0]?.kind,
+        frames: frameShapes(report.tests[0]),
+        item: markdown.split('\n').includes('- `Form > submits`: 1 frame added'),
+      },
+      { kind: 'dom', frames: ['added::-:1'], item: true },
+    ),
+  )
+
+  const leanBase = withoutSnapshots(
+    run({ tests: [test('src/form.test.tsx', name, steps('a{}', ['a', 'b', 'c']))] }),
+  )
+
+  const leanHead = withoutSnapshots(
+    run({ tests: [test('src/form.test.tsx', name, steps('a{}', ['a', 'x', 'b', 'c']))] }),
+  )
+
+  const lean = diffOut(leanBase, leanHead)
+
+  await check('2. frames with an unchanged name or in a one-sided gap are never read', () =>
+    same(
+      { status: lean.result.status, frames: frameShapes(lean.report?.tests[0] ?? { frames: [] }) },
+      { status: 0, frames: ['added::-:1'] },
     ),
   )
 
@@ -289,13 +366,46 @@ async function checkAddedStep() {
     ),
   )
 
-  const fewer = run({ tests: [test('src/form.test.tsx', name, steps('a{}', ['a', 'y']))] })
-  const leftover = diffOut(base, fewer).report
+  const fewer = run({
+    tests: [
+      {
+        ...test('src/form.test.tsx', name, []),
+        frames: steps('a{}', ['a', 'y']).map((value, i) => ({
+          snapshot: value,
+          label: `step ${i}`,
+        })),
+      },
+    ],
+  })
+
+  const leftover = diffOut(base, fewer)
+  const [baseFrames, headFrames] = [base, fewer].map(
+    (dir) =>
+      JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')).modules[0].tests[0].frames,
+  )
+
+  await check('2. a frame names its index, label and snapshot on each side', () =>
+    same(leftover.report.tests[0]?.frames, [
+      {
+        change: 'changed',
+        kind: 'dom',
+        base: { index: 1, label: 'frame 1', snapshot: baseFrames[1].snapshot },
+        head: { index: 1, label: 'step 1', snapshot: headFrames[1].snapshot },
+      },
+      { change: 'removed', base: { index: 2, label: 'frame 2', snapshot: baseFrames[2].snapshot } },
+    ]),
+  )
 
   await check('2. two frames against one: a DOM change in order, then a removed frame', () =>
     same(
-      { kind: leftover.tests[0]?.kind, frames: frameShapes(leftover.tests[0]) },
-      { kind: 'dom', frames: ['changed:dom:1:1', 'removed::2:-'] },
+      {
+        kind: leftover.report.tests[0]?.kind,
+        frames: frameShapes(leftover.report.tests[0]),
+        item: leftover.markdown
+          .split('\n')
+          .includes('- `Form > submits`: 1 frame changed and 1 removed'),
+      },
+      { kind: 'dom', frames: ['changed:dom:1:1', 'removed::2:-'], item: true },
     ),
   )
 
@@ -303,14 +413,22 @@ async function checkAddedStep() {
     tests: [test('src/form.test.tsx', name, steps('b{}', ['a', 'x', 'b', 'c']))],
   })
 
-  const global = diffOut(base, changedSheet).report
+  const globalOut = diffOut(base, changedSheet)
+  const global = globalOut.report
 
   await check('3. an added step and a changed global sheet: 3 css pairs and 1 added frame', () =>
     same(
-      { kind: global.tests[0]?.kind, frames: frameShapes(global.tests[0]) },
+      {
+        kind: global.tests[0]?.kind,
+        frames: frameShapes(global.tests[0]),
+        item: globalOut.markdown
+          .split('\n')
+          .includes('- `Form > submits`: 3 frames changed and 1 added'),
+      },
       {
         kind: 'dom',
         frames: ['changed:css:0:0', 'added::-:1', 'changed:css:1:2', 'changed:css:2:3'],
+        item: true,
       },
     ),
   )
@@ -405,17 +523,34 @@ async function checkNoChange() {
       { tests: [], unchanged: 1 },
     ),
   )
+
+  const lean = diffOut(withoutSnapshots(base), withoutSnapshots(head))
+
+  await check('6. an unchanged test is only counted, without reading its snapshot files', () =>
+    same({ status: lean.result.status, tests: lean.report?.tests }, { status: 0, tests: [] }),
+  )
 }
 
 async function checkStateChange() {
   const frames = [snapshot({ text: 'state' })]
-  const base = run({ tests: [test('src/state.test.tsx', 'State > flips', frames)] })
+  const sheet = (css) => [snapshot({ text: 'both', css })]
+  const base = run({
+    tests: [
+      test('src/state.test.tsx', 'State > flips', frames),
+      test('src/state.test.tsx', 'State > both', sheet('a{}')),
+    ],
+  })
+
   const head = run({
-    tests: [test('src/state.test.tsx', 'State > flips', frames, { state: 'failed' })],
+    tests: [
+      test('src/state.test.tsx', 'State > flips', frames, { state: 'failed' }),
+      test('src/state.test.tsx', 'State > both', sheet('b{}'), { state: 'failed' }),
+    ],
   })
 
   const { report, markdown } = diffOut(base, head)
   const entry = report.tests[0]
+  const both = entryNamed(report, 'State > both')
 
   await check('7. passed → failed: changed with state and no kind', () =>
     same(entry, {
@@ -434,17 +569,56 @@ async function checkStateChange() {
     ),
     detail: markdown,
   }))
+
+  await check('7. a CSS change with a state change: kind css and the state', () =>
+    same(
+      { kind: both?.kind, state: both?.state, frames: frameShapes(both ?? { frames: [] }) },
+      { kind: 'css', state: { base: 'passed', head: 'failed' }, frames: ['changed:css:0:0'] },
+    ),
+  )
+
+  await check('7. a CSS change with a state change shows under ### Changed, not folded', () => ({
+    passed:
+      (sectionOf(markdown, '### Changed') ?? '').includes(
+        '- `State > both`: 1 frame changed, state `passed` → `failed`',
+      ) &&
+      !markdown.includes('<details>') &&
+      markdown.split('\n')[2] === '2 of 2 tests changed.' &&
+      report.counts.tests.css === 1,
+    detail: markdown,
+  }))
+
+  const printed = cli(['diff', '--base', base, '--data', head])
+
+  await check('7. the summary lists both under Changed and counts no CSS-only test', () =>
+    same(
+      printed.stdout,
+      [
+        '2 of 2 tests changed.',
+        '',
+        'Changed',
+        '  src/state.test.tsx',
+        '    State > flips: state passed → failed',
+        '    State > both: 1 frame changed, state passed → failed',
+        '',
+      ].join('\n'),
+    ),
+  )
 }
 
 async function checkAddedRemovedMoved() {
   const keep = [snapshot({ text: 'keep' })]
+  const twin = [snapshot({ text: 'twin' })]
   const base = run({
     tests: [
       test('src/a.test.tsx', 'A > keep', keep),
       test('src/a.test.tsx', 'A > old name', [snapshot({ text: 'renamed' })]),
-      test('src/a.test.tsx', 'A > gone', [snapshot({ text: 'gone' })]),
+      test('src/a.test.tsx', 'A > gone', [snapshot({ text: 'gone' }), snapshot({ text: 'gone!' })]),
       test('src/a.test.tsx', 'A > empty old', []),
+      test('src/a.test.tsx', 'A > twin 1', twin),
+      test('src/a.test.tsx', 'A > twin 2', twin),
       test('src/b.test.tsx', 'B > travels', [snapshot({ text: 'travels' })]),
+      test('src/b.test.tsx', 'B > old place', [snapshot({ text: 'far' })]),
     ],
   })
 
@@ -452,9 +626,15 @@ async function checkAddedRemovedMoved() {
     tests: [
       test('src/a.test.tsx', 'A > keep', keep),
       test('src/a.test.tsx', 'A > new name', [snapshot({ text: 'renamed' })]),
-      test('src/a.test.tsx', 'A > fresh', [snapshot({ text: 'fresh' })]),
+      test('src/a.test.tsx', 'A > fresh', [
+        snapshot({ text: 'fresh' }),
+        snapshot({ text: 'fresh!' }),
+      ]),
       test('src/a.test.tsx', 'A > empty new', []),
-      test('src/c.test.tsx', 'B > travels', [snapshot({ text: 'travels' })]),
+      test('src/a.test.tsx', 'A > twin x', twin),
+      test('src/a.test.tsx', 'A > twin y', twin),
+      test('src/c.test.tsx', 'B > travels', [snapshot({ text: 'travels' })], { state: 'failed' }),
+      test('src/c.test.tsx', 'C > new place', [snapshot({ text: 'far' })]),
     ],
   })
 
@@ -464,55 +644,96 @@ async function checkAddedRemovedMoved() {
     module: entry.module,
     fullName: entry.fullName,
     from: entry.from === undefined ? undefined : `${entry.from.module}::${entry.from.fullName}`,
+    state: entry.state,
     frames: entry.frames.length,
   }))
 
+  const moved = (module, fullName, from, extra = {}) => ({
+    change: 'moved',
+    module,
+    fullName,
+    from,
+    ...extra,
+    frames: 0,
+  })
+
   await check('8. added, removed and moved tests: one entry each, from on the moved ones', () =>
     same(JSON.parse(JSON.stringify(shape)), [
-      {
-        change: 'moved',
-        module: 'src/a.test.tsx',
-        fullName: 'A > new name',
-        from: 'src/a.test.tsx::A > old name',
-        frames: 0,
-      },
-      { change: 'added', module: 'src/a.test.tsx', fullName: 'A > fresh', frames: 1 },
+      moved('src/a.test.tsx', 'A > new name', 'src/a.test.tsx::A > old name'),
+      { change: 'added', module: 'src/a.test.tsx', fullName: 'A > fresh', frames: 2 },
       { change: 'added', module: 'src/a.test.tsx', fullName: 'A > empty new', frames: 0 },
-      {
-        change: 'moved',
-        module: 'src/c.test.tsx',
-        fullName: 'B > travels',
-        from: 'src/b.test.tsx::B > travels',
-        frames: 0,
-      },
-      { change: 'removed', module: 'src/a.test.tsx', fullName: 'A > gone', frames: 1 },
+      moved('src/a.test.tsx', 'A > twin x', 'src/a.test.tsx::A > twin 1'),
+      moved('src/a.test.tsx', 'A > twin y', 'src/a.test.tsx::A > twin 2'),
+      moved('src/c.test.tsx', 'B > travels', 'src/b.test.tsx::B > travels', {
+        state: { base: 'passed', head: 'failed' },
+      }),
+      moved('src/c.test.tsx', 'C > new place', 'src/b.test.tsx::B > old place'),
+      { change: 'removed', module: 'src/a.test.tsx', fullName: 'A > gone', frames: 2 },
       { change: 'removed', module: 'src/a.test.tsx', fullName: 'A > empty old', frames: 0 },
     ]),
   )
 
-  await check('8. counts of added, removed and moved tests', () =>
-    same(report.counts.tests, {
-      changed: 0,
-      dom: 0,
-      css: 0,
-      added: 2,
-      removed: 2,
-      moved: 2,
-      unchanged: 1,
+  await check('8. every frame of an added and a removed test, in order', () =>
+    same(
+      [
+        frameShapes(entryNamed(report, 'A > fresh') ?? { frames: [] }),
+        frameShapes(entryNamed(report, 'A > gone') ?? { frames: [] }),
+      ],
+      [
+        ['added::-:0', 'added::-:1'],
+        ['removed::0:-', 'removed::1:-'],
+      ],
+    ),
+  )
+
+  await check('8. counts of added, removed and moved tests and of their frames', () =>
+    same(report.counts, {
+      tests: { changed: 0, dom: 0, css: 0, added: 2, removed: 2, moved: 5, unchanged: 1 },
+      frames: { changed: 0, dom: 0, css: 0, added: 2, removed: 2, unchanged: 6 },
     }),
   )
 
-  await check('8. changes.md lists them and where the moved tests were', () => ({
-    passed:
-      markdown.includes('0 of 5 tests changed, 2 added, 2 removed and 2 moved.') &&
-      (sectionOf(markdown, '### Moved') ?? '').includes('- `A > new name`, was `A > old name`') &&
-      (sectionOf(markdown, '### Moved') ?? '').includes(
-        '- `B > travels`, was in `src/b.test.tsx`',
-      ) &&
-      (sectionOf(markdown, '### Added') ?? '').includes('- `A > empty new`') &&
-      (sectionOf(markdown, '### Removed') ?? '').includes('- `A > empty old`'),
-    detail: markdown,
-  }))
+  await check('8. changes.md lists them, where the moved tests were and their state', () => {
+    const movedLines = (sectionOf(markdown, '### Moved') ?? '').split('\n')
+
+    return {
+      passed:
+        markdown.includes('0 of 8 tests changed, 2 added, 2 removed and 5 moved.') &&
+        [
+          '- `A > new name`, was `A > old name`',
+          '- `A > twin x`, was `A > twin 1`',
+          '- `A > twin y`, was `A > twin 2`',
+          '- `B > travels`, was in `src/b.test.tsx`: state `passed` → `failed`',
+          '- `C > new place`, was `B > old place` in `src/b.test.tsx`',
+        ].every((line) => movedLines.includes(line)) &&
+        (sectionOf(markdown, '### Added') ?? '').includes('- `A > empty new`') &&
+        (sectionOf(markdown, '### Removed') ?? '').includes('- `A > empty old`'),
+      detail: markdown,
+    }
+  })
+
+  const one = [snapshot({ text: 'one' })]
+  const single = run({ tests: [test('src/d.test.tsx', 'D > one', one)] })
+  const duplicated = run({
+    tests: [
+      test('src/d.test.tsx', 'D > one', one),
+      test('src/d.test.tsx', 'D > copy', [snapshot({ text: 'other' })]),
+    ],
+  })
+
+  editManifest(duplicated, (manifest) => {
+    const [first, second] = manifest.modules[0].tests
+    second.id = first.id
+  })
+
+  const firstWins = diffOut(single, duplicated)
+
+  await check('8. of two tests with one id, the first counts', () =>
+    same(
+      { tests: firstWins.report?.tests, unchanged: firstWins.report?.counts.tests.unchanged },
+      { tests: [], unchanged: 1 },
+    ),
+  )
 }
 
 function prop(name, type, extra = {}) {
@@ -535,9 +756,12 @@ async function checkProps() {
           prop('tone', "'plain' | 'strong'", { required: true }),
           prop('gap', 'number'),
           prop('muted', 'boolean', { defaultValue: 'false' }),
+          prop('hint', 'string', { description: 'A hint.' }),
           prop('gone', 'boolean'),
         ],
       },
+      Bare: { name: 'Bare', file: 'src/bare.tsx', props: [prop('a', 'string')] },
+      Alpha: { name: 'Alpha', file: 'src/alpha.tsx', props: [prop('x', 'string')] },
       OnlyInBase: { name: 'OnlyInBase', file: 'src/only.tsx', props: [prop('a', 'string')] },
     },
   })
@@ -555,9 +779,13 @@ async function checkProps() {
           prop('tone', "'plain' | 'strong'"),
           prop('gap', 'number', { defaultValue: '4' }),
           prop('muted', 'boolean'),
+          prop('hint', 'string', { description: 'Another hint.', kind: 'string', values: ['x'] }),
+          prop('align', "'start' | 'end'", { required: true, defaultValue: "'start'" }),
           prop('inset', 'boolean'),
         ],
       },
+      Bare: { name: 'Bare', file: 'src/bare.tsx' },
+      Alpha: { name: 'Alpha', file: 'src/alpha.tsx', props: [prop('x', 'number')] },
       OnlyInHead: { name: 'OnlyInHead', file: 'src/only.tsx', props: [prop('b', 'string')] },
     },
   })
@@ -573,6 +801,21 @@ async function checkProps() {
 
   await check('9. added, removed, new type, required, optional and default changes', () =>
     same(report.components, [
+      {
+        name: 'Alpha',
+        props: [
+          {
+            name: 'x',
+            change: 'changed',
+            base: { type: 'string', required: false },
+            head: { type: 'number', required: false },
+          },
+        ],
+      },
+      {
+        name: 'Bare',
+        props: [{ name: 'a', change: 'removed', base: { type: 'string', required: false } }],
+      },
       {
         name: 'Divider',
         props: [
@@ -620,6 +863,11 @@ async function checkProps() {
             base: { type: 'boolean', required: false, defaultValue: 'false' },
             head: { type: 'boolean', required: false },
           },
+          {
+            name: 'align',
+            change: 'added',
+            head: { type: "'start' | 'end'", required: true, defaultValue: "'start'" },
+          },
           { name: 'inset', change: 'added', head: { type: 'boolean', required: false } },
           { name: 'gone', change: 'removed', base: { type: 'boolean', required: false } },
         ],
@@ -637,12 +885,31 @@ async function checkProps() {
         '- Divider: `tone` now optional',
         '- Divider: `gap` got the default `4`',
         '- Divider: `muted` lost its default `false`',
+        "- Divider: `align` added, of type `'start' | 'end'`, required, default `'start'`",
         '- Divider: `inset` added, of type `boolean`',
         '- Divider: `gone` removed',
+        '- Alpha: type of `x` changed from `string` to `number`',
+        '- Bare: `a` removed',
       ].every((line) => lines.includes(line)),
       detail: markdown,
     }
   })
+
+  await check('9. components by name, a description, kind and values do not count', () => {
+    const lines = (sectionOf(markdown, '### Props') ?? '').split('\n')
+    const alpha = lines.indexOf('- Alpha: type of `x` changed from `string` to `number`')
+    const bare = lines.indexOf('- Bare: `a` removed')
+    const divider = lines.findIndex((line) => line.startsWith('- Divider: '))
+
+    return {
+      passed: alpha >= 0 && alpha < bare && bare < divider && !markdown.includes('`hint`'),
+      detail: markdown,
+    }
+  })
+
+  await check('9. props alone make the sentence name them', () =>
+    same(markdown.split('\n')[2], '0 of 1 test changed. The props of 3 components changed.'),
+  )
 
   const withoutComponents = run({ tests, components: null })
 
@@ -715,6 +982,57 @@ async function checkVersions() {
       { versionsDiffer: false, note: false },
     ),
   )
+
+  const written = '2026-01-01T00:00:00.000Z'
+
+  await check('10, 11. base and head name their generator and generatedAt', () =>
+    same(
+      [upgraded.report?.base, upgraded.report?.head, updated.report?.base],
+      [
+        { generatedAt: written },
+        { generator: CURRENT, generatedAt: written },
+        { generator: { ...CURRENT, version: '0.11.0' }, generatedAt: written },
+      ],
+    ),
+  )
+
+  const notes = [
+    [
+      'a head without a generator',
+      current,
+      run({ tests, generator: null }),
+      '> The base was recorded with `@describe-me/vitest` 0.12.1 and this run with a version before 0.5.1.',
+    ],
+    [
+      'a generator without a version, which counts as none',
+      run({ tests, generator: { name: '@describe-me/vitest' } }),
+      current,
+      '> The base was recorded with a version before 0.5.1 and this run with `@describe-me/vitest` 0.12.1.',
+    ],
+    [
+      'another package',
+      run({ tests, generator: { name: '@acme/recorder', version: '2.0.0' } }),
+      current,
+      '> The base was recorded with `@acme/recorder` 2.0.0 and this run with `@describe-me/vitest` 0.12.1.',
+    ],
+    [
+      'a version that is no plain word',
+      run({ tests, generator: { ...CURRENT, version: '<b>1</b>' } }),
+      current,
+      '> The base was recorded with `@describe-me/vitest` `<b>1</b>` and this run with 0.12.1.',
+    ],
+  ]
+
+  for (const [label, left, right, note] of notes) {
+    const result = diffOut(left, right)
+
+    await check(`11. ${label}: versionsDiffer and the note`, () =>
+      same(
+        { versionsDiffer: result.report?.versionsDiffer, note: result.markdown.split('\n')[4] },
+        { versionsDiffer: true, note: `${note} Some changes may come from the update.` },
+      ),
+    )
+  }
 }
 
 async function checkErrors() {
@@ -743,10 +1061,36 @@ async function checkErrors() {
     writeFileSync(join(notJsonSnapshot, 'snapshots', file), '{ not json')
   }
 
-  const outside = run({
-    tests: [
-      { ...test('src/a.test.tsx', 'A > one', []), frames: [{ path: '../elsewhere/x.json' }] },
-    ],
+  const outsideAt = (path) =>
+    run({ tests: [{ ...test('src/a.test.tsx', 'A > one', []), frames: [{ path }] }] })
+
+  const outside = outsideAt('../elsewhere/x.json')
+  const absolute = outsideAt('/elsewhere/x.json')
+  const itself = outsideAt('.')
+  const manifestDir = tempDir()
+  mkdirSync(join(manifestDir, 'manifest.json'))
+
+  const missingFields = [
+    ['a module without an id', (mod) => delete mod.id],
+    ['a module without tests', (mod) => delete mod.tests],
+    ['a test without an id', (mod) => delete mod.tests[0].id],
+    ['a test without a name', (mod) => delete mod.tests[0].name],
+    ['a test without a path', (mod) => delete mod.tests[0].path],
+    ['a test without a full name', (mod) => delete mod.tests[0].fullName],
+    ['a test without frames', (mod) => delete mod.tests[0].frames],
+    ['a frame without a snapshot', (mod) => delete mod.tests[0].frames[0].snapshot],
+  ].map(([label, drop]) => {
+    const dir = run({ tests: [test('src/a.test.tsx', 'A > one', [snapshot({ text: 'one' })])] })
+
+    editManifest(dir, (manifest) => {
+      drop(manifest.modules[0])
+    })
+
+    return [
+      label,
+      ['diff', '--base', good, '--data', dir],
+      `describe-me: ${join(dir, 'manifest.json')} is not a describe-me manifest`,
+    ]
   })
 
   const cases = [
@@ -791,6 +1135,22 @@ async function checkErrors() {
       ['diff', '--base', good, '--data', outside],
       `describe-me: ${join(outside, 'manifest.json')} names a snapshot outside ${outside}`,
     ],
+    [
+      'an absolute snapshot path',
+      ['diff', '--base', good, '--data', absolute],
+      `describe-me: ${join(absolute, 'manifest.json')} names a snapshot outside ${absolute}`,
+    ],
+    [
+      'a snapshot path that names the directory itself',
+      ['diff', '--base', itself, '--data', good],
+      `describe-me: ${join(itself, 'manifest.json')} names a snapshot outside ${itself}`,
+    ],
+    [
+      'a manifest.json that cannot be read',
+      ['diff', '--base', manifestDir, '--data', good],
+      `describe-me: cannot read ${join(manifestDir, 'manifest.json')}\n`,
+    ],
+    ...missingFields,
   ]
 
   for (const [label, args, prefix] of cases) {
@@ -936,6 +1296,58 @@ async function checkFullSummary() {
       },
     ),
   )
+
+  const { markdown } = diffOut(base, head)
+
+  await check('13. changes.md of the same pair, every part in its place', () =>
+    same(
+      markdown,
+      [
+        MARKER,
+        '',
+        '2 of 5 tests changed (1 only in CSS), 1 added, 1 removed and 1 moved. The props of 1 component changed.',
+        '',
+        '> The base was recorded with `@describe-me/vitest` 0.11.0 and this run with 0.12.1. Some changes may come from the update.',
+        '',
+        '### Changed',
+        '',
+        '`src/a.test.tsx`',
+        '',
+        '- `A > dom`: 1 frame changed',
+        '',
+        '### Props',
+        '',
+        "- Box: default of `size` changed from `'sm'` to `'lg'`",
+        '',
+        '### Added',
+        '',
+        '`src/a.test.tsx`',
+        '',
+        '- `A > fresh`',
+        '',
+        '### Removed',
+        '',
+        '`src/a.test.tsx`',
+        '',
+        '- `A > gone`',
+        '',
+        '### Moved',
+        '',
+        '`src/b.test.tsx`',
+        '',
+        '- `B > moved`, was in `src/a.test.tsx`',
+        '',
+        '<details><summary>1 test changed only in CSS</summary>',
+        '',
+        '`src/a.test.tsx`',
+        '',
+        '- `A > css`: 1 frame changed',
+        '',
+        '</details>',
+        '',
+      ].join('\n'),
+    ),
+  )
 }
 
 // ---------- the comment ----------
@@ -1065,6 +1477,26 @@ async function checkLength() {
       detail: `${Math.max(...lines.map((line) => line.length))} characters in the longest line`,
     }))
   }
+
+  const sentence = changesMarkdown(report).split('\n')[2]
+
+  await check('14. a limit too small for any list keeps the marker and the sentence', () =>
+    same(changesMarkdown(report, 200), `${MARKER}\n\n${sentence}\n`),
+  )
+
+  const oneHugeName = {
+    ...report,
+    versionsDiffer: false,
+    tests: [{ ...report.tests[1], fullName: `${'x'.repeat(10_000)}\n${'y'.repeat(10_000)}` }],
+    components: [],
+  }
+
+  await check('14. a name is cut to 300 characters, the last one an ellipsis', () => ({
+    passed: changesMarkdown(oneHugeName)
+      .split('\n')
+      .includes(`- \`${'x'.repeat(299)}…\`: 1 frame changed`),
+    detail: changesMarkdown(oneHugeName).slice(0, 400),
+  }))
 }
 
 async function checkSafety() {
@@ -1076,6 +1508,7 @@ async function checkSafety() {
     'Ticks > has a ` backtick',
     'Ticks > starts with ``` a fence',
     'Break > line\nbreak',
+    '`edge`',
   ]
 
   const base = run({
@@ -1120,6 +1553,16 @@ async function checkSafety() {
       detail: JSON.stringify(expected.filter((text) => !spans.includes(text))),
     }
   })
+
+  const printed = cli(['diff', '--base', base, '--data', head])
+  const lines = printed.stdout.split('\n')
+
+  await check('15. the summary keeps a name with a newline on one line', () => ({
+    passed:
+      lines.includes('    Break > line break: 1 frame changed') &&
+      !lines.some((line) => line.startsWith('break')),
+    detail: printed.stdout,
+  }))
 }
 
 async function checkParseArgs() {
@@ -1296,6 +1739,9 @@ try {
   await checkParseArgs()
   await checkShadcnItself()
   await checkShadcnChanged()
+} catch (error) {
+  failures++
+  console.error(`FAIL  ${errorMessage(error)}`)
 } finally {
   for (const dir of directories) {
     rmSync(dir, { recursive: true, force: true })
