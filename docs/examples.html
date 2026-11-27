@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -817,6 +818,15 @@ function customRender(ui: ReactElement, options?: Omit&lt;RenderOptions, 'wrappe
             </tbody>
           </table>
         </div>
+
+        <p>
+          <code>SHADCN_CHANGED=1 pnpm test</code> runs the same tests as a later version of the
+          project would, with Button's default size <code>lg</code> and one more class on Badge,
+          into <code>node_modules/.describe-me-changed</code>. The component files stay as they are,
+          and <code>.describe-me/</code> keeps the default run, so the two are a pair for
+          <a href="changes.html"><code>describe-me diff</code></a
+          >. See <a href="configuration.html#env-SHADCN_CHANGED">SHADCN_CHANGED</a>.
+        </p>
 
         <h2 id="mui">
           Material UI <a class="anchor" href="#mui" aria-label="Link to this section">#</a>

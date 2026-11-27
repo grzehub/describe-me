@@ -23,6 +23,7 @@ cd examples/react-browser && pnpm test          # 28 tests, browser mode
 cd examples/react-jsdom && pnpm test          # 32 tests, jsdom (27 in the manifest)
 cd examples/react-jsdom && pnpm check-styles  # which CSS survives a jsdom snapshot
 cd examples/shadcn && pnpm test   # 16 tests, browser mode, Tailwind 4 and shadcn/ui
+cd examples/shadcn && SHADCN_CHANGED=1 pnpm test   # the same tests with Button's default size lg and one new class on Badge, into node_modules/.describe-me-changed
 cd examples/mui && pnpm test   # 7 tests, jsdom, Material UI with cssVariables
 cd examples/mui && MUI_CLASSIC=1 pnpm test   # the same tests with the classic theme, without cssVariables, into node_modules/.describe-me-classic
 cd examples/mui && MUI_THEME=off pnpm test   # the same tests with the classic theme and without foundations.theme, into node_modules/.describe-me-no-theme
@@ -41,6 +42,7 @@ pnpm check-stories   # stories: 'all' / 'tagged' and the docs / no-docs tags, on
 pnpm check-sidebar-groups   # sidebar.groups on the built plugin and reporter: the option's errors, the first match, the * segment, the order of groups, stale fields and the empty-group warnings, after pnpm build
 pnpm check-live   # every test of all four examples mounted in the live preview and in a static build served under a sub-path, the viewer's messages to the live page, the live page's background reports, Live in every example's viewer through describe-me dev from a plain link, and from an old live=1 link in react-browser, and the live fixtures of react-browser and react-jsdom under Vitest, in the live preview and in the static build, MSW's worker in react-jsdom's also through describe-me dev, in Chromium, after pnpm build and every example's tests
 pnpm check-foundations   # foundations.json of all four examples (shadcn, MUI on CSS variables, with MUI_CLASSIC=1 and with MUI_THEME=off, react-jsdom with its theme, react-browser), the option, the CSS scan, the adapters and the error paths, and the Foundations view in Chromium on a static build of every output and of synthetic Chakra UI, type-style and Material UI copies: the design-system presets, the type styles composed from custom properties and from a plain theme module, the WCAG contrast of pairs, the token filter, the Material UI defaults, the Material UI setup hint and the note of the classic MUI frame on the dark canvas, after pnpm build and every example's tests
+pnpm check-diff   # describe-me diff on synthetic data directories (nothing changed, an added step, CSS-only and DOM changes, a state change, added, removed and moved tests, props, versions and runs before 0.5, the errors, --out, the comment's length and Markdown safety) and on shadcn against its SHADCN_CHANGED=1 run, after pnpm build and the shadcn example's tests
 pnpm measure-output   # snapshot files vs distinct DOMs, CSS weight
 cd examples/react-browser && pnpm bench:micro   # capture cost by DOM size
 cd examples/react-jsdom && pnpm bench:micro     # the same in jsdom, plus the naming lookup
@@ -78,6 +80,13 @@ pnpm smoke            # pack + install tarballs in a fresh project [--vite x.y.z
   `packages/vitest/src/*live*.ts`, and a test run never takes that path.
 - The CLI reaches `@describe-me/vitest/live` only through the project's root,
   and `describe-me` never depends on `@describe-me/vitest`.
+- `describe-me diff` reports and never gates: it exits 0 whatever changed. It
+  matches tests by stable id, frames by snapshot name and then by DOM key, and
+  a changed frame is `dom` or `css`. Its copy of the stable id formula in
+  `packages/viewer/cli/test-index.ts` follows
+  `packages/vitest/src/stable-test-id.ts`, so change both together.
+  `changes.json` (`packages/viewer/cli/changes-report.ts`) only gains fields
+  in version 1, and `changes.md` stays within GitHub's comment limit.
 - Snapshots are DOM + stylesheets via rrweb-snapshot; do not add layout or
   screenshot capture to the hot path without measuring (`bench:micro`).
 - A change in behaviour updates its docs page in the same PR.

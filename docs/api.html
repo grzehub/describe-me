@@ -58,6 +58,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -1617,6 +1618,12 @@
             Builds a static site: the viewer, with the output directory copied in as
             <code>__data/</code>. With <code>--live</code> it builds the live preview into the site
             too, so the site shows <a href="viewer.html#live">Live</a>.
+          </dd>
+          <dt><code>diff</code></dt>
+          <dd>
+            Compares the output directory with the one of a base run and lists the tests, frames and
+            props that changed, as a summary or as <code>changes.json</code> and
+            <code>changes.md</code>. See <a href="changes.html">Comparing runs</a>.
           </dd>
           <dt><code>--help</code></dt>
           <dd>Prints the usage, as does <code>describe-me</code> without a command.</dd>

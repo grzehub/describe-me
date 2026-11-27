@@ -1,11 +1,13 @@
 import { parseArgs } from './parse-args.js'
 import { runBuild } from './run-build.js'
 import { runDev } from './run-dev.js'
+import { runDiff } from './run-diff.js'
 
 const USAGE = `describe-me — living component docs from your tests
 
   describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root <dir>]   viewer that follows the test runs, and the live preview
   describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts] [--live] [--root <dir>]   static site
+  describe-me diff  --base <dir> [--data .describe-me] [--out <dir>]   what changed against a base run
 `
 
 /** Entry point of the `describe-me` binary. */
@@ -18,12 +20,18 @@ async function main(): Promise<void> {
   }
 
   if (options.command === 'build') {
-    await runBuild(options.data, options.out, {
+    // parseArgs gives `build` its default `out`.
+    await runBuild(options.data, options.out as string, {
       vendorFonts: options.vendorFonts,
       live: options.live,
       root: options.root,
     })
 
+    return
+  }
+
+  if (options.command === 'diff') {
+    runDiff({ base: options.base, data: options.data, out: options.out })
     return
   }
 

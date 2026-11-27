@@ -8,3 +8,4 @@ docs-dist
 describe-me-dist
 site
 examples/stackblitz/package-lock.json
+.describe-me-base

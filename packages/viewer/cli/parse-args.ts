@@ -1,13 +1,15 @@
 import { parseArgs as parseNodeArgs } from 'node:util'
 
-export type Command = 'dev' | 'build' | 'help'
+export type Command = 'dev' | 'build' | 'diff' | 'help'
 
 export interface CliOptions {
   command: Command
   /** Directory written by the reporter. */
   data: string
-  /** Output directory for `build`. */
-  out: string
+  /** Output directory: the site for `build`, `changes.json` and `changes.md` for `diff`. */
+  out: string | undefined
+  /** `diff`: the data directory of the run to compare against. */
+  base: string | undefined
   /** Port for `dev`. */
   port: number
   /** `build`: download web fonts from known font hosts into the site. */
@@ -33,13 +35,19 @@ function commandFrom(positional: string | undefined, help: boolean): Command {
     return 'build'
   }
 
+  if (positional === 'diff') {
+    return 'diff'
+  }
+
   return 'dev'
 }
 
 /**
- * Turn `describe-me <command> [--data dir] [--out dir] [--port n] [--no-vendor-fonts]
- * [--live | --no-live] [--root dir]` into options with defaults. `build` ignores
- * `--port`, and `--root` without `--live`.
+ * Turn `describe-me <command> [--data dir] [--out dir] [--base dir] [--port n]
+ * [--no-vendor-fonts] [--live | --no-live] [--root dir]` into options with
+ * defaults. `out` is `describe-me-dist` for `build` and has no default for
+ * `diff`. A command ignores the flags of the others: `build` ignores `--port`,
+ * `dev` and `build` ignore `--base`, and `build` ignores `--root` without `--live`.
  */
 export function parseArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseNodeArgs({
@@ -48,7 +56,8 @@ export function parseArgs(argv: string[]): CliOptions {
     allowNegative: true,
     options: {
       data: { type: 'string', default: '.describe-me' },
-      out: { type: 'string', default: 'describe-me-dist' },
+      out: { type: 'string' },
+      base: { type: 'string' },
       port: { type: 'string', default: '6006' },
       help: { type: 'boolean', short: 'h', default: false },
       'vendor-fonts': { type: 'boolean', default: true },
@@ -62,7 +71,8 @@ export function parseArgs(argv: string[]): CliOptions {
   return {
     command,
     data: values.data,
-    out: values.out,
+    out: values.out ?? (command === 'build' ? 'describe-me-dist' : undefined),
+    base: values.base,
     port: Number(values.port),
     vendorFonts: values['vendor-fonts'],
     live: values.live ?? command === 'dev',

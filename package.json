@@ -29,6 +29,7 @@
     "check-sidebar-groups": "node scripts/check-sidebar-groups.mjs",
     "check-live": "node scripts/check-live.mjs",
     "check-foundations": "node scripts/check-foundations.mjs",
+    "check-diff": "node scripts/check-diff.mjs",
     "measure-output": "node scripts/measure-output.mjs examples/react-browser/.describe-me examples/react-jsdom/.describe-me",
     "check-docs": "node scripts/check-docs.mjs",
     "site:build": "node scripts/build-site.mjs",

@@ -77,11 +77,13 @@ export default defineConfig({
 })
 ```
 
-Run your tests, then open the viewer or build it as a static site:
+Run your tests, then open the viewer, build it as a static site or compare two
+runs:
 
 ```sh
-describe-me dev                  # the viewer, repainted while vitest --watch runs
-describe-me build --out docs     # a static site: the viewer and its data
+describe-me dev                              # the viewer, repainted while vitest --watch runs
+describe-me build --out docs                 # a static site: the viewer and its data
+describe-me diff --base .describe-me-base    # what changed against a base run
 ```
 
 `describe-me build --live` adds
@@ -127,6 +129,8 @@ Use
   tokens of your design system, from what the tests load.
 - [Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html):
   `describe-me dev` and `build`, Live, and what the viewer does.
+- [Comparing runs](https://grzehub.github.io/describe-me/changes.html):
+  `describe-me diff`, what counts as a change, `changes.json` and `changes.md`.
 - [Troubleshooting](https://grzehub.github.io/describe-me/troubleshooting.html):
   diagnostics, warnings and common symptoms.
 

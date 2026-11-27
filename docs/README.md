@@ -235,6 +235,7 @@ flag:
 | `entry-<pkg>[-<subpath>]`      | api.html             | entry points: `pkg` is `vitest`, `react`, `core`, or `cli` for the `describe-me` package. The subpath without `./`, `/` turned into `-` (`entry-vitest-setup-dom`) |
 | `manifest-<field>`             | how-it-works.html    | every field of `manifest.json`                                                                                                                                     |
 | `limit-<slug>`                 | limitations.html     | every known limitation                                                                                                                                             |
+| `changes-<field>`              | changes.html         | every top-level field of `changes.json`                                                                                                                            |
 
 ## Deep links into the examples
 

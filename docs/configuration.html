@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -1010,8 +1011,9 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
           <code>BENCH_SKIP</code>, <code>ACT_PARITY</code>, <code>PROJECTS</code>,
           <code>STORIES</code> and the values <code>no-live-setup</code> and <code>off</code> of
           <code>LIVE_FIXTURES</code> work only in <code>examples/react-jsdom</code>, and
-          <code>MUI_CLASSIC</code> and <code>MUI_THEME</code> only in <code>examples/mui</code>. Set
-          them inline for one run. There is no <code>.env</code>.
+          <code>MUI_CLASSIC</code> and <code>MUI_THEME</code> only in <code>examples/mui</code>, and
+          <code>SHADCN_CHANGED</code> only in <code>examples/shadcn</code>. Set them inline for one
+          run. There is no <code>.env</code>.
         </p>
 
         <div class="scroll">
@@ -1146,6 +1148,19 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   Foundations shows only the setup hint. It builds the classic theme too, without
                   <code>cssVariables</code>, and does not combine with <code>MUI_CLASSIC=1</code>.
                   <code>pnpm check-foundations</code> sets it.
+                </td>
+              </tr>
+              <tr id="env-SHADCN_CHANGED">
+                <td><code>SHADCN_CHANGED</code></td>
+                <td class="nowrap"><code>examples/shadcn</code></td>
+                <td>
+                  <code>1</code> records the same tests as a later version of the project would:
+                  Button's default size is <code>lg</code>, and Badge has one more class with a rule
+                  of its own. The component files do not change. It writes to
+                  <code>node_modules/.describe-me-changed</code>, so <code>.describe-me/</code>
+                  keeps the default run, and the two are a pair for
+                  <a href="changes.html"><code>describe-me diff</code></a
+                  >. <code>pnpm check-diff</code> sets it.
                 </td>
               </tr>
             </tbody>
