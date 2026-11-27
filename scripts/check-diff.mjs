@@ -7,7 +7,9 @@
  *     `changes.md` is the marker and `Nothing changed against the base. N tests
  *     compared.` (`1 test` for one), exit 0
  *  2. one step added in the middle (`a b c` → `a x b c`): one added frame at
- *     head index 1, 3 unchanged frames, kind `dom`
+ *     head index 1, 3 unchanged frames, kind `dom`. One step removed (`a c`):
+ *     one removed frame at base index 1. Two frames against one (`a y`): a
+ *     `dom` change in order, then a removed frame.
  *  3. the same while the global stylesheet changed in every frame: 3 `css`
  *     pairs and 1 added frame
  *  4. a CSS-only change in an inline `_cssText`, in a `describe-me-style:`
@@ -21,9 +23,11 @@
  *  8. a test added, one removed, one moved within its file and one moved to
  *     another file: one entry each, `from` on the moved ones, and an added and
  *     a removed test without frames do not pair
- *  9. props: the exact line for a changed default, and a `PropChange` for a
- *     prop added, removed, with a new type and newly required. A component on
- *     one side only and a changed description do not count.
+ *  9. props: the exact line for a changed default, and a `PropChange` and a
+ *     line for a prop added, removed, with a new type, newly required, newly
+ *     optional, with a default it did not have and without the one it had. A
+ *     component on one side only and a changed description do not count. A
+ *     manifest without `components`, in the base or in the head, counts as none.
  * 10. a base written before 0.5 (no `generator`, Vitest's ids, no `vitestId`,
  *     a repeated name, a module id with `\`) against a current head with the
  *     same tests: nothing added or removed, `versionsDiffer` and the version note
@@ -34,7 +38,9 @@
  *     piece of the file), a manifest that is not describe-me's, a missing
  *     snapshot file, a snapshot path outside the directory
  * 13. `--out` creates a missing directory, writes both files and keeps a file
- *     that was there. Without `--out`: no file written, a summary on stdout.
+ *     that was there. Without `--out`: no file written, a summary on stdout,
+ *     which has the version note, the sections Changed, Props, Added, Removed
+ *     and Moved, and the number of tests that changed only in CSS.
  * 14. length: thousands of changed tests, long names and many prop changes
  *     give `changes.md` of at most 65,536 characters (or the given limit),
  *     marker and sentence first, every list ending with `- and N more`
@@ -42,7 +48,8 @@
  *     newline in a test name, and a component name that is no plain word,
  *     show only inside code spans
  * 16. `parseArgs`: `build` keeps `out` `describe-me-dist`, `diff --base x`
- *     gives no `out`
+ *     gives no `out`. `--help`, and no command, print the `diff` line of the
+ *     usage.
  * 17. examples/shadcn/.describe-me against itself: nothing changed
  * 18. examples/shadcn with SHADCN_CHANGED=1 passes, writes
  *     node_modules/.describe-me-changed/manifest.json and leaves the
@@ -262,6 +269,34 @@ async function checkAddedStep() {
 
   await check('2. one added step: 3 unchanged frames', () =>
     same(report.counts.frames, { changed: 0, dom: 0, css: 0, added: 1, removed: 0, unchanged: 3 }),
+  )
+
+  const shorter = run({ tests: [test('src/form.test.tsx', name, steps('a{}', ['a', 'c']))] })
+  const removedStep = diffOut(base, shorter).report
+
+  await check('2. one removed step: one removed frame at base index 1, kind dom', () =>
+    same(
+      {
+        kind: removedStep.tests[0]?.kind,
+        frames: frameShapes(removedStep.tests[0]),
+        counts: removedStep.counts.frames,
+      },
+      {
+        kind: 'dom',
+        frames: ['removed::1:-'],
+        counts: { changed: 0, dom: 0, css: 0, added: 0, removed: 1, unchanged: 2 },
+      },
+    ),
+  )
+
+  const fewer = run({ tests: [test('src/form.test.tsx', name, steps('a{}', ['a', 'y']))] })
+  const leftover = diffOut(base, fewer).report
+
+  await check('2. two frames against one: a DOM change in order, then a removed frame', () =>
+    same(
+      { kind: leftover.tests[0]?.kind, frames: frameShapes(leftover.tests[0]) },
+      { kind: 'dom', frames: ['changed:dom:1:1', 'removed::2:-'] },
+    ),
   )
 
   const changedSheet = run({
@@ -497,6 +532,9 @@ async function checkProps() {
           prop('orientation', "'horizontal' | 'vertical'", { defaultValue: "'horizontal'" }),
           prop('size', "'sm' | 'lg'", { description: 'How big.' }),
           prop('label', 'string'),
+          prop('tone', "'plain' | 'strong'", { required: true }),
+          prop('gap', 'number'),
+          prop('muted', 'boolean', { defaultValue: 'false' }),
           prop('gone', 'boolean'),
         ],
       },
@@ -514,6 +552,9 @@ async function checkProps() {
           prop('orientation', "'horizontal' | 'vertical'", { defaultValue: "'vertical'" }),
           prop('size', "'sm' | 'md' | 'lg'", { description: 'How big it is.' }),
           prop('label', 'string', { required: true, kind: 'string' }),
+          prop('tone', "'plain' | 'strong'"),
+          prop('gap', 'number', { defaultValue: '4' }),
+          prop('muted', 'boolean'),
           prop('inset', 'boolean'),
         ],
       },
@@ -530,7 +571,7 @@ async function checkProps() {
     detail: markdown,
   }))
 
-  await check('9. added, removed, new type and newly required props', () =>
+  await check('9. added, removed, new type, required, optional and default changes', () =>
     same(report.components, [
       {
         name: 'Divider',
@@ -561,6 +602,24 @@ async function checkProps() {
             base: { type: 'string', required: false },
             head: { type: 'string', required: true },
           },
+          {
+            name: 'tone',
+            change: 'changed',
+            base: { type: "'plain' | 'strong'", required: true },
+            head: { type: "'plain' | 'strong'", required: false },
+          },
+          {
+            name: 'gap',
+            change: 'changed',
+            base: { type: 'number', required: false },
+            head: { type: 'number', required: false, defaultValue: '4' },
+          },
+          {
+            name: 'muted',
+            change: 'changed',
+            base: { type: 'boolean', required: false, defaultValue: 'false' },
+            head: { type: 'boolean', required: false },
+          },
           { name: 'inset', change: 'added', head: { type: 'boolean', required: false } },
           { name: 'gone', change: 'removed', base: { type: 'boolean', required: false } },
         ],
@@ -575,12 +634,31 @@ async function checkProps() {
       passed: [
         "- Divider: type of `size` changed from `'sm' | 'lg'` to `'sm' | 'md' | 'lg'`",
         '- Divider: `label` now required',
+        '- Divider: `tone` now optional',
+        '- Divider: `gap` got the default `4`',
+        '- Divider: `muted` lost its default `false`',
         '- Divider: `inset` added, of type `boolean`',
         '- Divider: `gone` removed',
       ].every((line) => lines.includes(line)),
       detail: markdown,
     }
   })
+
+  const withoutComponents = run({ tests, components: null })
+
+  for (const [label, left, right] of [
+    ['in the base', withoutComponents, head],
+    ['in the head', base, withoutComponents],
+  ]) {
+    const missing = diffOut(left, right)
+
+    await check(`9. a manifest without components ${label} counts as none`, () =>
+      same(
+        { status: missing.result.status, components: missing.report?.components },
+        { status: 0, components: [] },
+      ),
+    )
+  }
 }
 
 async function checkVersions() {
@@ -779,6 +857,80 @@ async function checkOut() {
           'Changed',
           '  src/a.test.tsx',
           '    A > one: 1 frame changed',
+          '',
+        ].join('\n'),
+      },
+    ),
+  )
+
+  await checkFullSummary()
+}
+
+/** Every part of the summary: the version note, each section and the CSS-only count. */
+async function checkFullSummary() {
+  const box = (defaultValue) => ({
+    Box: {
+      name: 'Box',
+      file: 'src/box.tsx',
+      props: [prop('size', "'sm' | 'lg'", { defaultValue })],
+    },
+  })
+
+  const css = (sheet) => [snapshot({ text: 'css', css: sheet })]
+  const base = run({
+    generator: { ...CURRENT, version: '0.11.0' },
+    components: box("'sm'"),
+    tests: [
+      test('src/a.test.tsx', 'A > same', [snapshot({ text: 'same' })]),
+      test('src/a.test.tsx', 'A > dom', [snapshot({ text: 'dom' })]),
+      test('src/a.test.tsx', 'A > css', css('a{}')),
+      test('src/a.test.tsx', 'A > gone', [snapshot({ text: 'gone' })]),
+      test('src/a.test.tsx', 'B > moved', [snapshot({ text: 'moved' })]),
+    ],
+  })
+
+  const head = run({
+    components: box("'lg'"),
+    tests: [
+      test('src/a.test.tsx', 'A > same', [snapshot({ text: 'same' })]),
+      test('src/a.test.tsx', 'A > dom', [snapshot({ text: 'dom!' })]),
+      test('src/a.test.tsx', 'A > css', css('b{}')),
+      test('src/a.test.tsx', 'A > fresh', [snapshot({ text: 'fresh' })]),
+      test('src/b.test.tsx', 'B > moved', [snapshot({ text: 'moved' })]),
+    ],
+  })
+
+  const printed = cli(['diff', '--base', base, '--data', head])
+
+  await check('13. the summary has the note, every section and the CSS-only count', () =>
+    same(
+      { status: printed.status, stdout: printed.stdout },
+      {
+        status: 0,
+        stdout: [
+          '2 of 5 tests changed (1 only in CSS), 1 added, 1 removed and 1 moved. The props of 1 component changed.',
+          'The base was recorded with @describe-me/vitest 0.11.0 and this run with 0.12.1. Some changes may come from the update.',
+          '',
+          'Changed',
+          '  src/a.test.tsx',
+          '    A > dom: 1 frame changed',
+          '',
+          'Props',
+          "  Box: default of size changed from 'sm' to 'lg'",
+          '',
+          'Added',
+          '  src/a.test.tsx',
+          '    A > fresh',
+          '',
+          'Removed',
+          '  src/a.test.tsx',
+          '    A > gone',
+          '',
+          'Moved',
+          '  src/b.test.tsx',
+          '    B > moved, was in src/a.test.tsx',
+          '',
+          '1 test changed only in CSS.',
           '',
         ].join('\n'),
       },
@@ -992,6 +1144,21 @@ async function checkParseArgs() {
         ['o', 'dev'],
       ),
   )
+
+  const usage =
+    '  describe-me diff  --base <dir> [--data .describe-me] [--out <dir>]   what changed against a base run'
+
+  for (const [label, args] of [
+    ['describe-me --help', ['--help']],
+    ['describe-me without a command', []],
+  ]) {
+    const result = cli(args)
+
+    await check(`16. ${label} prints the diff line of the usage`, () => ({
+      passed: result.status === 0 && result.stdout.split('\n').includes(usage),
+      detail: `${exitDetail(result)}, stdout ${JSON.stringify(result.stdout)}`,
+    }))
+  }
 }
 
 // ---------- examples/shadcn ----------

@@ -57,7 +57,7 @@ function moduleOf(dir, id, specs, moduleIndex, legacy) {
  * `{ module, path, name, state?, duration?, frames }`, each frame
  * `{ snapshot, label?, at?, meta? }` or `{ path }` for a given snapshot path.
  * `legacy` writes Vitest's ids without `vitestId`, as before 0.5.
- * `generator: null` leaves the generator out.
+ * `generator: null` and `components: null` leave the field out.
  */
 export function writeRun(dir, { tests, components = {}, generator = CURRENT, legacy = false }) {
   mkdirSync(join(dir, 'snapshots'), { recursive: true })
@@ -76,7 +76,7 @@ export function writeRun(dir, { tests, components = {}, generator = CURRENT, leg
     generatedAt: '2026-01-01T00:00:00.000Z',
     root: '/project',
     modules,
-    components,
+    ...(components === null ? {} : { components }),
   }
 
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2))
