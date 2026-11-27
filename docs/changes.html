@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Comparing runs · describe-me docs</title>
+    <meta
+      name="description"
+      content="describe-me diff compares two runs of your tests and lists the tests, frames and props that changed, in the terminal or as a pull request comment."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Comparing runs · describe-me docs" />
+    <meta
+      property="og:description"
+      content="describe-me diff compares two runs of your tests and lists the tests, frames and props that changed, in the terminal or as a pull request comment."
+    />
+    <meta property="og:url" content="https://grzehub.github.io/describe-me/changes.html" />
+    <meta property="og:image" content="https://grzehub.github.io/describe-me/og.png" />
+    <meta property="og:image:width" content="2400" />
+    <meta property="og:image:height" content="1260" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="favicon.svg" />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="index.html"
+        >describe<span class="me">(me)</span> <span class="muted">docs</span></a
+      >
+      <div class="facts">
+        <span class="badge early">early</span>
+        <span class="version">v0.12.1</span>
+        <span>browser mode · jsdom</span>
+        <span>Live · Foundations</span>
+      </div>
+      <div class="facts right">
+        <a href="examples.html">Examples</a>
+        <a href="https://www.npmjs.com/package/describe-me">npm</a>
+        <a href="https://github.com/grzehub/describe-me">GitHub</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" aria-label="Documentation">
+        <p class="group">Start</p>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="examples.html">Examples</a></li>
+          <li><a href="why.html">Why describe-me</a></li>
+        </ul>
+        <p class="group">Setup</p>
+        <ul>
+          <li><a href="installation.html">Installation</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="environments.html">Environments</a></li>
+        </ul>
+        <p class="group">Use</p>
+        <ul>
+          <li><a href="writing-stories.html">Writing stories</a></li>
+          <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
+          <li><a href="foundations.html">Foundations</a></li>
+          <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html" aria-current="page">Comparing runs</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+        </ul>
+        <p class="group">Reference</p>
+        <ul>
+          <li><a href="api.html">API</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="performance.html">Performance</a></li>
+          <li><a href="limitations.html">Limitations</a></li>
+        </ul>
+      </nav>
+
+      <main class="page">
+        <header class="page-head">
+          <h1>Comparing runs</h1>
+        </header>
+
+        <p class="lead">
+          <code>describe-me diff</code> compares two runs of your tests and lists what changed. It
+          reports and never fails.
+        </p>
+
+        <h2 id="base">
+          A base run <a class="anchor" href="#base" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          The command reads two data directories that the reporter wrote: the base, a run from
+          before a change, and the current run. Two things keep the comparison honest:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Run the whole suite on both sides.</strong> A filtered run keeps the entries of
+            the tests it skipped from the run before, so they would compare as unchanged.
+          </li>
+          <li>
+            <strong>Compare the directories the reporter wrote</strong>, never the
+            <code>__data/</code> of a built site. <code>describe-me build</code> rewrites the
+            snapshots in its copy when it downloads fonts.
+          </li>
+        </ul>
+
+        <p>Locally, keep a copy of the data from before the change:</p>
+
+        <ol class="steps">
+          <li>
+            <strong>Before the change</strong> Run the tests, then copy their output:
+            <code>cp -r .describe-me .describe-me-base</code>.
+          </li>
+          <li><strong>After the change</strong> Run the tests again.</li>
+          <li>
+            <strong>Compare</strong> <code>npx describe-me diff --base .describe-me-base</code>.
+          </li>
+        </ol>
+
+        <p>Keep the copy out of git, as the data directory itself:</p>
+
+        <p class="file">.gitignore</p>
+        <pre><code>.describe-me
+.describe-me-base</code></pre>
+
+        <p>
+          The shadcn/ui example records a second run of its tests with
+          <a href="configuration.html#env-SHADCN_CHANGED"><code>SHADCN_CHANGED=1</code></a
+          >, and <code>pnpm check-diff</code> compares the two.
+        </p>
+
+        <h2 id="command">
+          The command <a class="anchor" href="#command" aria-label="Link to this section">#</a>
+        </h2>
+
+        <pre><code>describe-me diff --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</code></pre>
+
+        <p>
+          <code>--base</code> is the run to compare against, <code>--data</code> the current run.
+          The flags are in <a href="viewer.html#cmd-diff">Viewer and CLI</a>.
+        </p>
+
+        <ul>
+          <li>
+            <strong>Without <code>--out</code></strong> it prints a summary and writes no file: one
+            sentence with the counts, the tests whose DOM or state changed by file, the changed
+            props, the added, removed and moved tests, and how many tests changed only in CSS.
+          </li>
+          <li>
+            <strong>With <code>--out &lt;dir&gt;</code></strong> it writes
+            <a href="#files"><code>changes.json</code> and <code>changes.md</code></a> there and
+            prints the sentence and where the files went. It creates the directory when it is
+            missing and never empties it.
+          </li>
+          <li>
+            <strong>The exit code is 0</strong> whenever it could compare, whatever changed. There
+            is no threshold and no flag that turns a change into a failure.
+          </li>
+        </ul>
+
+        <p>
+          It exits with code 1 only without <code>--base</code> or when it cannot read a run, and
+          prints one of these, with the paths as you typed them:
+        </p>
+
+        <pre>
+describe-me: diff needs --base &lt;dir&gt;, the data directory of the run to compare against
+describe-me: no manifest at .describe-me-base/manifest.json
+describe-me: cannot read .describe-me/manifest.json: not valid JSON
+describe-me: .describe-me/manifest.json is not a describe-me manifest
+describe-me: cannot read .describe-me/snapshots/3f2a9c1d0b7e4a55.json
+describe-me: .describe-me/manifest.json names a snapshot outside .describe-me</pre>
+
+        <h2 id="kinds">
+          What counts as a change
+          <a class="anchor" href="#kinds" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <strong>Tests</strong> match by their id, which comes from the file, the suite path and
+          the name. A manifest written before 0.5 gets the same ids. A test in both runs is
+          <code>changed</code> when its snapshots or its state differ. A test in one run only is
+          <code>added</code> or <code>removed</code>.
+        </p>
+
+        <p>
+          <strong>Moved</strong> is a removed and an added test with exactly the same snapshots in
+          the same order, such as a renamed test or one moved to another file. A moved test whose
+          CSS changed as well shows as removed and added. Tests without frames never pair.
+        </p>
+
+        <p>
+          <strong>Frames</strong> match by content. Snapshot files are named after their content, so
+          a frame with the same name is unchanged. The frames between them pair by their DOM, so one
+          step added in the middle of a test is one added frame, also when a new class changed the
+          global stylesheet of every frame.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Kind</th>
+                <th>What changed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>dom</code></td>
+                <td>
+                  The serialized DOM, with the stylesheet text left out. That includes attributes
+                  such as <code>class</code> and <code>style</code>, the hover and focus states of a
+                  frame, links, and the content names of images and other assets, so a swapped image
+                  is a <code>dom</code> change. A test is <code>dom</code> when one of its frames
+                  is, or when a frame was added or removed.
+                </td>
+              </tr>
+              <tr>
+                <td><code>css</code></td>
+                <td>
+                  Only the stylesheet text. One new Tailwind class changes the global sheet, so
+                  every frame changes its name, and the tests that do not use the class are
+                  <code>css</code>. <code>changes.md</code> folds them.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <strong>A state change</strong>, such as <code>passed</code> to <code>failed</code> with
+          the same frames, is a change of its own and shows with the DOM changes. Labels, timings,
+          <code>meta</code>, tags, errors and the rendered component are no change.
+        </p>
+
+        <p>
+          <strong>Props</strong> count for the components in both runs: a prop added or removed, or
+          with another type, another default, or now required or optional. Descriptions do not
+          count. A component in one run only is not listed, because its tests show as added or
+          removed. The props come from the component files as they were when the tests ran.
+        </p>
+
+        <p>
+          <strong>Versions.</strong> When the manifests name different versions of
+          <code>@describe-me/vitest</code>, or only one names its version, the report says so. Some
+          changes may then come from the update rather than from your code.
+        </p>
+
+        <h2 id="files">
+          changes.json and changes.md
+          <a class="anchor" href="#files" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <code>changes.json</code> holds the whole report. Its paths are relative to each run's
+          directory, so it names no machine. These are its fields:
+        </p>
+
+        <div class="scroll">
+          <table class="fields">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>What it holds</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="changes-version">
+                <td><code>version</code></td>
+                <td>
+                  <code>1</code>. A later release may add fields to version 1, never remove or
+                  change one.
+                </td>
+              </tr>
+              <tr id="changes-base">
+                <td><code>base</code></td>
+                <td>
+                  The <code>generator</code> and <code>generatedAt</code> of the base's manifest.
+                  <code>generator</code> is absent for a manifest written before 0.5.1.
+                </td>
+              </tr>
+              <tr id="changes-head">
+                <td><code>head</code></td>
+                <td>The same for the current run.</td>
+              </tr>
+              <tr id="changes-versionsDiffer">
+                <td><code>versionsDiffer</code></td>
+                <td>
+                  <code>true</code> when the manifests name different versions, or only one names
+                  its version.
+                </td>
+              </tr>
+              <tr id="changes-counts">
+                <td><code>counts</code></td>
+                <td>
+                  <code>tests</code>: <code>changed</code>, and of those <code>dom</code> and
+                  <code>css</code>, then <code>added</code>, <code>removed</code>,
+                  <code>moved</code> and <code>unchanged</code>. <code>frames</code>: the same
+                  without <code>moved</code>, every frame of an added or removed test included.
+                </td>
+              </tr>
+              <tr id="changes-tests">
+                <td><code>tests</code></td>
+                <td>
+                  One entry per changed, added and moved test in the order of the current run, then
+                  the removed tests in the order of the base. Each has its <code>change</code>,
+                  <code>id</code>, <code>module</code> and <code>fullName</code>, a
+                  <code>kind</code> when its frames changed, a <code>state</code> when its state
+                  did, <code>from</code> when it moved, and its changed, added and removed
+                  <code>frames</code> with their index, label and snapshot on each side.
+                </td>
+              </tr>
+              <tr id="changes-components">
+                <td><code>components</code></td>
+                <td>
+                  The components whose props changed, by name, each with its
+                  <code>props</code>: name, <code>change</code>, and the type, whether it is
+                  required and the default on each side.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <code>changes.md</code> is the body of a pull request comment. It starts with the line
+          <code>&lt;!-- describe-me:changes --&gt;</code>, by which a workflow can find its earlier
+          comment, and the sentence with the counts. Then come the version note, the sections
+          Changed, Props, Added, Removed and Moved, and last the tests that changed only in CSS,
+          folded. Names from the manifest are in code spans, so a test name cannot mention anyone or
+          render HTML. The file stays within GitHub's limit of 65,536 characters. When the lists do
+          not fit, each is cut and ends with <code>- and N more</code>. A shortened sample:
+        </p>
+
+        <p class="file">changes.md</p>
+        <pre><code>&lt;!-- describe-me:changes --&gt;
+
+16 of 16 tests changed (6 only in CSS).
+
+### Changed
+
+`src/components/ui/button.test.tsx`
+
+- `Button &gt; renders the default variant`: 1 frame changed
+- `Button &gt; highlights a ghost button on hover`: 2 frames changed
+
+`src/components/ui/feedback.test.tsx`
+
+- `Badge &gt; renders every variant`: 1 frame changed
+
+&lt;details&gt;&lt;summary&gt;6 tests changed only in CSS&lt;/summary&gt;
+
+`src/components/ui/form-controls.test.tsx`
+
+- `Input &gt; renders a placeholder`: 1 frame changed
+
+&lt;/details&gt;</code></pre>
+
+        <h2 id="limits">
+          What it does not see
+          <a class="anchor" href="#limits" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          It compares the recorded DOM and stylesheet text, not pixels. A CSS change that renders
+          the same is still listed, folded with the other CSS-only tests. It does not see:
+        </p>
+
+        <ul>
+          <li>
+            what a <code>&lt;canvas&gt;</code> draws, because snapshots hold
+            <a href="limitations.html#limit-canvas">no canvas pixels</a>
+          </li>
+          <li>
+            an image, font or stylesheet that
+            <a href="limitations.html#limit-diff-remote-files"
+              >another host serves and changes under the same URL</a
+            >
+          </li>
+          <li>the preview head and <code>foundations.json</code></li>
+        </ul>
+
+        <p>
+          It is no gate: there are no thresholds, approvals or baselines in the repository. For
+          visual regression testing as a gate, use a visual testing tool.
+        </p>
+
+        <nav class="pager" aria-label="Pages">
+          <a class="prev" href="viewer.html"><span>Previous</span>Viewer and CLI</a>
+          <a class="next" href="troubleshooting.html"><span>Next</span>Troubleshooting</a>
+        </nav>
+
+        <footer class="page-foot">
+          <a href="https://github.com/grzehub/describe-me/blob/main/docs/changes.html"
+            >Edit this page on GitHub</a
+          >
+        </footer>
+      </main>
+
+      <aside class="toc" aria-label="On this page">
+        <p class="group">On this page</p>
+        <ul>
+          <li><a href="#base">A base run</a></li>
+          <li><a href="#command">The command</a></li>
+          <li><a href="#kinds">What counts as a change</a></li>
+          <li><a href="#files">changes.json and changes.md</a></li>
+          <li><a href="#limits">What it does not see</a></li>
+        </ul>
+      </aside>
+    </div>
+  </body>
+</html>

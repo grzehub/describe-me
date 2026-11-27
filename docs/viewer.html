@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html" aria-current="page">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -81,7 +82,8 @@
           <code>describe-me dev</code> serves the viewer, repaints it after every test run and can
           mount a test in <a href="#live">Live</a>. <code>describe-me build</code> writes the
           recorded frames as a static site, with Live under <code>--live</code>. This page covers
-          both commands and everything the viewer does.
+          <code>dev</code>, <code>build</code> and everything the viewer does.
+          <code>describe-me diff</code> is on <a href="changes.html">Comparing runs</a>.
         </p>
 
         <h2 id="cli">
@@ -92,7 +94,8 @@
 
         <pre><code>describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root &lt;dir&gt;]
 describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]
-                  [--live] [--root &lt;dir&gt;]</code></pre>
+                  [--live] [--root &lt;dir&gt;]
+describe-me diff  --base &lt;dir&gt; [--data .describe-me] [--out &lt;dir&gt;]</code></pre>
 
         <div class="scroll">
           <table class="fields wide">
@@ -128,6 +131,18 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                   >). The data directory itself never changes.
                 </td>
               </tr>
+              <tr id="cmd-diff">
+                <td><code>describe-me diff</code></td>
+                <td class="nowrap">—</td>
+                <td>
+                  Compares the data directory of <code>--data</code> with the one of
+                  <code>--base</code>, and lists the tests, frames and props that changed. Without
+                  <code>--out</code> it prints a summary. With it, it writes
+                  <code>changes.json</code> and <code>changes.md</code>. It exits with code 0
+                  whatever changed, and with 1 without <code>--base</code> or when a manifest or a
+                  snapshot cannot be read (<a href="changes.html">Comparing runs</a>).
+                </td>
+              </tr>
               <tr id="cmd-help">
                 <td><code>describe-me --help</code></td>
                 <td class="nowrap">—</td>
@@ -140,18 +155,36 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
                 <td><code>--data</code></td>
                 <td class="nowrap"><code>.describe-me</code></td>
                 <td>
-                  <code>dev</code> and <code>build</code>. The directory the reporter wrote,
-                  relative to the current directory. When you set the plugin's
+                  <code>dev</code>, <code>build</code> and <code>diff</code>. The directory the
+                  reporter wrote, relative to the current directory. For <code>diff</code> it is the
+                  current run. When you set the plugin's
                   <a href="configuration.html#option-outDir"><code>outDir</code></a
                   >, pass the same directory here.
                 </td>
               </tr>
+              <tr id="flag-base">
+                <td><code>--base</code></td>
+                <td class="nowrap">—</td>
+                <td>
+                  <code>diff</code> only, which needs it. The data directory of the run to compare
+                  against, such as a copy of <code>.describe-me</code> from before a change (<a
+                    href="changes.html#base"
+                    >a base run</a
+                  >).
+                </td>
+              </tr>
               <tr id="flag-out">
                 <td><code>--out</code></td>
-                <td class="nowrap"><code>describe-me-dist</code></td>
+                <td class="nowrap">
+                  <code>describe-me-dist</code> in <code>build</code>,<br />none in
+                  <code>diff</code>
+                </td>
                 <td>
-                  <code>build</code> only. Where the static site goes. The directory is emptied
-                  first, so never point it at a folder that holds other files.
+                  <code>build</code>: where the static site goes. The directory is emptied first, so
+                  never point it at a folder that holds other files. <code>diff</code>: where
+                  <code>changes.json</code> and <code>changes.md</code> go. <code>diff</code>
+                  creates the directory when it is missing and never empties it. Without
+                  <code>--out</code>, <code>diff</code> prints a summary and writes no file.
                 </td>
               </tr>
               <tr id="flag-port">
@@ -218,11 +251,12 @@ describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fo
 
         <ul>
           <li>
-            Any first word other than <code>build</code>, a typo included, starts the dev server.
-            Use <code>--help</code> for the usage.
+            Any first word other than <code>build</code> and <code>diff</code>, a typo included,
+            starts the dev server. Use <code>--help</code> for the usage.
           </li>
           <li>
-            A flag of the other command is ignored, so <code>--port</code> does nothing on
+            A flag of another command is ignored, so <code>--port</code> does nothing on
+            <code>build</code>, and <code>--base</code> does nothing on <code>dev</code> and
             <code>build</code>. Neither does <code>--root</code> without <code>--live</code>.
           </li>
           <li>
@@ -969,7 +1003,7 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
 
         <nav class="pager" aria-label="Pages">
           <a class="prev" href="foundations.html"><span>Previous</span>Foundations</a>
-          <a class="next" href="troubleshooting.html"><span>Next</span>Troubleshooting</a>
+          <a class="next" href="changes.html"><span>Next</span>Comparing runs</a>
         </nav>
 
         <footer class="page-foot">

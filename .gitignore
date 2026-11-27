@@ -10,3 +10,4 @@ docs-dist
 dist-cli
 site
 /demo
+.describe-me-base

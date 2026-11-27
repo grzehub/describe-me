@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -230,7 +231,8 @@
           </li>
           <li>
             <code>describe-me</code> reads that directory. <code>describe-me dev</code> serves it
-            and follows each run, <code>describe-me build</code> copies it into a static site.
+            and follows each run, <code>describe-me build</code> copies it into a static site, and
+            <code>describe-me diff</code> compares it with another run.
           </li>
         </ul>
 
@@ -618,6 +620,11 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           Every file but <code>manifest.json</code> and <code>foundations.json</code> is named after
           the first 16 hex characters of a SHA-1 of its content. Identical content is written once,
           however many frames, tests and runs produce it.
+        </p>
+
+        <p>
+          Content names let <code>describe-me diff</code> tell an unchanged frame by its name and
+          read the files only of frames that changed. See <a href="changes.html">Comparing runs</a>.
         </p>
 
         <p>For every frame, in this order, the reporter:</p>

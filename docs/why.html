@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -243,8 +244,12 @@
               </tr>
               <tr>
                 <td>Visual tests (such as Chromatic)</td>
-                <td>None</td>
-                <td>describe-me records DOM and CSS and compares nothing.</td>
+                <td><code>describe-me diff</code></td>
+                <td>
+                  It reports which tests, frames and props changed between two runs. It does not
+                  compare pixels and never fails a build over what changed. See
+                  <a href="changes.html">Comparing runs</a>.
+                </td>
               </tr>
               <tr>
                 <td>Static build</td>
@@ -308,8 +313,8 @@
             You use a framework other than React. See <a href="limitations.html#scope">scope</a>.
           </li>
           <li>
-            You need visual regression testing. describe-me does not compare frames, so use a visual
-            testing tool.
+            You need visual regression testing as a gate, with thresholds and approvals. Use a
+            visual testing tool for that. <code>describe-me diff</code> only reports what changed.
           </li>
           <li>
             Your components depend on layout and your tests run in jsdom, which does no layout. See

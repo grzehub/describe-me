@@ -1,13 +1,13 @@
-# Every pull request and push to main: build, lint, format, the example suite,
-# and the tarball smoke test that installs the packed packages into a fresh
-# project the way a user would, against the default toolchain, two older
-# Vite/Vitest combinations and React 18.
+# Every pull request and push to main and to integration/** branches: build,
+# lint, format, the example suite, and the tarball smoke test that installs the
+# packed packages into a fresh project the way a user would, against the
+# default toolchain, two older Vite/Vitest combinations and React 18.
 name: ci
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'integration/**']
 
 permissions:
   contents: read
@@ -51,6 +51,7 @@ jobs:
       - run: pnpm check-sidebar-groups
       - run: pnpm check-live
       - run: pnpm check-foundations
+      - run: pnpm check-diff
 
   smoke:
     name: smoke (${{ matrix.name }})
