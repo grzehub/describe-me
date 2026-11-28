@@ -124,6 +124,12 @@
 .describe-me-base</code></pre>
 
         <p>
+          In CI, one job can record both sides of a pull request (<a href="#ci"
+            >a pull request comment</a
+          >).
+        </p>
+
+        <p>
           The shadcn/ui example records a second run of its tests with
           <a href="configuration.html#env-SHADCN_CHANGED"><code>SHADCN_CHANGED=1</code></a
           >, and <code>pnpm check-diff</code> compares the two.
@@ -355,15 +361,18 @@ describe-me: cannot start Chromium for --shots (browserType.launch: Executable d
 
         <p>
           <code>changes.md</code> is the body of a pull request comment. It starts with the line
-          <code>&lt;!-- describe-me:changes --&gt;</code>, by which a workflow can find its earlier
-          comment, and the sentence with the counts. Then come the version note, the sections
-          Changed, Props, Added, Removed and Moved, and last the tests that changed only in CSS,
-          folded. With <code>--shots</code> the section Looks different comes first, with the
-          images, and the folded tests are the CSS-only ones that look the same (<a href="#shots"
-            >the three groups</a
-          >). Names from the manifest are in code spans, so a test name cannot mention anyone or
-          render HTML. The file stays within GitHub's limit of 65,536 characters. When the lists do
-          not fit, each is cut and ends with <code>- and N more</code>. A shortened sample:
+          <code>&lt;!-- describe-me:changes --&gt;</code>,
+          <a href="#ci">by which a workflow can find its earlier comment</a>, and the sentence with
+          the counts. Then come the version note, the sections Changed, Props, Added, Removed and
+          Moved, and last the tests that changed only in CSS, folded. With <code>--shots</code> the
+          section Looks different comes first, with the images, and the folded tests are the
+          CSS-only ones that look the same (<a href="#shots">the three groups</a>). Names from the
+          manifest are in code spans, so a test name cannot mention anyone or render HTML. The file
+          stays within 65,536 characters, GitHub's limit for a comment. When the lists do not fit,
+          each is cut and ends with <code>- and N more</code>. GitHub counts a comment with images
+          after gh swapped each <code>./&lt;file&gt;.png</code> for a longer URL, so a file that was
+          cut and shows images can be too long to post (<a href="#ci">a pull request comment</a>). A
+          shortened sample:
         </p>
 
         <p class="file">changes.md</p>
@@ -501,6 +510,178 @@ npx playwright install chromium</code></pre>
 
 &lt;/details&gt;</code></pre>
 
+        <h2 id="ci">
+          A pull request comment
+          <a class="anchor" href="#ci" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          A workflow can record your tests on the base of each pull request and on the pull request,
+          and post <code>changes.md</code> with its images as a comment. This one is for a project
+          with one data directory:
+        </p>
+
+        <p class="file">.github/workflows/changes.yml</p>
+        <pre><code>name: changes
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: changes-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      <span class="dim"># The base of the pull request first.</span>
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec vitest run
+        continue-on-error: true
+      - run: cp -R .describe-me "$RUNNER_TEMP/base"
+      <span class="dim"># Then the pull request, merged into its base.</span>
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec vitest run
+        continue-on-error: true
+      - run: pnpm exec describe-me diff --base "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/changes" --shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: describe-me-changes
+          path: ${{ runner.temp }}/changes
+          overwrite: true
+
+  comment:
+    needs: report
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: describe-me-changes
+          path: changes
+      - working-directory: changes
+        env:
+          GH_TOKEN: ${{ secrets.DESCRIBE_ME_COMMENT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "No comment: this run has no token." &gt;&gt; "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          attach=()
+          for file in *.png; do
+            if [ -f "$file" ] &amp;&amp; grep -qF "](./$file)" changes.md; then
+              attach+=(--attach "./$file")
+            fi
+          done
+
+          gh pr comment "$PR" --edit-last --create-if-none --body-file changes.md "${attach[@]}"</code></pre>
+
+        <ul>
+          <li>
+            <strong>Two jobs</strong>, so the token never meets the code the tests run, such as a
+            dependency that the pull request adds. <code>report</code> runs that code with read
+            access and no secret. <code>comment</code> holds the token, checks out nothing and runs
+            nothing from the report.
+          </li>
+          <li>
+            <strong>The base goes first.</strong> The second checkout removes its
+            <code>node_modules</code> and data, so the copy waits in <code>$RUNNER_TEMP</code>, and
+            the install that <code>describe-me diff</code> runs with is the pull request's. Both
+            runs record from the same paths. Without a <code>ref</code>, a
+            <code>pull_request</code> workflow checks out the pull request merged into its base, so
+            the report shows only the pull request's own changes.
+          </li>
+          <li>
+            <strong>Each pass installs Chromium.</strong> Browser mode runs the tests in it, and
+            <code>--shots</code> needs it even in a jsdom project, with <code>playwright</code> as a
+            dev dependency (<a href="#shots">before and after images</a>). The second install takes
+            the Playwright version of the pull request.
+          </li>
+          <li>
+            <strong>A failing test</strong> does not stop the workflow and shows as a state change
+            in the report. Keep your test workflow as the gate.
+          </li>
+          <li>
+            <strong>Images resolve from the report directory.</strong> gh uploads each file of
+            <code>--attach</code> and swaps its <code>./&lt;file&gt;.png</code> in the body for the
+            uploaded image. It appends an attached file that the body does not reference, so the
+            loop attaches only the images <code>changes.md</code> shows.
+          </li>
+        </ul>
+
+        <h3>The token</h3>
+
+        <p>
+          Attaching images takes a classic personal access token with the <code>repo</code> scope,
+          of an account with write access to the repository. Store it as a repository secret, here
+          <code>DESCRIBE_ME_COMMENT_TOKEN</code>. The workflow's own <code>GITHUB_TOKEN</code> posts
+          a comment with text, but cannot attach images with any permissions. gh says:
+        </p>
+
+        <pre>attaching files requires write access to the repository</pre>
+
+        <h3>Limits</h3>
+
+        <ul>
+          <li>
+            Pull requests from forks and from Dependabot run without the repository's secrets, so
+            they get no comment. The comment job ends with a note in its summary, and the report
+            stays in the artifact.
+          </li>
+          <li><code>--attach</code> does not work on GitHub Enterprise Server.</li>
+          <li><code>--attach</code> needs gh 2.99 or later.</li>
+          <li>
+            gh attaches up to 50 files to one comment, so keep <code>--max-shots</code> at 50 or
+            less.
+          </li>
+          <li>
+            A comment with images can be too long to post. <code>describe-me diff</code> cuts
+            <code>changes.md</code> to 65,536 characters with its <code>./&lt;file&gt;.png</code>
+            paths of 18 characters, and GitHub's limit applies after gh swapped each for an
+            attachment URL of 79. So when the lists had to be cut and the body shows images,
+            <code>gh pr comment</code> can fail. The earlier comment then stays as it was, and the
+            report stays in the artifact.
+          </li>
+          <li>
+            <code>--edit-last</code> edits the last comment of the token's account on the pull
+            request, whatever it says. Use an account that comments in those pull requests only for
+            this.
+          </li>
+          <li>An image that an edit replaces stops loading without a login a few minutes later.</li>
+          <li>The sample comments on every pull request, also when nothing changed.</li>
+        </ul>
+
+        <p>
+          This project's
+          <a href="https://github.com/grzehub/describe-me/blob/main/.github/workflows/changes.yml"
+            >changes.yml</a
+          >
+          does the same for four examples, keeps one comment per pull request and edits only a
+          comment that starts with the marker.
+        </p>
+
         <h2 id="limits">
           What it does not see
           <a class="anchor" href="#limits" aria-label="Link to this section">#</a>
@@ -560,6 +741,7 @@ npx playwright install chromium</code></pre>
           <li><a href="#kinds">What counts as a change</a></li>
           <li><a href="#files">changes.json and changes.md</a></li>
           <li><a href="#shots">Before and after images</a></li>
+          <li><a href="#ci">A pull request comment</a></li>
           <li><a href="#limits">What it does not see</a></li>
         </ul>
       </aside>

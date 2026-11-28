@@ -76,7 +76,7 @@ export const sections = {
     'issues',
     'hosting',
   ],
-  'changes.html': ['base', 'command', 'kinds', 'files', 'shots', 'limits'],
+  'changes.html': ['base', 'command', 'kinds', 'files', 'shots', 'ci', 'limits'],
   'troubleshooting.html': ['diagnostics', 'warnings', 'symptoms', 'live', 'report'],
   'api.html': ['vitest', 'react', 'core', 'cli'],
   'how-it-works.html': [
