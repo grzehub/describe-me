@@ -1727,7 +1727,7 @@ async function checkSafety() {
 
   await check('15. each name is one whole code span', () => {
     const expected = [
-      ...names.map((name) => name.replace('\n', ' ')),
+      ...names.map((name) => name.replaceAll('\n', ' ')),
       'src/@scope/#7.test.tsx',
       'Weird <b>@x</b>',
       '<i>number</i>',
