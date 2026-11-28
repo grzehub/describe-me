@@ -1,0 +1,5 @@
+---
+'describe-me': minor
+---
+
+`describe-me dev --base <dir>` and `describe-me build --base <dir>` show in the viewer what changed against a base run. The sidebar marks changed and added tests and the file, suite and group rows that hold them. A Changed filter next to the tag filter narrows the sidebar to them, works with the search and the tag, and is `changed=1` in the link. While it is on, a test opens at its first changed frame instead of Live. The header counts the changed, added and removed tests and lists the removed ones by name. The frame timeline marks changed frames as `dom` or `css`, and added frames. `build --base` puts the base into the site as `__base/`, named by the project id and with its fonts vendored, and the report as `__data/changes.json`. A manifest that cannot be read stops it before anything is written. `dev --base` serves the base under `/__base` and computes `/__data/changes.json` again when either manifest changes. Without `--base`, the viewer and the site work as before.

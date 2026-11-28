@@ -7,6 +7,7 @@ import type { SidePanel } from './panel-choice.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
 import { testsInScope } from './scope.js'
+import { selectAtChange } from './select-at-change.js'
 import { sidebarOrder } from './sidebar-order.js'
 import { currentTest, select, state, writeHash } from './state.js'
 import { toggleLive } from './toggle-live.js'
@@ -145,7 +146,8 @@ function focusSearch(): void {
 }
 
 /**
- * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
+ * ← → step through frames, ↑ ↓ through the tests the sidebar shows, which
+ * under the Changed filter open recorded at their first change, `L`
  * toggles Live, `/` focuses the search, `[` and `]` hide or show the sidebar
  * and the inspector. In Foundations only `/`, `[` and `]` work, and `/`
  * focuses the token filter.
@@ -200,7 +202,7 @@ export function onKey(event: KeyboardEvent): void {
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     const next = neighbour(test.id, event.key === 'ArrowDown' ? 1 : -1)
     if (next) {
-      select(next.id, 0, 'replace')
+      selectAtChange(next.id, 'replace')
     }
 
     event.preventDefault()

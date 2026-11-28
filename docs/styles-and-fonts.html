@@ -407,7 +407,10 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           style chunks and the CSS assets of the copy, so a link that a font loader added during a
           test is covered too, and so is data written by 0.4. Vendoring also points the copy's
           <code>foundations.json</code> at the chunks it moves. The data directory itself never
-          changes. <code>describe-me dev</code> never downloads fonts.
+          changes. <code>describe-me dev</code> never downloads fonts. With
+          <a href="changes.html#viewer"><code>--base</code></a
+          >, the build vendors the copy of the base in <code>__base/</code> too, after
+          <code>__data/</code> and with the same cache, so both runs show the same fonts.
         </p>
 
         <div class="scroll">
@@ -472,11 +475,12 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           </li>
           <li>
             <strong>Slow hosts.</strong> Each request times out after 10 seconds. A host that cannot
-            be reached is skipped for the rest of the build.
+            be reached is skipped for the rest of the directory, <code>__data/</code> or
+            <code>__base/</code>.
           </li>
           <li>
-            <strong>The budget.</strong> One build downloads at most 100 MB of fonts. What is left
-            then stays remote.
+            <strong>The budget.</strong> Each directory downloads at most 100 MB of fonts. What is
+            left then stays remote.
           </li>
           <li>
             <strong>Never fatal.</strong> Font downloads never fail the build. What did not download
@@ -484,12 +488,16 @@ describeMe({ previewHead: readFileSync('.storybook/preview-head.html', 'utf8') }
           </li>
         </ul>
 
-        <p>The build says what it did:</p>
+        <p>
+          The build says what it did, for each directory it vendors. The last line comes from a
+          build with <code>--base</code>:
+        </p>
 
         <pre>
 describe-me: vendored 1 stylesheet from fonts.googleapis.com and 7 font files (…) into __data/assets
 describe-me: left remote: use.typekit.net (Adobe Fonts do not allow self-hosting)
-describe-me: https://fonts.bunny.net/css?family=… did not download (…). It keeps loading from the network.</pre>
+describe-me: https://fonts.bunny.net/css?family=… did not download (…). It keeps loading from the network.
+describe-me: vendored 1 stylesheet from fonts.googleapis.com and 7 font files (…) into __base/assets</pre>
 
         <p>
           It lists at most five URLs that did not download, then how many more. To keep the build

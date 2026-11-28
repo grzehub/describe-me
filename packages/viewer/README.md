@@ -68,7 +68,7 @@ downloads web fonts from Google Fonts, Bunny Fonts and Fontsource into the
 site, so it shows them offline.
 [Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html) lists every
 flag and what the viewer can do, and
-[Comparing runs](https://grzehub.github.io/describe-me/changes.html) what `diff` reports.
+[Comparing runs](https://grzehub.github.io/describe-me/changes.html) what `diff` reports and what `dev --base` shows.
 
 `vite` is a peer dependency, which pnpm and npm install on their own. With yarn,
 add it to your `devDependencies`. `playwright` is an optional peer that only

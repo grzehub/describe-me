@@ -10,7 +10,12 @@ export interface Regions {
   sidebar: HTMLElement
   /** The sidebar's search field, above the tree. */
   search: HTMLInputElement
-  /** The tag the tree is narrowed to, under the search. Hidden without one. */
+  /**
+   * The Changed filter, under the search. Hidden without a report against a
+   * base or without a test that changed or was added.
+   */
+  changesFilter: HTMLElement
+  /** The tag the tree is narrowed to, under the Changed filter. Hidden without one. */
   tagFilter: HTMLElement
   /**
    * The Foundations entry, above the tree. Hidden unless the manifest has
@@ -48,6 +53,7 @@ export function regions(): Regions {
     'aria-label': 'Search tests',
   })
 
+  const changesFilter = el('div', { class: 'changes-filter', hidden: true })
   const tagFilter = el('div', { class: 'tag-filter', role: 'status', hidden: true })
   const foundationsNav = el('nav', {
     class: 'foundations-nav',
@@ -60,6 +66,7 @@ export function regions(): Regions {
     'aside',
     { class: 'sidebar', id: 'sidebar' },
     search,
+    changesFilter,
     tagFilter,
     foundationsNav,
     tree,
@@ -87,6 +94,7 @@ export function regions(): Regions {
     banner,
     sidebar,
     search,
+    changesFilter,
     tagFilter,
     foundationsNav,
     tree,

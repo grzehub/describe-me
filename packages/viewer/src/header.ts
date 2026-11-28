@@ -1,3 +1,4 @@
+import { renderChangesMenu } from './changes-menu.js'
 import { renderDiagnosticsMenu } from './diagnostics-menu.js'
 import { el } from './el.js'
 import { allTests, state } from './state.js'
@@ -16,8 +17,9 @@ function brand(project: string | undefined): HTMLElement {
 }
 
 /**
- * The header's children: the brand, pass/fail counts, what could not be
- * documented and the time of the last run.
+ * The header's children: the brand, pass/fail counts, what changed against
+ * the base run when there is a report, what could not be documented and the
+ * time of the last run.
  */
 export function renderHeader(): HTMLElement[] {
   const manifest = state.manifest
@@ -33,6 +35,7 @@ export function renderHeader(): HTMLElement[] {
 
   const wordmark = brand(manifest?.project)
   const when = manifest ? new Date(manifest.generatedAt).toLocaleTimeString() : '…'
+  const changes = manifest && state.changes ? renderChangesMenu(state.changes) : null
   const issues = manifest ? renderDiagnosticsMenu(manifest) : null
   const updated = el(
     'span',
@@ -41,7 +44,7 @@ export function renderHeader(): HTMLElement[] {
     el('span', { class: 'mono' }, when),
   )
 
-  return [wordmark, summary, issues, updated].filter(
+  return [wordmark, summary, changes, issues, updated].filter(
     (child): child is HTMLElement => child !== null,
   )
 }

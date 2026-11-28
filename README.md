@@ -84,6 +84,7 @@ runs:
 describe-me dev                              # the viewer, repainted while vitest --watch runs
 describe-me build --out docs                 # a static site: the viewer and its data
 describe-me diff --base .describe-me-base    # what changed against a base run
+describe-me dev --base .describe-me-base     # the same changes marked in the viewer
 ```
 
 `describe-me build --live` adds
@@ -131,7 +132,8 @@ Use
   `describe-me dev` and `build`, Live, and what the viewer does.
 - [Comparing runs](https://grzehub.github.io/describe-me/changes.html):
   `describe-me diff`, what counts as a change, `changes.json`, `changes.md`,
-  the before and after images of `--shots` and a pull request comment from CI.
+  the before and after images of `--shots`, the changes in the viewer with
+  `--base` and a pull request comment from CI.
 - [Troubleshooting](https://grzehub.github.io/describe-me/troubleshooting.html):
   diagnostics, warnings and common symptoms.
 

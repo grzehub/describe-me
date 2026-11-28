@@ -1,7 +1,7 @@
 /**
- * Checks `describe-me diff` on the built CLI, by spawning
- * `packages/viewer/dist-cli/main.js diff` on data directories written to a
- * temp dir and importing its modules for unit cases:
+ * Checks `describe-me diff`, `build --base` and `dev --base` on the built
+ * CLI, by spawning `packages/viewer/dist-cli/main.js` on data directories
+ * written to a temp dir and importing its modules for unit cases:
  *
  *  1. identical directories, and one directory as both sides: no test entry,
  *     `changes.md` is the marker and `Nothing changed against the base. N tests
@@ -149,11 +149,28 @@
  *     comments`. Rule 1, the account's last comment is marked: `--edit-last`,
  *     then its other marked comments deleted, also into the one sentence.
  *     Each outcome is one line in the log and in the step summary.
+ * 30. `build --base`, with `--no-vendor-fonts`: with a base whose root differs
+ *     from the data's, exit 0, `__base/` holds the base's manifest and
+ *     snapshots, `__data/changes.json` deep-equals the changes.json of
+ *     `diff --out`, both manifests name the project by the id of the current
+ *     run's root and `index.html` has the `describe-me-changes` meta. Without
+ *     `--base`, also with DESCRIBE_ME_BASE set: no `__base/`, no changes.json
+ *     and no meta. A base without a manifest, and a data directory without
+ *     one: exit 1, `describe-me: no manifest at …` and `--out` as it was.
+ * 31. `dev --base --no-live`: `/__data/changes.json` deep-equals the
+ *     changes.json of `diff --out`, `/__base/manifest.json` is served and `/`
+ *     has the meta. A changes.json put into the data directory does not
+ *     replace the computed answer. After the base manifest is rewritten with
+ *     a new `generatedAt` and another snapshot for one test, the next answer
+ *     reports that test, and a viewer page opened before says 2 changed
+ *     instead of 1 without a reload. `dev` without `--base`, also with
+ *     DESCRIBE_ME_BASE set, has no meta. A base without a manifest: exit 1
+ *     and `describe-me: no manifest at …`.
  *
  * Run after `pnpm build`, every example's tests and installing Chromium for
  * examples/react-browser. Scenarios 20 to 27 take Playwright from
- * examples/react-browser and from the shadcn example. Scenario 29 needs bash
- * and jq. Exits 1 on any failure, when a call of the CLI, of
+ * examples/react-browser and from the shadcn example, and scenario 31 takes
+ * Chromium from examples/react-browser. Scenario 29 needs bash and jq. Exits 1 on any failure, when a call of the CLI, of
  * `changes-comment` or of the comment step does not finish within 30 s, and
  * when a call with `--shots` does not finish within 300 s.
  *
@@ -176,13 +193,16 @@ import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { codeSpans } from './check-diff/code-spans.mjs'
+import { openCountPage, showsChangedCount } from './check-diff/header-count.mjs'
 import { pngSize } from './check-diff/png-size.mjs'
 import { renamedCopy } from './check-diff/renamed-copy.mjs'
 import { shotsReport } from './check-diff/shots-report.mjs'
-import { snapshot } from './check-diff/snapshot.mjs'
+import { contentName, snapshot } from './check-diff/snapshot.mjs'
 import { writeReport } from './check-diff/write-report.mjs'
 import { CURRENT, writeRun } from './check-diff/write-run.mjs'
 import { workflowStepScript } from './check-diff/workflow-step-script.mjs'
+import { startDev, stopDev, waitForPreview } from './check-live/dev-server.mjs'
+import { launchChromium } from './docs/launch-chromium.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
 
 const CLI = join(repoRoot, 'packages/viewer/dist-cli/main.js')
@@ -303,12 +323,16 @@ function test(module, name, snapshots, extra = {}) {
   }
 }
 
-/** A command that does not exit, such as `diff` parsed as `dev`, ends the check instead of hanging it. */
-function cli(args, cwd = repoRoot) {
+/**
+ * A command that does not exit, such as `diff` parsed as `dev`, ends the check
+ * instead of hanging it. `env` goes on top of this process's environment.
+ */
+function cli(args, cwd = repoRoot, env = {}) {
   const result = spawnSync(process.execPath, [CLI, ...args], {
     cwd,
     encoding: 'utf8',
     timeout: CLI_TIMEOUT,
+    env: { ...process.env, ...env },
   })
 
   if (result.error !== undefined) {
@@ -3396,6 +3420,267 @@ async function checkCommentStep() {
   await checkStepReplacing(script)
 }
 
+// ---------- build --base and dev --base ----------
+
+const CHANGES_META = '<meta name="describe-me-changes" content="__data/changes.json">'
+const VIEWER_MODULE = 'src/viewer.test.tsx'
+
+function readJsonIn(dir, file) {
+  const path = join(dir, file)
+
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : undefined
+}
+
+function textIn(dir, file) {
+  const path = join(dir, file)
+
+  return existsSync(path) ? readFileSync(path, 'utf8') : ''
+}
+
+/** As `writeProjectId` names a project in a built site. */
+function projectId(root) {
+  return createHash('sha1').update(root).digest('hex').slice(0, 16)
+}
+
+function viewerTests(first) {
+  return [
+    test(VIEWER_MODULE, 'Viewer > first', [snapshot({ text: first })]),
+    test(VIEWER_MODULE, 'Viewer > second', [snapshot({ text: 'second' })]),
+    test(VIEWER_MODULE, 'Viewer > third', [snapshot({ text: 'third' })]),
+  ]
+}
+
+/** Three tests of which the first changed, and a base whose root is another directory. */
+function viewerPair() {
+  const base = run({ tests: viewerTests('before') })
+  const head = run({ tests: viewerTests('after') })
+
+  editManifest(base, (manifest) => {
+    manifest.root = '/elsewhere'
+  })
+
+  return { base, head }
+}
+
+/** The manifest without its `root`, which a build replaces. */
+function withoutRoot(manifest) {
+  return manifest === undefined ? undefined : { ...manifest, root: undefined }
+}
+
+/** `--out` with one file in it, which a failed build must leave. */
+function keptOut() {
+  const out = join(tempDir(), 'site')
+  mkdirSync(out)
+  writeFileSync(join(out, 'keep.txt'), 'kept')
+
+  return out
+}
+
+async function checkBuildBase() {
+  const { base, head } = viewerPair()
+  const { report } = diffOut(base, head)
+  const out = join(tempDir(), 'site')
+  const result = cli(['build', '--base', base, '--data', head, '--out', out, '--no-vendor-fonts'])
+
+  await check('30. build --base: exit 0', () => ({
+    passed: result.status === 0,
+    detail: exitDetail(result),
+  }))
+
+  await check("30. __base/ holds the base's manifest and snapshots", () =>
+    same(
+      {
+        manifest: withoutRoot(readJsonIn(join(out, '__base'), 'manifest.json')),
+        snapshots: listing(join(out, '__base', 'snapshots')),
+      },
+      {
+        manifest: withoutRoot(readJsonIn(base, 'manifest.json')),
+        snapshots: listing(join(base, 'snapshots')),
+      },
+    ),
+  )
+
+  await check('30. __data/changes.json deep-equals the changes.json of diff --out', () =>
+    same(readJsonIn(join(out, '__data'), 'changes.json'), report),
+  )
+
+  await check("30. both manifests name the project by the id of the current run's root", () =>
+    same(
+      [
+        readJsonIn(join(out, '__data'), 'manifest.json')?.root,
+        readJsonIn(join(out, '__base'), 'manifest.json')?.root,
+      ],
+      [projectId('/project'), projectId('/project')],
+    ),
+  )
+
+  await check('30. index.html has the describe-me-changes meta', () => ({
+    passed: textIn(out, 'index.html').includes(CHANGES_META),
+    detail: textIn(out, 'index.html'),
+  }))
+
+  const plain = join(tempDir(), 'site')
+  const plainResult = cli(
+    ['build', '--data', head, '--out', plain, '--no-vendor-fonts'],
+    repoRoot,
+    { DESCRIBE_ME_BASE: base },
+  )
+
+  await check(
+    '30. build without --base, with DESCRIBE_ME_BASE set: no __base/, no changes.json, no meta',
+    () =>
+      same(
+        {
+          status: plainResult.status,
+          base: existsSync(join(plain, '__base')),
+          changes: existsSync(join(plain, '__data', 'changes.json')),
+          meta: textIn(plain, 'index.html').includes('describe-me-changes'),
+        },
+        { status: 0, base: false, changes: false, meta: false },
+      ),
+  )
+
+  const empty = tempDir()
+
+  for (const [label, args] of [
+    ['a base without a manifest', ['--base', empty, '--data', head]],
+    ['a data directory without a manifest', ['--base', base, '--data', empty]],
+  ]) {
+    const kept = keptOut()
+    const failed = cli(['build', ...args, '--out', kept, '--no-vendor-fonts'])
+
+    await check(`30. build --base with ${label}: exit 1, no manifest at …, --out as it was`, () =>
+      same(
+        { status: failed.status, stderr: failed.stderr, out: readdirSync(kept) },
+        {
+          status: 1,
+          stderr: `describe-me: no manifest at ${join(empty, 'manifest.json')}\n`,
+          out: ['keep.txt'],
+        },
+      ),
+    )
+  }
+}
+
+async function fetchJson(url, path) {
+  const response = await fetch(new URL(path, url))
+
+  return { status: response.status, body: response.ok ? await response.json() : undefined }
+}
+
+async function fetchText(url, path) {
+  return (await fetch(new URL(path, url))).text()
+}
+
+/** A new snapshot for `Viewer > second` in the base and a new `generatedAt`. */
+function rewriteBase(base) {
+  const text = JSON.stringify(snapshot({ text: 'second, before' }))
+  const path = `snapshots/${contentName(text)}.json`
+
+  writeFileSync(join(base, path), text)
+  editManifest(base, (manifest) => {
+    manifest.generatedAt = '2026-01-02T00:00:00.000Z'
+    manifest.modules[0].tests[1].frames[0].snapshot = path
+  })
+}
+
+/** The computed report, a planted file that does not win, and an update without a reload. */
+async function devBaseSteps(dev, base, head, report) {
+  const first = await fetchJson(dev.url, '__data/changes.json')
+
+  await check(
+    '31. dev --base: /__data/changes.json deep-equals the changes.json of diff --out',
+    () => same(first, { status: 200, body: report }),
+  )
+
+  await check(
+    '31. /__base/manifest.json is served, and / has the describe-me-changes meta',
+    async () =>
+      same(
+        {
+          base: await fetchJson(dev.url, '__base/manifest.json'),
+          meta: (await fetchText(dev.url, '')).includes(CHANGES_META),
+        },
+        { base: { status: 200, body: readJsonIn(base, 'manifest.json') }, meta: true },
+      ),
+  )
+
+  writeFileSync(join(head, 'changes.json'), JSON.stringify({ version: 1, planted: true }))
+
+  await check(
+    '31. a changes.json in the data directory does not replace the computed answer',
+    async () =>
+      same(await fetchJson(dev.url, '__data/changes.json'), { status: 200, body: report }),
+  )
+
+  const browser = await launchChromium()
+
+  try {
+    const page = await openCountPage(browser, dev.url)
+
+    await check('31. a viewer page opened before says 1 changed', () => showsChangedCount(page, 1))
+
+    rewriteBase(base)
+
+    await check(
+      '31. after the base manifest changes, the next answer reports Viewer > second',
+      async () => {
+        const { body } = await fetchJson(dev.url, '__data/changes.json')
+
+        return same(
+          body?.tests.map((entry) => `${entry.change} ${entry.fullName}`),
+          ['changed Viewer > first', 'changed Viewer > second'],
+        )
+      },
+    )
+
+    await check('31. the page says 2 changed without a reload', () => showsChangedCount(page, 2))
+  } finally {
+    await browser.close()
+  }
+}
+
+async function checkDevBase() {
+  const { base, head } = viewerPair()
+  const { report } = diffOut(base, head)
+  const dev = await startDev(repoRoot, head, ['--base', base, '--no-live'])
+
+  try {
+    await waitForPreview(dev)
+    await devBaseSteps(dev, base, head, report)
+  } finally {
+    await stopDev(dev)
+  }
+
+  const plain = await startDev(repoRoot, head, ['--no-live'], { DESCRIBE_ME_BASE: base })
+
+  try {
+    await waitForPreview(plain)
+
+    await check('31. dev without --base, with DESCRIBE_ME_BASE set: no meta', async () => {
+      const html = await fetchText(plain.url, '')
+
+      return {
+        passed: html.includes('<div id="app">') && !html.includes('describe-me-changes'),
+        detail: html,
+      }
+    })
+  } finally {
+    await stopDev(plain)
+  }
+
+  const empty = tempDir()
+
+  await check('31. dev --base with a base without a manifest: exit 1, no manifest at …', () => {
+    const failed = cli(['dev', '--base', empty, '--data', head, '--no-live', '--port', '0'])
+
+    return same(
+      { status: failed.status, stderr: failed.stderr },
+      { status: 1, stderr: `describe-me: no manifest at ${join(empty, 'manifest.json')}\n` },
+    )
+  })
+}
+
 try {
   await checkNothingChanged()
   await checkAddedStep()
@@ -3424,6 +3709,8 @@ try {
 
   await checkComment(shadcnShots)
   await checkCommentStep()
+  await checkBuildBase()
+  await checkDevBase()
 } catch (error) {
   failures++
   console.error(`FAIL  ${errorMessage(error)}`)

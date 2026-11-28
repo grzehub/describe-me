@@ -1,6 +1,6 @@
 import { cpSync, existsSync, readFileSync, statSync, watch, type FSWatcher } from 'node:fs'
 import { dirname, extname, join, resolve, sep } from 'node:path'
-import { defineConfig, type Connect, type Plugin } from 'vite'
+import { defineConfig, type Connect, type Logger, type Plugin } from 'vite'
 
 /** Content types of what the data directory holds: the manifest, snapshots and copied project assets. */
 const CONTENT_TYPES: Record<string, string> = {
@@ -31,7 +31,10 @@ function dataDir(): string {
   return resolve(process.env.DESCRIBE_ME_DIR ?? '../../examples/react-browser/.describe-me')
 }
 
-/** The data directory of the run that `describe-me diff` compares against, when the CLI sets one. */
+/**
+ * The data directory of the run to compare against, which `dev --base`,
+ * `build --base` and `diff --shots` set.
+ */
 function baseDir(): string | undefined {
   const base = process.env.DESCRIBE_ME_BASE
 
@@ -54,11 +57,40 @@ function serveDirectory(dir: string): Connect.NextHandleFunction {
   }
 }
 
+/** Calls `notify` when a `manifest.json` under `dir` changes, or under its parent while it is missing. */
+function watchManifest(dir: string, notify: () => void, logger: Logger): FSWatcher | undefined {
+  const target = existsSync(dir) ? dir : dirname(dir)
+
+  try {
+    return watch(target, { recursive: true }, (_event, file) => {
+      if (!file || String(file).endsWith('manifest.json')) {
+        notify()
+      }
+    })
+  } catch (error) {
+    logger.warn(`describe-me: cannot watch ${target}: ${String(error)}`)
+
+    return undefined
+  }
+}
+
+/** Copies a data directory into the site, or warns when it is missing. */
+function copyInto(from: string, to: string, warn: (message: string) => void): void {
+  if (!existsSync(from)) {
+    warn(`describe-me: no data at ${from}; run vitest first`)
+    return
+  }
+
+  cpSync(from, to, { recursive: true })
+}
+
 /**
  * Dev: serves the data directory under `/__data`, and the base run under
- * `/__base` when the CLI names one, and pushes an HMR event when the manifest
- * changes. Build: copies the data directory into the output, so the result is
- * a self-contained static site.
+ * `/__base` when the CLI names one, and pushes an HMR event when either
+ * manifest changes. Build: copies the data directory, and the base run as
+ * `__base`, into the output, so the result is a self-contained static site.
+ * With a base, `index.html` names `__data/changes.json` in a meta tag, which
+ * the viewer fetches only when it is there.
  */
 function describeMeData(): Plugin {
   const dir = dataDir()
@@ -82,7 +114,6 @@ function describeMeData(): Plugin {
       }
 
       let timer: NodeJS.Timeout | undefined
-      let watcher: FSWatcher | undefined
 
       const notify = () => {
         clearTimeout(timer)
@@ -92,22 +123,17 @@ function describeMeData(): Plugin {
         )
       }
 
-      const watchTarget = existsSync(dir) ? dir : dirname(dir)
-
-      try {
-        watcher = watch(watchTarget, { recursive: true }, (_event, file) => {
-          if (!file || String(file).endsWith('manifest.json')) {
-            notify()
-          }
-        })
-      } catch (error) {
-        server.config.logger.warn(`describe-me: cannot watch ${watchTarget}: ${String(error)}`)
-      }
+      const watchers = [dir, ...(base === undefined ? [] : [base])].map((watched) =>
+        watchManifest(watched, notify, server.config.logger),
+      )
 
       // A watcher left open keeps the process alive after the CLI closes the server.
       server.httpServer?.once('close', () => {
         clearTimeout(timer)
-        watcher?.close()
+
+        for (const watcher of watchers) {
+          watcher?.close()
+        }
       })
 
       server.middlewares.use('/__data', serveDirectory(dir))
@@ -117,18 +143,34 @@ function describeMeData(): Plugin {
       }
     },
 
+    // `frame.html` of `diff --shots` reads both runs by itself.
+    transformIndexHtml(_html, context) {
+      if (base === undefined || context.path !== '/index.html') {
+        return
+      }
+
+      return [
+        {
+          tag: 'meta',
+          attrs: { name: 'describe-me-changes', content: '__data/changes.json' },
+          injectTo: 'head',
+        },
+      ]
+    },
+
     // Vite's dev server runs this hook too when it closes, and must not copy anything.
     closeBundle() {
       if (command !== 'build') {
         return
       }
 
-      if (!existsSync(dir)) {
-        this.warn(`describe-me: no data at ${dir}; run vitest first`)
-        return
-      }
+      const warn = (message: string) => this.warn(message)
 
-      cpSync(dir, join(outDir, '__data'), { recursive: true })
+      copyInto(dir, join(outDir, '__data'), warn)
+
+      if (base !== undefined) {
+        copyInto(base, join(outDir, '__base'), warn)
+      }
     },
   }
 }

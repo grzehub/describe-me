@@ -1,5 +1,6 @@
 import { renderTree } from './render-tree.js'
-import { select, state } from './state.js'
+import { selectAtChange } from './select-at-change.js'
+import { state } from './state.js'
 import { visibleTests } from './visible-tests.js'
 
 const DEBOUNCE_MS = 50
@@ -40,7 +41,7 @@ export function wireSearchField(input: HTMLInputElement): void {
     apply()
     const first = visibleTests()[0]
     if (first) {
-      select(first.id)
+      selectAtChange(first.id, 'push')
     }
 
     input.blur()

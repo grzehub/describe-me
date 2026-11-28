@@ -21,9 +21,10 @@ function readManifest(file: string): Record<string, unknown> | null {
  * Replace the absolute `root` in the manifest of a built site's data
  * directory with an id of the project, so the site does not name the machine
  * that built it. The id stays the same for a checkout, so the viewer's storage
- * keys stay apart for two projects on one origin.
+ * keys stay apart for two projects on one origin. With `root`, the id is that
+ * of `root`, so the base of `build --base` names the project as the data does.
  */
-export function writeProjectId(dataDir: string): void {
+export function writeProjectId(dataDir: string, root?: string): void {
   const file = join(dataDir, 'manifest.json')
   const manifest = readManifest(file)
 
@@ -32,6 +33,10 @@ export function writeProjectId(dataDir: string): void {
     return
   }
 
-  manifest.root = createHash('sha1').update(manifest.root).digest('hex').slice(0, ID_LENGTH)
+  manifest.root = createHash('sha1')
+    .update(root ?? manifest.root)
+    .digest('hex')
+    .slice(0, ID_LENGTH)
+
   writeFileSync(file, JSON.stringify(manifest, null, 2))
 }

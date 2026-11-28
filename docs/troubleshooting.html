@@ -512,6 +512,37 @@
           </table>
         </div>
 
+        <h3><code>describe-me dev</code></h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>cannot compare with the base: …</code></td>
+                <td>
+                  With <code>--base</code>, when the viewer asks for
+                  <code>__data/changes.json</code> and a manifest or snapshot of either run cannot
+                  be read, once until a manifest changes. The message after the colon is the one
+                  <code>describe-me diff</code> gives, such as <code>no manifest at …</code> for a
+                  base that was deleted. The viewer shows no changes until the next comparison
+                  works.
+                </td>
+                <td>
+                  Run the tests again, so the current run writes a whole manifest and its snapshots,
+                  or copy the base again from a complete run. See
+                  <a href="changes.html#viewer">changes in the viewer</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <h3>Viewer</h3>
         <div class="scroll">
           <table class="wide">
