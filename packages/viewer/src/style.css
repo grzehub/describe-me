@@ -1204,6 +1204,77 @@ button.tag.active {
   width: 1px;
   background: color-mix(in srgb, var(--ink-3) 30%, transparent);
 }
+/*
+ * The Before / After switch. Live's rule sets it apart on its left, and the
+ * same rule on its right sets it apart from the presets.
+ */
+.crumbs .tools .before-after {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  margin-right: 7px;
+}
+.crumbs .tools .before-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: -5px;
+  bottom: 4px;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+/* The rule above sets `display`, so `hidden` needs its own. */
+.crumbs .tools .before-after[hidden] {
+  display: none;
+}
+/* A side the frame lacks looks like the Live toggle before the preview is ready. */
+.crumbs .tools .before-after [aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.crumbs .tools .before-after [aria-disabled='true']:hover {
+  color: var(--ink-3);
+}
+/*
+ * The switch makes the toolbar about 110 px wider, more than the center of a
+ * 1280 px window with both panels open has to spare. While it shows, the row
+ * tightens its spacing, so such a window keeps the path, the zoom and the
+ * inspector toggle in view. Without the switch the toolbar keeps its spacing.
+ */
+.crumbs:has(.before-after:not([hidden])) {
+  gap: 5px;
+  padding: 0 12px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools button {
+  padding-inline: 6px;
+}
+.crumbs:has(.before-after:not([hidden])) .backgrounds button[data-bg] {
+  padding-inline: 3px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .size {
+  gap: 4px;
+  padding-left: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools input {
+  width: 44px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .zoom {
+  padding: 0 5px 0 4px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .live-toggle,
+.crumbs:has(.before-after:not([hidden])) .tools .before-after {
+  margin-right: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .live-toggle::after,
+.crumbs:has(.before-after:not([hidden])) .tools .before-after::after {
+  right: -4px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .backgrounds {
+  margin-left: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .backgrounds::before {
+  left: -4px;
+}
 
 /*
  * Sizes of the frames and their slots never transition, because heights are
@@ -1333,6 +1404,19 @@ button.tag.active {
 .frame[data-change='added'] .change-pill {
   background: color-mix(in srgb, var(--pass) 14%, transparent);
   color: color-mix(in srgb, var(--pass) 70%, var(--ink));
+}
+/* A frame only the base has: dashed, with a hollow pill like the header's count of removed tests. */
+.frame.removed {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--ink-3) 45%, transparent);
+}
+.frame.removed.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.frame[data-change='removed'] .change-pill {
+  background: transparent;
+  color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
 }
 
 /* ------------------------------------------------------------ inspector -- */

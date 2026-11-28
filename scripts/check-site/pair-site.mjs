@@ -121,8 +121,8 @@ function noBaseProblems(siteDir, names) {
 /**
  * Builds the pair site with `--live` into `temp`, a temp directory the caller
  * removes, and checks its files and those of site/'s viewers. `site` is
- * absent when it could not be built. `report` and `manifest` are what the
- * site's viewer loads.
+ * absent when it could not be built. `report`, `manifest` and `baseManifest`
+ * are what the site's viewer loads.
  */
 export function preparePairSite(temp, siteDir, names) {
   const site = join(temp, 'site')
@@ -159,6 +159,7 @@ export function preparePairSite(temp, siteDir, names) {
     site,
     report,
     manifest: readJson(join(site, '__data', 'manifest.json')),
+    baseManifest: readJson(join(site, '__base', 'manifest.json')),
     problems,
   }
 }

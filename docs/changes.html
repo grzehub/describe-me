@@ -559,8 +559,9 @@ npx playwright install chromium</code></pre>
             <strong>The Changed filter</strong>, under the search, narrows the sidebar to the tests
             changed or added and says how many there are. It works with the search and a tag, and it
             is <code>changed=1</code> in the link. While it is on, a test you pick by a click, by
-            <kbd>↑</kbd> <kbd>↓</kbd> or from the search opens at its first changed frame instead of
-            Live, and so does the first test a link with <code>changed=1</code> and no test opens.
+            <kbd>↑</kbd> <kbd>↓</kbd> or from the search opens at its first change instead of Live,
+            and so does the first test a link with <code>changed=1</code> and no test opens. The
+            first change can be a frame that only the base has.
           </li>
           <li>
             <strong>The header</strong> counts the tests changed, added and removed. Its panel shows
@@ -571,7 +572,8 @@ npx playwright install chromium</code></pre>
           <li>
             <strong>The frame timeline</strong> marks each changed frame <code>dom</code> or
             <code>css</code>, as <a href="#kinds">a change</a> counts, and each added frame
-            <code>new</code>.
+            <code>new</code>. A frame that only the base has is an entry of its own, marked
+            <code>gone</code>.
           </li>
         </ul>
 
@@ -584,6 +586,43 @@ npx playwright install chromium</code></pre>
           writes anything. A site built without <code>--base</code> has neither file and works as it
           always did. The viewer fetches the report only when the site's <code>index.html</code>
           names it.
+        </p>
+
+        <h3 id="viewer-before-after">Before and after on the stage</h3>
+
+        <p>
+          A frame that changed against the base gets a <strong>Before</strong> and an
+          <strong>After</strong> button on the stage's toolbar, right after the Live toggle.
+          <kbd>B</kbd> switches between them too, and Before is <code>before=1</code> in the
+          <a href="viewer.html#links">link</a>.
+        </p>
+
+        <ul>
+          <li>
+            <strong>After</strong>, the frame of the current run, is the default. Another frame,
+            another test and Live show After again.
+          </li>
+          <li>
+            <strong>Before</strong> replays the base run's snapshot from <code>__base/</code>, with
+            the base run's stylesheets, assets and preview head, in place of the current frame. It
+            keeps the viewport size and the zoom, so the frame flips in place and a small change
+            shows as it flips. When the base run's manifest or snapshot does not load, the stage
+            says so.
+          </li>
+          <li>An added frame has only After. Its Before button says the base has no such frame.</li>
+          <li>
+            A frame that only the base has is an entry of its own in the frame timeline, marked
+            <code>gone</code>, after the frame it followed. It has only Before, and its link has
+            <code>removed=&lt;index&gt;</code>, its index in the base run, in place of
+            <code>frame</code>. <kbd>←</kbd> <kbd>→</kbd> step through it like any other frame.
+          </li>
+          <li>Live mounts the test of the current run, so it has no switch.</li>
+        </ul>
+
+        <p>
+          A link with <code>before=1</code> or <code>removed</code> that the report does not back,
+          such as one opened in a viewer without a base, loses them and shows the frame of the
+          current run.
         </p>
 
         <h2 id="ci">

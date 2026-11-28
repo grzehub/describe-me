@@ -84,7 +84,7 @@ runs:
 describe-me dev                              # the viewer, repainted while vitest --watch runs
 describe-me build --out docs                 # a static site: the viewer and its data
 describe-me diff --base .describe-me-base    # what changed against a base run
-describe-me dev --base .describe-me-base     # the same changes marked in the viewer
+describe-me dev --base .describe-me-base     # the same changes in the viewer, before and after
 ```
 
 `describe-me build --live` adds
