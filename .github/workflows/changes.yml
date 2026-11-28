@@ -166,13 +166,15 @@ jobs:
           marked_ids="$(jq -r --arg marker "$marker" '.[] | select((.body // "") | startswith($marker)) | .id' <<< "$mine")"
           last_marked="$(jq -r --arg marker "$marker" 'last // {} | select((.body // "") | startswith($marker)) | .id' <<< "$mine")"
 
-          # gh appends every attached file that the body does not reference.
-          attach=()
+          # Never empty, because bash before 4.4 rejects an empty array under set -u,
+          # and check-diff runs this step on the bash of macOS too.
+          comment_args=(--body-file changes.md)
           shopt -s nullglob
 
+          # gh appends every attached file that the body does not reference.
           for file in *.png; do
             if [[ $file =~ $safe_name ]] && grep -qF "](./$file)" changes.md; then
-              attach+=(--attach "./$file")
+              comment_args+=(--attach "./$file")
             fi
           done
 
@@ -190,7 +192,7 @@ jobs:
           # --edit-last edits the account's last comment, so only when that one carries the marker.
           if [ -n "$last_marked" ]; then
             url="$(jq -r 'last | .html_url' <<< "$mine")"
-            gh pr comment "$PR" --edit-last --body-file changes.md "${attach[@]}" > /dev/null
+            gh pr comment "$PR" --edit-last "${comment_args[@]}" > /dev/null
             delete_marked_except "$last_marked"
             say "Edited $url"
             exit 0
@@ -202,7 +204,7 @@ jobs:
           fi
 
           # Create before delete, so a failure never leaves the pull request without a report.
-          url="$(gh pr comment "$PR" --body-file changes.md "${attach[@]}" | tail -n 1)"
+          url="$(gh pr comment "$PR" "${comment_args[@]}" | tail -n 1)"
           delete_marked_except none
 
           case "$deleted" in

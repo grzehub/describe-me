@@ -137,18 +137,32 @@
  *     missing image: exit 1, stderr names the example, nothing written.
  *     f. 13 images in each example: exit 1, gh's limit of 50, nothing
  *     written. g. without GITHUB_OUTPUT and `--run-url`: exit 0, no link.
+ * 29. the comment step of .github/workflows/changes.yml, its `run:` text as
+ *     it is, in bash with scripts/check-diff/fake-gh.mjs as `gh`: without a
+ *     token the note and exit 0 with no call. An invalid `changed`, no
+ *     changes.md and a gh without `--attach` (naming `gh --version` and
+ *     2.99) fail before any write. Rule 2, nothing changed and no marked
+ *     comment of the account: nothing sent. Rule 3: created with only the
+ *     referenced PNGs that have a safe name, comments of others and
+ *     unmarked ones untouched, then the account's earlier marked comments
+ *     deleted with `replacing 1 earlier comment` or `replacing 2 earlier
+ *     comments`. Rule 1, the account's last comment is marked: `--edit-last`,
+ *     then its other marked comments deleted, also into the one sentence.
+ *     Each outcome is one line in the log and in the step summary.
  *
  * Run after `pnpm build`, every example's tests and installing Chromium for
  * examples/react-browser. Scenarios 20 to 27 take Playwright from
- * examples/react-browser and from the shadcn example. Exits 1 on any
- * failure, when a call of the CLI or of `changes-comment` does not finish
- * within 30 s, and when a call with `--shots` does not finish within 300 s.
+ * examples/react-browser and from the shadcn example. Scenario 29 needs bash
+ * and jq. Exits 1 on any failure, when a call of the CLI, of
+ * `changes-comment` or of the comment step does not finish within 30 s, and
+ * when a call with `--shots` does not finish within 300 s.
  *
  * Usage: `node scripts/check-diff.mjs`
  */
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
+  chmodSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -159,7 +173,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { codeSpans } from './check-diff/code-spans.mjs'
 import { pngSize } from './check-diff/png-size.mjs'
@@ -168,6 +182,7 @@ import { shotsReport } from './check-diff/shots-report.mjs'
 import { snapshot } from './check-diff/snapshot.mjs'
 import { writeReport } from './check-diff/write-report.mjs'
 import { CURRENT, writeRun } from './check-diff/write-run.mjs'
+import { workflowStepScript } from './check-diff/workflow-step-script.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
 
 const CLI = join(repoRoot, 'packages/viewer/dist-cli/main.js')
@@ -3061,6 +3076,326 @@ async function checkComment(shadcnShots) {
   await checkCommentPlain()
 }
 
+// ---------- the comment step of changes.yml ----------
+
+const CHANGES_WORKFLOW = join(repoRoot, '.github/workflows/changes.yml')
+const FAKE_GH = join(repoRoot, 'scripts/check-diff/fake-gh.mjs')
+const BOT = 'the-bot'
+const OTHER = 'someone'
+const STEP_PNGS = ['bad name.png', 'mui-0123456789ab.png', 'shadcn-0123456789ab.png', 'stray.png']
+const STEP_REPORT = [
+  MARKER,
+  '',
+  'Something changed.',
+  '',
+  '  ![a](./shadcn-0123456789ab.png)',
+  '  ![b](./mui-0123456789ab.png)',
+  '  ![c](./bad name.png)',
+  '',
+].join('\n')
+
+const STEP_NOTHING = `${MARKER}\n\nNothing renders differently against the base any more.\n`
+const ATTACHED = '--attach ./mui-0123456789ab.png --attach ./shadcn-0123456789ab.png'
+const NO_TOKEN_LINE =
+  'No comment: this run has no DESCRIBE_ME_COMMENT_TOKEN, as in a pull request from a fork or from Dependabot. The report is in the artifact describe-me-changes.'
+
+function issueComment(id, login, body) {
+  return {
+    id,
+    user: { login },
+    body,
+    html_url: `https://github.com/owner/repo/pull/7#issuecomment-${id}`,
+  }
+}
+
+/** The report body as the fake gh sends it, each referenced PNG swapped for its URL. */
+function sentReport() {
+  return STEP_REPORT.replace(
+    './shadcn-0123456789ab.png',
+    'https://github.com/user-attachments/assets/shadcn-0123456789ab.png',
+  ).replace(
+    './mui-0123456789ab.png',
+    'https://github.com/user-attachments/assets/mui-0123456789ab.png',
+  )
+}
+
+/**
+ * The comment step in `changes/comment` of a fresh directory that holds
+ * `changes.md` (none when `body` is `null`) and four PNGs, with the fake gh
+ * first on PATH and nothing else of this process's environment but PATH and
+ * HOME. Bash runs it with the flags of `shell: bash` on the runner.
+ */
+function runCommentStep(
+  script,
+  { token = 'a-token', changed = 'true', comments = [], body = STEP_REPORT, noAttach = false },
+) {
+  const root = tempDir()
+  const bin = join(root, 'bin')
+  const state = join(root, 'state')
+  const dir = join(root, 'changes', 'comment')
+  const summaryFile = join(root, 'summary.md')
+  const stepFile = join(root, 'step.sh')
+
+  mkdirSync(bin)
+  mkdirSync(state)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\nexec "${process.execPath}" "${FAKE_GH}" "$@"\n`)
+  chmodSync(join(bin, 'gh'), 0o755)
+  writeFileSync(join(state, 'comments.json'), JSON.stringify(comments))
+  writeFileSync(join(state, 'calls.jsonl'), '')
+  writeFileSync(summaryFile, '')
+  writeFileSync(stepFile, script)
+
+  if (body !== null) {
+    writeFileSync(join(dir, 'changes.md'), body)
+  }
+
+  for (const png of STEP_PNGS) {
+    writeFileSync(join(dir, png), 'png')
+  }
+
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', stepFile], {
+    cwd: dir,
+    encoding: 'utf8',
+    timeout: CLI_TIMEOUT,
+    env: {
+      PATH: `${bin}${delimiter}${process.env.PATH}`,
+      HOME: process.env.HOME ?? root,
+      GH_TOKEN: token,
+      GH_REPO: 'owner/repo',
+      PR: '7',
+      CHANGED: changed,
+      GITHUB_STEP_SUMMARY: summaryFile,
+      FAKE_GH_STATE: state,
+      ...(noAttach ? { FAKE_GH_NO_ATTACH: '1' } : {}),
+    },
+  })
+
+  if (result.error !== undefined) {
+    throw new Error(`the comment step did not finish: ${result.error.message}`)
+  }
+
+  const calls = readFileSync(join(state, 'calls.jsonl'), 'utf8')
+    .split('\n')
+    .filter((line) => line !== '')
+    .map((line) => JSON.parse(line))
+
+  return {
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    summary: readFileSync(summaryFile, 'utf8'),
+    comments: JSON.parse(readFileSync(join(state, 'comments.json'), 'utf8')),
+    // Only the calls that post, edit or delete.
+    writes: calls
+      .filter((call) => (call[0] === 'pr' && call[2] !== '--help') || call[2] === 'DELETE')
+      .map((call) => call.join(' ')),
+  }
+}
+
+function stepDetail(outcome) {
+  return JSON.stringify(outcome, null, 2)
+}
+
+/** A run that ends with `line` in the log and as the step summary. */
+function endsWith(outcome, line) {
+  return outcome.status === 0 && outcome.summary === `${line}\n` && outcome.stdout === `${line}\n`
+}
+
+async function checkStepFailures(script) {
+  const noToken = runCommentStep(script, { token: '' })
+
+  await check('29. no token: the note in the log and the summary, exit 0, no call of gh', () => ({
+    passed: endsWith(noToken, NO_TOKEN_LINE) && noToken.writes.length === 0,
+    detail: stepDetail(noToken),
+  }))
+
+  const cases = [
+    ['changed empty', { changed: '' }, 'The report job gave changed="", expected true or false.'],
+    [
+      'no changes.md',
+      { body: null },
+      'The artifact describe-me-changes has no comment/changes.md.',
+    ],
+    [
+      'a gh without --attach',
+      { noAttach: true },
+      'gh pr comment has no --attach, which needs gh 2.99 or later. gh --version: gh version 2.98.0 (2026-01-01)',
+    ],
+  ]
+
+  for (const [label, options, line] of cases) {
+    const outcome = runCommentStep(script, options)
+
+    await check(`29. ${label}: exit 1 with its reason, nothing posted, edited or deleted`, () => ({
+      passed:
+        outcome.status === 1 &&
+        outcome.summary === `${line}\n` &&
+        outcome.stdout === `::error::${line}\n` &&
+        outcome.writes.length === 0,
+      detail: stepDetail(outcome),
+    }))
+  }
+}
+
+async function checkStepRules(script) {
+  const others = [
+    issueComment(10, OTHER, `${MARKER}\n\nA report by another account.\n`),
+    issueComment(11, BOT, 'A comment of the account without the marker.'),
+  ]
+
+  const quiet = runCommentStep(script, { changed: 'false', comments: others, body: STEP_NOTHING })
+
+  await check(
+    '29. rule 2: nothing changed and no marked comment of the account: nothing sent',
+    () => ({
+      passed:
+        endsWith(
+          quiet,
+          'Nothing changed against the base and there is no earlier comment, so nothing was sent.',
+        ) &&
+        quiet.writes.length === 0 &&
+        isDeepStrictEqual(quiet.comments, others),
+      detail: stepDetail(quiet),
+    }),
+  )
+
+  const created = runCommentStep(script, { comments: others })
+  const newest = created.comments.at(-1)
+
+  await check(
+    '29. rule 3: created with only the referenced PNGs of a safe name, nothing else touched',
+    () => ({
+      passed:
+        endsWith(created, `Created ${newest?.html_url}`) &&
+        isDeepStrictEqual(created.writes, [`pr comment 7 --body-file changes.md ${ATTACHED}`]) &&
+        isDeepStrictEqual(created.comments.slice(0, 2), others) &&
+        newest?.body === sentReport(),
+      detail: stepDetail(created),
+    }),
+  )
+
+  const marked = [
+    issueComment(20, BOT, `${MARKER}\n\nAn older report.\n`),
+    ...others,
+    issueComment(21, BOT, `${MARKER}\n\nThe last report.\n`),
+    issueComment(22, OTHER, 'A reply.'),
+  ]
+
+  const edited = runCommentStep(script, { comments: marked })
+
+  await check(
+    "29. rule 1: the account's last comment is marked: --edit-last, then its other marked comment deleted",
+    () =>
+      same(
+        {
+          ok: endsWith(edited, `Edited ${marked[3].html_url}`),
+          writes: edited.writes,
+          ids: edited.comments.map((item) => item.id),
+          body: edited.comments.find((item) => item.id === 21)?.body,
+          untouched: [10, 11, 22].map((id) => edited.comments.find((item) => item.id === id)?.body),
+        },
+        {
+          ok: true,
+          writes: [
+            `pr comment 7 --edit-last --body-file changes.md ${ATTACHED}`,
+            'api -X DELETE repos/owner/repo/issues/comments/20 --silent',
+          ],
+          ids: [10, 11, 21, 22],
+          body: sentReport(),
+          untouched: [others[0].body, others[1].body, marked[4].body],
+        },
+      ),
+  )
+
+  const report = issueComment(50, BOT, `${MARKER}\n\nThe report.\n`)
+  const settled = runCommentStep(script, {
+    changed: 'false',
+    comments: [report],
+    body: STEP_NOTHING,
+  })
+
+  await check('29. rule 1 while nothing changed: the comment turns into the one sentence', () => ({
+    passed:
+      endsWith(settled, `Edited ${report.html_url}`) &&
+      isDeepStrictEqual(
+        settled.comments.map((item) => item.body),
+        [STEP_NOTHING],
+      ),
+    detail: stepDetail(settled),
+  }))
+}
+
+async function checkStepReplacing(script) {
+  const older = [
+    issueComment(30, BOT, `${MARKER}\n\nA report.\n`),
+    issueComment(31, OTHER, `${MARKER}\n\nA report by another account.\n`),
+    issueComment(32, BOT, `${MARKER}\n\nAnother report.\n`),
+    issueComment(33, BOT, 'The last comment of the account, without the marker.'),
+  ]
+
+  const replaced = runCommentStep(script, { changed: 'false', comments: older, body: STEP_NOTHING })
+  const newest = replaced.comments.at(-1)
+
+  await check(
+    "29. rule 3 when the account's last comment is unmarked: created first, then both earlier marked ones deleted",
+    () =>
+      same(
+        {
+          ok: endsWith(replaced, `Created ${newest?.html_url}, replacing 2 earlier comments`),
+          writes: replaced.writes,
+          ids: replaced.comments.map((item) => item.id),
+          body: newest?.body,
+        },
+        {
+          ok: true,
+          writes: [
+            'pr comment 7 --body-file changes.md',
+            'api -X DELETE repos/owner/repo/issues/comments/30 --silent',
+            'api -X DELETE repos/owner/repo/issues/comments/32 --silent',
+          ],
+          ids: [31, 33, newest?.id],
+          body: STEP_NOTHING,
+        },
+      ),
+  )
+
+  const one = runCommentStep(script, {
+    comments: [issueComment(40, BOT, `${MARKER}\n\nA report.\n`), issueComment(41, BOT, 'Hi.')],
+  })
+
+  await check('29. rule 3 replacing one earlier comment says so in the singular', () => ({
+    passed:
+      endsWith(one, `Created ${one.comments.at(-1)?.html_url}, replacing 1 earlier comment`) &&
+      isDeepStrictEqual(
+        one.comments.map((item) => item.id),
+        [41, one.comments.at(-1)?.id],
+      ),
+    detail: stepDetail(one),
+  }))
+}
+
+async function checkCommentStep() {
+  const tools = ['bash', 'jq'].filter(
+    (tool) => spawnSync(tool, ['--version'], { encoding: 'utf8' }).status !== 0,
+  )
+
+  if (tools.length > 0) {
+    await check('29. the comment step of changes.yml', () => ({
+      passed: false,
+      detail: `needs ${tools.join(' and ')} on PATH`,
+    }))
+
+    return
+  }
+
+  const script = workflowStepScript(CHANGES_WORKFLOW, 'Create, edit or leave the comment')
+
+  await checkStepFailures(script)
+  await checkStepRules(script)
+  await checkStepReplacing(script)
+}
+
 try {
   await checkNothingChanged()
   await checkAddedStep()
@@ -3088,6 +3423,7 @@ try {
   const shadcnShots = await checkShadcnShots()
 
   await checkComment(shadcnShots)
+  await checkCommentStep()
 } catch (error) {
   failures++
   console.error(`FAIL  ${errorMessage(error)}`)

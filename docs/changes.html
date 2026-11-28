@@ -368,8 +368,11 @@ describe-me: cannot start Chromium for --shots (browserType.launch: Executable d
           section Looks different comes first, with the images, and the folded tests are the
           CSS-only ones that look the same (<a href="#shots">the three groups</a>). Names from the
           manifest are in code spans, so a test name cannot mention anyone or render HTML. The file
-          stays within GitHub's limit of 65,536 characters. When the lists do not fit, each is cut
-          and ends with <code>- and N more</code>. A shortened sample:
+          stays within 65,536 characters, GitHub's limit for a comment. When the lists do not fit,
+          each is cut and ends with <code>- and N more</code>. GitHub counts a comment with images
+          after gh swapped each <code>./&lt;file&gt;.png</code> for a longer URL, so a file that was
+          cut and shows images can be too long to post (<a href="#ci">a pull request comment</a>). A
+          shortened sample:
         </p>
 
         <p class="file">changes.md</p>
@@ -652,6 +655,14 @@ jobs:
           <li>
             gh attaches up to 50 files to one comment, so keep <code>--max-shots</code> at 50 or
             less.
+          </li>
+          <li>
+            A comment with images can be too long to post. <code>describe-me diff</code> cuts
+            <code>changes.md</code> to 65,536 characters with its <code>./&lt;file&gt;.png</code>
+            paths of 18 characters, and GitHub's limit applies after gh swapped each for an
+            attachment URL of 79. So when the lists had to be cut and the body shows images,
+            <code>gh pr comment</code> can fail. The earlier comment then stays as it was, and the
+            report stays in the artifact.
           </li>
           <li>
             <code>--edit-last</code> edits the last comment of the token's account on the pull
