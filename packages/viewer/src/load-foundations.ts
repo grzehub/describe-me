@@ -1,5 +1,6 @@
 import type { Foundations } from '@describe-me/core/types'
 import { STYLE_URL_PREFIX } from '@describe-me/core/types'
+import type { DataDir } from './data-dir.js'
 import { foundationsShown } from './foundations-shown.js'
 import { loadStyle } from './load-style.js'
 import { rerender } from './rerender.js'
@@ -30,14 +31,14 @@ type Loaded = { css: string; complete: boolean }
 
 type Memo = { generatedAt: string; result: FoundationsLoad }
 
-let memo: Memo | null = null
+const memos = new Map<DataDir, Memo>()
 
-function loadSheet(cssText: string): Promise<Loaded> {
+function loadSheet(cssText: string, dir: DataDir): Promise<Loaded> {
   if (cssText.startsWith(STYLE_URL_PREFIX)) {
-    return loadStyle(cssText.slice(STYLE_URL_PREFIX.length))
+    return loadStyle(cssText.slice(STYLE_URL_PREFIX.length), dir)
   }
 
-  return Promise.resolve({ css: resolveAssetUrls(cssText), complete: true })
+  return Promise.resolve({ css: resolveAssetUrls(cssText, dir), complete: true })
 }
 
 function isFoundations(value: unknown): value is Foundations {
@@ -54,11 +55,11 @@ function isFoundations(value: unknown): value is Foundations {
   )
 }
 
-async function fetchFile(): Promise<Foundations | string> {
+async function fetchFile(dir: DataDir): Promise<Foundations | string> {
   let response: Response
 
   try {
-    response = await fetch('__data/foundations.json', { cache: 'no-store' })
+    response = await fetch(`${dir}/foundations.json`, { cache: 'no-store' })
   } catch {
     return 'foundations.json did not load, because the request failed.'
   }
@@ -84,8 +85,8 @@ async function fetchFile(): Promise<Foundations | string> {
   return isFoundations(file) ? file : 'foundations.json lacks the lists this viewer reads.'
 }
 
-async function load(): Promise<FoundationsLoad> {
-  const file = await fetchFile()
+async function load(dir: DataDir): Promise<FoundationsLoad> {
+  const file = await fetchFile(dir)
 
   if (typeof file === 'string') {
     return { status: 'error', message: file }
@@ -96,7 +97,7 @@ async function load(): Promise<FoundationsLoad> {
     ...new Set([...file.tokenSheets, ...file.fontSheets].map((sheet) => sheet.cssText)),
   ]
 
-  const loaded = await Promise.all(distinct.map((cssText) => loadSheet(cssText)))
+  const loaded = await Promise.all(distinct.map((cssText) => loadSheet(cssText, dir)))
   const byText = new Map(distinct.map((cssText, i) => [cssText, loaded[i]?.css ?? '']))
 
   return {
@@ -126,10 +127,11 @@ function repaint(): void {
  * the first call and memoized until the next manifest. Never rejects. When the
  * load settles, the viewer repaints while Foundations is open, and repaints
  * the frame while a test shows under `bg=dark` or `auto`. With `retry`, a load
- * that failed starts again.
+ * that failed starts again. Each data directory has a memo of its own.
  */
-export function loadFoundations(retry = false): FoundationsLoad {
+export function loadFoundations(retry = false, dir: DataDir = '__data'): FoundationsLoad {
   const generatedAt = state.manifest?.generatedAt ?? ''
+  const memo = memos.get(dir)
 
   if (memo?.generatedAt === generatedAt && !(retry && memo.result.status === 'error')) {
     return memo.result
@@ -137,14 +139,14 @@ export function loadFoundations(retry = false): FoundationsLoad {
 
   // `settled` resolves after the memo holds the result, so whoever awaits it
   // reads the finished load from here.
-  const settled: Promise<FoundationsLoad> = load()
+  const settled: Promise<FoundationsLoad> = load(dir)
     .catch((error: unknown) => ({
       status: 'error' as const,
       message: `foundations.json did not load (${error instanceof Error ? error.message : String(error)}).`,
     }))
     .then((result) => {
       // A new manifest replaced the memo, and its own load repaints.
-      if (memo === current) {
+      if (memos.get(dir) === current) {
         current.result = result
         repaint()
       }
@@ -153,7 +155,7 @@ export function loadFoundations(retry = false): FoundationsLoad {
     })
 
   const current: Memo = { generatedAt, result: { status: 'loading', settled } }
-  memo = current
+  memos.set(dir, current)
 
   return current.result
 }

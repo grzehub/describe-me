@@ -7,7 +7,7 @@ const USAGE = `describe-me — living component docs from your tests
 
   describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root <dir>]   viewer that follows the test runs, and the live preview
   describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts] [--live] [--root <dir>]   static site
-  describe-me diff  --base <dir> [--data .describe-me] [--out <dir>]   what changed against a base run
+  describe-me diff  --base <dir> [--data .describe-me] [--out <dir> [--shots] [--width 480] [--max-shots 20] [--root <dir>]]   what changed against a base run
 `
 
 /** Entry point of the `describe-me` binary. */
@@ -31,7 +31,16 @@ async function main(): Promise<void> {
   }
 
   if (options.command === 'diff') {
-    runDiff({ base: options.base, data: options.data, out: options.out })
+    await runDiff({
+      base: options.base,
+      data: options.data,
+      out: options.out,
+      shots: options.shots,
+      width: options.width,
+      maxShots: options.maxShots,
+      root: options.root,
+    })
+
     return
   }
 

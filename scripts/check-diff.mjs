@@ -80,13 +80,57 @@
  *     nothing added, removed or moved, Card, SignupCard and Badge `dom`, every
  *     Input, Switch and Alert test `css`, and the new class only in the
  *     changed run
+ * 20. `--shots` flags, each exit 1 with stderr starting `describe-me: ` and
+ *     nothing in `--out`: `--shots` without `--out`, `--width` abc, 0, 199,
+ *     1921 and 1.5, and `--max-shots` -1 and x. The defaults of `parseArgs`:
+ *     `shots` false, `width` 480 and max shots 20.
+ * 21. Playwright missing, from a `--root` without it and from the synthetic
+ *     root of the manifest: exit 1, the install commands and nothing written.
+ *     Chromium missing, with PLAYWRIGHT_BROWSERS_PATH at an empty directory:
+ *     exit 1 and `playwright install chromium`. With nothing to render, a
+ *     removed test and a state change, or an added test under
+ *     `--max-shots 0`, a `--root` without Playwright exits 0 and writes
+ *     `shots` with no pair and no image.
+ * 22. the three groups: a CSS change that paints the same is folded without
+ *     an image, one that paints a background looks different with its image,
+ *     a class that no rule targets stays under Changed as `looks the same`,
+ *     a new text gets an image, an added test a PNG exactly 960 px wide, and
+ *     a removed and a moved test none. `### Looks different` comes before
+ *     `### Changed`, every image changes.md references exists as a PNG, every
+ *     three-panel image is at least 2880 px wide, the `shot.file` values are
+ *     the PNG files written, two tests with one pair count once, and a test
+ *     with a pair that looks the same and an added frame has no look.
+ * 23. `--max-shots 1` writes one PNG, for the first test that looks
+ *     different, and lists the others without one. `--max-shots 0` compares
+ *     and writes none. `--width 320` gives an added test a PNG 640 px wide.
+ * 24. a head snapshot that holds `null`: exit 0, a warning, no look on its
+ *     pair, `shots.failedPairs` 1 and the test under Changed. A font that
+ *     fails to load on both sides: exit 0, a warning for each side that names
+ *     the font, and the pair still compared.
+ * 25. nothing left behind: no `packages/viewer/dist`, the same entries in
+ *     `packages/viewer/node_modules` but an empty `.vite-temp`, the same
+ *     `.vite`, an empty TMPDIR, the same files in both data directories, and
+ *     a process that exits by itself. The test id `../evil](x)`, no safe file
+ *     name, gets an image named after its SHA-1, inside `--out`, which
+ *     changes.md shows.
+ * 26. determinism: each example against a copy with every snapshot renamed.
+ *     Every test with frames is `css`, no pair looks different or fails, no
+ *     PNG is written and every test is folded. Prints the frames and the time.
+ * 27. shadcn against its SHADCN_CHANGED=1 run with `--shots`: the 6 Button
+ *     tests, Card, both SignupCard tests and Badge look different with one
+ *     image each, 10 in all, and the 6 Input, Switch and Alert tests look
+ *     the same, have no image and are folded. Prints the time.
  *
- * Run after `pnpm build` and the shadcn example's tests. Exits 1 on any
- * failure, and when a call of the CLI does not finish within 30 s.
+ * Run after `pnpm build`, every example's tests and installing Chromium for
+ * examples/react-browser. Scenarios 20 to 27 take Playwright from
+ * examples/react-browser and from the shadcn example. Exits 1 on any
+ * failure, when a call of the CLI does not finish within 30 s, and when a
+ * call with `--shots` does not finish within 300 s.
  *
  * Usage: `node scripts/check-diff.mjs`
  */
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -100,6 +144,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { codeSpans } from './check-diff/code-spans.mjs'
+import { pngSize } from './check-diff/png-size.mjs'
+import { renamedCopy } from './check-diff/renamed-copy.mjs'
 import { snapshot } from './check-diff/snapshot.mjs'
 import { CURRENT, writeRun } from './check-diff/write-run.mjs'
 import { repoRoot } from './docs/repo-root.mjs'
@@ -112,15 +158,24 @@ const MARKER = '<!-- describe-me:changes -->'
 const COMMENT_LIMIT = 65_536
 const NEW_CLASS = 'badge-spaced'
 const CLI_TIMEOUT = 30_000
+const SHOTS_TIMEOUT = 300_000
+const EXAMPLES = ['react-browser', 'react-jsdom', 'shadcn', 'mui']
+// The synthetic runs name the root /project, and the jsdom examples install no Playwright.
+const PLAYWRIGHT_ROOT = join(repoRoot, 'examples/react-browser')
+const VIEWER = join(repoRoot, 'packages/viewer')
 
 if (!existsSync(CLI)) {
   console.error('check-diff: packages/viewer/dist-cli/main.js is missing. Run pnpm build first.')
   process.exit(1)
 }
 
-if (!existsSync(join(SHADCN_DATA, 'manifest.json'))) {
+const missingData = EXAMPLES.filter(
+  (name) => !existsSync(join(repoRoot, 'examples', name, '.describe-me', 'manifest.json')),
+)
+
+if (missingData.length > 0) {
   console.error(
-    'check-diff: examples/shadcn/.describe-me/manifest.json is missing. Run pnpm build and pnpm --filter shadcn test first.',
+    `check-diff: no .describe-me/manifest.json in ${missingData.map((name) => `examples/${name}`).join(', ')}. Run pnpm build, every example's tests and pnpm --filter react-browser exec playwright install chromium first.`,
   )
 
   process.exit(1)
@@ -1648,7 +1703,7 @@ async function checkParseArgs() {
   )
 
   const usage =
-    '  describe-me diff  --base <dir> [--data .describe-me] [--out <dir>]   what changed against a base run'
+    '  describe-me diff  --base <dir> [--data .describe-me] [--out <dir> [--shots] [--width 480] [--max-shots 20] [--root <dir>]]   what changed against a base run'
 
   for (const [label, args] of [
     ['describe-me --help', ['--help']],
@@ -1782,6 +1837,844 @@ function filesWith(dir, text) {
     .length
 }
 
+// ---------- --shots ----------
+
+/** Inline, so no style chunk has to load. The box makes a background change paint. */
+const SHOT_CSS = 'body { margin: 0 } .box { padding: 8px; font: 16px sans-serif }'
+
+function countText(count, noun) {
+  return `${count} ${count === 1 ? noun : `${noun}s`}`
+}
+
+/** `diff` with `--shots` takes a timeout of its own, and says how long it took. */
+function shotsCli(label, args, env = {}) {
+  const started = Date.now()
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: SHOTS_TIMEOUT,
+    env: { ...process.env, ...env },
+  })
+
+  const seconds = ((Date.now() - started) / 1000).toFixed(1)
+  console.log(`time  ${label}: ${seconds} s`)
+
+  if (result.error !== undefined) {
+    throw new Error(`describe-me ${args.join(' ')} did not finish: ${result.error.message}`)
+  }
+
+  return { result, seconds }
+}
+
+function pngsIn(dir) {
+  return existsSync(dir)
+    ? readdirSync(dir)
+        .filter((file) => file.endsWith('.png'))
+        .sort()
+    : []
+}
+
+/** `diff --out <fresh dir> --shots`, with what it wrote. */
+function shotsOut(label, base, data, flags = [], env = {}) {
+  const out = join(tempDir(), 'changes')
+  const { result, seconds } = shotsCli(
+    label,
+    ['diff', '--base', base, '--data', data, '--out', out, '--shots', ...flags],
+    env,
+  )
+
+  const read = (file) =>
+    existsSync(join(out, file)) ? readFileSync(join(out, file), 'utf8') : undefined
+
+  const json = read('changes.json')
+
+  return {
+    result,
+    seconds,
+    out,
+    report: json === undefined ? undefined : JSON.parse(json),
+    markdown: read('changes.md') ?? '',
+    pngs: pngsIn(out),
+  }
+}
+
+/** The file names of the `./<name>.png` images that changes.md shows, in order. */
+function imageReferences(markdown) {
+  return [...markdown.matchAll(/!\[[^\]]*\]\(\.\/([^)]+\.png)\)/g)].map((match) => match[1])
+}
+
+function shotFiles(report) {
+  return (report?.tests ?? []).flatMap((entry) => (entry.shot ? [entry.shot.file] : [])).sort()
+}
+
+/** The folded block of changes.md, from `<details>` to `</details>`. */
+function foldedOf(markdown) {
+  const start = markdown.indexOf('<details>')
+
+  return start < 0 ? '' : markdown.slice(start, markdown.indexOf('</details>', start))
+}
+
+async function checkShotFlags() {
+  const base = run({ tests: [test('src/a.test.tsx', 'A > one', [snapshot({ text: 'one' })])] })
+  const head = run({ tests: [test('src/a.test.tsx', 'A > one', [snapshot({ text: 'two' })])] })
+  const width = (value) =>
+    `--width needs a whole number of CSS pixels from 200 to 1920, got "${value}"`
+
+  const maxShots = (value) => `--max-shots needs a whole number from 0, got "${value}"`
+  const cases = [
+    ['--shots without --out', [], false, '--shots needs --out <dir>, where the images go'],
+    ...['abc', '0', '199', '1921', '1.5'].map((value) => [
+      `--width ${value}`,
+      ['--width', value],
+      true,
+      width(value),
+    ]),
+    // parseArgs reads a value that starts with a dash as a missing one, and says so.
+    ['--max-shots -1', ['--max-shots', '-1'], true, undefined],
+    ['--max-shots=-1', ['--max-shots=-1'], true, maxShots('-1')],
+    ['--max-shots x', ['--max-shots', 'x'], true, maxShots('x')],
+  ]
+
+  for (const [label, flags, withOut, message] of cases) {
+    const out = join(tempDir(), 'changes')
+    const result = cli([
+      'diff',
+      '--base',
+      base,
+      '--data',
+      head,
+      '--shots',
+      ...(withOut ? ['--out', out] : []),
+      ...flags,
+    ])
+
+    await check(
+      `20. ${label}: exit 1, stderr starts with "describe-me: ", nothing in --out`,
+      () => ({
+        passed:
+          result.status === 1 &&
+          result.stderr.startsWith('describe-me: ') &&
+          (message === undefined || result.stderr === `describe-me: ${message}\n`) &&
+          result.stdout === '' &&
+          !existsSync(out),
+        detail: exitDetail(result),
+      }),
+    )
+  }
+
+  await check('20. parseArgs defaults: shots false, width 480, max shots 20', () => {
+    const options = parseArgs(['diff', '--base', 'x'])
+
+    return same(
+      { shots: options.shots, width: options.width, maxShots: options.maxShots },
+      { shots: false, width: '480', maxShots: '20' },
+    )
+  })
+}
+
+async function checkPlaywrightMissing() {
+  const base = run({ tests: [test('src/a.test.tsx', 'A > one', [snapshot({ text: 'one' })])] })
+  const head = run({ tests: [test('src/a.test.tsx', 'A > one', [snapshot({ text: 'two' })])] })
+  const bare = tempDir()
+  writeFileSync(join(bare, 'package.json'), '{ "name": "bare", "private": true }\n')
+
+  for (const [label, flags, root] of [
+    ['a --root without Playwright', ['--root', bare], bare],
+    ['the manifest root /project', [], '/project'],
+  ]) {
+    const { result, out } = shotsOut(`21. ${label}`, base, head, flags)
+
+    await check(`21. ${label}: exit 1, the install commands and nothing written`, () => ({
+      passed:
+        result.status === 1 &&
+        result.stderr.startsWith(
+          `describe-me: --shots needs Playwright, and cannot find it from ${root}. `,
+        ) &&
+        result.stderr.includes('npm install -D playwright') &&
+        result.stderr.includes('npx playwright install chromium') &&
+        result.stdout === '' &&
+        !existsSync(out),
+      detail: exitDetail(result),
+    }))
+  }
+
+  const { result, out } = shotsOut(
+    '21. Chromium missing',
+    base,
+    head,
+    ['--root', PLAYWRIGHT_ROOT],
+    { PLAYWRIGHT_BROWSERS_PATH: tempDir() },
+  )
+
+  await check(
+    '21. Chromium missing: exit 1, "playwright install chromium", nothing written',
+    () => ({
+      passed:
+        result.status === 1 &&
+        result.stderr.startsWith('describe-me: cannot start Chromium for --shots (') &&
+        result.stderr.includes('playwright install chromium') &&
+        !existsSync(out),
+      detail: exitDetail(result),
+    }),
+  )
+
+  await checkNothingToRender(bare)
+}
+
+/** With nothing to render, `--shots` never loads Playwright, so a root without it still works. */
+async function checkNothingToRender(bare) {
+  const module = 'src/quiet.test.tsx'
+  const kept = test(module, 'Quiet > kept', [snapshot({ text: 'kept' })])
+  const flips = test(module, 'Quiet > flips', [snapshot({ text: 'flips' })])
+  const gone = test(module, 'Quiet > gone', [snapshot({ text: 'gone' })])
+  const base = run({ tests: [kept, flips, gone] })
+  const flipped = run({ tests: [kept, { ...flips, state: 'failed' }] })
+  const added = run({
+    tests: [kept, flips, gone, test(module, 'Quiet > new', [snapshot({ text: 'new' })])],
+  })
+
+  for (const [label, head, flags, maxShots] of [
+    ['a removed test and a state change', flipped, [], 20],
+    ['an added test under --max-shots 0', added, ['--max-shots', '0'], 0],
+  ]) {
+    const { result, report, pngs, out } = shotsOut(`21. nothing to render: ${label}`, base, head, [
+      '--root',
+      bare,
+      ...flags,
+    ])
+
+    await check(
+      `21. nothing to render (${label}): exit 0 from a --root without Playwright, and shots`,
+      () => ({
+        passed:
+          isDeepStrictEqual(
+            { status: result.status, stderr: result.stderr, shots: report?.shots, pngs },
+            {
+              status: 0,
+              stderr: '',
+              shots: {
+                width: 480,
+                pixelRatio: 2,
+                maxShots,
+                pairs: 0,
+                differentPairs: 0,
+                failedPairs: 0,
+                images: 0,
+              },
+              pngs: [],
+            },
+          ) && result.stdout.endsWith(`Wrote changes.json, changes.md and 0 images to ${out}.\n`),
+        detail: `${exitDetail(result)}, stdout ${JSON.stringify(result.stdout)}, shots ${JSON.stringify(report?.shots)}`,
+      }),
+    )
+  }
+}
+
+async function checkShotGroups() {
+  const module = 'src/shots.test.tsx'
+  const frame = (text, extra = {}) => snapshot({ text, css: SHOT_CSS, ...extra })
+  const unused = { css: `${SHOT_CSS} .unused { color: red }` }
+  const base = run({
+    tests: [
+      test(module, 'Css > paints the same', [frame('same')]),
+      test(module, 'Css > paints a background', [frame('background')]),
+      test(module, 'Dom > adds a class', [frame('class')]),
+      test(module, 'Dom > changes the text', [frame('Hello')]),
+      test(module, 'Twin > one', [frame('twin')]),
+      test(module, 'Twin > two', [frame('twin')]),
+      test(module, 'Step > adds a frame', [frame('step')]),
+      test(module, 'Old > goes', [frame('old')]),
+      test(module, 'Mover > before', [frame('mover')]),
+    ],
+  })
+
+  const head = run({
+    tests: [
+      test(module, 'Css > paints the same', [frame('same', unused)]),
+      test(module, 'Css > paints a background', [
+        frame('background', { css: `${SHOT_CSS} .box { background: rgb(255, 0, 0) }` }),
+      ]),
+      test(module, 'Dom > adds a class', [frame('class', { className: 'box unstyled' })]),
+      test(module, 'Dom > changes the text', [frame('Goodbye')]),
+      test(module, 'Twin > one', [frame('twin!')]),
+      test(module, 'Twin > two', [frame('twin!')]),
+      test(module, 'Step > adds a frame', [frame('step', unused), frame('step 2')]),
+      test(module, 'New > appears', [frame('new')]),
+      test(module, 'Mover > after', [frame('mover')]),
+    ],
+  })
+
+  const { result, report, markdown, pngs, out } = shotsOut('22. the three groups', base, head, [
+    '--root',
+    PLAYWRIGHT_ROOT,
+  ])
+
+  const entry = (name) => entryNamed(report ?? { tests: [] }, name)
+  const different = sectionOf(markdown, '### Looks different') ?? ''
+  const changed = sectionOf(markdown, '### Changed') ?? ''
+  const folded = foldedOf(markdown)
+  const shape = (name) => ({ kind: entry(name)?.kind, look: entry(name)?.look })
+
+  await check('22. exit 0, how many tests look different, and how many images', () => ({
+    passed:
+      result.status === 0 &&
+      result.stdout ===
+        `7 of 9 tests changed (2 only in CSS), 1 added, 1 removed and 1 moved. 4 of the changed tests look different.\nWrote changes.json, changes.md and 5 images to ${out}.\n`,
+    detail: `${exitDetail(result)}, stdout ${JSON.stringify(result.stdout)}`,
+  }))
+
+  await check('22. a CSS change that paints the same: look same, folded, no image', () =>
+    same(
+      {
+        ...shape('Css > paints the same'),
+        shot: entry('Css > paints the same')?.shot,
+        folded: folded.includes(
+          '<details><summary>1 test changed only in CSS and looks the same</summary>',
+        ),
+        inFold: folded.includes('`Css > paints the same`'),
+      },
+      { kind: 'css', look: 'same', shot: undefined, folded: true, inFold: true },
+    ),
+  )
+
+  const background = entry('Css > paints a background')
+
+  await check('22. a CSS change that paints a background: look different, with its image', () =>
+    same(
+      {
+        ...shape('Css > paints a background'),
+        listed: different.includes(
+          `- \`Css > paints a background\`: 1 frame changed, 1 looks different\n\n  ![frame 1: before, after and the changed pixels](./${background?.shot?.file})`,
+        ),
+        written: pngs.includes(background?.shot?.file),
+      },
+      { kind: 'css', look: 'different', listed: true, written: true },
+    ),
+  )
+
+  await check('22. a class that no rule targets: dom, look same, under Changed, no image', () =>
+    same(
+      {
+        ...shape('Dom > adds a class'),
+        shot: entry('Dom > adds a class')?.shot,
+        listed: changed.includes('- `Dom > adds a class`: 1 frame changed, looks the same'),
+      },
+      { kind: 'dom', look: 'same', shot: undefined, listed: true },
+    ),
+  )
+
+  const text = entry('Dom > changes the text')
+
+  await check('22. a new text: dom, look different, with its image', () =>
+    same(
+      { ...shape('Dom > changes the text'), written: pngs.includes(text?.shot?.file) },
+      { kind: 'dom', look: 'different', written: true },
+    ),
+  )
+
+  const added = entry('New > appears')?.shot
+
+  await check('22. an added test: one PNG exactly 960 px wide', () =>
+    same(
+      {
+        file: added?.file,
+        frame: added?.frame,
+        width: added ? pngSize(join(out, added.file))?.width : undefined,
+      },
+      { file: `${entry('New > appears')?.id}.png`, frame: 0, width: 960 },
+    ),
+  )
+
+  await check('22. a removed and a moved test: no image', () =>
+    same(
+      [entry('Old > goes')?.change, entry('Old > goes')?.shot, entry('Mover > after')?.shot],
+      ['removed', undefined, undefined],
+    ),
+  )
+
+  await check('22. ### Looks different comes before ### Changed', () => ({
+    passed:
+      markdown.includes('### Looks different') &&
+      markdown.indexOf('### Looks different') < markdown.indexOf('### Changed'),
+    detail: markdown,
+  }))
+
+  const references = imageReferences(markdown)
+
+  await check('22. every image changes.md references exists and is a PNG', () => ({
+    passed:
+      references.length === 5 &&
+      references.every((file) => existsSync(join(out, file)) && pngSize(join(out, file))),
+    detail: JSON.stringify(references),
+  }))
+
+  await check('22. every three-panel image is at least 2880 px wide', () => {
+    const widths = (report?.tests ?? [])
+      .filter((entry) => entry.change === 'changed' && entry.shot)
+      .map((entry) => pngSize(join(out, entry.shot.file))?.width)
+
+    return {
+      passed: widths.length === 4 && widths.every((value) => value >= 2880),
+      detail: JSON.stringify(widths),
+    }
+  })
+
+  await check('22. the shot.file values are exactly the PNG files written', () =>
+    same(shotFiles(report), pngs),
+  )
+
+  await check('22. two tests with one pair count once, and the counts', () =>
+    same(
+      {
+        shots: report?.shots,
+        twins: [entry('Twin > one')?.look, entry('Twin > two')?.look],
+        twinImages: [entry('Twin > one')?.shot?.file, entry('Twin > two')?.shot?.file].filter(
+          (file) => pngs.includes(file),
+        ).length,
+      },
+      {
+        shots: {
+          width: 480,
+          pixelRatio: 2,
+          maxShots: 20,
+          pairs: 6,
+          differentPairs: 3,
+          failedPairs: 0,
+          images: 5,
+        },
+        twins: ['different', 'different'],
+        twinImages: 2,
+      },
+    ),
+  )
+
+  const step = entry('Step > adds a frame')
+
+  await check('22. a pair that looks the same next to an added frame: no look on the test', () =>
+    same(
+      {
+        kind: step?.kind,
+        look: step?.look,
+        frames: step?.frames.map((frame) => `${frame.change}:${frame.look ?? '-'}`),
+        listed: changed.includes('- `Step > adds a frame`: 1 frame changed and 1 added\n'),
+      },
+      { kind: 'dom', look: undefined, frames: ['changed:same', 'added:-'], listed: true },
+    ),
+  )
+}
+
+async function checkShotBudget() {
+  const module = 'src/budget.test.tsx'
+  const frame = (text) => snapshot({ text, css: SHOT_CSS })
+  const base = run({
+    tests: [
+      test(module, 'Budget > first', [frame('first')]),
+      test(module, 'Budget > second', [frame('second')]),
+    ],
+  })
+
+  const head = run({
+    tests: [
+      test(module, 'Budget > first', [frame('first!')]),
+      test(module, 'Budget > second', [frame('second!')]),
+      test(module, 'Budget > added', [frame('added')]),
+    ],
+  })
+
+  const flags = (...more) => ['--root', PLAYWRIGHT_ROOT, ...more]
+  const one = shotsOut('23. --max-shots 1', base, head, flags('--max-shots', '1'))
+  const named = (report, name) => entryNamed(report ?? { tests: [] }, name)
+  const first = named(one.report, 'Budget > first')
+  const note = '1 test has no image, because `--max-shots` is 1.'
+
+  await check('23. --max-shots 1: one PNG, for the first test that looks different', () =>
+    same(
+      {
+        status: one.result.status,
+        pngs: one.pngs,
+        looks: ['first', 'second'].map((name) => named(one.report, `Budget > ${name}`)?.look),
+        shots: ['first', 'second', 'added'].map(
+          (name) => named(one.report, `Budget > ${name}`)?.shot?.file,
+        ),
+      },
+      {
+        status: 0,
+        pngs: [`${first?.id}.png`],
+        looks: ['different', 'different'],
+        shots: [`${first?.id}.png`, undefined, undefined],
+      },
+    ),
+  )
+
+  await check('23. --max-shots 1: the others stay listed without an image', () => {
+    const different = sectionOf(one.markdown, '### Looks different') ?? ''
+    const added = sectionOf(one.markdown, '### Added') ?? ''
+
+    return {
+      passed:
+        different.includes('- `Budget > second`: 1 frame changed, 1 looks different\n') &&
+        different.includes(note) &&
+        added.includes('- `Budget > added`\n') &&
+        added.includes(note) &&
+        isDeepStrictEqual(imageReferences(one.markdown), [`${first?.id}.png`]),
+      detail: one.markdown,
+    }
+  })
+
+  const none = shotsOut('23. --max-shots 0', base, head, flags('--max-shots', '0'))
+
+  await check('23. --max-shots 0: compares the looks and writes no PNG', () =>
+    same(
+      {
+        status: none.result.status,
+        pngs: none.pngs,
+        looks: ['first', 'second'].map((name) => named(none.report, `Budget > ${name}`)?.look),
+        images: none.report?.shots.images,
+        differentPairs: none.report?.shots.differentPairs,
+      },
+      { status: 0, pngs: [], looks: ['different', 'different'], images: 0, differentPairs: 2 },
+    ),
+  )
+
+  const narrow = shotsOut('23. --width 320', base, head, flags('--width', '320'))
+  const added = named(narrow.report, 'Budget > added')?.shot
+
+  await check("23. --width 320: the added test's PNG is 640 px wide", () =>
+    same(
+      {
+        status: narrow.result.status,
+        width: added ? pngSize(join(narrow.out, added.file))?.width : undefined,
+        summary: narrow.report?.shots.width,
+      },
+      { status: 0, width: 640, summary: 320 },
+    ),
+  )
+}
+
+async function checkShotFailure() {
+  const name = 'Broken > renders'
+  const base = run({
+    tests: [test('src/broken.test.tsx', name, [snapshot({ text: 'fine', css: SHOT_CSS })])],
+  })
+
+  const head = run({
+    tests: [test('src/broken.test.tsx', name, [snapshot({ text: 'broken', css: SHOT_CSS })])],
+  })
+
+  for (const file of readdirSync(join(head, 'snapshots'))) {
+    writeFileSync(join(head, 'snapshots', file), 'null')
+  }
+
+  const { result, report, markdown, pngs } = shotsOut(
+    '24. a frame that does not render',
+    base,
+    head,
+    ['--root', PLAYWRIGHT_ROOT],
+  )
+
+  const entry = entryNamed(report ?? { tests: [] }, name)
+
+  await check('24. a head snapshot that holds null: exit 0 and a warning', () => ({
+    passed:
+      result.status === 0 &&
+      /^describe-me: frame head snapshots\/[0-9a-f]+\.json did not render \(.+\)$/m.test(
+        result.stderr,
+      ),
+    detail: exitDetail(result),
+  }))
+
+  await check('24. no look on the pair, shots.failedPairs 1 and the test under Changed', () =>
+    same(
+      {
+        frame: entry?.frames.map((frame) => frame.look ?? '-'),
+        look: entry?.look,
+        failedPairs: report?.shots.failedPairs,
+        pngs,
+        listed: (sectionOf(markdown, '### Changed') ?? '').includes(
+          `- \`${name}\`: 1 frame changed, 1 did not render`,
+        ),
+      },
+      { frame: ['-'], look: undefined, failedPairs: 1, pngs: [], listed: true },
+    ),
+  )
+
+  await checkMissingFont()
+}
+
+/** A font that fails to load does not stop its frame, but each side that misses it warns. */
+async function checkMissingFont() {
+  const name = 'Font > is missing'
+  // The asset is in neither data directory, so the face fails on both sides.
+  const css = `${SHOT_CSS} @font-face { font-family: Missing; src: url("describe-me-asset:0000000000000000.woff2") } .box { font-family: Missing, sans-serif }`
+  const frame = (text) => [snapshot({ text, css })]
+  const base = run({ tests: [test('src/font.test.tsx', name, frame('font'))] })
+  const head = run({ tests: [test('src/font.test.tsx', name, frame('font!'))] })
+  const { result, report } = shotsOut('24. a frame without its font', base, head, [
+    '--root',
+    PLAYWRIGHT_ROOT,
+  ])
+
+  const pair = entryNamed(report ?? { tests: [] }, name)?.frames[0]
+  const lines = result.stderr.split('\n')
+  const warning = (side) =>
+    `describe-me: frame ${side} ${pair?.[side]?.snapshot} rendered without font Missing, so its pair may differ for that alone`
+
+  await check(
+    '24. a font that fails to load: exit 0, a warning per side, the pair compared',
+    () => ({
+      passed:
+        result.status === 0 &&
+        lines.includes(warning('base')) &&
+        lines.includes(warning('head')) &&
+        pair?.look === 'different' &&
+        report?.shots.failedPairs === 0,
+      detail: `${exitDetail(result)}, look ${pair?.look}`,
+    }),
+  )
+}
+
+/** Every file and directory under `dir`, or `undefined` when it does not exist. */
+function listing(dir) {
+  return existsSync(dir) ? readdirSync(dir, { recursive: true }).map(String).sort() : undefined
+}
+
+async function checkNothingLeft() {
+  const module = 'src/left.test.tsx'
+  const base = run({
+    tests: [test(module, 'Left > renders', [snapshot({ text: 'before', css: SHOT_CSS })])],
+  })
+
+  const head = run({
+    tests: [
+      test(module, 'Left > renders', [snapshot({ text: 'after', css: SHOT_CSS })]),
+      test(module, 'Left > appears', [snapshot({ text: 'new', css: SHOT_CSS })]),
+    ],
+  })
+
+  // As a file name, this id would leave --out and end the Markdown link early.
+  const unsafe = '../evil](x)'
+
+  for (const dir of [base, head]) {
+    editManifest(dir, (manifest) => {
+      manifest.modules[0].tests[0].id = unsafe
+    })
+  }
+
+  const modules = join(VIEWER, 'node_modules')
+  const viteTemp = join(modules, '.vite-temp')
+  const entries = () =>
+    readdirSync(modules)
+      .filter((entry) => entry !== '.vite-temp')
+      .sort()
+
+  const before = {
+    modules: entries(),
+    vite: listing(join(modules, '.vite')),
+    base: listing(base),
+    head: listing(head),
+  }
+
+  const temp = tempDir()
+  const { result, report, markdown, pngs, out } = shotsOut(
+    '25. nothing left behind',
+    base,
+    head,
+    ['--root', PLAYWRIGHT_ROOT],
+    {
+      TMPDIR: temp,
+    },
+  )
+
+  await check('25. exit 0 and two images, from a process that exits by itself', () => ({
+    passed: result.status === 0 && result.signal === null && pngs.length === 2,
+    detail: `${exitDetail(result)}, ${JSON.stringify(pngs)}`,
+  }))
+
+  const hashed = `${createHash('sha1').update(unsafe).digest('hex').slice(0, 12)}.png`
+  const appears = entryNamed(report ?? { tests: [] }, 'Left > appears')
+
+  await check(
+    '25. an id that is no safe file name: an image named after its SHA-1 inside --out, shown by changes.md',
+    () =>
+      same(
+        {
+          id: entryNamed(report ?? { tests: [] }, 'Left > renders')?.id,
+          shot: entryNamed(report ?? { tests: [] }, 'Left > renders')?.shot?.file,
+          pngs,
+          beside: readdirSync(join(out, '..')),
+          shown: markdown.includes(`](./${hashed})`),
+        },
+        {
+          id: unsafe,
+          shot: hashed,
+          pngs: [hashed, `${appears?.id}.png`].sort(),
+          beside: ['changes'],
+          shown: true,
+        },
+      ),
+  )
+
+  await check(
+    '25. no dist, no file in node_modules but an empty .vite-temp, the same .vite, an empty TMPDIR, the same data',
+    () =>
+      same(
+        {
+          dist: existsSync(join(VIEWER, 'dist')),
+          modules: entries(),
+          viteTemp: listing(viteTemp) ?? [],
+          vite: listing(join(modules, '.vite')),
+          temp: readdirSync(temp),
+          base: listing(base),
+          head: listing(head),
+        },
+        { ...before, dist: false, viteTemp: [], temp: [] },
+      ),
+  )
+}
+
+async function checkDeterminism() {
+  for (const name of EXAMPLES) {
+    const data = join(repoRoot, 'examples', name, '.describe-me')
+    const copy = renamedCopy(data, join(tempDir(), 'base'))
+    const tests = JSON.parse(readFileSync(join(data, 'manifest.json'), 'utf8')).modules.flatMap(
+      (mod) => mod.tests,
+    )
+
+    const withFrames = tests.filter((entry) => entry.frames.length > 0)
+    const frames = withFrames.reduce((sum, entry) => sum + entry.frames.length, 0)
+    // The jsdom examples install no Playwright.
+    const flags = name === 'react-jsdom' || name === 'mui' ? ['--root', PLAYWRIGHT_ROOT] : []
+    const { result, report, markdown, pngs, seconds } = shotsOut(`26. ${name}`, copy, data, flags)
+    const notSame = (report?.tests ?? [])
+      .filter((entry) => entry.look !== 'same')
+      .map((entry) => entry.fullName)
+
+    console.log(
+      `      ${name}: ${frames} frames, ${report?.shots?.pairs} pairs rendered twice, ${seconds} s`,
+    )
+
+    await check(
+      `26. ${name}: every test with frames is css, no pair differs or fails, no PNG`,
+      () =>
+        same(
+          {
+            status: result.status,
+            kinds: [...new Set((report?.tests ?? []).map((entry) => entry.kind))],
+            changed: report?.counts.tests.changed,
+            differentPairs: report?.shots?.differentPairs,
+            failedPairs: report?.shots?.failedPairs,
+            notSame,
+            pngs,
+          },
+          {
+            status: 0,
+            kinds: ['css'],
+            changed: withFrames.length,
+            differentPairs: 0,
+            failedPairs: 0,
+            notSame: [],
+            pngs: [],
+          },
+        ),
+    )
+
+    await check(`26. ${name}: every test is folded`, () => ({
+      passed:
+        markdown.includes(
+          `<details><summary>${countText(withFrames.length, 'test')} changed only in CSS and look the same</summary>`,
+        ) &&
+        !markdown.includes('### Looks different') &&
+        !markdown.includes('### Changed'),
+      detail: `${exitDetail(result)}\n${markdown.slice(0, 600)}`,
+    }))
+  }
+}
+
+async function checkShadcnShots() {
+  if (!existsSync(join(SHADCN_CHANGED, 'manifest.json'))) {
+    await check('27. shadcn against SHADCN_CHANGED=1 with --shots', () => ({
+      passed: false,
+      detail: 'scenario 18 wrote no SHADCN_CHANGED run',
+    }))
+
+    return
+  }
+
+  const { result, report, markdown, pngs, seconds } = shotsOut(
+    '27. shadcn against SHADCN_CHANGED=1',
+    SHADCN_DATA,
+    SHADCN_CHANGED,
+  )
+
+  console.log(`      shadcn: ${report?.shots?.pairs} pairs, ${pngs.length} images, ${seconds} s`)
+
+  const tests = report?.tests ?? []
+  const lookOf = (pattern) =>
+    tests.filter((entry) => pattern.test(entry.fullName)).map((entry) => entry.look)
+
+  const different = tests.filter((entry) => entry.look === 'different')
+  const expected =
+    /^(Button > |Card > renders a header, content and footer$|SignupCard > |Badge > renders every variant$)/
+
+  await check('27. shadcn with --shots: exit 0 and 10 images', () => ({
+    passed:
+      result.status === 0 &&
+      pngs.length === 10 &&
+      report?.shots.images === 10 &&
+      report?.shots.failedPairs === 0 &&
+      report?.shots.differentPairs >= 10 &&
+      result.stdout.includes(' and 10 images to '),
+    detail: `${exitDetail(result)}, shots ${JSON.stringify(report?.shots)}`,
+  }))
+
+  await check('27. the 6 Button tests, Card, both SignupCard tests and Badge look different', () =>
+    same(
+      {
+        names: different.filter((entry) => expected.test(entry.fullName)).length,
+        others: different
+          .filter((entry) => !expected.test(entry.fullName))
+          .map((entry) => entry.fullName),
+        buttons: lookOf(/^Button > /).length,
+        images: different.filter((entry) => pngs.includes(entry.shot?.file)).length,
+      },
+      { names: 10, others: [], buttons: 6, images: 10 },
+    ),
+  )
+
+  const folded = foldedOf(markdown)
+  const quiet = tests.filter((entry) => /^(Input|Switch|Alert) > /.test(entry.fullName))
+
+  await check(
+    '27. the 6 Input, Switch and Alert tests look the same, have no image, are folded',
+    () =>
+      same(
+        {
+          count: quiet.length,
+          looks: [...new Set(quiet.map((entry) => entry.look))],
+          shots: quiet.filter((entry) => entry.shot !== undefined).length,
+          folded: quiet.every((entry) => folded.includes(`\`${entry.fullName}\``)),
+          summary: folded.startsWith(
+            '<details><summary>6 tests changed only in CSS and look the same</summary>',
+          ),
+        },
+        { count: 6, looks: ['same'], shots: 0, folded: true, summary: true },
+      ),
+  )
+
+  await check(
+    '27. changes.md lists the 10 images under ### Looks different and fits the limit',
+    () => {
+      const section = sectionOf(markdown, '### Looks different') ?? ''
+      const images = [...section.matchAll(/\]\(\.\/[0-9a-f]{12}\.png\)/g)].length
+
+      return {
+        passed: images === 10 && markdown.length <= COMMENT_LIMIT,
+        detail: `${images} images, ${markdown.length} characters`,
+      }
+    },
+  )
+}
+
 try {
   await checkNothingChanged()
   await checkAddedStep()
@@ -1798,6 +2691,14 @@ try {
   await checkParseArgs()
   await checkShadcnItself()
   await checkShadcnChanged()
+  await checkShotFlags()
+  await checkPlaywrightMissing()
+  await checkShotGroups()
+  await checkShotBudget()
+  await checkShotFailure()
+  await checkNothingLeft()
+  await checkDeterminism()
+  await checkShadcnShots()
 } catch (error) {
   failures++
   console.error(`FAIL  ${errorMessage(error)}`)

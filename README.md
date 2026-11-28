@@ -130,7 +130,8 @@ Use
 - [Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html):
   `describe-me dev` and `build`, Live, and what the viewer does.
 - [Comparing runs](https://grzehub.github.io/describe-me/changes.html):
-  `describe-me diff`, what counts as a change, `changes.json` and `changes.md`.
+  `describe-me diff`, what counts as a change, `changes.json`, `changes.md`
+  and the before and after images of `--shots`.
 - [Troubleshooting](https://grzehub.github.io/describe-me/troubleshooting.html):
   diagnostics, warnings and common symptoms.
 

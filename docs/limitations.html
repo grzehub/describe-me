@@ -563,6 +563,38 @@
                 <td>Keep such files in the project.</td>
                 <td><span class="badge status-by-design">by design</span></td>
               </tr>
+              <tr id="limit-diff-shots-chromium">
+                <td>
+                  <code>describe-me diff --shots</code> renders frames only in Chromium, with the
+                  Playwright of your project, so a change that only another browser paints is not
+                  seen. See <a href="changes.html#shots">Before and after images</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>None.</td>
+                <td><span class="badge status-by-design">by design</span></td>
+              </tr>
+              <tr id="limit-diff-shots-light">
+                <td>
+                  <code>describe-me diff --shots</code> renders frames only in the light color
+                  scheme, on a white page, so a change that only the dark variant paints is not
+                  seen. See <a href="changes.html#shots">Before and after images</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>None.</td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
+              <tr id="limit-diff-shots-width">
+                <td>
+                  <code>describe-me diff --shots</code> renders frames at one width per run, so a
+                  change that only another breakpoint paints is not seen. See
+                  <a href="changes.html#shots">Before and after images</a>.
+                </td>
+                <td><span class="badge env">both</span></td>
+                <td>
+                  Run it again with another <code>--width</code> and another <code>--out</code>.
+                </td>
+                <td><span class="badge status-open">open</span></td>
+              </tr>
               <tr id="limit-foundations-tailwind-unstable">
                 <td>
                   The Tailwind 4 theme comes from <code>__unstable__loadDesignSystem</code> of
@@ -708,7 +740,10 @@
           <a href="#limit-foundations-presets">Chakra UI, Mantine and Radix Themes</a> in generic
           blocks by name prefix. <code>describe-me diff</code> sees neither
           <a href="#limit-canvas">what a canvas draws</a> nor
-          <a href="#limit-diff-remote-files">a remote file that changes under its URL</a>.
+          <a href="#limit-diff-remote-files">a remote file that changes under its URL</a>, and with
+          <code>--shots</code> renders frames <a href="#limit-diff-shots-chromium">in Chromium</a>,
+          <a href="#limit-diff-shots-light">in the light scheme</a> and
+          <a href="#limit-diff-shots-width">at one width</a> only.
           <a href="viewer.html#hosting">Viewer and CLI</a>,
           <a href="foundations.html#limits">Foundations</a> and
           <a href="changes.html#limits">Comparing runs</a> have the details.

@@ -1,4 +1,5 @@
 import { STYLE_URL_PREFIX } from '@describe-me/core/types'
+import type { DataDir } from './data-dir.js'
 import { loadStyle } from './load-style.js'
 import type { SerializedNode } from './serialized-node.js'
 
@@ -34,12 +35,15 @@ function storedSheets(node: WalkedNode, found: StoredSheet[] = []): StoredSheet[
  * rrweb rebuilds it. Resolves `false` when a sheet came back with gaps.
  * Snapshots without references pass through unchanged.
  */
-export async function restoreStyles(node: SerializedNode): Promise<boolean> {
+export async function restoreStyles(
+  node: SerializedNode,
+  dir: DataDir = '__data',
+): Promise<boolean> {
   const stored = storedSheets(node)
 
   const loaded = await Promise.all(
     stored.map(async ({ attributes, reference }) => {
-      const style = await loadStyle(reference)
+      const style = await loadStyle(reference, dir)
       attributes._cssText = style.css
 
       return style.complete

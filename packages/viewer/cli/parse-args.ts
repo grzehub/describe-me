@@ -21,9 +21,16 @@ export interface CliOptions {
   live: boolean
   /**
    * `dev` and `build --live`: the project root of the live preview, instead of
-   * the manifest's root and config file.
+   * the manifest's root and config file. `diff --shots`: the project to load
+   * Playwright from, instead of the manifest's root.
    */
   root: string | undefined
+  /** `diff`: render the changed frames and write images of those that look different. */
+  shots: boolean
+  /** `diff --shots`: the frame width in CSS pixels, as typed, so an error can quote it. */
+  width: string
+  /** `diff --shots`: the most images to write, as typed, so an error can quote it. */
+  maxShots: string
 }
 
 function commandFrom(positional: string | undefined, help: boolean): Command {
@@ -44,10 +51,13 @@ function commandFrom(positional: string | undefined, help: boolean): Command {
 
 /**
  * Turn `describe-me <command> [--data dir] [--out dir] [--base dir] [--port n]
- * [--no-vendor-fonts] [--live | --no-live] [--root dir]` into options with
- * defaults. `out` is `describe-me-dist` for `build` and has no default for
- * `diff`. A command ignores the flags of the others: `build` ignores `--port`,
- * `dev` and `build` ignore `--base`, and `build` ignores `--root` without `--live`.
+ * [--no-vendor-fonts] [--live | --no-live] [--root dir] [--shots] [--width n]
+ * [--max-shots n]` into options with defaults. `out` is `describe-me-dist`
+ * for `build` and has no default for `diff`. A command ignores the flags of
+ * the others: `build` ignores `--port`, `dev` and `build` ignore `--base`,
+ * `--shots`, `--width` and `--max-shots`, `build` ignores `--root` without
+ * `--live`, and `diff` without `--shots` ignores `--width`, `--max-shots` and
+ * `--root`.
  */
 export function parseArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseNodeArgs({
@@ -63,6 +73,9 @@ export function parseArgs(argv: string[]): CliOptions {
       'vendor-fonts': { type: 'boolean', default: true },
       live: { type: 'boolean' },
       root: { type: 'string' },
+      shots: { type: 'boolean', default: false },
+      width: { type: 'string', default: '480' },
+      'max-shots': { type: 'string', default: '20' },
     },
   })
 
@@ -77,5 +90,8 @@ export function parseArgs(argv: string[]): CliOptions {
     vendorFonts: values['vendor-fonts'],
     live: values.live ?? command === 'dev',
     root: values.root,
+    shots: values.shots,
+    width: values.width,
+    maxShots: values['max-shots'],
   }
 }
