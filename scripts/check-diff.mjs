@@ -163,9 +163,12 @@
  *     replace the computed answer. After the base manifest is rewritten with
  *     a new `generatedAt` and another snapshot for one test, the next answer
  *     reports that test, and a viewer page opened before says 2 changed
- *     instead of 1 without a reload. Before the current run has a manifest
- *     the answer is 404 with no warning, and the report once it has one. A
- *     base snapshot that is gone, with a new base manifest: 404 twice and one
+ *     instead of 1 without a reload. A fresh page with `before=1` on that
+ *     test shows `second, before` from its new snapshot under
+ *     `/__base/snapshots/`, and `B` shows `second`. Before the current run
+ *     has a manifest the answer is 404 with no warning, and the report once
+ *     it has one. A base snapshot that is gone, with a new base manifest:
+ *     404 twice and one
  *     `describe-me: cannot compare with the base: cannot read …`. Then the
  *     base manifest gone: 404 and a second warning, `no manifest at …`. `dev`
  *     without `--base`, also with DESCRIBE_ME_BASE set, has no meta. A base
@@ -197,6 +200,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { codeSpans } from './check-diff/code-spans.mjs'
+import { beforeSide } from './check-diff/before-side.mjs'
 import { openCountPage, showsChangedCount } from './check-diff/header-count.mjs'
 import { pngSize } from './check-diff/png-size.mjs'
 import { renamedCopy } from './check-diff/renamed-copy.mjs'
@@ -3639,6 +3643,28 @@ async function devBaseSteps(dev, base, head, report) {
     )
 
     await check('31. the page says 2 changed without a reload', () => showsChangedCount(page, 2))
+
+    const second = readJsonIn(head, 'manifest.json').modules[0].tests.find(
+      (entry) => entry.fullName === 'Viewer > second',
+    )
+
+    const rewritten = readJsonIn(base, 'manifest.json').modules[0].tests[1].frames[0].snapshot
+
+    await check(
+      '31. a fresh page with before=1 on Viewer > second shows second, before from /__base/snapshots/, and B shows second',
+      async () => {
+        const shown = await beforeSide(browser, dev.url, second?.id)
+
+        return same(
+          {
+            before: shown.before,
+            fromBase: shown.baseSnapshots.includes(`/__base/${rewritten}`),
+            after: shown.after,
+          },
+          { before: 'second, before', fromBase: true, after: 'second' },
+        )
+      },
+    )
   } finally {
     await browser.close()
   }

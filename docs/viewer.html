@@ -358,23 +358,28 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <strong>Stage.</strong> The test's path and the
             <a href="#viewport">viewport toolbar</a> with the <a href="#live">Live</a> toggle, the
-            sizes and the background swatches, above the replayed frame or the test in Live. A path
-            too long for the row gives up its <code>describe</code> blocks first, then ends the
-            test's name in an ellipsis, and its title shows it whole. A note under a replayed frame
-            names the fonts and stylesheets that did not load in your browser, and says when the
-            frame has only a light variant to show on the dark canvas.
+            sizes and the background swatches, above the replayed frame or the test in Live. With
+            <code>--base</code>, a frame that changed gets the
+            <a href="changes.html#viewer-before-after">Before and After switch</a> right after the
+            Live toggle. A path too long for the row gives up its <code>describe</code> blocks
+            first, then ends the test's name in an ellipsis, and its title shows it whole. A note
+            under a replayed frame names the fonts and stylesheets that did not load in your
+            browser, and says when the frame has only a light variant to show on the dark canvas.
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
             time into the test. A click shows that frame and leaves <a href="#live">Live</a>. With
             <code>--base</code>, a changed frame says <code>dom</code> or <code>css</code> and an
-            added one <code>new</code>.
+            added one <code>new</code>, and a frame that only the base has is an entry of its own,
+            marked <code>gone</code>.
           </li>
           <li>
             <strong>Inspector.</strong> The test's status and duration, the component with its
             props, the current frame as "frame 2 / 3" with its label, and the errors of a failed
-            test. In <a href="#live">Live</a>, a Live section takes the place of the frame. Up to 12
-            props show in full. With more, the table shows the first 10 and
+            test. On the Before side the heading says "frame 2 / 3 · before", with the base run's
+            label. A frame that only the base has shows as "removed frame", with the props the test
+            rendered with. In <a href="#live">Live</a>, a Live section takes the place of the frame.
+            Up to 12 props show in full. With more, the table shows the first 10 and
             <strong>Show N more</strong>, and <strong>Show fewer</strong> folds it again. It stays
             unfolded for that test, across frames and Live, until you reload the page.
           </li>
@@ -466,8 +471,11 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           sidebar to the tests that changed or were added against the base, and shows how many there
           are. It works with the search and a tag, it is part of the <a href="#links">link</a>, and
           <kbd>↑</kbd> <kbd>↓</kbd> follow it. While it is on, a test you pick opens at its first
-          changed frame instead of <a href="#live">Live</a>. Without a base, or when no test
-          changed, the toggle is hidden (<a href="changes.html#viewer">changes in the viewer</a>).
+          change instead of <a href="#live">Live</a>, which can be a frame that only the base has.
+          Without a base, or when no test changed, the toggle is hidden (<a
+            href="changes.html#viewer"
+            >changes in the viewer</a
+          >).
         </p>
         <p>
           The arrow in front of a file or <code>describe</code> row collapses it, and a click on a
@@ -496,8 +504,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td class="nowrap"><kbd>←</kbd> <kbd>→</kbd></td>
                 <td>a test</td>
                 <td>
-                  The previous or next frame. In Live, they leave Live and show the frame that was
-                  selected before, frame 0 for a test that opened in Live.
+                  The previous or next frame of the timeline, a <code>gone</code> one included. A
+                  changed frame shows its After side. In Live, they leave Live and show the frame
+                  that was selected before, frame 0 for a test that opened in Live.
                 </td>
               </tr>
               <tr>
@@ -508,8 +517,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                   collapsed groups and suites. From a test hidden in a collapsed group or suite,
                   they go to the nearest row the sidebar shows. From a test the search does not
                   match, <kbd>↓</kbd> goes to the first match and <kbd>↑</kbd> to the last. Under
-                  the <a href="#search">Changed filter</a> the test opens at its first changed
-                  frame.
+                  the <a href="#search">Changed filter</a> the test opens at its first change.
                 </td>
               </tr>
               <tr>
@@ -524,6 +532,17 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                   Turns <a href="#live">Live</a> off or on, once the live preview is ready. A test
                   opens in Live. The key works in either case, and not with <kbd>Ctrl</kbd>,
                   <kbd>Meta</kbd> or <kbd>Alt</kbd> held.
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap"><kbd>B</kbd></td>
+                <td>a test</td>
+                <td>
+                  With <code>--base</code>, switches a frame that changed between
+                  <a href="changes.html#viewer-before-after">Before and After</a>. It does nothing
+                  on an added frame, on a frame that only the base has and in Live. The key works in
+                  either case, and not with <kbd>Ctrl</kbd>, <kbd>Meta</kbd> or <kbd>Alt</kbd>
+                  held.
                 </td>
               </tr>
               <tr>
@@ -556,7 +575,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                 <td>the search field</td>
                 <td>
                   Opens the first match and leaves the field, so the arrow keys work again. Under
-                  the Changed filter it opens at its first changed frame.
+                  the Changed filter it opens at its first change.
                 </td>
               </tr>
               <tr>
@@ -710,12 +729,18 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <a href="#overview">overview</a> show recorded frames.
           </li>
           <li>
-            <code>live=0</code> or <code>frame</code> in the <a href="#links">link</a> opens the
-            recorded frame. <code>live=1</code>, from links of earlier versions, still opens Live.
+            <code>live=0</code>, <code>frame</code>, <code>before=1</code> or
+            <code>removed</code> in the <a href="#links">link</a> opens the recorded frame.
+            <code>live=1</code>, from links of earlier versions, still opens Live.
           </li>
           <li>
             A test you pick under the <a href="#search">Changed filter</a> opens recorded, at its
-            first changed frame.
+            first change.
+          </li>
+          <li>
+            Live mounts the test of the current run, so it has no
+            <a href="changes.html#viewer-before-after">Before and After switch</a>. Turning Live on
+            leaves Before and a <code>gone</code> frame, so turning it off shows After.
           </li>
         </ul>
         <p>
@@ -822,7 +847,7 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <kbd>Enter</kbd> in the search and a test in the issues list. In Live they mount the
             other test. Otherwise they show its recorded frame 0. Under the
             <a href="#search">Changed filter</a> the first three leave Live and show the test's
-            first changed frame.
+            first change.
           </li>
           <li>
             An <a href="#overview">overview</a> and its gallery never show Live. Back in the test,
@@ -923,15 +948,28 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
           <li>
             <code>changed=1</code> turns on the <a href="#search">Changed filter</a>. Without
-            <code>test</code>, the first test it leaves opens at its first changed frame. Setting or
+            <code>test</code>, the first test it leaves opens at its first change. Setting or
             clearing it adds a history entry. A viewer without a base, or with no changed test,
             drops it from the link.
+          </li>
+          <li>
+            <code>before=1</code> shows the
+            <a href="changes.html#viewer-before-after">Before side</a> of a frame that changed
+            against the base, recorded. A viewer without a base, or a frame without a Before side,
+            drops it.
+          </li>
+          <li>
+            <code>removed</code> shows a <code>gone</code> frame, one that only the base has, by its
+            index in the base run, recorded. The link then has neither <code>frame</code>,
+            <code>live</code> nor <code>before</code>. A viewer without a base, or a test without
+            that frame, drops it.
           </li>
           <li>
             Opening a test or an overview adds a history entry, so Back and Forward move between
             them. Opening Foundations from the sidebar adds one too, and switching its sections
             replaces it. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd>, turning
-            Live on or off and changing the size or the background replace the current entry.
+            Live on or off, switching between Before and After and changing the size or the
+            background replace the current entry.
           </li>
           <li>
             A test id stays the same on other machines and when other tests are added, removed or

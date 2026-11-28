@@ -8,6 +8,16 @@ import { testShown } from './test-shown.js'
 import { testView } from './test-view.js'
 import { renderViewportControls } from './viewport-controls.js'
 
+/** The timeline's button of the removed frame on screen, else the one of `state.frame`. */
+function activeButton(timeline: HTMLElement): HTMLElement | null {
+  const removed =
+    state.removedFrame === null
+      ? null
+      : timeline.querySelector<HTMLElement>(`.frame[data-removed="${state.removedFrame}"]`)
+
+  return removed ?? timeline.querySelector<HTMLElement>(`.frame[data-frame="${state.frame}"]`)
+}
+
 /**
  * Repaint what a frame, viewport or Live change touches: the timeline
  * selection, the viewport toolbar, the stage and the inspector. Falls back to
@@ -20,11 +30,14 @@ export function renderFrame(): void {
     return
   }
 
-  const live = liveShown()
-  const buttons = Array.from(timeline.querySelectorAll<HTMLElement>('.frame'))
-  buttons.forEach((button, i) => button.classList.toggle('active', i === state.frame && !live))
+  const active = liveShown() ? null : activeButton(timeline)
+
+  for (const button of timeline.querySelectorAll<HTMLElement>('.frame')) {
+    button.classList.toggle('active', button === active)
+  }
+
   // Without `block`, an ancestor may scroll vertically to bring the button in.
-  buttons[state.frame]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 
   renderViewportControls()
   // The stage first: a new live frame starts a new session, which the inspector shows.

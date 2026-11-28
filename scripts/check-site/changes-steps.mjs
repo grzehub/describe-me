@@ -15,11 +15,13 @@ const SETTLE_MS = 300
 const MOUNTED_WORDS = 'mounted as the test arranged it'
 // The report of shadcn against its SHADCN_CHANGED=1 run, as check-diff's scenario 19 has it.
 const PAIR_COUNTS = { changed: 16, dom: 10, css: 6, added: 0, removed: 0, moved: 0 }
-const CARD = 'Card > renders a header, content and footer'
-const SUBMITS = 'SignupCard > submits the email'
-const REJECTS = 'SignupCard > rejects an empty email'
+
+export const CARD = 'Card > renders a header, content and footer'
+export const SUBMITS = 'SignupCard > submits the email'
+export const REJECTS = 'SignupCard > rejects an empty email'
 const INPUT = 'Input > shows its focus ring'
-const UNMARKED_INPUT = 'Input > renders a placeholder'
+
+export const UNMARKED_INPUT = 'Input > renders a placeholder'
 const REMOVED = 'OldCard > renders its title'
 const GROUPS = ['Components', 'Components/ui']
 const TAG = 'pair-check'
@@ -36,7 +38,7 @@ function errorMessage(error) {
  * requests are answered locally. It keeps failed requests to the site and
  * page errors.
  */
-async function openPage(browser, url) {
+export async function openPage(browser, url) {
   const context = await browser.newContext({
     colorScheme: null,
     viewport: { width: 1280, height: 800 },
@@ -64,7 +66,7 @@ async function openPage(browser, url) {
 }
 
 /** A new document, because a link that differs only in its hash would not reload the viewer. */
-async function freshLoad(page, target) {
+export async function freshLoad(page, target) {
   await page.goto('about:blank')
   await page.goto(target)
   await page.locator('.tree .test').first().waitFor({ timeout: VIEWER_TIMEOUT })
@@ -88,7 +90,7 @@ async function showsRows(page, count) {
     .catch(() => false)
 }
 
-function testOf(manifest, fullName) {
+export function testOf(manifest, fullName) {
   for (const mod of manifest.modules) {
     const test = mod.tests.find((candidate) => candidate.fullName === fullName)
 
@@ -100,7 +102,7 @@ function testOf(manifest, fullName) {
   throw new Error(`the manifest has no test "${fullName}"`)
 }
 
-function entryOf(report, fullName) {
+export function entryOf(report, fullName) {
   const entry = report.tests.find((candidate) => candidate.fullName === fullName)
 
   if (entry === undefined) {
@@ -124,7 +126,7 @@ async function headerCounts(page) {
 }
 
 /** A problem when the link does not have these values, `null` for none. `null` means absent. */
-async function linkProblem(page, expected) {
+export async function linkProblem(page, expected) {
   const link = await pageLink(page)
   const wrong = Object.entries(expected).filter(([key, value]) => link.get(key) !== value)
 
@@ -148,14 +150,18 @@ async function recordedProblem(page, id, frame) {
   return (await page.locator('.stage-slot.live-slot').count()) === 0 ? null : 'a live slot shows'
 }
 
-/** The click on the breadcrumbs takes the focus off any frame, so the key reaches the viewer. */
-async function pressInViewer(page, key) {
-  await page.locator('.crumbs .path').click()
+/**
+ * The click on the breadcrumbs row takes the focus off any frame, so the key
+ * reaches the viewer. It lands left of the first toggle, because the path can
+ * have no width left while the Before / After switch shows.
+ */
+export async function pressInViewer(page, key) {
+  await page.locator('.crumbs').click({ position: { x: 4, y: 4 } })
   await page.keyboard.press(key)
 }
 
 /** Each step returns a problem or `null`. The first problem ends the run. */
-async function firstProblem(steps) {
+export async function firstProblem(steps) {
   for (const step of steps) {
     const problem = await step()
 
@@ -255,10 +261,10 @@ async function timelineProblem(page, url, report, manifest, fullName) {
   await freshLoad(page, `${url}#test=${id}&live=0`)
   await page.locator('.timeline .frame').first().waitFor({ timeout: VIEWER_TIMEOUT })
 
-  const shown = await page.$$eval('.timeline .frame', (frames) =>
+  const shown = await page.$$eval('.timeline .frame[data-frame]', (frames) =>
     frames
-      .map((frame, index) => [
-        index,
+      .map((frame) => [
+        Number(frame.dataset.frame),
         frame.dataset.change ?? null,
         frame.querySelector('.change-pill')?.textContent ?? null,
       ])
@@ -282,7 +288,7 @@ async function timelineProblem(page, url, report, manifest, fullName) {
  * for a test the manifest lacks and a removed test, and a tag on the added
  * test and on an unmarked one.
  */
-function routedPair(report, manifest) {
+export function routedPair(report, manifest) {
   const submits = entryOf(report, SUBMITS)
   const rejects = testOf(manifest, REJECTS)
   const side = { index: 0, label: 'render', snapshot: 'snapshots/not-there.json' }
@@ -504,7 +510,7 @@ async function badReportSteps(page, url, served, routedReport) {
 }
 
 /** Runs `steps(page)` on a fresh page, and returns its problems with the label. */
-async function onPage(browser, url, label, steps) {
+export async function onPage(browser, url, label, steps) {
   const { context, page, failures } = await openPage(browser, url)
 
   try {
@@ -581,9 +587,48 @@ export async function checkPairSite(browser, url, { report, manifest }) {
 }
 
 /**
+ * `before=1` and `removed=0` drop out of a link to a test, and neither the
+ * Before / After switch nor a removed frame shows.
+ */
+async function noSidesProblem(page, target, id) {
+  await freshLoad(page, `${target}#test=${id}&live=0&before=1&removed=0`)
+
+  const dropped = await page
+    .waitForFunction(
+      () => {
+        const link = new URLSearchParams(location.hash.slice(1))
+
+        return !link.has('before') && !link.has('removed')
+      },
+      undefined,
+      { timeout: STEP_TIMEOUT },
+    )
+    .then(() => true)
+    .catch(() => false)
+
+  await page.locator('.timeline .frame').first().waitFor({ timeout: VIEWER_TIMEOUT })
+  await page.waitForTimeout(SETTLE_MS)
+
+  const switches = await page.locator('.before-after').isVisible()
+  const removed = await page.locator('.timeline .frame.removed').count()
+
+  if (!dropped) {
+    return `#test=${id}&live=0&before=1&removed=0 leaves the link #${await pageLink(page)}`
+  }
+
+  if (switches || removed > 0) {
+    return `the Before / After switch ${switches ? 'shows' : 'is hidden'} and the timeline has ${removed} removed frames`
+  }
+
+  return linkProblem(page, { test: id, live: '0' })
+}
+
+/**
  * Every viewer of site/ built without `--base`: no request for a
- * `changes.json`, no mark, no Changed filter and no chip, and `#changed=1`
- * drops out of the link with every test shown.
+ * `changes.json` or under `__base/`, no mark, no Changed filter and no chip,
+ * and `#changed=1` drops out of the link with every test shown. A link with
+ * `before=1` and `removed=0` loses both, and shows no Before / After switch
+ * and no removed frame.
  */
 export async function checkNoBaseViewers(browser, url, siteDir, names) {
   const problems = []
@@ -593,14 +638,17 @@ export async function checkNoBaseViewers(browser, url, siteDir, names) {
       readFileSync(join(siteDir, 'examples', name, '__data', 'manifest.json'), 'utf8'),
     )
 
-    const expected = shownTests(manifest).length
+    const shown = shownTests(manifest)
+    const expected = shown.length
     const requested = []
 
     problems.push(
       ...(await onPage(browser, url, `examples/${name}/ without a base`, async (page) => {
         page.on('request', (request) => {
-          if (new URL(request.url()).pathname.endsWith('changes.json')) {
-            requested.push(new URL(request.url()).pathname)
+          const { pathname } = new URL(request.url())
+
+          if (pathname.endsWith('changes.json') || pathname.includes('/__base/')) {
+            requested.push(pathname)
           }
         })
 
@@ -635,14 +683,20 @@ export async function checkNoBaseViewers(browser, url, siteDir, names) {
           return `#changed=1 leaves the link #${await pageLink(page)} and ${rows} of ${expected} tests`
         }
 
-        return null
+        const sides = await noSidesProblem(page, `${url}examples/${name}/`, shown[0].id)
+
+        if (sides !== null) {
+          return sides
+        }
+
+        return requested.length === 0 ? null : `it requests ${requested.join(', ')}`
       })),
     )
   }
 
   if (problems.length === 0) {
     console.log(
-      `check-site: ${names.length} viewers without a base request no changes.json, show no mark, filter or chip, and drop #changed=1 from the link with every test shown`,
+      `check-site: ${names.length} viewers without a base request no changes.json and nothing under __base/, show no mark, filter or chip, drop #changed=1 from the link with every test shown, and drop before=1 and removed=0 from a link to a test, with no Before / After switch and no removed frame in the timeline`,
     )
   }
 

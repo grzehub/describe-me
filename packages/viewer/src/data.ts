@@ -1,3 +1,4 @@
+import type { Manifest } from '@describe-me/core/types'
 import type { ChangesReport } from '../cli/changes-report.js'
 import type { DataDir } from './data-dir.js'
 import { fetchChanges } from './fetch-changes.js'
@@ -18,10 +19,53 @@ function runsOf(report: ChangesReport | null): string {
 }
 
 /**
+ * The base run's manifest for `changes`: the one in `state` while it is for
+ * the same run, else fetched from `__base/`. `null` without a report, for a
+ * manifest that does not load and for one of another run. Never throws.
+ */
+async function baseManifestFor(changes: ChangesReport | null): Promise<Manifest | null> {
+  if (changes === null) {
+    return null
+  }
+
+  if (state.baseManifest?.generatedAt === changes.base.generatedAt) {
+    return state.baseManifest
+  }
+
+  try {
+    const base = await fetchManifest('__base')
+
+    return base.generatedAt === changes.base.generatedAt ? base : null
+  } catch {
+    return null
+  }
+}
+
+/** Fetch a base manifest that did not load again, and repaint only once it does. */
+async function retryBaseManifest(changes: ChangesReport): Promise<void> {
+  const base = await baseManifestFor(changes)
+
+  // Another load may have put a report for another base run in place meanwhile.
+  if (
+    base === null ||
+    state.baseManifest !== null ||
+    state.changes?.base.generatedAt !== base.generatedAt
+  ) {
+    return
+  }
+
+  state.baseManifest = base
+  rerender()
+}
+
+/**
  * Fetch the manifest, and the report against the base when `index.html`
  * names one, and repaint, but only if either differs from the one on screen.
  * Polling an unchanged static site must not re-render or drop caches. A
- * report for another run than the manifest's is left out.
+ * report for another run than the manifest's is left out. With a report the
+ * base run's manifest comes too, before the first paint that has the report,
+ * and once per base run. A base manifest that did not load is fetched again
+ * on the next load, which repaints only once it succeeds.
  */
 export async function loadManifest(): Promise<void> {
   const [fetched, report] = await Promise.all([fetchManifest(), fetchChanges()])
@@ -30,8 +74,14 @@ export async function loadManifest(): Promise<void> {
   const manifestChanged = state.manifest?.generatedAt !== next.generatedAt
 
   if (!manifestChanged && runsOf(state.changes) === runsOf(changes)) {
+    if (changes !== null && state.baseManifest === null) {
+      await retryBaseManifest(changes)
+    }
+
     return
   }
+
+  const baseManifest = await baseManifestFor(changes)
 
   if (manifestChanged) {
     state.manifest = next
@@ -39,6 +89,7 @@ export async function loadManifest(): Promise<void> {
   }
 
   state.changes = changes
+  state.baseManifest = baseManifest
   syncSelection()
   rerender()
 }

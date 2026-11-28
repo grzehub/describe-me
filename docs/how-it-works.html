@@ -981,7 +981,10 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           <code>--base</code>, and only then does the viewer fetch the report, with the manifest. It
           keeps a report only for the manifest's run, and it repaints when the manifest's
           <code>generatedAt</code> or the <code>generatedAt</code> of either side of the report
-          changed.
+          changed. With a report it also fetches <code>__base/manifest.json</code>, once per base
+          run, before it shows the report. It keeps that manifest only when its
+          <code>generatedAt</code> is the one the report names for the base, and tries again on the
+          next load when it did not load.
         </p>
 
         <p>To show a frame, the viewer:</p>
@@ -1027,6 +1030,14 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             stylesheets and fonts have loaded, or after 200 ms. The stage never goes blank.
           </li>
         </ol>
+
+        <p>
+          The <a href="changes.html#viewer-before-after">Before side</a> of a changed frame, and a
+          frame that only the base has, take the same steps with <code>__base/</code> in place of
+          <code>__data/</code>: the snapshot, its stylesheet chunks and its assets come from there,
+          and the frame replays with the base run's preview head. The new slot takes the size of the
+          visible one, so switching sides keeps the viewport and the zoom.
+        </p>
 
         <p>
           <a href="viewer.html#hosting">Viewer and CLI</a> explains how to host the static site.

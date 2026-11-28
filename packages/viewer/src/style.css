@@ -1204,6 +1204,37 @@ button.tag.active {
   width: 1px;
   background: color-mix(in srgb, var(--ink-3) 30%, transparent);
 }
+/*
+ * The Before / After switch. Live's rule sets it apart on its left, and the
+ * same rule on its right sets it apart from the presets.
+ */
+.crumbs .tools .before-after {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  margin-right: 7px;
+}
+.crumbs .tools .before-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: -5px;
+  bottom: 4px;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+/* The rule above sets `display`, so `hidden` needs its own. */
+.crumbs .tools .before-after[hidden] {
+  display: none;
+}
+/* A side the frame lacks looks like the Live toggle before the preview is ready. */
+.crumbs .tools .before-after [aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.crumbs .tools .before-after [aria-disabled='true']:hover {
+  color: var(--ink-3);
+}
 
 /*
  * Sizes of the frames and their slots never transition, because heights are
@@ -1333,6 +1364,19 @@ button.tag.active {
 .frame[data-change='added'] .change-pill {
   background: color-mix(in srgb, var(--pass) 14%, transparent);
   color: color-mix(in srgb, var(--pass) 70%, var(--ink));
+}
+/* A frame only the base has: dashed, with a hollow pill like the header's count of removed tests. */
+.frame.removed {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--ink-3) 45%, transparent);
+}
+.frame.removed.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.frame[data-change='removed'] .change-pill {
+  background: transparent;
+  color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
 }
 
 /* ------------------------------------------------------------ inspector -- */

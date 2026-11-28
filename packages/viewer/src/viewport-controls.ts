@@ -1,4 +1,5 @@
 import { BackgroundSwitch } from './background-switch.js'
+import { BeforeAfterSwitch } from './before-after-switch.js'
 import { el } from './el.js'
 import { liveSession } from './live-session.js'
 import { liveShown } from './live-shown.js'
@@ -17,6 +18,7 @@ const PRESETS: { label: string; width: number | null }[] = [
 interface Controls {
   tools: HTMLElement
   live: HTMLElement
+  sides: BeforeAfterSwitch
   presets: Map<number | null, HTMLElement>
   backgrounds: BackgroundSwitch
   width: HTMLInputElement
@@ -61,7 +63,9 @@ function sizeInput(
 function build(): Controls {
   const presets = new Map<number | null, HTMLElement>()
   const live = el('button', { class: 'live-toggle', type: 'button', click: toggleLive }, 'Live')
-  const tools = el('div', { class: 'tools' }, live)
+  // Right after Live, so a narrow window clips the size fields before the switch.
+  const sides = new BeforeAfterSwitch()
+  const tools = el('div', { class: 'tools' }, live, sides.element)
 
   for (const preset of PRESETS) {
     const button = el(
@@ -90,7 +94,7 @@ function build(): Controls {
     zoom,
   )
 
-  return { tools, live, presets, backgrounds, width, height, zoom }
+  return { tools, live, sides, presets, backgrounds, width, height, zoom }
 }
 
 /**
@@ -129,13 +133,15 @@ function mirror(input: HTMLInputElement, size: number | null): void {
 }
 
 /**
- * The viewport toolbar: the Live toggle, width presets, the stage background
- * switch, width and height fields and the zoom. Built once and synced in place
- * on every call, so a focused field keeps its focus.
+ * The viewport toolbar: the Live toggle, the Before / After switch, width
+ * presets, the stage background switch, width and height fields and the
+ * zoom. Built once and synced in place on every call, so a focused field
+ * keeps its focus.
  */
 export function renderViewportControls(): HTMLElement {
   controls ??= build()
   syncLiveToggle(controls.live)
+  controls.sides.sync()
 
   for (const [width, button] of controls.presets) {
     button.classList.toggle('on', width === state.viewport.width)
