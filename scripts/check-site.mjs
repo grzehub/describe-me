@@ -108,19 +108,30 @@
  * pair site Card shows the Before / After switch with After pressed, and
  * After paints the Upgrade button 40px high with the `.badge-spaced` rule. A
  * click on Before replays the base run's frame from `__base/snapshots/`, with
- * the button 36px high and no such rule, and puts `before=1` in the link. `B`
- * switches back, both sides keep the zoom and the frame's width at `w=1600`,
- * and a fresh link with `before=1` opens Before. → from Before shows the next
- * frame on After, a click on another test opens it on After, Live hides the
- * switch and ignores `B`, and ← out of Live shows it again. Each side replays
- * with the preview head of its own run. With a routed report and base
- * manifest, an added frame's Before is disabled and neither a click nor `B`
- * leaves After, and a removed frame shows second in the timeline as `gone`
- * with the base frame's kind and time. It opens with only `removed=1` in the
- * link and only Before, ← → step to it and past it, and a link and the
- * Changed filter open it. `before=1` on an unmarked test and `removed=5` on
- * Card drop out of the link. No request to the site may fail and the page may
- * throw no error. Remote requests are answered locally, so remote fonts never
+ * the button 36px high and no such rule, puts `before=1` in the link, and the
+ * inspector says `frame 1 / 1 · before` with the base run's label and names
+ * `B`. `B` switches back, both sides keep the zoom and the frame's width at
+ * `w=1600`, and a fresh link with `before=1` opens Before. At 1280 and 1366 px
+ * with both panels open the toolbar with the switch and a zoom keeps the
+ * path, the zoom and the inspector toggle in its row, and at 390 px the
+ * switch stays in the window. → from Before shows the next frame on After, a
+ * click on another test opens it on After, Live hides the switch and ignores
+ * `B`, and ← out of Live shows it again. Each side replays with the preview
+ * head of its own run. A base snapshot and then a base manifest that do not
+ * load make the stage say so, the page throws nothing and `B` shows After. A
+ * base manifest that did not load is asked for again on the next poll, which
+ * the page's clock brings forward: a poll that fails again repaints nothing,
+ * and the one that loads it shows Before. With a routed report and base
+ * manifest, an added frame's Before is disabled, neither a click nor `B`
+ * leaves After and the inspector names no `B`, and a removed frame shows
+ * second in the timeline as `gone` with the base frame's kind and time. It
+ * opens with only `removed=1` in the link and only Before, the inspector says
+ * `removed frame` with the test's props rather than those of the frame next
+ * to it, ← → step to it and past it, Before of the next frame shows the base
+ * side's own label, and a link and the Changed filter open it. `before=1` on
+ * an unmarked test and `removed=5` on Card drop out of the link, and
+ * `#changed=1` alone opens Card on its removed frame when that is its first
+ * change. No request to the site may fail and the page may throw no error. Remote requests are answered locally, so remote fonts never
  * decide the result. Before Chromium starts, every file of site/ is read as
  * bytes, and none may name the checkout or the home directory. Run after
  * `pnpm site:build`.
@@ -5374,5 +5385,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests and show no changes, no Before / After switch and no removed frame without a base, and drop before=1 and removed from the link, the shadcn pair site built with --base marks changed tests, files, groups and frames, counts them in the header, filters by Changed with changed=1 in the link, opens a test at its first change instead of Live, switches a changed frame between Before from __base/ and After at the same size and zoom, with B and before=1, shows After for another frame, another test and Live, disables the missing side of an added and a removed frame, and shows a removed frame as gone in the timeline with removed= in the link, the viewers filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, show react-browser's sidebar groups and none in the other viewers, hide and show the side panels and let the viewer theme pick the stage only under auto`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests and show no changes, no Before / After switch and no removed frame without a base, and drop before=1 and removed from the link, the shadcn pair site built with --base marks changed tests, files, groups and frames, counts them in the header, filters by Changed with changed=1 in the link, opens a test at its first change instead of Live, switches a changed frame between Before from __base/ and After at the same size and zoom, with B, before=1 and the inspector, keeps the toolbar's row at 1280 and 1366 px and the switch at 390 px, shows After for another frame, another test and Live, says when the base does not load and shows Before once a later poll loads it, disables the missing side of an added and a removed frame, and shows a removed frame as gone in the timeline with removed= in the link, also from #changed=1, the viewers filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, show react-browser's sidebar groups and none in the other viewers, hide and show the side panels and let the viewer theme pick the stage only under auto`,
 )

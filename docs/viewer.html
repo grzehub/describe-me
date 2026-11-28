@@ -361,10 +361,13 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             sizes and the background swatches, above the replayed frame or the test in Live. With
             <code>--base</code>, a frame that changed gets the
             <a href="changes.html#viewer-before-after">Before and After switch</a> right after the
-            Live toggle. A path too long for the row gives up its <code>describe</code> blocks
-            first, then ends the test's name in an ellipsis, and its title shows it whole. A note
-            under a replayed frame names the fonts and stylesheets that did not load in your
-            browser, and says when the frame has only a light variant to show on the dark canvas.
+            Live toggle. While it shows, the toolbar's spacing tightens, so a 1280 px window with
+            both panels open at their default widths still has the path, the zoom and the panel
+            toggles in the row. A path too long for the row gives up its
+            <code>describe</code> blocks first, then ends the test's name in an ellipsis, and its
+            title shows it whole. A note under a replayed frame names the fonts and stylesheets that
+            did not load in your browser, and says when the frame has only a light variant to show
+            on the dark canvas.
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
@@ -1090,7 +1093,7 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
         <p>
           Then open <code>http://localhost:8080/</code>. An open page checks the manifest, and the
           report of a site built with <code>--base</code>, every 60 seconds and repaints only when a
-          new run has been deployed.
+          new run has been deployed, or when the base run's manifest loads after it did not.
         </p>
         <p>
           <a href="installation.html#ci">Build the docs in CI</a> has a GitHub Actions workflow that

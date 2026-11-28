@@ -42,8 +42,8 @@ export async function beforeSide(browser, url, id) {
 
     const before = await frameText(page, id, true)
 
-    // Left of the first toggle, so the key reaches the viewer and not a frame.
-    await page.locator('.crumbs').click({ position: { x: 4, y: 4 } })
+    // The click on the breadcrumbs takes the focus off the frame, so the key reaches the viewer.
+    await page.locator('.crumbs .path').click()
     await page.keyboard.press('b')
 
     return { before, baseSnapshots, after: await frameText(page, id, false) }

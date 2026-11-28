@@ -1235,6 +1235,46 @@ button.tag.active {
 .crumbs .tools .before-after [aria-disabled='true']:hover {
   color: var(--ink-3);
 }
+/*
+ * The switch makes the toolbar about 110 px wider, more than the center of a
+ * 1280 px window with both panels open has to spare. While it shows, the row
+ * tightens its spacing, so such a window keeps the path, the zoom and the
+ * inspector toggle in view. Without the switch the toolbar keeps its spacing.
+ */
+.crumbs:has(.before-after:not([hidden])) {
+  gap: 5px;
+  padding: 0 12px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools button {
+  padding-inline: 6px;
+}
+.crumbs:has(.before-after:not([hidden])) .backgrounds button[data-bg] {
+  padding-inline: 3px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .size {
+  gap: 4px;
+  padding-left: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools input {
+  width: 44px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .zoom {
+  padding: 0 5px 0 4px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .live-toggle,
+.crumbs:has(.before-after:not([hidden])) .tools .before-after {
+  margin-right: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .live-toggle::after,
+.crumbs:has(.before-after:not([hidden])) .tools .before-after::after {
+  right: -4px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .backgrounds {
+  margin-left: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .backgrounds::before {
+  left: -4px;
+}
 
 /*
  * Sizes of the frames and their slots never transition, because heights are

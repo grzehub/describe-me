@@ -750,8 +750,9 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                 <td class="nowrap">never</td>
                 <td>
                   When the run ended, as an ISO 8601 date. The viewer repaints only when it changes,
-                  or with a base when the report does. A report counts only when its
-                  <code>head.generatedAt</code> is this value.
+                  or with a base when the report does or when the base run's manifest loads after it
+                  did not. A report counts only when its <code>head.generatedAt</code> is this
+                  value.
                 </td>
               </tr>
               <tr id="manifest-root">
@@ -969,7 +970,7 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           <code>describe-me:update</code> event through Vite's HMR socket, and the viewer fetches
           the manifest again. A static site has no such socket, so the viewer polls every 60 seconds
           instead. Either way it repaints only when <code>generatedAt</code> changed, or with a base
-          the report did.
+          when the report did or when the base run's manifest loaded after it did not.
         </p>
 
         <p>

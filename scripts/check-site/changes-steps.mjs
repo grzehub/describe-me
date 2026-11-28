@@ -150,13 +150,9 @@ async function recordedProblem(page, id, frame) {
   return (await page.locator('.stage-slot.live-slot').count()) === 0 ? null : 'a live slot shows'
 }
 
-/**
- * The click on the breadcrumbs row takes the focus off any frame, so the key
- * reaches the viewer. It lands left of the first toggle, because the path can
- * have no width left while the Before / After switch shows.
- */
+/** The click on the breadcrumbs takes the focus off any frame, so the key reaches the viewer. */
 export async function pressInViewer(page, key) {
-  await page.locator('.crumbs').click({ position: { x: 4, y: 4 } })
+  await page.locator('.crumbs .path').click()
   await page.keyboard.press(key)
 }
 
