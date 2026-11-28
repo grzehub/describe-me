@@ -18,7 +18,7 @@ describe('Alert', () => {
     await expect.element(screen.getByRole('alert')).toBeVisible()
   })
 
-  it('renders a destructive alert', async () => {
+  it('renders a failed payment', async () => {
     const screen = await render(
       <Alert variant="destructive" className="w-[420px]">
         <CircleAlert />
@@ -44,5 +44,11 @@ describe('Badge', () => {
     )
 
     await expect.element(screen.getByText('destructive')).toBeVisible()
+  })
+
+  it('renders a count', async () => {
+    const screen = await render(<Badge variant="secondary">12 new</Badge>)
+
+    await expect.element(screen.getByText('12 new')).toBeVisible()
   })
 })
