@@ -1611,13 +1611,16 @@
           <dd>
             Serves the viewer on your output directory and updates it whenever the reporter writes a
             new manifest. It also starts the live preview, which mounts tests in
-            <a href="viewer.html#live">Live</a>.
+            <a href="viewer.html#live">Live</a>. With <code>--base</code> the viewer shows what
+            changed against a base run (<a href="changes.html#viewer">in the viewer</a>).
           </dd>
           <dt><code>build</code></dt>
           <dd>
             Builds a static site: the viewer, with the output directory copied in as
             <code>__data/</code>. With <code>--live</code> it builds the live preview into the site
-            too, so the site shows <a href="viewer.html#live">Live</a>.
+            too, so the site shows <a href="viewer.html#live">Live</a>. With <code>--base</code> it
+            copies the base run in as <code>__base/</code> with the report of <code>diff</code>, so
+            the site shows the changes too.
           </dd>
           <dt><code>diff</code></dt>
           <dd>

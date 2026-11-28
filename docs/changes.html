@@ -80,7 +80,9 @@
 
         <p class="lead">
           <code>describe-me diff</code> compares two runs of your tests and lists what changed. It
-          reports and never fails.
+          reports and never fails. The viewer can show the same changes (<a href="#viewer"
+            >in the viewer</a
+          >).
         </p>
 
         <h2 id="base">
@@ -113,7 +115,11 @@
           </li>
           <li><strong>After the change</strong> Run the tests again.</li>
           <li>
-            <strong>Compare</strong> <code>npx describe-me diff --base .describe-me-base</code>.
+            <strong>Compare</strong> <code>npx describe-me diff --base .describe-me-base</code>, or
+            see the changes in the viewer with
+            <code>npx describe-me dev --base .describe-me-base</code> (<a href="#viewer"
+              >in the viewer</a
+            >).
           </li>
         </ol>
 
@@ -510,6 +516,76 @@ npx playwright install chromium</code></pre>
 
 &lt;/details&gt;</code></pre>
 
+        <h2 id="viewer">
+          In the viewer <a class="anchor" href="#viewer" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <code>describe-me dev</code> and <code>describe-me build</code> take the same
+          <code>--base</code>, and the viewer then shows what changed against it. Locally:
+        </p>
+
+        <ol class="steps">
+          <li>
+            <strong>Before the change</strong> Run the tests, then
+            <code>cp -r .describe-me .describe-me-base</code>.
+          </li>
+          <li>
+            <strong>After the change</strong>
+            <code>npx describe-me dev --base .describe-me-base</code>, and run the tests again, in
+            watch mode or not.
+          </li>
+        </ol>
+
+        <p>
+          <code>dev</code> serves the base under <code>/__base</code> and answers
+          <code>/__data/changes.json</code> with the report of <code>describe-me diff</code>. It
+          computes the report again when either manifest changes, and the viewer repaints without a
+          reload. While the current run has no manifest yet, the viewer shows no changes. A base
+          whose manifest cannot be read stops <code>dev</code> with the message of
+          <code>diff</code>.
+        </p>
+
+        <ul>
+          <li>
+            <strong>Marks.</strong> A test that changed gets a mark at the right end of its row, in
+            the warning color, and a test that was added one in the pass color. A test whose CSS
+            alone changed gets a hollow mark, because one change to a global stylesheet marks every
+            test. The rows of the files, suites and groups that hold such a test get a mark too,
+            also while they are closed. A moved test is not marked, because its snapshots are the
+            same.
+          </li>
+          <li>
+            <strong>The Changed filter</strong>, under the search, narrows the sidebar to the tests
+            changed or added and says how many there are. It works with the search and a tag, and it
+            is <code>changed=1</code> in the link. While it is on, a test you pick by a click, by
+            <kbd>↑</kbd> <kbd>↓</kbd> or from the search opens at its first changed frame instead of
+            Live, and so does the first test a link with <code>changed=1</code> and no test opens.
+          </li>
+          <li>
+            <strong>The header</strong> counts the tests changed, added and removed. Its panel shows
+            the time of the base run, the removed tests by name and file, and a note when different
+            versions of describe-me recorded the two runs. A removed test is not in the current run,
+            so it cannot be opened.
+          </li>
+          <li>
+            <strong>The frame timeline</strong> marks each changed frame <code>dom</code> or
+            <code>css</code>, as <a href="#kinds">a change</a> counts, and each added frame
+            <code>new</code>.
+          </li>
+        </ul>
+
+        <p>
+          <code>describe-me build --base .describe-me-base</code> puts the base into the site as
+          <code>__base/</code>, with its manifest naming the project by the same id as
+          <code>__data/</code> and its fonts vendored the same way, and writes
+          <code>__data/changes.json</code> as <code>diff --out</code> writes it without
+          <code>--shots</code>. A manifest or snapshot that cannot be read stops the build before it
+          writes anything. A site built without <code>--base</code> has neither file and works as it
+          always did. The viewer fetches the report only when the site's <code>index.html</code>
+          names it.
+        </p>
+
         <h2 id="ci">
           A pull request comment
           <a class="anchor" href="#ci" aria-label="Link to this section">#</a>
@@ -741,6 +817,7 @@ jobs:
           <li><a href="#kinds">What counts as a change</a></li>
           <li><a href="#files">changes.json and changes.md</a></li>
           <li><a href="#shots">Before and after images</a></li>
+          <li><a href="#viewer">In the viewer</a></li>
           <li><a href="#ci">A pull request comment</a></li>
           <li><a href="#limits">What it does not see</a></li>
         </ul>

@@ -1,10 +1,11 @@
 import type { ManifestTest } from '@describe-me/core/types'
+import { changeMarks } from './change-marks.js'
 import { filterActive } from './filter-active.js'
 import { hasFoundations } from './has-foundations.js'
 import { resolveTestId } from './resolve-test-id.js'
 import { sidebarOrder } from './sidebar-order.js'
 import { stateHash } from './state-hash.js'
-import { currentTest, state, writeHash } from './state.js'
+import { allTests, currentTest, state, writeHash } from './state.js'
 import { visibleTests } from './visible-tests.js'
 
 /**
@@ -17,9 +18,18 @@ function firstTest(): ManifestTest | undefined {
   return shown[0] ?? sidebarOrder()[0]
 }
 
+/** Whether a test of the manifest changed or was added against the base. */
+function anyMarked(): boolean {
+  const marks = changeMarks(state.changes)
+
+  return state.manifest !== null && allTests(state.manifest).some((test) => marks.has(test.id))
+}
+
 /**
  * Point the selection at a test the manifest holds, falling back to the
- * sidebar's first one the search and the tag leave, and clamp the frame.
+ * sidebar's first one the search, the tag and the Changed filter leave, and
+ * clamp the frame. A test the Changed filter picks opens recorded at its
+ * first change. The Changed filter turns off when nothing is marked.
  * Foundations closes when the manifest has neither tokens nor Material UI, and
  * an open Foundations drops the suite.
  * The link is corrected in place, without a history entry. Does not repaint.
@@ -37,12 +47,23 @@ export function syncSelection(): void {
     state.suiteKey = null
   }
 
+  if (state.changed && !anyMarked()) {
+    state.changed = false
+  }
+
   const resolved = resolveTestId(state.manifest, state.testId)
   if (resolved) {
     state.testId = resolved
   } else {
     state.testId = firstTest()?.id ?? null
     state.frame = 0
+
+    const mark = state.changed ? changeMarks(state.changes).get(state.testId ?? '') : undefined
+
+    if (mark !== undefined) {
+      state.live = false
+      state.frame = mark.first
+    }
   }
 
   const test = currentTest()

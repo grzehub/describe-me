@@ -2,9 +2,9 @@ import type { State } from './state.js'
 
 /**
  * The link of a view, without the `#`: the Foundations section, the
- * selection, the frame, the viewport size, the stage background, Live and the
- * tag filter. Live is the default, so its link has neither `frame` nor `live`,
- * and the recorded frame 0 has `live=0`.
+ * selection, the frame, the viewport size, the stage background, Live, the
+ * tag filter and the Changed filter. Live is the default, so its link has
+ * neither `frame` nor `live`, and the recorded frame 0 has `live=0`.
  */
 export function stateHash(state: State): string {
   const params = new URLSearchParams()
@@ -42,6 +42,10 @@ export function stateHash(state: State): string {
 
   if (state.tag !== null) {
     params.set('tag', state.tag)
+  }
+
+  if (state.changed) {
+    params.set('changed', '1')
   }
 
   return params.toString()

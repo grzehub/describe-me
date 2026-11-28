@@ -92,9 +92,10 @@
 
         <p>The <code>describe-me</code> package installs one binary. It always needs a command:</p>
 
-        <pre><code>describe-me dev   [--data .describe-me] [--port 6006] [--no-live] [--root &lt;dir&gt;]
-describe-me build [--data .describe-me] [--out describe-me-dist] [--no-vendor-fonts]
-                  [--live] [--root &lt;dir&gt;]
+        <pre><code>describe-me dev   [--data .describe-me] [--base &lt;dir&gt;] [--port 6006] [--no-live]
+                  [--root &lt;dir&gt;]
+describe-me build [--data .describe-me] [--base &lt;dir&gt;] [--out describe-me-dist]
+                  [--no-vendor-fonts] [--live] [--root &lt;dir&gt;]
 describe-me diff  --base &lt;dir&gt; [--data .describe-me]
                   [--out &lt;dir&gt; [--shots] [--width 480] [--max-shots 20] [--root &lt;dir&gt;]]</code></pre>
 
@@ -116,7 +117,12 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me]
                   <code>/__data</code>. When the reporter rewrites <code>manifest.json</code>, the
                   server tells the page, and the viewer loads the manifest again. Vite prints the
                   URL. Then it starts the <a href="#live">live preview</a> and prints its address
-                  after <code>Live preview:</code>. It never downloads fonts.
+                  after <code>Live preview:</code>. It never downloads fonts. With
+                  <code>--base</code> it also serves the base under <code>/__base</code>, answers
+                  <code>/__data/changes.json</code> with the report of <code>diff</code> and
+                  computes it again when either manifest changes (<a href="changes.html#viewer"
+                    >changes in the viewer</a
+                  >). A base whose manifest cannot be read stops it with exit code 1.
                 </td>
               </tr>
               <tr id="cmd-build">
@@ -129,7 +135,13 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me]
                   the viewer. Then it downloads web fonts into the copy of the data (<a
                     href="styles-and-fonts.html#vendoring"
                     >fonts in the static site</a
-                  >). The data directory itself never changes.
+                  >). The data directory itself never changes. With <code>--base</code> it also
+                  copies the base into the site as <code>__base/</code> and writes the report of
+                  <code>diff</code> as <code>__data/changes.json</code> (<a
+                    href="changes.html#viewer"
+                    >changes in the viewer</a
+                  >). A manifest or snapshot of either run that cannot be read then stops it with
+                  exit code 1 before it writes anything.
                 </td>
               </tr>
               <tr id="cmd-diff">
@@ -169,10 +181,13 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me]
                 <td><code>--base</code></td>
                 <td class="nowrap">—</td>
                 <td>
-                  <code>diff</code> only, which needs it. The data directory of the run to compare
-                  against, such as a copy of <code>.describe-me</code> from before a change (<a
-                    href="changes.html#base"
+                  <code>dev</code>, <code>build</code> and <code>diff</code>, which needs it. The
+                  data directory of the run to compare against, such as a copy of
+                  <code>.describe-me</code> from before a change (<a href="changes.html#base"
                     >a base run</a
+                  >). <code>dev</code> and <code>build</code> show the changes in the viewer (<a
+                    href="changes.html#viewer"
+                    >in the viewer</a
                   >).
                 </td>
               </tr>
@@ -292,12 +307,11 @@ describe-me diff  --base &lt;dir&gt; [--data .describe-me]
           </li>
           <li>
             A flag of another command is ignored, so <code>--port</code> does nothing on
-            <code>build</code>, and <code>--base</code>, <code>--shots</code>,
-            <code>--width</code> and <code>--max-shots</code> do nothing on <code>dev</code> and
-            <code>build</code>. <code>--root</code> does nothing on <code>dev</code> and
-            <code>build</code> without <code>--live</code>, and <code>diff</code> without
-            <code>--shots</code> ignores <code>--width</code>, <code>--max-shots</code> and
-            <code>--root</code>.
+            <code>build</code>, and <code>--shots</code>, <code>--width</code> and
+            <code>--max-shots</code> do nothing on <code>dev</code> and <code>build</code>.
+            <code>--root</code> does nothing on <code>dev</code> and <code>build</code> without
+            <code>--live</code>, and <code>diff</code> without <code>--shots</code> ignores
+            <code>--width</code>, <code>--max-shots</code> and <code>--root</code>.
           </li>
           <li>
             Without data, <code>build</code> warns <code>no data at …; run vitest first</code> and
@@ -315,9 +329,12 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
 
         <ul>
           <li>
-            <strong>Header.</strong> The number of tests, how many passed and failed, the
+            <strong>Header.</strong> The number of tests, how many passed and failed, with
+            <code>--base</code> how many tests changed, were added and were removed against the base
+            (<a href="changes.html#viewer">changes in the viewer</a>), the
             <a href="#issues">issues chip</a>, the time of the last run and the
-            <a href="#layout-theme">theme switch</a>.
+            <a href="#layout-theme">theme switch</a>. A click on the changes opens the time of the
+            base run and the names of the removed tests.
           </li>
           <li>
             <strong>Sidebar.</strong> The search field, then one block per test file with its
@@ -333,7 +350,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             keeps the width per project, like the <a href="#search">collapsed rows</a>. It is not
             part of the link. Without storage it lasts until you reload. When the run found tokens
             or the project uses Material UI, a Foundations entry above the test files opens
-            <a href="foundations.html">Foundations</a>.
+            <a href="foundations.html">Foundations</a>. With <code>--base</code>, a test that
+            changed or was added gets a mark at the right end of its row, and so do the rows of the
+            files, suites and groups that hold one, and the <a href="#search">Changed filter</a>
+            sits under the search.
           </li>
           <li>
             <strong>Stage.</strong> The test's path and the
@@ -346,7 +366,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           </li>
           <li>
             <strong>Frame timeline.</strong> One button per frame, with its kind, its label and the
-            time into the test. A click shows that frame and leaves <a href="#live">Live</a>.
+            time into the test. A click shows that frame and leaves <a href="#live">Live</a>. With
+            <code>--base</code>, a changed frame says <code>dom</code> or <code>css</code> and an
+            added one <code>new</code>.
           </li>
           <li>
             <strong>Inspector.</strong> The test's status and duration, the component with its
@@ -440,6 +462,14 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           which tests <a href="configuration.html#stories">become stories</a>.
         </p>
         <p>
+          With <code>--base</code>, the <strong>Changed</strong> toggle under the search narrows the
+          sidebar to the tests that changed or were added against the base, and shows how many there
+          are. It works with the search and a tag, it is part of the <a href="#links">link</a>, and
+          <kbd>↑</kbd> <kbd>↓</kbd> follow it. While it is on, a test you pick opens at its first
+          changed frame instead of <a href="#live">Live</a>. Without a base, or when no test
+          changed, the toggle is hidden (<a href="changes.html#viewer">changes in the viewer</a>).
+        </p>
+        <p>
           The arrow in front of a file or <code>describe</code> row collapses it, and a click on a
           <a href="#layout-groups">group's row</a> opens or closes the group. The browser keeps the
           collapsed rows in <code>localStorage</code>, per project, so several projects on
@@ -477,7 +507,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
                   The previous or next test the sidebar shows, so they follow the search and skip
                   collapsed groups and suites. From a test hidden in a collapsed group or suite,
                   they go to the nearest row the sidebar shows. From a test the search does not
-                  match, <kbd>↓</kbd> goes to the first match and <kbd>↑</kbd> to the last.
+                  match, <kbd>↓</kbd> goes to the first match and <kbd>↑</kbd> to the last. Under
+                  the <a href="#search">Changed filter</a> the test opens at its first changed
+                  frame.
                 </td>
               </tr>
               <tr>
@@ -522,7 +554,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
               <tr>
                 <td class="nowrap"><kbd>Enter</kbd> <kbd>↓</kbd></td>
                 <td>the search field</td>
-                <td>Opens the first match and leaves the field, so the arrow keys work again.</td>
+                <td>
+                  Opens the first match and leaves the field, so the arrow keys work again. Under
+                  the Changed filter it opens at its first changed frame.
+                </td>
               </tr>
               <tr>
                 <td class="nowrap"><kbd>←</kbd> <kbd>→</kbd></td>
@@ -678,6 +713,10 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             <code>live=0</code> or <code>frame</code> in the <a href="#links">link</a> opens the
             recorded frame. <code>live=1</code>, from links of earlier versions, still opens Live.
           </li>
+          <li>
+            A test you pick under the <a href="#search">Changed filter</a> opens recorded, at its
+            first changed frame.
+          </li>
         </ul>
         <p>
           Try it on the <a href="examples/react-browser/#test=d5b51b54fed9">Menu test</a> of the
@@ -781,7 +820,9 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
           <li>
             <kbd>↑</kbd> and <kbd>↓</kbd> keep the mode, and so do a click in the sidebar,
             <kbd>Enter</kbd> in the search and a test in the issues list. In Live they mount the
-            other test. Otherwise they show its recorded frame 0.
+            other test. Otherwise they show its recorded frame 0. Under the
+            <a href="#search">Changed filter</a> the first three leave Live and show the test's
+            first changed frame.
           </li>
           <li>
             An <a href="#overview">overview</a> and its gallery never show Live. Back in the test,
@@ -881,6 +922,12 @@ describe-me: Unknown option '--prot'. To specify a positional argument starting 
             history entry.
           </li>
           <li>
+            <code>changed=1</code> turns on the <a href="#search">Changed filter</a>. Without
+            <code>test</code>, the first test it leaves opens at its first changed frame. Setting or
+            clearing it adds a history entry. A viewer without a base, or with no changed test,
+            drops it from the link.
+          </li>
+          <li>
             Opening a test or an overview adds a history entry, so Back and Forward move between
             them. Opening Foundations from the sidebar adds one too, and switching its sections
             replaces it. Stepping through frames, moving with <kbd>↑</kbd> <kbd>↓</kbd>, turning
@@ -969,7 +1016,8 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
 
         <p>
           <code>describe-me build</code> writes plain files: the viewer, its assets and
-          <code>__data/</code>. Any static file server or host can serve them.
+          <code>__data/</code>, and with <code>--base</code> also <code>__base/</code> and
+          <code>__data/changes.json</code>. Any static file server or host can serve them.
         </p>
         <ul>
           <li>
@@ -983,7 +1031,8 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
           </li>
           <li>
             <strong>No paths of your machine.</strong> In the copy of the manifest,
-            <code>root</code> is an id of the project, not a path. Snapshots, test errors and the
+            <code>root</code> is an id of the project, not a path, and the manifest in
+            <code>__base/</code> names the project by the same id. Snapshots, test errors and the
             live build name files relative to the project root, such as <code>src/Button.tsx</code>,
             and a package outside the root from its <code>node_modules/</code> folder.
             <a href="how-it-works.html#snapshot">How it works</a> has the details. Values that your
@@ -1001,8 +1050,9 @@ Written by @describe-me/vitest 0.6.0. This viewer is describe-me 0.5.2, so frame
         <pre><code>python3 -m http.server 8080 --directory describe-me-dist</code></pre>
 
         <p>
-          Then open <code>http://localhost:8080/</code>. An open page checks the manifest every 60
-          seconds and repaints only when a new run has been deployed.
+          Then open <code>http://localhost:8080/</code>. An open page checks the manifest, and the
+          report of a site built with <code>--base</code>, every 60 seconds and repaints only when a
+          new run has been deployed.
         </p>
         <p>
           <a href="installation.html#ci">Build the docs in CI</a> has a GitHub Actions workflow that

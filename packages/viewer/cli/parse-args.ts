@@ -8,7 +8,10 @@ export interface CliOptions {
   data: string
   /** Output directory: the site for `build`, `changes.json` and `changes.md` for `diff`. */
   out: string | undefined
-  /** `diff`: the data directory of the run to compare against. */
+  /**
+   * `dev`, `build` and `diff`: the data directory of the run to compare
+   * against. `diff` needs it, and `dev` and `build` show the changes in the viewer.
+   */
   base: string | undefined
   /** Port for `dev`. */
   port: number
@@ -54,10 +57,9 @@ function commandFrom(positional: string | undefined, help: boolean): Command {
  * [--no-vendor-fonts] [--live | --no-live] [--root dir] [--shots] [--width n]
  * [--max-shots n]` into options with defaults. `out` is `describe-me-dist`
  * for `build` and has no default for `diff`. A command ignores the flags of
- * the others: `build` ignores `--port`, `dev` and `build` ignore `--base`,
- * `--shots`, `--width` and `--max-shots`, `build` ignores `--root` without
- * `--live`, and `diff` without `--shots` ignores `--width`, `--max-shots` and
- * `--root`.
+ * the others: `build` ignores `--port`, `dev` and `build` ignore `--shots`,
+ * `--width` and `--max-shots`, `build` ignores `--root` without `--live`, and
+ * `diff` without `--shots` ignores `--width`, `--max-shots` and `--root`.
  */
 export function parseArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseNodeArgs({

@@ -85,16 +85,36 @@
  * a text field, a textarea and a contenteditable element, but none when
  * contenteditable is false. In shadcn the rings of a Button, whose outline stays
  * `none` under Tailwind's layered `outline-none`, and of an Input, and in
- * Material UI the hover background of a button. No request to the site may
- * fail and the page may throw no error. Remote requests are answered locally,
- * so remote fonts never decide the result. Before Chromium starts, every file
- * of site/ is read as bytes, and none may name the checkout or the home
- * directory. Run after `pnpm site:build`.
+ * Material UI the hover background of a button. No viewer of site/ has a
+ * base: none requests a `changes.json` or shows a change mark, the Changed
+ * filter or the changes chip, and `#changed=1` drops out of the link with
+ * every test shown. Then the shadcn pair site, which `describe-me build
+ * --base --live` builds into a temp directory from `.describe-me` and the
+ * SHADCN_CHANGED=1 run, recorded first when it is missing: `__base/` names
+ * the project by the id of `__data/`, `__data/changes.json` is the report of
+ * `describe-me diff --out`, `index.html` has the `describe-me-changes` meta
+ * and no file names the checkout or the home directory. Its sidebar marks the
+ * 16 changed tests, 10 `dom` and 6 `css`, every module row and both group
+ * rows, its header says 16 changed, and the timeline of Card and of an Input
+ * test marks the frames of the report. With a routed report and manifest the
+ * Changed filter shows 3, combines with the search and a tag, is `changed=1`
+ * in the link and names itself when nothing matches, the header counts 2
+ * changed, 1 added and 1 removed and lists the removed test as text, a test
+ * picked under the filter by a click, by ↓ or from `#changed=1` alone opens
+ * recorded at its first change, a click without the filter opens Live, and a
+ * report for another run or a body that is no JSON marks nothing. No request
+ * to the site may fail and the page may throw no error. Remote requests are
+ * answered locally, so remote fonts never decide the result. Before Chromium
+ * starts, every file of site/ is read as bytes, and none may name the
+ * checkout or the home directory. Run after `pnpm site:build`.
  *
  * Usage: `node scripts/check-site.mjs`
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { checkNoBaseViewers, checkPairSite } from './check-site/changes-steps.mjs'
+import { preparePairSite } from './check-site/pair-site.mjs'
 import { exampleNames } from './docs/example-names.mjs'
 import { launchChromium } from './docs/launch-chromium.mjs'
 import { machinePathsIn } from './docs/machine-paths-in.mjs'
@@ -5251,10 +5271,17 @@ if (scanned.problems.length === 0) {
 }
 
 const { server, url } = await serveStatic(SITE)
+const pairTemp = mkdtempSync(join(tmpdir(), 'describe-me-site-'))
+let pair = { problems: [] }
+let pairServer = null
 let browser = null
 let problems = [...scanned.problems]
 
 try {
+  pair = preparePairSite(pairTemp, SITE, exampleNames)
+  problems.push(...pair.problems)
+  pairServer = pair.site === undefined ? null : await serveStatic(pair.site)
+
   // Grayscale text. With LCD text, the edge of a glyph in a frame gets colored
   // fringes or not depending on how Chromium composites the stage, which a
   // theme switch can change, and a comparison of pixels would see that.
@@ -5267,6 +5294,12 @@ try {
 
   for (const name of exampleNames) {
     problems.push(...(await checkViewer(context, url, name)))
+  }
+
+  problems.push(...(await checkNoBaseViewers(browser, url, SITE, exampleNames)))
+
+  if (pairServer !== null) {
+    problems.push(...(await checkPairSite(browser, pairServer.url, pair)))
   }
 
   problems.push(...(await checkTags(context, url)))
@@ -5308,6 +5341,9 @@ try {
   await browser?.close()
   server.closeAllConnections()
   server.close()
+  pairServer?.server.closeAllConnections()
+  pairServer?.server.close()
+  rmSync(pairTemp, { recursive: true, force: true })
 }
 
 for (const problem of problems) {
@@ -5319,5 +5355,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests, filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, show react-browser's sidebar groups and none in the other viewers, hide and show the side panels and let the viewer theme pick the stage only under auto`,
+  `check-site: ok — no file names the checkout or the home directory, docs.css applies, ${exampleNames.length} viewers load their tests and show no changes without a base, the shadcn pair site built with --base marks changed tests, files, groups and frames, counts them in the header, filters by Changed with changed=1 in the link and opens a test at its first change instead of Live, the viewers filter by a tag, fold long props tables, paint every gallery of an overview, replay hover and focus, mount one in Live, open a test in Live by default, show Live loading, set the stage background, its page color, its note and its dark variant, keep a resized sidebar per project, show react-browser's sidebar groups and none in the other viewers, hide and show the side panels and let the viewer theme pick the stage only under auto`,
 )

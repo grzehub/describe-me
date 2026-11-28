@@ -6,7 +6,9 @@
  * against `FontAudit`, the allowlist, all-or-nothing stylesheets, redirects,
  * the cache, offline and repeated runs, 0.4 data, and `foundations.json`,
  * whose stored sheets must name the moved chunks and whose inline sheets the
- * vendored fonts.
+ * vendored fonts. Then `describe-me build --base`, run in this process: it
+ * vendors `__data/`, then the copy of the base in `__base/`, prints a line
+ * for each, and leaves both source directories as they were.
  * A fake fetch serves in-memory fixtures and the global fetch throws. Every
  * run works on its own copy of a fixture data directory. Run after
  * `pnpm build`.
@@ -32,11 +34,14 @@ import { FontAudit } from '../packages/vitest/dist/font-audit.js'
 import { CHROME_USER_AGENT } from '../packages/viewer/dist-cli/chrome-user-agent.js'
 import { findRemoteUrls } from '../packages/viewer/dist-cli/find-remote-urls.js'
 import { parseArgs } from '../packages/viewer/dist-cli/parse-args.js'
+import { runBuild } from '../packages/viewer/dist-cli/run-build.js'
 import { vendorFonts } from '../packages/viewer/dist-cli/vendor-fonts.js'
 
-globalThis.fetch = () => {
+function networkOff() {
   throw new Error('check-vendor-fonts: the real network is off')
 }
+
+globalThis.fetch = networkOff
 
 const ASSET_URL = /describe-me-asset:([0-9a-f]{16}\.[a-z0-9]+)/g
 const ASSET_CSS_HREF = /^describe-me-asset:[0-9a-f]{16}\.css$/
@@ -401,8 +406,7 @@ function writeFiles(root, files) {
 }
 
 /** A data directory as the reporter writes it, with remote fonts in every place they occur. */
-function fixture() {
-  const dir = tempDir()
+function fixture(dir = tempDir()) {
   writeFiles(dir, {
     'manifest.json': JSON.stringify({ ...MANIFEST_REST, head: headWith(HEAD_AS_WRITTEN) }, null, 2),
     'snapshots/a.json': JSON.stringify(SNAPSHOT_A),
@@ -1214,6 +1218,115 @@ async function checkFoundations(cacheDir) {
   })
 }
 
+/** The fixture at `dir` with `root` and the fields of a test that `describe-me diff` reads. */
+function runFixture(dir, root) {
+  fixture(dir)
+
+  const file = join(dir, 'manifest.json')
+  const manifest = JSON.parse(readFileSync(file, 'utf8'))
+
+  manifest.root = root
+
+  for (const test of manifest.modules[0].tests) {
+    Object.assign(test, { id: 'card-renders', name: 'renders', path: ['Card'] })
+  }
+
+  writeFileSync(file, JSON.stringify(manifest, null, 2))
+}
+
+/** Whether the head of a site directory's manifest links a vendored stylesheet of stored fonts. */
+function headVendored(siteDir) {
+  if (!existsSync(join(siteDir, 'manifest.json'))) {
+    return false
+  }
+
+  const { head } = JSON.parse(readText(siteDir, 'manifest.json'))
+  const [name] = assetNamesIn(head)
+
+  if (name === undefined || head !== headWith(`describe-me-asset:${name}`)) {
+    return false
+  }
+
+  const { urls, stored } = siblingsOf(siteDir, name)
+
+  return urls.length > 0 && stored && urls.every((url) => isFontAsset(siteDir, url))
+}
+
+/**
+ * `describe-me build --base`, in this process so that the fake fetch serves
+ * its downloads. The build logs through `console.log`, which is kept here.
+ */
+async function checkBuildBase() {
+  const project = tempDir()
+  const data = join(project, '.describe-me')
+  const base = join(project, '.describe-me-base')
+  const out = join(project, 'site')
+  const lines = []
+  const log = console.log
+
+  // The build caches fonts in the nearest node_modules, so this one keeps them in the temp dir.
+  mkdirSync(join(project, 'node_modules'))
+  runFixture(data, '/project')
+  runFixture(base, '/elsewhere')
+
+  const sources = [treeOf(data), treeOf(base)]
+
+  globalThis.fetch = fakeFetch([])
+  console.log = (...args) => lines.push(args.join(' '))
+
+  try {
+    await withinSeconds(60, runBuild(data, out, { vendorFonts: true, live: false, base }))
+  } finally {
+    console.log = log
+    globalThis.fetch = networkOff
+  }
+
+  const vendored = lines.filter((line) => line.startsWith('describe-me: vendored '))
+
+  await check(
+    'build --base: one vendored line into __data/assets, then the same into __base/assets',
+    () => ({
+      passed:
+        vendored.length === 2 &&
+        vendored[0].endsWith(' into __data/assets') &&
+        vendored[1] === vendored[0].replace(' into __data/assets', ' into __base/assets'),
+      detail: vendored.join(' | '),
+    }),
+  )
+
+  await check(
+    'build --base: the heads of __data and __base link vendored stylesheets of stored fonts',
+    () => ({
+      passed: headVendored(join(out, '__data')) && headVendored(join(out, '__base')),
+      detail: `__data ${headVendored(join(out, '__data'))}, __base ${headVendored(join(out, '__base'))}`,
+    }),
+  )
+
+  await check('build --base: the snapshots of __base are vendored as those of __data', () => {
+    const differing = ['a', 'b', 'c'].filter((name) => {
+      const path = `snapshots/${name}.json`
+      const vendoredBase = readText(join(out, '__base'), path)
+
+      return (
+        vendoredBase !== readText(join(out, '__data'), path) ||
+        vendoredBase === readText(base, path)
+      )
+    })
+
+    return {
+      passed: differing.length === 0,
+      detail: differing.length === 0 ? '3 snapshots' : `not vendored: ${differing.join(', ')}`,
+    }
+  })
+
+  await check('build --base leaves both source directories as they were', () => {
+    const data = sameTree(sources[0], treeOf(join(project, '.describe-me')))
+    const base = sameTree(sources[1], treeOf(join(project, '.describe-me-base')))
+
+    return { passed: data.passed && base.passed, detail: `${data.detail}, ${base.detail}` }
+  })
+}
+
 try {
   await checkParseArgs()
   await checkFindRemoteUrls()
@@ -1239,6 +1352,7 @@ try {
   await checkOffline()
   await checkLegacy(cacheDir)
   await checkFoundations(cacheDir)
+  await checkBuildBase()
 } finally {
   for (const dir of directories) {
     rmSync(dir, { recursive: true, force: true })

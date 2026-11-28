@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { changesJson } from './changes-json.js'
 import type { ChangesReport } from './changes-report.js'
 import { changesMarkdown } from './changes-markdown.js'
 import { changesSentence } from './changes-sentence.js'
@@ -80,7 +81,7 @@ function writeReport(out: string, report: ChangesReport, images: ShotImage[] = [
     writeFileSync(join(out, image.file), image.png)
   }
 
-  writeFileSync(join(out, 'changes.json'), `${JSON.stringify(report, null, 2)}\n`)
+  writeFileSync(join(out, 'changes.json'), changesJson(report))
   writeFileSync(join(out, 'changes.md'), changesMarkdown(report))
 }
 

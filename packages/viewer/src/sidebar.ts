@@ -1,4 +1,7 @@
 import type { ManifestModule, ManifestTest } from '@describe-me/core/types'
+import type { ChangeKind } from '../cli/changes-report.js'
+import type { ChangeMark } from './change-marks.js'
+import { changeMarks } from './change-marks.js'
 import { CollapsedSuites } from './collapsed-suites.js'
 import { el } from './el.js'
 import { filterActive } from './filter-active.js'
@@ -8,7 +11,8 @@ import { matchesFilter } from './matches-filter.js'
 import { shownTags } from './shown-tags.js'
 import { sidebarTree, type GroupNode } from './sidebar-tree.js'
 import { soleSuite } from './sole-suite.js'
-import { select, selectSuite, state } from './state.js'
+import { selectAtChange } from './select-at-change.js'
+import { selectSuite, state } from './state.js'
 import { suiteKey } from './suite-key.js'
 import { testShown } from './test-shown.js'
 import { buildTree, type SuiteNode } from './tree.js'
@@ -18,6 +22,77 @@ interface Walk {
   mod: ManifestModule
   collapsed: CollapsedSuites | null
   onToggle: () => void
+}
+
+const CONTAINER_LABELS = {
+  changed: 'holds a test changed against the base',
+  added: 'holds a test added against the base',
+}
+
+/** `changed` when one of `tests` changed against the base, else `added` when one was added. */
+function changeIn(tests: ManifestTest[]): 'changed' | 'added' | null {
+  const marks = changeMarks(state.changes)
+  let added = false
+
+  if (marks.size === 0) {
+    return null
+  }
+
+  for (const test of tests) {
+    const change = marks.get(test.id)?.change
+
+    if (change === 'changed') {
+      return 'changed'
+    }
+
+    added ||= change === 'added'
+  }
+
+  return added ? 'added' : null
+}
+
+function testsUnder(node: SuiteNode): ManifestTest[] {
+  return node.children.flatMap((child) => ('suites' in child ? testsUnder(child) : [child]))
+}
+
+function testsInGroup(node: GroupNode): ManifestTest[] {
+  return [...node.groups.flatMap(testsInGroup), ...node.modules.flatMap((mod) => mod.tests)]
+}
+
+/** The mark at the end of a row. `kind` makes a test's mark quieter when only its CSS changed. */
+function changeMark(change: 'changed' | 'added', label: string, kind?: ChangeKind): HTMLElement {
+  const attrs: Record<string, string> = {
+    class: 'change-mark',
+    role: 'img',
+    'aria-label': label,
+    title: label,
+    'data-change': change,
+  }
+
+  if (kind !== undefined) {
+    attrs['data-kind'] = kind
+  }
+
+  return el('span', attrs)
+}
+
+/** The mark of a module, suite or group row, collapsed or not, for every test inside it. */
+function containerMark(tests: ManifestTest[]): HTMLElement | null {
+  const change = changeIn(tests)
+
+  return change === null ? null : changeMark(change, CONTAINER_LABELS[change])
+}
+
+function testMark(mark: ChangeMark): HTMLElement {
+  if (mark.change === 'added') {
+    return changeMark('added', 'added against the base')
+  }
+
+  if (mark.kind === 'css') {
+    return changeMark('changed', 'changed only in CSS against the base', 'css')
+  }
+
+  return changeMark('changed', 'changed against the base', mark.kind)
 }
 
 /** Opens or closes a module or suite. It never opens the overview. */
@@ -50,7 +125,12 @@ function headerRow(button: HTMLElement, label: string, key: string, walk: Walk):
 }
 
 /** The header of a module block: the describe it holds, over the file it came from. */
-function moduleButton(name: string | null, file: string, key: string): HTMLElement {
+function moduleButton(
+  name: string | null,
+  file: string,
+  key: string,
+  mark: HTMLElement | null,
+): HTMLElement {
   return el(
     'button',
     {
@@ -60,10 +140,11 @@ function moduleButton(name: string | null, file: string, key: string): HTMLEleme
     },
     name ? el('span', { class: 'module-name' }, name) : null,
     el('span', { class: 'module-path' }, file),
+    mark,
   )
 }
 
-function suiteButton(label: string, key: string): HTMLElement {
+function suiteButton(label: string, key: string, mark: HTMLElement | null): HTMLElement {
   return el(
     'button',
     {
@@ -72,6 +153,7 @@ function suiteButton(label: string, key: string): HTMLElement {
       title: `overview of ${label}`,
     },
     label,
+    mark,
   )
 }
 
@@ -87,17 +169,29 @@ function tagChips(test: ManifestTest): HTMLElement | null {
 }
 
 function testButton(test: ManifestTest): HTMLElement {
+  const mark = changeMarks(state.changes).get(test.id)
+  const attrs: Parameters<typeof el>[1] = {
+    class: `test${testShown() && test.id === state.testId ? ' active' : ''}`,
+    click: () => selectAtChange(test.id, 'push'),
+    title: test.fullName,
+  }
+
+  if (mark !== undefined) {
+    attrs['data-change'] = mark.change
+  }
+
+  if (mark?.kind !== undefined) {
+    attrs['data-kind'] = mark.kind
+  }
+
   return el(
     'button',
-    {
-      class: `test${testShown() && test.id === state.testId ? ' active' : ''}`,
-      click: () => select(test.id),
-      title: test.fullName,
-    },
+    attrs,
     el('span', { class: `dot ${test.state}` }),
     el('span', { class: 'test-name' }, test.name),
     tagChips(test),
     el('span', { class: 'n' }, String(test.frames.length)),
+    mark === undefined ? null : testMark(mark),
   )
 }
 
@@ -125,7 +219,8 @@ function renderRows(node: SuiteNode, path: string[], walk: Walk): DocumentFragme
 /** A suite and its rows, or `null` when a filter leaves nothing in it. */
 function renderSuite(node: SuiteNode, path: string[], walk: Walk): HTMLElement | null {
   const key = suiteKey(walk.mod.id, path)
-  const header = headerRow(suiteButton(node.name, key), node.name, key, walk)
+  const button = suiteButton(node.name, key, containerMark(testsUnder(node)))
+  const header = headerRow(button, node.name, key, walk)
 
   if (walk.collapsed?.has(key)) {
     return el('div', { class: 'suite' }, header)
@@ -152,7 +247,7 @@ function renderModule(
   const path = only ? [only.name] : []
   const key = suiteKey(mod.id, path)
   const header = headerRow(
-    moduleButton(only?.name ?? null, mod.id, key),
+    moduleButton(only?.name ?? null, mod.id, key, containerMark(mod.tests)),
     only?.name ?? mod.id,
     key,
     walk,
@@ -180,8 +275,9 @@ function groupRow(
   onToggle: () => void,
 ): HTMLElement {
   const name = el('span', { class: 'group-name' }, node.name)
+  const mark = containerMark(testsInGroup(node))
   if (!collapsed) {
-    return el('div', { class: 'group-row', title: node.name }, name)
+    return el('div', { class: 'group-row', title: node.name }, name, mark)
   }
 
   const key = groupKey(node.path)
@@ -199,6 +295,7 @@ function groupRow(
     },
     el('span', { class: 'group-arrow', 'aria-hidden': 'true' }),
     name,
+    mark,
   )
 }
 
@@ -236,17 +333,18 @@ function renderGroup(
   return el('div', block, row, el('div', { class: 'group-body' }, ...blocks))
 }
 
-/** What the empty sidebar says, naming the search, the tag or both. */
+/** What the empty sidebar says, naming the Changed filter, the search, the tag or several. */
 function noMatches(): string {
   const query = state.query.trim()
+  const tests = state.changed ? 'changed tests' : 'tests'
 
   if (state.tag === null) {
-    return `no tests match "${query}"`
+    return query ? `no ${tests} match "${query}"` : `no ${tests}`
   }
 
   return query
-    ? `no tests tagged "${state.tag}" match "${query}"`
-    : `no tests tagged "${state.tag}"`
+    ? `no ${tests} tagged "${state.tag}" match "${query}"`
+    : `no ${tests} tagged "${state.tag}"`
 }
 
 /**

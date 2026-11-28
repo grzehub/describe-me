@@ -1040,7 +1040,11 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                 <td>the viewer's Vite config in <code>describe-me</code></td>
                 <td>
                   The data directory of the base run, served under <code>/__base</code> when it is
-                  set. <code>describe-me diff --shots</code> sets it. Pass
+                  set, and copied to <code>__base/</code> by a build.
+                  <code>describe-me dev --base</code>, <code>describe-me build --base</code> and
+                  <code>describe-me diff --shots</code> set it, and <code>dev</code> and
+                  <code>build</code> without <code>--base</code> clear it, so a value left in the
+                  shell changes nothing. Pass
                   <a href="viewer.html#flag-base"><code>--base</code></a> instead of setting it.
                 </td>
               </tr>
@@ -1169,7 +1173,8 @@ recorder.configure({ renderFrame: 'lazy' })</code></pre>
                   <code>node_modules/.describe-me-changed</code>, so <code>.describe-me/</code>
                   keeps the default run, and the two are a pair for
                   <a href="changes.html"><code>describe-me diff</code></a
-                  >. <code>pnpm check-diff</code> sets it.
+                  >. <code>pnpm check-diff</code> sets it, and <code>pnpm check-site</code> sets it
+                  when that run is missing.
                 </td>
               </tr>
             </tbody>
