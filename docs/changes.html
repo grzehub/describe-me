@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Comparing runs · describe-me docs</title>
+    <meta
+      name="description"
+      content="describe-me diff compares two runs of your tests and lists the tests, frames and props that changed, in the terminal or as a pull request comment."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Comparing runs · describe-me docs" />
+    <meta
+      property="og:description"
+      content="describe-me diff compares two runs of your tests and lists the tests, frames and props that changed, in the terminal or as a pull request comment."
+    />
+    <meta property="og:url" content="https://grzehub.github.io/describe-me/changes.html" />
+    <meta property="og:image" content="https://grzehub.github.io/describe-me/og.png" />
+    <meta property="og:image:width" content="2400" />
+    <meta property="og:image:height" content="1260" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="favicon.svg" />
+    <link rel="stylesheet" href="docs.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="index.html"
+        >describe<span class="me">(me)</span> <span class="muted">docs</span></a
+      >
+      <div class="facts">
+        <span class="badge early">early</span>
+        <span class="version">v0.12.2</span>
+        <span>browser mode · jsdom</span>
+        <span>Live · Foundations</span>
+      </div>
+      <div class="facts right">
+        <a href="examples.html">Examples</a>
+        <a href="https://www.npmjs.com/package/describe-me">npm</a>
+        <a href="https://github.com/grzehub/describe-me">GitHub</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" aria-label="Documentation">
+        <p class="group">Start</p>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="examples.html">Examples</a></li>
+          <li><a href="why.html">Why describe-me</a></li>
+        </ul>
+        <p class="group">Setup</p>
+        <ul>
+          <li><a href="installation.html">Installation</a></li>
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="environments.html">Environments</a></li>
+        </ul>
+        <p class="group">Use</p>
+        <ul>
+          <li><a href="writing-stories.html">Writing stories</a></li>
+          <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
+          <li><a href="foundations.html">Foundations</a></li>
+          <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html" aria-current="page">Comparing runs</a></li>
+          <li><a href="troubleshooting.html">Troubleshooting</a></li>
+        </ul>
+        <p class="group">Reference</p>
+        <ul>
+          <li><a href="api.html">API</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="performance.html">Performance</a></li>
+          <li><a href="limitations.html">Limitations</a></li>
+        </ul>
+      </nav>
+
+      <main class="page">
+        <header class="page-head">
+          <h1>Comparing runs</h1>
+        </header>
+
+        <p class="lead">
+          <code>describe-me diff</code> compares two runs of your tests and lists what changed. It
+          reports and never fails. The viewer can show the same changes (<a href="#viewer"
+            >in the viewer</a
+          >).
+        </p>
+
+        <h2 id="base">
+          A base run <a class="anchor" href="#base" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          The command reads two data directories that the reporter wrote: the base, a run from
+          before a change, and the current run. Two things keep the comparison honest:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Run the whole suite on both sides.</strong> A filtered run keeps the entries of
+            the tests it skipped from the run before, so they would compare as unchanged.
+          </li>
+          <li>
+            <strong>Compare the directories the reporter wrote</strong>, never the
+            <code>__data/</code> of a built site. <code>describe-me build</code> rewrites the
+            snapshots in its copy when it downloads fonts.
+          </li>
+        </ul>
+
+        <p>Locally, keep a copy of the data from before the change:</p>
+
+        <ol class="steps">
+          <li>
+            <strong>Before the change</strong> Run the tests, then copy their output:
+            <code>cp -r .describe-me .describe-me-base</code>.
+          </li>
+          <li><strong>After the change</strong> Run the tests again.</li>
+          <li>
+            <strong>Compare</strong> <code>npx describe-me diff --base .describe-me-base</code>, or
+            see the changes in the viewer with
+            <code>npx describe-me dev --base .describe-me-base</code> (<a href="#viewer"
+              >in the viewer</a
+            >).
+          </li>
+        </ol>
+
+        <p>Keep the copy out of git, as the data directory itself:</p>
+
+        <p class="file">.gitignore</p>
+        <pre><code>.describe-me
+.describe-me-base</code></pre>
+
+        <p>
+          In CI, one job can record both sides of a pull request (<a href="#ci"
+            >a pull request comment</a
+          >).
+        </p>
+
+        <p>
+          The shadcn/ui example records a second run of its tests with
+          <a href="configuration.html#env-SHADCN_CHANGED"><code>SHADCN_CHANGED=1</code></a
+          >, and <code>pnpm check-diff</code> compares the two.
+        </p>
+
+        <h2 id="command">
+          The command <a class="anchor" href="#command" aria-label="Link to this section">#</a>
+        </h2>
+
+        <pre><code>describe-me diff --base &lt;dir&gt; [--data .describe-me]
+                 [--out &lt;dir&gt; [--shots] [--width 480] [--max-shots 20] [--root &lt;dir&gt;]]</code></pre>
+
+        <p>
+          <code>--base</code> is the run to compare against, <code>--data</code> the current run.
+          <code>--shots</code> and its flags add <a href="#shots">before and after images</a>. The
+          flags are in <a href="viewer.html#cmd-diff">Viewer and CLI</a>.
+        </p>
+
+        <ul>
+          <li>
+            <strong>Without <code>--out</code></strong> it prints a summary and writes no file: one
+            sentence with the counts, the tests whose DOM or state changed by file, the changed
+            props, the added, removed and moved tests, and how many tests changed only in CSS.
+          </li>
+          <li>
+            <strong>With <code>--out &lt;dir&gt;</code></strong> it writes
+            <a href="#files"><code>changes.json</code> and <code>changes.md</code></a> there and
+            prints the sentence and where the files went. It creates the directory when it is
+            missing and never empties it.
+          </li>
+          <li>
+            <strong>With <code>--out &lt;dir&gt; --shots</code></strong> it also writes an image of
+            each test that looks different (<a href="#shots">before and after images</a>).
+          </li>
+          <li>
+            <strong>The exit code is 0</strong> whenever it could compare, whatever changed. There
+            is no threshold and no flag that turns a change into a failure.
+          </li>
+        </ul>
+
+        <p>
+          It exits with code 1 only without <code>--base</code>, when it cannot read a run, or with
+          <code>--shots</code> when a flag is out of range or Playwright or its Chromium is missing.
+          It writes nothing then and prints one of these. The paths of the runs are as you typed
+          them. The Playwright message names the project root as an absolute path, and the Chromium
+          message quotes the first line of Playwright's reason:
+        </p>
+
+        <pre>
+describe-me: diff needs --base &lt;dir&gt;, the data directory of the run to compare against
+describe-me: no manifest at .describe-me-base/manifest.json
+describe-me: cannot read .describe-me/manifest.json: not valid JSON
+describe-me: .describe-me/manifest.json is not a describe-me manifest
+describe-me: cannot read .describe-me/snapshots/3f2a9c1d0b7e4a55.json
+describe-me: .describe-me/manifest.json names a snapshot outside .describe-me
+describe-me: --shots needs --out &lt;dir&gt;, where the images go
+describe-me: --width needs a whole number of CSS pixels from 200 to 1920, got "abc"
+describe-me: --max-shots needs a whole number from 0, got "x"
+describe-me: --shots needs Playwright, and cannot find it from /projects/app. Run npm install -D playwright and npx playwright install chromium in the project, or pass --root with a project that has it.
+describe-me: cannot start Chromium for --shots (browserType.launch: Executable doesn't exist at …). Run npx playwright install chromium in the project.</pre>
+
+        <h2 id="kinds">
+          What counts as a change
+          <a class="anchor" href="#kinds" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <strong>Tests</strong> match by their id, which comes from the file, the suite path and
+          the name. A manifest written before 0.5 gets the same ids. A test in both runs is
+          <code>changed</code> when its snapshots or its state differ. A test in one run only is
+          <code>added</code> or <code>removed</code>.
+        </p>
+
+        <p>
+          <strong>Moved</strong> is a removed and an added test with exactly the same snapshots in
+          the same order, such as a renamed test or one moved to another file. A moved test whose
+          CSS changed as well shows as removed and added. Tests without frames never pair.
+        </p>
+
+        <p>
+          <strong>Frames</strong> match by content. Snapshot files are named after their content, so
+          a frame with the same name is unchanged. The frames between them pair by their DOM, so one
+          step added in the middle of a test is one added frame, also when a new class changed the
+          global stylesheet of every frame.
+        </p>
+
+        <div class="scroll">
+          <table class="fields wide">
+            <thead>
+              <tr>
+                <th>Kind</th>
+                <th>What changed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>dom</code></td>
+                <td>
+                  The serialized DOM, with the stylesheet text left out. That includes attributes
+                  such as <code>class</code> and <code>style</code>, the hover and focus states of a
+                  frame, links, and the content names of images and other assets, so a swapped image
+                  is a <code>dom</code> change. A test is <code>dom</code> when one of its frames
+                  is, or when a frame was added or removed.
+                </td>
+              </tr>
+              <tr>
+                <td><code>css</code></td>
+                <td>
+                  Only the stylesheet text. One new Tailwind class changes the global sheet, so
+                  every frame changes its name, and the tests that do not use the class are
+                  <code>css</code>. <code>changes.md</code> folds them.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <strong>A state change</strong>, such as <code>passed</code> to <code>failed</code> with
+          the same frames, is a change of its own and shows with the DOM changes. Labels, timings,
+          <code>meta</code>, tags, errors and the rendered component are no change.
+        </p>
+
+        <p>
+          <strong>Props</strong> count for the components in both runs: a prop added or removed, or
+          with another type, another default, or now required or optional. Descriptions do not
+          count. A component in one run only is not listed, because its tests show as added or
+          removed. The props come from the component files as they were when the tests ran.
+        </p>
+
+        <p>
+          <strong>Versions.</strong> When the manifests name different versions of
+          <code>@describe-me/vitest</code>, or only one names its version, the report says so. Some
+          changes may then come from the update rather than from your code.
+        </p>
+
+        <h2 id="files">
+          changes.json and changes.md
+          <a class="anchor" href="#files" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <code>changes.json</code> holds the whole report. Its paths are relative to each run's
+          directory, so it names no machine. These are its fields:
+        </p>
+
+        <div class="scroll">
+          <table class="fields">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>What it holds</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="changes-version">
+                <td><code>version</code></td>
+                <td>
+                  <code>1</code>. A later release may add fields to version 1, never remove or
+                  change one.
+                </td>
+              </tr>
+              <tr id="changes-base">
+                <td><code>base</code></td>
+                <td>
+                  The <code>generator</code> and <code>generatedAt</code> of the base's manifest.
+                  <code>generator</code> is absent for a manifest written before 0.5.1.
+                </td>
+              </tr>
+              <tr id="changes-head">
+                <td><code>head</code></td>
+                <td>The same for the current run.</td>
+              </tr>
+              <tr id="changes-versionsDiffer">
+                <td><code>versionsDiffer</code></td>
+                <td>
+                  <code>true</code> when the manifests name different versions, or only one names
+                  its version.
+                </td>
+              </tr>
+              <tr id="changes-counts">
+                <td><code>counts</code></td>
+                <td>
+                  <code>tests</code>: <code>changed</code>, and of those <code>dom</code> and
+                  <code>css</code>, then <code>added</code>, <code>removed</code>,
+                  <code>moved</code> and <code>unchanged</code>. <code>frames</code>: the same
+                  without <code>moved</code>, every frame of an added or removed test included.
+                </td>
+              </tr>
+              <tr id="changes-tests">
+                <td><code>tests</code></td>
+                <td>
+                  One entry per changed, added and moved test in the order of the current run, then
+                  the removed tests in the order of the base. Each has its <code>change</code>,
+                  <code>id</code>, <code>module</code> and <code>fullName</code>, a
+                  <code>kind</code> when its frames changed, a <code>state</code> when its state
+                  did, <code>from</code> when it moved, and its changed, added and removed
+                  <code>frames</code> with their index, label and snapshot on each side. With
+                  <code>--shots</code>, each changed frame has a <code>look</code>,
+                  <code>same</code> or <code>different</code>, absent when a side did not render. A
+                  changed test has <code>look</code> <code>different</code> when one of its frames
+                  does, and <code>same</code> when all of them do and no frame was added or removed.
+                  A test with an image has <code>shot</code>: the <code>file</code> in
+                  <code>--out</code> and the index of the <code>frame</code> it shows in the current
+                  run.
+                </td>
+              </tr>
+              <tr id="changes-components">
+                <td><code>components</code></td>
+                <td>
+                  The components whose props changed, by name, each with its
+                  <code>props</code>: name, <code>change</code>, and the type, whether it is
+                  required and the default on each side.
+                </td>
+              </tr>
+              <tr id="changes-shots">
+                <td><code>shots</code></td>
+                <td>
+                  Only with <code>--shots</code>: the <code>width</code> of the frames in CSS
+                  pixels, their <code>pixelRatio</code>, <code>maxShots</code>, how many distinct
+                  <code>pairs</code> of changed frames it compared, how many of them look different
+                  (<code>differentPairs</code>) or have a side that did not render
+                  (<code>failedPairs</code>), and how many <code>images</code> it wrote.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          <code>changes.md</code> is the body of a pull request comment. It starts with the line
+          <code>&lt;!-- describe-me:changes --&gt;</code>,
+          <a href="#ci">by which a workflow can find its earlier comment</a>, and the sentence with
+          the counts. Then come the version note, the sections Changed, Props, Added, Removed and
+          Moved, and last the tests that changed only in CSS, folded. With <code>--shots</code> the
+          section Looks different comes first, with the images, and the folded tests are the
+          CSS-only ones that look the same (<a href="#shots">the three groups</a>). Names from the
+          manifest are in code spans, so a test name cannot mention anyone or render HTML. The file
+          stays within 65,536 characters, GitHub's limit for a comment. When the lists do not fit,
+          each is cut and ends with <code>- and N more</code>. GitHub counts a comment with images
+          after gh swapped each <code>./&lt;file&gt;.png</code> for a longer URL, so a file that was
+          cut and shows images can be too long to post (<a href="#ci">a pull request comment</a>). A
+          shortened sample:
+        </p>
+
+        <p class="file">changes.md</p>
+        <pre><code>&lt;!-- describe-me:changes --&gt;
+
+16 of 16 tests changed (6 only in CSS).
+
+### Changed
+
+`src/components/ui/button.test.tsx`
+
+- `Button &gt; renders the default variant`: 1 frame changed
+- `Button &gt; highlights a ghost button on hover`: 2 frames changed
+
+`src/components/ui/feedback.test.tsx`
+
+- `Badge &gt; renders every variant`: 1 frame changed
+
+&lt;details&gt;&lt;summary&gt;6 tests changed only in CSS&lt;/summary&gt;
+
+`src/components/ui/form-controls.test.tsx`
+
+- `Input &gt; renders a placeholder`: 1 frame changed
+
+&lt;/details&gt;</code></pre>
+
+        <h2 id="shots">
+          Before and after images
+          <a class="anchor" href="#shots" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          With <code>--shots</code> the command renders every changed frame before and after in
+          headless Chromium and compares the pixels. It needs <code>--out</code>, where the images
+          go:
+        </p>
+
+        <pre><code>npx describe-me diff --base .describe-me-base --out changes --shots</code></pre>
+
+        <p>
+          It takes Playwright from your project, so <code>playwright</code> is an optional peer
+          dependency of <code>describe-me</code> and only <code>--shots</code> needs it. Install it
+          and its Chromium once:
+        </p>
+
+        <pre><code>npm install -D playwright
+npx playwright install chromium</code></pre>
+
+        <p>
+          It looks for Playwright from the project root that the current run's manifest names.
+          <code>--root &lt;dir&gt;</code> names another project, such as one in browser mode next to
+          your jsdom project. Playwright and Chromium start only when there is something to render.
+        </p>
+
+        <h3>How a frame renders</h3>
+
+        <ul>
+          <li>
+            From the stored snapshot, through the viewer's own replay code, on a bare page of the
+            viewer on a Vite dev server. Frames render only in <code>describe-me diff</code>, never
+            in a test run.
+          </li>
+          <li>
+            In Chromium, in the light color scheme, <code>--width</code> CSS pixels wide (480 by
+            default) at twice the pixel density.
+          </li>
+          <li>
+            At its natural height, measured as the viewer measures it, up to 1600 CSS pixels.
+            Content that fills the viewport gets 720.
+          </li>
+          <li>
+            After its fonts and images loaded, with transitions off, CSS animations finished and the
+            text caret hidden. A font or stylesheet that failed to load does not stop the frame, but
+            the command warns, because the pair may differ for that alone.
+          </li>
+        </ul>
+
+        <h3>The images and the three groups</h3>
+
+        <p>
+          A pair of changed frames looks different when a single pixel differs. There is no
+          threshold. A test looks different when one of its pairs does, and gets one PNG in
+          <code>--out</code>, <code>&lt;test id&gt;.png</code>. An id that is no safe file name,
+          which the reporter never writes, gives the first 12 hex characters of its SHA-1 instead.
+          The image shows the first such pair in three panels: before, after, and the changed pixels
+          over a dimmed copy of after. Each changed pixel is marked with a few around it, so a
+          change of one pixel still shows when GitHub scales the image down. An added test gets its
+          first render frame alone. A removed or moved test gets none. <code>changes.md</code> then
+          sorts the changed tests into three groups:
+        </p>
+
+        <ul>
+          <li><strong>Looks different</strong> comes first, each test with its image.</li>
+          <li>
+            <strong>Changed</strong> keeps the tests whose DOM changed but look the same, without an
+            image, and the tests with a frame that did not render.
+          </li>
+          <li>
+            <strong>The tests that changed only in CSS and look the same</strong> are folded last.
+          </li>
+        </ul>
+
+        <p>
+          <code>--max-shots</code> caps the images, 20 by default. The tests that look different
+          take them first, in the order of the report, then the added tests. The rest stay listed by
+          name, and the section says how many have no image. <code>--max-shots 0</code> compares and
+          writes no image. <code>--width</code> takes 200 to 1920 CSS pixels.
+        </p>
+
+        <p>
+          <code>--out</code> is never emptied, so images of an earlier run stay there, and
+          <code>changes.md</code> shows only the ones of this run. Nothing else is written: no file
+          next to the viewer, in either data directory or in a temp directory. A frame that does not
+          render gets a warning on stderr, and its pair no <code>look</code>. A shortened sample:
+        </p>
+
+        <p class="file">changes.md</p>
+        <pre><code>&lt;!-- describe-me:changes --&gt;
+
+16 of 16 tests changed (6 only in CSS). 10 of the changed tests look different.
+
+### Looks different
+
+`src/components/ui/button.test.tsx`
+
+- `Button &gt; renders the default variant`: 1 frame changed, 1 looks different
+
+  ![frame 1: before, after and the changed pixels](./e5e1c5cf428e.png)
+
+&lt;details&gt;&lt;summary&gt;6 tests changed only in CSS and look the same&lt;/summary&gt;
+
+`src/components/ui/form-controls.test.tsx`
+
+- `Input &gt; renders a placeholder`: 1 frame changed
+
+&lt;/details&gt;</code></pre>
+
+        <h2 id="viewer">
+          In the viewer <a class="anchor" href="#viewer" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          <code>describe-me dev</code> and <code>describe-me build</code> take the same
+          <code>--base</code>, and the viewer then shows what changed against it. Locally:
+        </p>
+
+        <ol class="steps">
+          <li>
+            <strong>Before the change</strong> Run the tests, then
+            <code>cp -r .describe-me .describe-me-base</code>.
+          </li>
+          <li>
+            <strong>After the change</strong>
+            <code>npx describe-me dev --base .describe-me-base</code>, and run the tests again, in
+            watch mode or not.
+          </li>
+        </ol>
+
+        <p>
+          <code>dev</code> serves the base under <code>/__base</code> and answers
+          <code>/__data/changes.json</code> with the report of <code>describe-me diff</code>. It
+          computes the report again when either manifest changes, and the viewer repaints without a
+          reload. While the current run has no manifest yet, the viewer shows no changes. A base
+          whose manifest cannot be read stops <code>dev</code> with the message of
+          <code>diff</code>.
+        </p>
+
+        <ul>
+          <li>
+            <strong>Marks.</strong> A test that changed gets a mark at the right end of its row, in
+            the warning color, and a test that was added one in the pass color. A test whose CSS
+            alone changed gets a hollow mark, because one change to a global stylesheet marks every
+            test. The rows of the files, suites and groups that hold such a test get a mark too,
+            also while they are closed. A moved test is not marked, because its snapshots are the
+            same.
+          </li>
+          <li>
+            <strong>The Changed filter</strong>, under the search, narrows the sidebar to the tests
+            changed or added and says how many there are. It works with the search and a tag, and it
+            is <code>changed=1</code> in the link. While it is on, a test you pick by a click, by
+            <kbd>↑</kbd> <kbd>↓</kbd> or from the search opens at its first change instead of Live,
+            and so does the first test a link with <code>changed=1</code> and no test opens. The
+            first change can be a frame that only the base has.
+          </li>
+          <li>
+            <strong>The header</strong> counts the tests changed, added and removed. Its panel shows
+            the time of the base run, the removed tests by name and file, and a note when different
+            versions of describe-me recorded the two runs. A removed test is not in the current run,
+            so it cannot be opened.
+          </li>
+          <li>
+            <strong>The frame timeline</strong> marks each changed frame <code>dom</code> or
+            <code>css</code>, as <a href="#kinds">a change</a> counts, and each added frame
+            <code>new</code>. A frame that only the base has is an entry of its own, marked
+            <code>gone</code>.
+          </li>
+        </ul>
+
+        <p>
+          <code>describe-me build --base .describe-me-base</code> puts the base into the site as
+          <code>__base/</code>, with its manifest naming the project by the same id as
+          <code>__data/</code> and its fonts vendored the same way, and writes
+          <code>__data/changes.json</code> as <code>diff --out</code> writes it without
+          <code>--shots</code>. A manifest or snapshot that cannot be read stops the build before it
+          writes anything. A site built without <code>--base</code> has neither file and works as it
+          always did. The viewer fetches the report only when the site's <code>index.html</code>
+          names it.
+        </p>
+
+        <h3 id="viewer-before-after">Before and after on the stage</h3>
+
+        <p>
+          A frame that changed against the base gets a <strong>Before</strong> and an
+          <strong>After</strong> button on the stage's toolbar, right after the Live toggle.
+          <kbd>B</kbd> switches between them too, and Before is <code>before=1</code> in the
+          <a href="viewer.html#links">link</a>.
+        </p>
+
+        <ul>
+          <li>
+            <strong>After</strong>, the frame of the current run, is the default. Another frame,
+            another test and Live show After again.
+          </li>
+          <li>
+            <strong>Before</strong> replays the base run's snapshot from <code>__base/</code>, with
+            the base run's stylesheets, assets and preview head, in place of the current frame. It
+            keeps the viewport size and the zoom, so the frame flips in place and a small change
+            shows as it flips. When the base run's manifest or snapshot does not load, the stage
+            says so.
+          </li>
+          <li>An added frame has only After. Its Before button says the base has no such frame.</li>
+          <li>
+            A frame that only the base has is an entry of its own in the frame timeline, marked
+            <code>gone</code>, after the frame it followed. It has only Before, and its link has
+            <code>removed=&lt;index&gt;</code>, its index in the base run, in place of
+            <code>frame</code>. <kbd>←</kbd> <kbd>→</kbd> step through it like any other frame.
+          </li>
+          <li>Live mounts the test of the current run, so it has no switch.</li>
+        </ul>
+
+        <p>
+          A link with <code>before=1</code> or <code>removed</code> that the report does not back,
+          such as one opened in a viewer without a base, loses them and shows the frame of the
+          current run.
+        </p>
+
+        <h2 id="ci">
+          A pull request comment
+          <a class="anchor" href="#ci" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          A workflow can record your tests on the base of each pull request and on the pull request,
+          and post <code>changes.md</code> with its images as a comment. This one is for a project
+          with one data directory:
+        </p>
+
+        <p class="file">.github/workflows/changes.yml</p>
+        <pre><code>name: changes
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: changes-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      <span class="dim"># The base of the pull request first.</span>
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec vitest run
+        continue-on-error: true
+      - run: cp -R .describe-me "$RUNNER_TEMP/base"
+      <span class="dim"># Then the pull request, merged into its base.</span>
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec vitest run
+        continue-on-error: true
+      - run: pnpm exec describe-me diff --base "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/changes" --shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: describe-me-changes
+          path: ${{ runner.temp }}/changes
+          overwrite: true
+
+  comment:
+    needs: report
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: describe-me-changes
+          path: changes
+      - working-directory: changes
+        env:
+          GH_TOKEN: ${{ secrets.DESCRIBE_ME_COMMENT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "No comment: this run has no token." &gt;&gt; "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          attach=()
+          for file in *.png; do
+            if [ -f "$file" ] &amp;&amp; grep -qF "](./$file)" changes.md; then
+              attach+=(--attach "./$file")
+            fi
+          done
+
+          gh pr comment "$PR" --edit-last --create-if-none --body-file changes.md "${attach[@]}"</code></pre>
+
+        <ul>
+          <li>
+            <strong>Two jobs</strong>, so the token never meets the code the tests run, such as a
+            dependency that the pull request adds. <code>report</code> runs that code with read
+            access and no secret. <code>comment</code> holds the token, checks out nothing and runs
+            nothing from the report.
+          </li>
+          <li>
+            <strong>The base goes first.</strong> The second checkout removes its
+            <code>node_modules</code> and data, so the copy waits in <code>$RUNNER_TEMP</code>, and
+            the install that <code>describe-me diff</code> runs with is the pull request's. Both
+            runs record from the same paths. Without a <code>ref</code>, a
+            <code>pull_request</code> workflow checks out the pull request merged into its base, so
+            the report shows only the pull request's own changes.
+          </li>
+          <li>
+            <strong>Each pass installs Chromium.</strong> Browser mode runs the tests in it, and
+            <code>--shots</code> needs it even in a jsdom project, with <code>playwright</code> as a
+            dev dependency (<a href="#shots">before and after images</a>). The second install takes
+            the Playwright version of the pull request.
+          </li>
+          <li>
+            <strong>A failing test</strong> does not stop the workflow and shows as a state change
+            in the report. Keep your test workflow as the gate.
+          </li>
+          <li>
+            <strong>Images resolve from the report directory.</strong> gh uploads each file of
+            <code>--attach</code> and swaps its <code>./&lt;file&gt;.png</code> in the body for the
+            uploaded image. It appends an attached file that the body does not reference, so the
+            loop attaches only the images <code>changes.md</code> shows.
+          </li>
+        </ul>
+
+        <h3>The token</h3>
+
+        <p>
+          Attaching images takes a classic personal access token with the <code>repo</code> scope,
+          of an account with write access to the repository. Store it as a repository secret, here
+          <code>DESCRIBE_ME_COMMENT_TOKEN</code>. The workflow's own <code>GITHUB_TOKEN</code> posts
+          a comment with text, but cannot attach images with any permissions. gh says:
+        </p>
+
+        <pre>attaching files requires write access to the repository</pre>
+
+        <h3>Limits</h3>
+
+        <ul>
+          <li>
+            Pull requests from forks and from Dependabot run without the repository's secrets, so
+            they get no comment. The comment job ends with a note in its summary, and the report
+            stays in the artifact.
+          </li>
+          <li><code>--attach</code> does not work on GitHub Enterprise Server.</li>
+          <li><code>--attach</code> needs gh 2.99 or later.</li>
+          <li>
+            gh attaches up to 50 files to one comment, so keep <code>--max-shots</code> at 50 or
+            less.
+          </li>
+          <li>
+            A comment with images can be too long to post. <code>describe-me diff</code> cuts
+            <code>changes.md</code> to 65,536 characters with its <code>./&lt;file&gt;.png</code>
+            paths of 18 characters, and GitHub's limit applies after gh swapped each for an
+            attachment URL of 79. So when the lists had to be cut and the body shows images,
+            <code>gh pr comment</code> can fail. The earlier comment then stays as it was, and the
+            report stays in the artifact.
+          </li>
+          <li>
+            <code>--edit-last</code> edits the last comment of the token's account on the pull
+            request, whatever it says. Use an account that comments in those pull requests only for
+            this.
+          </li>
+          <li>An image that an edit replaces stops loading without a login a few minutes later.</li>
+          <li>The sample comments on every pull request, also when nothing changed.</li>
+        </ul>
+
+        <p>
+          This project's
+          <a href="https://github.com/grzehub/describe-me/blob/main/.github/workflows/changes.yml"
+            >changes.yml</a
+          >
+          does the same for four examples, keeps one comment per pull request and edits only a
+          comment that starts with the marker.
+        </p>
+
+        <h2 id="limits">
+          What it does not see
+          <a class="anchor" href="#limits" aria-label="Link to this section">#</a>
+        </h2>
+
+        <p>
+          Without <code>--shots</code> it compares the recorded DOM and stylesheet text, not pixels,
+          so a CSS change that renders the same is still listed, folded with the other CSS-only
+          tests. With <code>--shots</code> it compares pixels too, and only folds the CSS-only tests
+          that paint the same, in
+          <a href="limitations.html#limit-diff-shots-chromium">Chromium only</a>, in
+          <a href="limitations.html#limit-diff-shots-light">the light scheme only</a> and
+          <a href="limitations.html#limit-diff-shots-width">at one width</a>. Either way it does not
+          see:
+        </p>
+
+        <ul>
+          <li>
+            what a <code>&lt;canvas&gt;</code> draws, because snapshots hold
+            <a href="limitations.html#limit-canvas">no canvas pixels</a>
+          </li>
+          <li>
+            an image, font or stylesheet that
+            <a href="limitations.html#limit-diff-remote-files"
+              >another host serves and changes under the same URL</a
+            >
+          </li>
+          <li>
+            the preview head and <code>foundations.json</code>. A frame renders with the preview
+            head of its own run, but a change of the head alone changes no frame, so no frame is
+            rendered for it.
+          </li>
+        </ul>
+
+        <p>
+          It is no gate: there are no thresholds, approvals or baselines in the repository. For
+          visual regression testing as a gate, use a visual testing tool.
+        </p>
+
+        <nav class="pager" aria-label="Pages">
+          <a class="prev" href="viewer.html"><span>Previous</span>Viewer and CLI</a>
+          <a class="next" href="troubleshooting.html"><span>Next</span>Troubleshooting</a>
+        </nav>
+
+        <footer class="page-foot">
+          <a href="https://github.com/grzehub/describe-me/blob/main/docs/changes.html"
+            >Edit this page on GitHub</a
+          >
+        </footer>
+      </main>
+
+      <aside class="toc" aria-label="On this page">
+        <p class="group">On this page</p>
+        <ul>
+          <li><a href="#base">A base run</a></li>
+          <li><a href="#command">The command</a></li>
+          <li><a href="#kinds">What counts as a change</a></li>
+          <li><a href="#files">changes.json and changes.md</a></li>
+          <li><a href="#shots">Before and after images</a></li>
+          <li><a href="#viewer">In the viewer</a></li>
+          <li><a href="#ci">A pull request comment</a></li>
+          <li><a href="#limits">What it does not see</a></li>
+        </ul>
+      </aside>
+    </div>
+  </body>
+</html>

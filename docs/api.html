@@ -58,6 +58,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -1610,13 +1611,23 @@
           <dd>
             Serves the viewer on your output directory and updates it whenever the reporter writes a
             new manifest. It also starts the live preview, which mounts tests in
-            <a href="viewer.html#live">Live</a>.
+            <a href="viewer.html#live">Live</a>. With <code>--base</code> the viewer shows what
+            changed against a base run (<a href="changes.html#viewer">in the viewer</a>).
           </dd>
           <dt><code>build</code></dt>
           <dd>
             Builds a static site: the viewer, with the output directory copied in as
             <code>__data/</code>. With <code>--live</code> it builds the live preview into the site
-            too, so the site shows <a href="viewer.html#live">Live</a>.
+            too, so the site shows <a href="viewer.html#live">Live</a>. With <code>--base</code> it
+            copies the base run in as <code>__base/</code> with the report of <code>diff</code>, so
+            the site shows the changes too.
+          </dd>
+          <dt><code>diff</code></dt>
+          <dd>
+            Compares the output directory with the one of a base run and lists the tests, frames and
+            props that changed, as a summary or as <code>changes.json</code> and
+            <code>changes.md</code>. With <code>--shots</code> it also writes before and after
+            images of the tests that look different. See <a href="changes.html">Comparing runs</a>.
           </dd>
           <dt><code>--help</code></dt>
           <dd>Prints the usage, as does <code>describe-me</code> without a command.</dd>

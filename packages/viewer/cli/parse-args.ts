@@ -1,13 +1,18 @@
 import { parseArgs as parseNodeArgs } from 'node:util'
 
-export type Command = 'dev' | 'build' | 'help'
+export type Command = 'dev' | 'build' | 'diff' | 'help'
 
 export interface CliOptions {
   command: Command
   /** Directory written by the reporter. */
   data: string
-  /** Output directory for `build`. */
-  out: string
+  /** Output directory: the site for `build`, `changes.json` and `changes.md` for `diff`. */
+  out: string | undefined
+  /**
+   * `dev`, `build` and `diff`: the data directory of the run to compare
+   * against. `diff` needs it, and `dev` and `build` show the changes in the viewer.
+   */
+  base: string | undefined
   /** Port for `dev`. */
   port: number
   /** `build`: download web fonts from known font hosts into the site. */
@@ -19,9 +24,16 @@ export interface CliOptions {
   live: boolean
   /**
    * `dev` and `build --live`: the project root of the live preview, instead of
-   * the manifest's root and config file.
+   * the manifest's root and config file. `diff --shots`: the project to load
+   * Playwright from, instead of the manifest's root.
    */
   root: string | undefined
+  /** `diff`: render the changed frames and write images of those that look different. */
+  shots: boolean
+  /** `diff --shots`: the frame width in CSS pixels, as typed, so an error can quote it. */
+  width: string
+  /** `diff --shots`: the most images to write, as typed, so an error can quote it. */
+  maxShots: string
 }
 
 function commandFrom(positional: string | undefined, help: boolean): Command {
@@ -33,13 +45,21 @@ function commandFrom(positional: string | undefined, help: boolean): Command {
     return 'build'
   }
 
+  if (positional === 'diff') {
+    return 'diff'
+  }
+
   return 'dev'
 }
 
 /**
- * Turn `describe-me <command> [--data dir] [--out dir] [--port n] [--no-vendor-fonts]
- * [--live | --no-live] [--root dir]` into options with defaults. `build` ignores
- * `--port`, and `--root` without `--live`.
+ * Turn `describe-me <command> [--data dir] [--out dir] [--base dir] [--port n]
+ * [--no-vendor-fonts] [--live | --no-live] [--root dir] [--shots] [--width n]
+ * [--max-shots n]` into options with defaults. `out` is `describe-me-dist`
+ * for `build` and has no default for `diff`. A command ignores the flags of
+ * the others: `build` ignores `--port`, `dev` and `build` ignore `--shots`,
+ * `--width` and `--max-shots`, `build` ignores `--root` without `--live`, and
+ * `diff` without `--shots` ignores `--width`, `--max-shots` and `--root`.
  */
 export function parseArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseNodeArgs({
@@ -48,12 +68,16 @@ export function parseArgs(argv: string[]): CliOptions {
     allowNegative: true,
     options: {
       data: { type: 'string', default: '.describe-me' },
-      out: { type: 'string', default: 'describe-me-dist' },
+      out: { type: 'string' },
+      base: { type: 'string' },
       port: { type: 'string', default: '6006' },
       help: { type: 'boolean', short: 'h', default: false },
       'vendor-fonts': { type: 'boolean', default: true },
       live: { type: 'boolean' },
       root: { type: 'string' },
+      shots: { type: 'boolean', default: false },
+      width: { type: 'string', default: '480' },
+      'max-shots': { type: 'string', default: '20' },
     },
   })
 
@@ -62,10 +86,14 @@ export function parseArgs(argv: string[]): CliOptions {
   return {
     command,
     data: values.data,
-    out: values.out,
+    out: values.out ?? (command === 'build' ? 'describe-me-dist' : undefined),
+    base: values.base,
     port: Number(values.port),
     vendorFonts: values['vendor-fonts'],
     live: values.live ?? command === 'dev',
     root: values.root,
+    shots: values.shots,
+    width: values.width,
+    maxShots: values['max-shots'],
   }
 }

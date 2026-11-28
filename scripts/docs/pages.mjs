@@ -14,6 +14,7 @@ export const pages = [
   { file: 'styles-and-fonts.html', title: 'Styles and fonts', group: 'Use' },
   { file: 'foundations.html', title: 'Foundations', group: 'Use' },
   { file: 'viewer.html', title: 'Viewer and CLI', group: 'Use' },
+  { file: 'changes.html', title: 'Comparing runs', group: 'Use' },
   { file: 'troubleshooting.html', title: 'Troubleshooting', group: 'Use' },
   { file: 'api.html', title: 'API', group: 'Reference' },
   { file: 'how-it-works.html', title: 'How it works', group: 'Reference' },

@@ -53,8 +53,9 @@ walks through both environments. Keep all describe-me packages on one version
 ## This package
 
 ```sh
-describe-me dev                  # the viewer, repainted while vitest --watch runs
-describe-me build --out docs     # a static site: the viewer and its data
+describe-me dev                              # the viewer, repainted while vitest --watch runs
+describe-me build --out docs                 # a static site: the viewer and its data
+describe-me diff --base .describe-me-base    # what changed against a base run
 ```
 
 `describe-me build --live` adds Live to the site. Read
@@ -66,10 +67,12 @@ GitHub Pages. It needs a web server and does not open from disk. It also
 downloads web fonts from Google Fonts, Bunny Fonts and Fontsource into the
 site, so it shows them offline.
 [Viewer and CLI](https://grzehub.github.io/describe-me/viewer.html) lists every
-flag and what the viewer can do.
+flag and what the viewer can do, and
+[Comparing runs](https://grzehub.github.io/describe-me/changes.html) what `diff` reports and what `dev --base` shows.
 
-`vite` is a peer dependency, which pnpm and npm install on their own. With
-yarn, add it to your `devDependencies`.
+`vite` is a peer dependency, which pnpm and npm install on their own. With yarn,
+add it to your `devDependencies`. `playwright` is an optional peer that only
+`diff --shots` needs.
 
 ## License
 

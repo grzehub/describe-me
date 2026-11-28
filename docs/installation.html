@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -159,6 +160,15 @@
                 <td class="nowrap"><code>^6.4.0 || ^7.0.0 || ^8.0.0</code></td>
                 <td class="nowrap"><code>describe-me</code></td>
                 <td>Required. The CLI runs the viewer on your Vite.</td>
+              </tr>
+              <tr id="version-playwright">
+                <td><code>playwright</code></td>
+                <td class="nowrap"><code>^1.40.0</code></td>
+                <td class="nowrap"><code>describe-me</code></td>
+                <td>
+                  Optional. Only <a href="changes.html#shots"><code>diff --shots</code></a> needs
+                  it.
+                </td>
               </tr>
               <tr id="version-node">
                 <td><code>node</code></td>
@@ -575,6 +585,11 @@ jobs:
 
         <pre><code>      - run: pnpm exec vitest run
         continue-on-error: true</code></pre>
+
+        <p>
+          To comment what changed on each pull request, with before and after images, see
+          <a href="changes.html#ci">A pull request comment</a>.
+        </p>
 
         <h2 id="monorepos">
           Monorepos and projects

@@ -1,0 +1,214 @@
+# Every pull request: records the four examples on the pull request and on
+# its base, runs describe-me diff --shots for each and keeps one comment on the
+# pull request with what changed and before and after images. Two jobs, so the
+# token that comments never meets the code the tests run. report runs the
+# pull request's code with contents: read and no secret. comment holds
+# DESCRIBE_ME_COMMENT_TOKEN, checks out nothing and runs no file of the report.
+name: changes
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 60
+    outputs:
+      changed: ${{ steps.comment-body.outputs.changed }}
+    steps:
+      # The base first, so that the pull request's install and build are the
+      # ones left for describe-me diff, and both sides record from the same paths.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter react-browser exec playwright install --with-deps chromium
+      # A failing test shows as a state change in the report and must not stop
+      # the other examples. ci.yml is the gate.
+      - run: pnpm --filter react-browser test
+        continue-on-error: true
+      - run: pnpm --filter react-jsdom test
+        continue-on-error: true
+      - run: pnpm --filter shadcn test
+        continue-on-error: true
+      - run: pnpm --filter mui test
+        continue-on-error: true
+      - name: Keep the base's data outside the workspace
+        run: |
+          mkdir -p "$RUNNER_TEMP/base"
+
+          for name in react-browser react-jsdom shadcn mui
+          do
+            cp -R "examples/$name/.describe-me" "$RUNNER_TEMP/base/$name"
+          done
+
+      # The pull request merged into its base, the commit ci.yml tests, so the
+      # report shows only the pull request's own changes. clean: true, the
+      # default, removes the base's node_modules and data.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter react-browser exec playwright install --with-deps chromium
+      - run: pnpm --filter react-browser test
+        continue-on-error: true
+      - run: pnpm --filter react-jsdom test
+        continue-on-error: true
+      - run: pnpm --filter shadcn test
+        continue-on-error: true
+      - run: pnpm --filter mui test
+        continue-on-error: true
+      # 4 × 12 images stays under the 50 files gh attaches to one comment.
+      # react-jsdom and mui install no Playwright, so --shots takes it from
+      # react-browser.
+      - name: Compare each example with the base
+        run: |
+          compare() {
+            name="$1"
+            shift
+            node packages/viewer/dist-cli/main.js diff \
+              --base "$RUNNER_TEMP/base/$name" \
+              --data "examples/$name/.describe-me" \
+              --out "$RUNNER_TEMP/changes/$name" \
+              --shots --max-shots 12 "$@"
+          }
+
+          compare react-browser
+          compare react-jsdom --root examples/react-browser
+          compare shadcn
+          compare mui --root examples/react-browser
+      - id: comment-body
+        run: pnpm changes-comment "$RUNNER_TEMP/changes" --run-url "$RUN_URL"
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: describe-me-changes
+          path: ${{ runner.temp }}/changes
+          if-no-files-found: error
+          overwrite: true
+
+  comment:
+    needs: report
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: describe-me-changes
+          path: changes
+      - name: Create, edit or leave the comment
+        working-directory: changes/comment
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.DESCRIBE_ME_COMMENT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          CHANGED: ${{ needs.report.outputs.changed }}
+        run: |
+          set -euo pipefail
+          marker='<!-- describe-me:changes -->'
+          safe_name='^[A-Za-z0-9_-]+\.png$'
+
+          say() {
+            echo "$1"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          fail() {
+            echo "::error::$1"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+
+          if [ -z "$GH_TOKEN" ]; then
+            say 'No comment: this run has no DESCRIBE_ME_COMMENT_TOKEN, as in a pull request from a fork or from Dependabot. The report is in the artifact describe-me-changes.'
+            exit 0
+          fi
+
+          if [ "$CHANGED" != true ] && [ "$CHANGED" != false ]; then
+            fail "The report job gave changed=\"$CHANGED\", expected true or false."
+          fi
+
+          if [ ! -f changes.md ]; then
+            fail 'The artifact describe-me-changes has no comment/changes.md.'
+          fi
+
+          # Read into a variable, because grep -q would close the pipe on gh.
+          help="$(gh pr comment --help)"
+
+          if ! grep -q -- '--attach' <<< "$help"; then
+            fail "gh pr comment has no --attach, which needs gh 2.99 or later. gh --version: $(gh --version | head -n 1)"
+          fi
+
+          login="$(gh api user --jq .login)"
+          mine="$(
+            gh api --paginate "repos/$GH_REPO/issues/$PR/comments?per_page=100" |
+              jq -s --arg login "$login" 'add // [] | map(select(.user.login == $login))'
+          )"
+
+          marked_ids="$(jq -r --arg marker "$marker" '.[] | select((.body // "") | startswith($marker)) | .id' <<< "$mine")"
+          last_marked="$(jq -r --arg marker "$marker" 'last // {} | select((.body // "") | startswith($marker)) | .id' <<< "$mine")"
+
+          # Never empty, because bash before 4.4 rejects an empty array under set -u,
+          # and check-diff runs this step on the bash of macOS too.
+          comment_args=(--body-file changes.md)
+          shopt -s nullglob
+
+          # gh appends every attached file that the body does not reference.
+          for file in *.png; do
+            if [[ $file =~ $safe_name ]] && grep -qF "](./$file)" changes.md; then
+              comment_args+=(--attach "./$file")
+            fi
+          done
+
+          deleted=0
+
+          delete_marked_except() {
+            for id in $marked_ids; do
+              if [ "$id" != "$1" ]; then
+                gh api -X DELETE "repos/$GH_REPO/issues/comments/$id" --silent
+                deleted=$((deleted + 1))
+              fi
+            done
+          }
+
+          # --edit-last edits the account's last comment, so only when that one carries the marker.
+          if [ -n "$last_marked" ]; then
+            url="$(jq -r 'last | .html_url' <<< "$mine")"
+            gh pr comment "$PR" --edit-last "${comment_args[@]}" > /dev/null
+            delete_marked_except "$last_marked"
+            say "Edited $url"
+            exit 0
+          fi
+
+          if [ "$CHANGED" = false ] && [ -z "$marked_ids" ]; then
+            say 'Nothing changed against the base and there is no earlier comment, so nothing was sent.'
+            exit 0
+          fi
+
+          # Create before delete, so a failure never leaves the pull request without a report.
+          url="$(gh pr comment "$PR" "${comment_args[@]}" | tail -n 1)"
+          delete_marked_except none
+
+          case "$deleted" in
+            0) say "Created $url" ;;
+            1) say "Created $url, replacing 1 earlier comment" ;;
+            *) say "Created $url, replacing $deleted earlier comments" ;;
+          esac

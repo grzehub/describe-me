@@ -1,4 +1,5 @@
 import type { FoundationGroup, Manifest, ManifestTest } from '@describe-me/core/types'
+import type { ChangesReport } from '../cli/changes-report.js'
 import type { LivePreviewInfo } from '../cli/live-preview-info.js'
 import { MIN_FRAME_HEIGHT } from './min-frame-height.js'
 import { parseFoundationsSection } from './parse-foundations-section.js'
@@ -43,6 +44,18 @@ export interface State {
   tag: string | null
   /** Props tables unfolded with Show N more, by `component:<name>` or `test:<id>`. Neither in the link nor stored. */
   expandedProps: Set<string>
+  /** The report against the base run, only while its `head.generatedAt` is the manifest's. */
+  changes: ChangesReport | null
+  /** The Changed filter: only tests changed or added against the base. `changed=1` in the link. */
+  changed: boolean
+  /** Kept here so repaints rebuild the changes panel as it was. */
+  changesOpen: boolean
+  /** The Before side of a changed frame, from the base run. `before=1` in the link. */
+  before: boolean
+  /** A removed frame of the timeline, by its base index, shown instead of `frame`. `removed=` in the link. */
+  removedFrame: number | null
+  /** The base run's manifest, only while `changes` is set and its `generatedAt` is the report's `base.generatedAt`. */
+  baseManifest: Manifest | null
 }
 
 export const state: State = {
@@ -60,9 +73,18 @@ export const state: State = {
   query: '',
   tag: null,
   expandedProps: new Set(),
+  changes: null,
+  changed: false,
+  changesOpen: false,
+  before: false,
+  removedFrame: null,
+  baseManifest: null,
 }
 
-/** Live unless the link names a recorded frame. `live=1`, from links of earlier versions, wins over `frame`. */
+/**
+ * Live unless the link names a recorded frame: `frame`, `removed` or
+ * `before=1`. `live=1`, from links of earlier versions, wins over them.
+ */
 function opensLive(params: URLSearchParams): boolean {
   const live = params.get('live')
 
@@ -74,7 +96,16 @@ function opensLive(params: URLSearchParams): boolean {
     return false
   }
 
-  return !params.has('frame')
+  return !params.has('frame') && !params.has('removed') && params.get('before') !== '1'
+}
+
+/** A whole number of 0 or more, else `null`. */
+function wholeNumber(value: string | null): number | null {
+  if (value === null || !/^\d+$/.test(value)) {
+    return null
+  }
+
+  return Number(value)
 }
 
 export function readHash(): void {
@@ -85,6 +116,9 @@ export function readHash(): void {
   state.frame = Number(params.get('frame') ?? 0) || 0
   state.live = opensLive(params)
   state.tag = params.get('tag') || null
+  state.changed = params.get('changed') === '1'
+  state.before = params.get('before') === '1'
+  state.removedFrame = wholeNumber(params.get('removed'))
   state.viewport = {
     width: parseViewportSize(params.get('w')),
     height: parseViewportSize(params.get('h'), MIN_FRAME_HEIGHT),
@@ -119,14 +153,22 @@ export function currentTest(): ManifestTest | null {
 }
 
 /**
- * Show one test. Leaving the overview or Foundations is the whole point, so
- * both are cleared. `mode` goes to `writeHash()`.
+ * Show one test, at `frame` or at the removed frame `removedFrame`, on the
+ * After side. Leaving the overview or Foundations is the whole point, so both
+ * are cleared. `mode` goes to `writeHash()`.
  */
-export function select(testId: string, frame = 0, mode: 'push' | 'replace' = 'push'): void {
+export function select(
+  testId: string,
+  frame = 0,
+  mode: 'push' | 'replace' = 'push',
+  removedFrame: number | null = null,
+): void {
   state.testId = testId
   state.suiteKey = null
   state.foundations = null
   state.frame = frame
+  state.removedFrame = removedFrame
+  state.before = false
   writeHash(mode)
   rerender()
 }
@@ -134,6 +176,13 @@ export function select(testId: string, frame = 0, mode: 'push' | 'replace' = 'pu
 /** Narrow the sidebar to the tests with `tag`, or show every test again with `null`. */
 export function filterByTag(tag: string | null): void {
   state.tag = tag
+  writeHash('push')
+  rerender()
+}
+
+/** Narrow the sidebar to the tests changed or added against the base, or show every test again. */
+export function filterByChanges(on: boolean): void {
+  state.changed = on
   writeHash('push')
   rerender()
 }

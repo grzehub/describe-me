@@ -14,7 +14,7 @@ function size(bytes: number): string {
   return `${(bytes / 1_000_000).toFixed(1)} MB`
 }
 
-function summary(report: VendorReport): string {
+function summary(report: VendorReport, dir: string): string {
   const parts = report.stylesheets.map(({ host, count }) => {
     return `${plural(count, 'stylesheet')} from ${host}`
   })
@@ -23,13 +23,16 @@ function summary(report: VendorReport): string {
   const last = parts.pop()
   const listed = parts.length === 0 ? last : `${parts.join(', ')} and ${last}`
 
-  return `describe-me: vendored ${listed} into __data/assets`
+  return `describe-me: vendored ${listed} into ${dir}/assets`
 }
 
-/** Tell the user what `describe-me build` vendored and what keeps loading from the network. */
-export function printVendorReport(report: VendorReport): void {
+/**
+ * Tell the user what `describe-me build` vendored into the site's directory
+ * `dir` and what keeps loading from the network.
+ */
+export function printVendorReport(report: VendorReport, dir = '__data'): void {
   if (report.stylesheets.length > 0 || report.fontFiles > 0) {
-    console.log(summary(report))
+    console.log(summary(report, dir))
   }
 
   for (const { host, reason } of report.leftRemote) {

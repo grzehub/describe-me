@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html" aria-current="page">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -506,6 +507,37 @@
                   tests report <code>import-failed</code> in Live.
                 </td>
                 <td>Run the tests again, then build again.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><code>describe-me dev</code></h3>
+        <div class="scroll">
+          <table class="wide">
+            <thead>
+              <tr>
+                <th>Warning</th>
+                <th>When</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>cannot compare with the base: …</code></td>
+                <td>
+                  With <code>--base</code>, when the viewer asks for
+                  <code>__data/changes.json</code> and a manifest or snapshot of either run cannot
+                  be read, once until a manifest changes. The message after the colon is the one
+                  <code>describe-me diff</code> gives, such as <code>no manifest at …</code> for a
+                  base that was deleted. The viewer shows no changes until the next comparison
+                  works.
+                </td>
+                <td>
+                  Run the tests again, so the current run writes a whole manifest and its snapshots,
+                  or copy the base again from a complete run. See
+                  <a href="changes.html#viewer">changes in the viewer</a>.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -1003,7 +1035,7 @@
         </ul>
 
         <nav class="pager" aria-label="Pages">
-          <a class="prev" href="viewer.html"><span>Previous</span>Viewer and CLI</a>
+          <a class="prev" href="changes.html"><span>Previous</span>Comparing runs</a>
           <a class="next" href="api.html"><span>Next</span>API</a>
         </nav>
 

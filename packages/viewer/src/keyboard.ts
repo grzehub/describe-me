@@ -2,13 +2,18 @@ import type { ManifestTest } from '@describe-me/core/types'
 import { filterActive } from './filter-active.js'
 import { FoundationsFilter } from './foundations-filter.js'
 import { foundationsShown } from './foundations-shown.js'
+import { frameNextTo } from './frame-next-to.js'
 import { liveShown } from './live-shown.js'
 import type { SidePanel } from './panel-choice.js'
 import { regions } from './regions.js'
 import { rerender } from './rerender.js'
 import { testsInScope } from './scope.js'
+import { selectAtChange } from './select-at-change.js'
+import { showSide } from './show-side.js'
 import { sidebarOrder } from './sidebar-order.js'
 import { currentTest, select, state, writeHash } from './state.js'
+import type { TimelineEntry } from './timeline-entries.js'
+import { timelineEntries } from './timeline-entries.js'
 import { toggleLive } from './toggle-live.js'
 import { togglePanel } from './toggle-panel.js'
 import { visibleTests } from './visible-tests.js'
@@ -72,11 +77,11 @@ function isSearchKey(event: KeyboardEvent): boolean {
   return event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey
 }
 
-/** `L` in either case, without Ctrl, Meta or Alt, and not held down. */
-function isLiveKey(event: KeyboardEvent): boolean {
+/** `key` in either case, without Ctrl, Meta or Alt, and not held down. */
+function isPlainKey(event: KeyboardEvent, key: string): boolean {
   const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.repeat
 
-  return plain && event.key.toLowerCase() === 'l'
+  return plain && event.key.toLowerCase() === key
 }
 
 /**
@@ -102,14 +107,42 @@ function panelKey(event: KeyboardEvent): SidePanel | null {
   return null
 }
 
+/** The entry on screen: the removed frame when one shows, else the frame. */
+function currentEntry(entries: TimelineEntry[]): number {
+  const removed = entries.findIndex(
+    (entry) => 'removed' in entry && entry.removed.base.index === state.removedFrame,
+  )
+
+  if (state.removedFrame !== null && removed >= 0) {
+    return removed
+  }
+
+  return entries.findIndex((entry) => 'frame' in entry && entry.frame === state.frame)
+}
+
+/** Every step shows After, and a removed frame keeps the frame next to it selected. */
+function showEntry(test: ManifestTest, entry: TimelineEntry): void {
+  state.before = false
+
+  if ('removed' in entry) {
+    state.removedFrame = entry.removed.base.index
+    state.frame = frameNextTo(test, entry.removed)
+  } else {
+    state.removedFrame = null
+    state.frame = entry.frame
+  }
+}
+
 /**
  * While Live shows, ← → leave it and show the frame as it was. Otherwise they
- * step, and a test still waiting for the preview stays out of Live.
+ * step through the timeline, removed frames included, and a test still
+ * waiting for the preview stays out of Live.
  */
 function onFrameKey(test: ManifestTest, step: 1 | -1): void {
   const leaving = liveShown()
-  const next = state.frame + step
-  const steps = !leaving && next >= 0 && next < test.frames.length
+  const entries = timelineEntries(test)
+  const next = entries[currentEntry(entries) + step]
+  const steps = !leaving && next !== undefined
 
   if (!leaving && !steps && !state.live) {
     return
@@ -118,7 +151,7 @@ function onFrameKey(test: ManifestTest, step: 1 | -1): void {
   state.live = false
 
   if (steps) {
-    state.frame = next
+    showEntry(test, next)
   }
 
   writeHash('replace')
@@ -145,10 +178,12 @@ function focusSearch(): void {
 }
 
 /**
- * ← → step through frames, ↑ ↓ through the tests the sidebar shows, `L`
- * toggles Live, `/` focuses the search, `[` and `]` hide or show the sidebar
- * and the inspector. In Foundations only `/`, `[` and `]` work, and `/`
- * focuses the token filter.
+ * ← → step through the frame timeline, ↑ ↓ through the tests the sidebar
+ * shows, which under the Changed filter open recorded at their first change,
+ * `L` toggles Live, `B` switches a changed frame between Before and After,
+ * `/` focuses the search, `[` and `]` hide or show the sidebar and the
+ * inspector. In Foundations only `/`, `[` and `]` work, and `/` focuses the
+ * token filter.
  */
 export function onKey(event: KeyboardEvent): void {
   if (!state.manifest || isTyping(event.target)) {
@@ -187,8 +222,14 @@ export function onKey(event: KeyboardEvent): void {
     return
   }
 
-  if (isLiveKey(event)) {
+  if (isPlainKey(event, 'l')) {
     toggleLive()
+    event.preventDefault()
+    return
+  }
+
+  if (isPlainKey(event, 'b')) {
+    showSide(state.before ? 'after' : 'before')
     event.preventDefault()
     return
   }
@@ -200,7 +241,7 @@ export function onKey(event: KeyboardEvent): void {
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     const next = neighbour(test.id, event.key === 'ArrowDown' ? 1 : -1)
     if (next) {
-      select(next.id, 0, 'replace')
+      selectAtChange(next.id, 'replace')
     }
 
     event.preventDefault()

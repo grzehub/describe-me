@@ -2,12 +2,17 @@ import type { State } from './state.js'
 
 /**
  * The link of a view, without the `#`: the Foundations section, the
- * selection, the frame, the viewport size, the stage background, Live and the
- * tag filter. Live is the default, so its link has neither `frame` nor `live`,
- * and the recorded frame 0 has `live=0`.
+ * selection, the frame, the viewport size, the stage background, Live, the
+ * tag filter, the Changed filter and the side of a changed frame. Live is the
+ * default, so its link has neither `frame` nor `live`, and the recorded frame
+ * 0 has `live=0`. A removed frame has `removed` in their place, and Before
+ * adds `before=1`.
  */
 export function stateHash(state: State): string {
   const params = new URLSearchParams()
+  const removed = !state.live && state.removedFrame !== null
+  const recorded = !state.live && !removed
+
   if (state.foundations !== null) {
     params.set('foundations', state.foundations)
   }
@@ -20,7 +25,7 @@ export function stateHash(state: State): string {
     params.set('test', state.testId)
   }
 
-  if (!state.live && state.frame) {
+  if (recorded && state.frame) {
     params.set('frame', String(state.frame))
   }
 
@@ -36,12 +41,24 @@ export function stateHash(state: State): string {
     params.set('bg', state.background)
   }
 
-  if (!state.live && !state.frame) {
+  if (recorded && !state.frame) {
     params.set('live', '0')
   }
 
   if (state.tag !== null) {
     params.set('tag', state.tag)
+  }
+
+  if (state.changed) {
+    params.set('changed', '1')
+  }
+
+  if (removed) {
+    params.set('removed', String(state.removedFrame))
+  }
+
+  if (recorded && state.before) {
+    params.set('before', '1')
   }
 
   return params.toString()

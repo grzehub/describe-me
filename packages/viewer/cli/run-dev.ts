@@ -1,8 +1,10 @@
 import { resolve } from 'node:path'
-import { createServer } from 'vite'
+import { createServer, type PluginOption } from 'vite'
+import { changesEndpoint } from './changes-endpoint.js'
 import type { LivePreviewInfo } from './live-preview-info.js'
 import { livePreviewEndpoint } from './live-preview-endpoint.js'
 import { LIVE_PATH, livePreviewProxy } from './live-preview-proxy.js'
+import { readRun } from './read-run.js'
 import { startLivePreview } from './start-live-preview.js'
 import { viewerRoot } from './viewer-root.js'
 
@@ -12,26 +14,47 @@ export interface RunDevOptions {
   live: boolean
   /** The project root of the live preview. Default: the manifest's `root` and `configFile`. */
   root?: string
+  /** The data directory of a base run, served under `/__base` and compared in `/__data/changes.json`. */
+  base?: string
 }
 
 /**
  * Start the viewer against a data directory, refreshed as the reporter
  * rewrites it, then the live preview, which the viewer's server serves under
  * `/__describe-me/`. The viewer never waits for the preview, and a preview
- * that fails to start leaves the viewer running without Live.
+ * that fails to start leaves the viewer running without Live. With `base`,
+ * a base whose manifest cannot be read stops the command first, while the
+ * current run may still be without one.
  */
 export async function runDev(data: string, port: number, options: RunDevOptions): Promise<void> {
+  if (options.base !== undefined) {
+    readRun(options.base)
+  }
+
   process.env.DESCRIBE_ME_DIR = resolve(data)
 
   let info: LivePreviewInfo = options.live ? { status: 'starting' } : { status: 'off' }
   // Set once the live server is up; the proxy reads it on every request under its path.
   const live: { origin?: string } = {}
+  const plugins: PluginOption[] = [
+    livePreviewEndpoint(() => info),
+    livePreviewProxy(() => live.origin),
+  ]
+
+  // Only the flag decides, never a variable left in the shell.
+  if (options.base === undefined) {
+    delete process.env.DESCRIBE_ME_BASE
+  } else {
+    process.env.DESCRIBE_ME_BASE = resolve(options.base)
+    plugins.push(changesEndpoint(resolve(options.base), resolve(data)))
+  }
+
   const viewer = viewerRoot()
   const server = await createServer({
     root: viewer,
     configFile: resolve(viewer, 'vite.config.ts'),
     server: { port },
-    plugins: [livePreviewEndpoint(() => info), livePreviewProxy(() => live.origin)],
+    plugins,
   })
 
   await server.listen()

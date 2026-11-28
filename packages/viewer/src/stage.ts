@@ -1,20 +1,25 @@
 import type { ManifestTest } from '@describe-me/core/types'
+import type { FrameSide } from '../cli/changes-report.js'
 import { applyDarkVariant } from './apply-dark-variant.js'
 import { applyViewport } from './apply-viewport.js'
 import { autoCanvas } from './auto-canvas.js'
 import type { Canvas } from './canvas-of.js'
 import { canvasOf } from './canvas-of.js'
+import type { DataDir } from './data-dir.js'
 import { loadSnapshot } from './data.js'
 import { el } from './el.js'
 import type { FontFailures } from './fonts-settled.js'
 import { fontsSettled } from './fonts-settled.js'
 import { frameHasDarkVariant } from './frame-has-dark-variant.js'
 import { framePaint } from './frame-paint.js'
+import { frameSides } from './frame-sides.js'
 import { liveSession } from './live-session.js'
 import { liveShown } from './live-shown.js'
 import { pagePaint } from './page-paint.js'
 import { paintLive } from './paint-live.js'
+import { previewHeadHtml } from './preview-head.js'
 import { replaySnapshot } from './replay-snapshot.js'
+import type { SerializedNode } from './serialized-node.js'
 import { setCanvas } from './set-canvas.js'
 import { stageDarkVariant } from './stage-dark-variant.js'
 import { stageDarkVariantReady } from './stage-dark-variant-ready.js'
@@ -42,11 +47,29 @@ let lastAuto: 'light' | 'dark' | null = null
 /** What failed to load in the recorded frame on the stage, kept for the note that every refit renders. */
 let shownFailures: FontFailures | null = null
 
+/**
+ * What a slot shows. Its dataset says the same, so a paint can tell whether
+ * the visible slot already shows it.
+ */
 interface Shown {
   generatedAt: string
   testId: string
-  frame: number
+  /** The frame of the current run. Absent for a removed frame. */
+  frame?: number
+  /** A removed frame, by its base index. */
+  removed?: number
+  /** The report's `base.generatedAt` on a base side, so a new base run repaints it. */
+  base?: string
 }
+
+/** Where a paint takes its snapshot and its preview head from. */
+interface Source {
+  snapshot: string
+  dir: DataDir
+  head: string
+}
+
+const BASE_MISSING = 'the base frame did not load'
 
 function nextAnimationFrame(): Promise<void> {
   return new Promise((resolve) => {
@@ -169,12 +192,37 @@ function setFrameVariant(iframe: HTMLIFrameElement, canvas: Canvas): void {
   }
 }
 
+/**
+ * The dataset of a slot that shows `shown`, `undefined` where the slot has no
+ * such attribute. A side from the base has `data-side="before"`.
+ */
+function slotData(shown: Shown): Record<string, string | undefined> {
+  return {
+    generatedAt: shown.generatedAt,
+    test: shown.testId,
+    frame: shown.frame === undefined ? undefined : String(shown.frame),
+    removed: shown.removed === undefined ? undefined : String(shown.removed),
+    side: shown.base === undefined ? undefined : 'before',
+    baseGeneratedAt: shown.base,
+  }
+}
+
 function shows(slot: HTMLElement | null, shown: Shown): boolean {
-  return (
-    slot?.dataset.generatedAt === shown.generatedAt &&
-    slot.dataset.test === shown.testId &&
-    slot.dataset.frame === String(shown.frame)
-  )
+  if (!slot) {
+    return false
+  }
+
+  return Object.entries(slotData(shown)).every(([key, value]) => slot.dataset[key] === value)
+}
+
+/**
+ * A snapshot of the base that does not load gives `null`, so the stage says
+ * so and the page throws nothing. One of the current run rejects as before.
+ */
+function loadFrom(source: Source): Promise<SerializedNode | null> {
+  const loading = loadSnapshot(source.snapshot, source.dir)
+
+  return source.dir === '__base' ? loading.catch(() => null) : loading
 }
 
 /**
@@ -259,14 +307,19 @@ async function swapIn(
   stage: HTMLElement,
   frames: HTMLElement,
   shown: Shown,
-  snapshot: string,
+  source: Source,
 ): Promise<void> {
   const token = ++paintToken
   removeIncoming(frames)
 
   // A link with `bg=dark` never swaps the light variant in first.
-  const [node] = await Promise.all([loadSnapshot(snapshot), stageDarkVariantReady()])
+  const [node] = await Promise.all([loadFrom(source), stageDarkVariantReady()])
   if (token !== paintToken) {
+    return
+  }
+
+  if (node === null) {
+    showEmpty(stage, frames, BASE_MISSING)
     return
   }
 
@@ -275,14 +328,18 @@ async function swapIn(
   // iframe lay out at the current width.
   const current = visibleSlot(frames)
   const incoming = el('div', { class: 'stage-slot incoming', 'aria-hidden': 'true' })
-  incoming.dataset.generatedAt = shown.generatedAt
-  incoming.dataset.test = shown.testId
-  incoming.dataset.frame = String(shown.frame)
+
+  for (const [key, value] of Object.entries(slotData(shown))) {
+    if (value !== undefined) {
+      incoming.dataset[key] = value
+    }
+  }
+
   incoming.style.width = current?.style.width ?? ''
   incoming.style.height = current?.style.height ?? ''
   frames.append(incoming)
 
-  const iframe = replaySnapshot(incoming, node, 'snapshot')
+  const iframe = replaySnapshot(incoming, node, 'snapshot', source.head)
   const fonts = fontsSettled(iframe)
 
   // Styles are in place after a frame. Only then do the boxes have their final size.
@@ -332,11 +389,62 @@ async function swapIn(
   }
 }
 
+/** Paint `shown`, unless the visible slot already shows it. */
+async function paint(
+  stage: HTMLElement,
+  frames: HTMLElement,
+  shown: Shown,
+  source: Source,
+): Promise<void> {
+  if (shows(visibleSlot(frames), shown)) {
+    keepFrame(stage, frames)
+    return
+  }
+
+  await swapIn(stage, frames, shown, source)
+}
+
+/**
+ * The base's side of a frame, from `__base/` with the base run's preview head:
+ * a removed frame, or the Before side of a changed one.
+ */
+async function paintBase(
+  stage: HTMLElement,
+  frames: HTMLElement,
+  test: ManifestTest,
+  side: FrameSide,
+  removed: boolean,
+): Promise<void> {
+  const shown: Shown = {
+    generatedAt: state.manifest?.generatedAt ?? '',
+    testId: test.id,
+    base: state.changes?.base.generatedAt ?? '',
+  }
+
+  if (removed) {
+    shown.removed = side.index
+  } else {
+    shown.frame = state.frame
+  }
+
+  if (state.baseManifest === null) {
+    showEmpty(stage, frames, BASE_MISSING)
+    return
+  }
+
+  await paint(stage, frames, shown, {
+    snapshot: side.snapshot,
+    dir: '__base',
+    head: previewHeadHtml(state.baseManifest, '__base'),
+  })
+}
+
 /**
  * Show the current frame on the stage, or the test live. A new frame is built
  * in a hidden slot next to the visible one and swapped in once its fonts load,
- * or after 200 ms, so the stage never goes blank. Leaving Live takes the same
- * path, and the swap removes the live slot.
+ * or after 200 ms, so the stage never goes blank. Leaving Live and switching
+ * between Before and After take the same path, and the swap removes the live
+ * slot. Before and a removed frame come from the base run.
  */
 export async function paintStage(): Promise<void> {
   const { stage, frames } = testView()
@@ -353,6 +461,12 @@ export async function paintStage(): Promise<void> {
     return
   }
 
+  const sides = frameSides()
+  if (sides?.before && (!sides.after || state.before)) {
+    await paintBase(stage, frames, test, sides.before, !sides.after)
+    return
+  }
+
   const frame = test.frames[state.frame]
   if (!frame) {
     showEmpty(stage, frames, 'no frames recorded for this test')
@@ -365,10 +479,9 @@ export async function paintStage(): Promise<void> {
     frame: state.frame,
   }
 
-  if (shows(visibleSlot(frames), shown)) {
-    keepFrame(stage, frames)
-    return
-  }
-
-  await swapIn(stage, frames, shown, frame.snapshot)
+  await paint(stage, frames, shown, {
+    snapshot: frame.snapshot,
+    dir: '__data',
+    head: previewHeadHtml(),
+  })
 }

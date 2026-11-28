@@ -319,6 +319,9 @@ importers:
       '@describe-me/core':
         specifier: workspace:^
         version: link:../core
+      playwright:
+        specifier: ^1.40.0
+        version: 1.63.0
       rrweb-snapshot:
         specifier: ^2.1.6
         version: 2.1.6

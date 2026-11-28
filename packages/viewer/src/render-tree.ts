@@ -1,4 +1,5 @@
 import type { ManifestTest } from '@describe-me/core/types'
+import { changesFilterBar } from './changes-filter-bar.js'
 import { CollapsedSuites } from './collapsed-suites.js'
 import { renderFoundationsEntry } from './foundations-entry.js'
 import { groupKey } from './group-key.js'
@@ -33,13 +34,13 @@ function expandPathTo(test: ManifestTest): void {
 }
 
 /**
- * Fill the sidebar's tree, and above it the tag filter and the Foundations
- * entry, which no filter hides. A test selected since the last reveal gets its
- * groups, module and suites opened and its row scrolled into view. A refresh
- * that keeps the test leaves the sidebar's scroll alone.
+ * Fill the sidebar's tree, and above it the Changed filter, the tag filter and
+ * the Foundations entry, which no filter hides. A test selected since the last
+ * reveal gets its groups, module and suites opened and its row scrolled into
+ * view. A refresh that keeps the test leaves the sidebar's scroll alone.
  */
 export function renderTree(): void {
-  const { tagFilter, foundationsNav, tree } = regions()
+  const { changesFilter, tagFilter, foundationsNav, tree } = regions()
   const test = testShown() ? currentTest() : null
   const reveal = test !== null && test.id !== revealed
 
@@ -51,6 +52,17 @@ export function renderTree(): void {
   if (test && reveal) {
     expandPathTo(test)
     revealed = test.id
+  }
+
+  const toggle = changesFilterBar()
+  // The toggle repaints the sidebar it sits in, and a keyboard user keeps their place on it.
+  const focused = changesFilter.contains(document.activeElement)
+
+  changesFilter.replaceChildren(...toggle)
+  changesFilter.hidden = toggle.length === 0
+
+  if (focused) {
+    toggle[0]?.focus()
   }
 
   tagFilter.replaceChildren(...tagFilterBar())

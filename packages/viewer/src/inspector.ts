@@ -1,6 +1,8 @@
-import type { ManifestTest } from '@describe-me/core/types'
+import type { ManifestFrame, ManifestTest } from '@describe-me/core/types'
+import type { FrameSide } from '../cli/changes-report.js'
 import { collapseProps } from './collapse-props.js'
 import { el } from './el.js'
+import { frameSides } from './frame-sides.js'
 import { liveSection } from './live-section.js'
 import { liveShown } from './live-shown.js'
 import { currentTest, state } from './state.js'
@@ -25,7 +27,47 @@ function keyHint(): HTMLElement {
     hint.append(' · ', el('kbd', {}, 'L'), ' live')
   }
 
+  const sides = frameSides()
+
+  if (sides?.before && sides.after) {
+    hint.append(' · ', el('kbd', {}, 'B'), ' before / after')
+  }
+
   return hint
+}
+
+function removedSection(removed: FrameSide): HTMLElement {
+  return el(
+    'section',
+    {},
+    el('h3', {}, 'removed frame'),
+    el('div', { class: 'mono' }, removed.label),
+    el('div', { class: 'hint' }, 'in the base run, not in this one'),
+  )
+}
+
+/** The frame on screen, or on the Before side the base run's frame it replaced. */
+function frameSection(test: ManifestTest, frame: ManifestFrame): HTMLElement {
+  const sides = frameSides()
+  const heading = `frame ${state.frame + 1} / ${test.frames.length}`
+
+  if (sides?.before && state.before) {
+    return el(
+      'section',
+      {},
+      el('h3', {}, `${heading} · before`),
+      el('div', { class: 'mono' }, sides.before.label),
+      el('div', { class: 'hint' }, 'in the base run'),
+    )
+  }
+
+  return el(
+    'section',
+    {},
+    el('h3', {}, heading),
+    el('div', { class: 'mono' }, frame.label),
+    el('div', { class: 'hint' }, `${frame.kind} · ${frame.at}ms into the test`),
+  )
 }
 
 /** The props the component got, folded when there are many. Frames and Live of a test share the fold. */
@@ -54,9 +96,16 @@ function propsSection(
   return section
 }
 
+/** The frame only the base has, when the stage shows one. */
+function removedShown(): FrameSide | null {
+  const sides = frameSides()
+
+  return sides?.before && !sides.after ? sides.before : null
+}
+
 /**
  * The inspector's sections for one test: status and tags, component props,
- * the current frame or the live section, errors.
+ * the current frame, a removed frame or the live section, errors.
  */
 export function renderInspector(): HTMLElement[] {
   const test = currentTest()
@@ -67,9 +116,12 @@ export function renderInspector(): HTMLElement[] {
   const sections: HTMLElement[] = []
 
   const live = liveShown()
+  const removed = removedShown()
   const frame = test.frames[state.frame]
-  // A live frame has no frame meta, so it shows the props the test rendered with.
-  const frameProps = live ? undefined : (frame?.meta?.props as Record<string, unknown> | undefined)
+  // Live and a removed frame have no frame meta, so they show the props the test rendered with.
+  const frameProps =
+    live || removed ? undefined : (frame?.meta?.props as Record<string, unknown> | undefined)
+
   const props = frameProps ?? test.component?.props ?? {}
 
   const status = el('section', {}, el('h3', {}, 'test'))
@@ -98,16 +150,10 @@ export function renderInspector(): HTMLElement[] {
 
   if (live) {
     sections.push(liveSection())
+  } else if (removed) {
+    sections.push(removedSection(removed))
   } else if (frame) {
-    sections.push(
-      el(
-        'section',
-        {},
-        el('h3', {}, `frame ${state.frame + 1} / ${test.frames.length}`),
-        el('div', { class: 'mono' }, frame.label),
-        el('div', { class: 'hint' }, `${frame.kind} · ${frame.at}ms into the test`),
-      ),
-    )
+    sections.push(frameSection(test, frame))
   }
 
   if (test.errors?.length) {

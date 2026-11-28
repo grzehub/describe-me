@@ -61,6 +61,7 @@
           <li><a href="styles-and-fonts.html">Styles and fonts</a></li>
           <li><a href="foundations.html">Foundations</a></li>
           <li><a href="viewer.html">Viewer and CLI</a></li>
+          <li><a href="changes.html">Comparing runs</a></li>
           <li><a href="troubleshooting.html">Troubleshooting</a></li>
         </ul>
         <p class="group">Reference</p>
@@ -230,7 +231,8 @@
           </li>
           <li>
             <code>describe-me</code> reads that directory. <code>describe-me dev</code> serves it
-            and follows each run, <code>describe-me build</code> copies it into a static site.
+            and follows each run, <code>describe-me build</code> copies it into a static site, and
+            <code>describe-me diff</code> compares it with another run.
           </li>
         </ul>
 
@@ -593,7 +595,8 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
 
         <p>
           A frame has no layout and no screenshot. The viewer's browser lays the DOM out again from
-          its styles, at the width you pick.
+          its styles, at the width you pick. <code>describe-me diff --shots</code> takes screenshots
+          later, in its own Chromium, from the stored frames.
         </p>
 
         <h2 id="storage">
@@ -618,6 +621,11 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           Every file but <code>manifest.json</code> and <code>foundations.json</code> is named after
           the first 16 hex characters of a SHA-1 of its content. Identical content is written once,
           however many frames, tests and runs produce it.
+        </p>
+
+        <p>
+          Content names let <code>describe-me diff</code> tell an unchanged frame by its name and
+          read the files only of frames that changed. See <a href="changes.html">Comparing runs</a>.
         </p>
 
         <p>For every frame, in this order, the reporter:</p>
@@ -688,10 +696,14 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
         <p>
           <code>describe-me build</code> copies the directory into the site as <code>__data/</code>,
           writes an id of the project as <code>root</code> in the copy of the manifest and downloads
-          web fonts into the copy. The directory itself never changes.
-          <a href="styles-and-fonts.html#assets">Styles and fonts</a> says which files are copied,
-          <a href="styles-and-fonts.html#vendoring">Vendoring fonts</a> how fonts are downloaded,
-          and <a href="performance.html#output">Performance</a> how large the output gets.
+          web fonts into the copy. The directory itself never changes. With <code>--base</code> it
+          also copies the base run as <code>__base/</code>, whose manifest gets the same id, vendors
+          its fonts the same way and writes the report of <code>describe-me diff</code> as
+          <code>__data/changes.json</code> (<a href="changes.html#viewer">changes in the viewer</a
+          >). <a href="styles-and-fonts.html#assets">Styles and fonts</a> says which files are
+          copied, <a href="styles-and-fonts.html#vendoring">Vendoring fonts</a> how fonts are
+          downloaded, and <a href="performance.html#output">Performance</a> how large the output
+          gets.
         </p>
 
         <h2 id="manifest">
@@ -737,7 +749,10 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
                 <td class="nowrap"><code>string</code></td>
                 <td class="nowrap">never</td>
                 <td>
-                  When the run ended, as an ISO 8601 date. The viewer repaints only when it changes.
+                  When the run ended, as an ISO 8601 date. The viewer repaints only when it changes,
+                  or with a base when the report does or when the base run's manifest loads after it
+                  did not. A report counts only when its <code>head.generatedAt</code> is this
+                  value.
                 </td>
               </tr>
               <tr id="manifest-root">
@@ -954,7 +969,23 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
           <code>__data/</code> and watches it. When <code>manifest.json</code> changes, it sends a
           <code>describe-me:update</code> event through Vite's HMR socket, and the viewer fetches
           the manifest again. A static site has no such socket, so the viewer polls every 60 seconds
-          instead. Either way it repaints only when <code>generatedAt</code> changed.
+          instead. Either way it repaints only when <code>generatedAt</code> changed, or with a base
+          when the report did or when the base run's manifest loaded after it did not.
+        </p>
+
+        <p>
+          With <code>--base</code>, <code>dev</code> also serves the base run as
+          <code>__base/</code>, answers <code>__data/changes.json</code> with the report of
+          <code>describe-me diff</code>, computed again when either manifest changes, and watches
+          both manifests. The page's <code>index.html</code> then carries a
+          <code>describe-me-changes</code> meta tag, as it does in a site built with
+          <code>--base</code>, and only then does the viewer fetch the report, with the manifest. It
+          keeps a report only for the manifest's run, and it repaints when the manifest's
+          <code>generatedAt</code> or the <code>generatedAt</code> of either side of the report
+          changed. With a report it also fetches <code>__base/manifest.json</code>, once per base
+          run, before it shows the report. It keeps that manifest only when its
+          <code>generatedAt</code> is the one the report names for the base, and tries again on the
+          next load when it did not load.
         </p>
 
         <p>To show a frame, the viewer:</p>
@@ -1000,6 +1031,14 @@ describe-me: cannot resolve @describe-me/react (the recording replacement for vi
             stylesheets and fonts have loaded, or after 200 ms. The stage never goes blank.
           </li>
         </ol>
+
+        <p>
+          The <a href="changes.html#viewer-before-after">Before side</a> of a changed frame, and a
+          frame that only the base has, take the same steps with <code>__base/</code> in place of
+          <code>__data/</code>: the snapshot, its stylesheet chunks and its assets come from there,
+          and the frame replays with the base run's preview head. The new slot takes the size of the
+          visible one, so switching sides keeps the viewport and the zoom.
+        </p>
 
         <p>
           <a href="viewer.html#hosting">Viewer and CLI</a> explains how to host the static site.

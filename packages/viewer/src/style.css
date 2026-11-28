@@ -465,6 +465,95 @@ a {
   color: var(--ink-3);
 }
 
+/* -------------------------------------------------------------- changes -- */
+
+/*
+ * What changed against the base run. The chip stays neutral and each count
+ * carries the mark the sidebar uses for it. Its panel reuses the issues styles.
+ */
+.changes {
+  position: relative;
+  flex: none;
+  font-size: 12px;
+}
+.changes > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  background: var(--hover);
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+  list-style: none;
+}
+.changes > summary::-webkit-details-marker {
+  display: none;
+}
+.changes[open] > summary {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.changes-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.changes-count b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.changes-count::before,
+.changes-toggle-mark,
+.change-mark {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 1.5px;
+  background: var(--warn);
+  transform: rotate(45deg);
+}
+.changes-count[data-change='added']::before,
+.change-mark[data-change='added'] {
+  background: var(--pass);
+}
+.changes-count[data-change='removed']::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ink-3);
+}
+.changes .issues-panel {
+  max-width: calc(100vw - 24px);
+}
+/* A narrow window has no room beside the chip, so the panel spans the window under the header. */
+@media (max-width: 640px) {
+  .changes .issues-panel {
+    position: fixed;
+    top: 52px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+  }
+}
+.changes-base {
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+/* A removed test's name over its file, both whole, since nothing else shows them. */
+.changes-removed li {
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.changes-removed .issues-meta {
+  font-size: 11px;
+}
+
 /* -------------------------------------------------------------- sidebar -- */
 
 .sidebar {
@@ -571,6 +660,42 @@ a {
 .tag-filter-clear:hover {
   background: var(--hover);
   color: var(--ink);
+}
+/*
+ * The Changed toggle, under the search and clear of the halo of the stuck
+ * field. Pressed, it takes the tint of the marks it filters by.
+ */
+.changes-filter {
+  margin: 0 0 12px;
+}
+.changes-filter[hidden] {
+  display: none;
+}
+.changes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.changes-toggle:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.changes-toggle[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--ink);
+}
+.changes-toggle .n {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
 }
 /* Above the tree and outside it, so no filter hides it and no count of test rows includes it. */
 .foundations-nav {
@@ -844,6 +969,31 @@ button.tag.active {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * A test that changed against the base, or a row that holds one. A test whose
+ * CSS alone changed gets a hollow mark, because one change to a global
+ * stylesheet marks every test.
+ */
+.change-mark[data-kind='css'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 70%, transparent);
+}
+.module-button:has(> .change-mark),
+.suite-button:has(> .change-mark) {
+  padding-right: 26px;
+}
+.module-button > .change-mark,
+.suite-button > .change-mark {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  margin-top: -3px;
+}
+.group-row > .change-mark {
+  margin-left: auto;
+  margin-right: 2px;
+}
+
 /* Passing is the norm; only a failure earns full contrast. */
 .dot {
   width: 6px;
@@ -1054,6 +1204,77 @@ button.tag.active {
   width: 1px;
   background: color-mix(in srgb, var(--ink-3) 30%, transparent);
 }
+/*
+ * The Before / After switch. Live's rule sets it apart on its left, and the
+ * same rule on its right sets it apart from the presets.
+ */
+.crumbs .tools .before-after {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  margin-right: 7px;
+}
+.crumbs .tools .before-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: -5px;
+  bottom: 4px;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+/* The rule above sets `display`, so `hidden` needs its own. */
+.crumbs .tools .before-after[hidden] {
+  display: none;
+}
+/* A side the frame lacks looks like the Live toggle before the preview is ready. */
+.crumbs .tools .before-after [aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.crumbs .tools .before-after [aria-disabled='true']:hover {
+  color: var(--ink-3);
+}
+/*
+ * The switch makes the toolbar about 110 px wider, more than the center of a
+ * 1280 px window with both panels open has to spare. While it shows, the row
+ * tightens its spacing, so such a window keeps the path, the zoom and the
+ * inspector toggle in view. Without the switch the toolbar keeps its spacing.
+ */
+.crumbs:has(.before-after:not([hidden])) {
+  gap: 5px;
+  padding: 0 12px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools button {
+  padding-inline: 6px;
+}
+.crumbs:has(.before-after:not([hidden])) .backgrounds button[data-bg] {
+  padding-inline: 3px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .size {
+  gap: 4px;
+  padding-left: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools input {
+  width: 44px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .zoom {
+  padding: 0 5px 0 4px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .live-toggle,
+.crumbs:has(.before-after:not([hidden])) .tools .before-after {
+  margin-right: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .live-toggle::after,
+.crumbs:has(.before-after:not([hidden])) .tools .before-after::after {
+  right: -4px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .backgrounds {
+  margin-left: 5px;
+}
+.crumbs:has(.before-after:not([hidden])) .tools .backgrounds::before {
+  left: -4px;
+}
 
 /*
  * Sizes of the frames and their slots never transition, because heights are
@@ -1165,6 +1386,37 @@ button.tag.active {
 }
 .frame.step .k {
   color: var(--warn);
+}
+/* How the frame differs from the base. The text is mixed toward the ink, so it reads at 10px. */
+.change-pill {
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: color-mix(in srgb, var(--warn) 70%, var(--ink));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 16px;
+}
+.frame[data-change='css'] .change-pill {
+  background: var(--hover);
+  color: var(--ink-3);
+}
+.frame[data-change='added'] .change-pill {
+  background: color-mix(in srgb, var(--pass) 14%, transparent);
+  color: color-mix(in srgb, var(--pass) 70%, var(--ink));
+}
+/* A frame only the base has: dashed, with a hollow pill like the header's count of removed tests. */
+.frame.removed {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--ink-3) 45%, transparent);
+}
+.frame.removed.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.frame[data-change='removed'] .change-pill {
+  background: transparent;
+  color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
 }
 
 /* ------------------------------------------------------------ inspector -- */
