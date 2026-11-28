@@ -163,9 +163,13 @@
  *     replace the computed answer. After the base manifest is rewritten with
  *     a new `generatedAt` and another snapshot for one test, the next answer
  *     reports that test, and a viewer page opened before says 2 changed
- *     instead of 1 without a reload. `dev` without `--base`, also with
- *     DESCRIBE_ME_BASE set, has no meta. A base without a manifest: exit 1
- *     and `describe-me: no manifest at …`.
+ *     instead of 1 without a reload. Before the current run has a manifest
+ *     the answer is 404 with no warning, and the report once it has one. A
+ *     base snapshot that is gone, with a new base manifest: 404 twice and one
+ *     `describe-me: cannot compare with the base: cannot read …`. Then the
+ *     base manifest gone: 404 and a second warning, `no manifest at …`. `dev`
+ *     without `--base`, also with DESCRIBE_ME_BASE set, has no meta. A base
+ *     without a manifest: exit 1 and `describe-me: no manifest at …`.
  *
  * Run after `pnpm build`, every example's tests and installing Chromium for
  * examples/react-browser. Scenarios 20 to 27 take Playwright from
@@ -3640,6 +3644,83 @@ async function devBaseSteps(dev, base, head, report) {
   }
 }
 
+const CANNOT_COMPARE = 'describe-me: cannot compare with the base: '
+const WARNING_SETTLE_MS = 500
+
+/** The endpoint's warnings in the output of `dev`, read once the child had time to write them. */
+async function compareWarnings(dev) {
+  await new Promise((resolve) => setTimeout(resolve, WARNING_SETTLE_MS))
+
+  return dev
+    .output()
+    .split('\n')
+    .filter((line) => line.includes(CANNOT_COMPARE))
+    .map((line) => line.trim())
+}
+
+async function changesStatus(dev) {
+  return (await fetch(new URL('__data/changes.json', dev.url))).status
+}
+
+/**
+ * The endpoint before the current run has a manifest, once it has one, and
+ * when the comparison throws: for a base snapshot that is gone, then for a
+ * base manifest that is gone. Each new state of the manifests warns once.
+ */
+async function devErrorSteps(dev, base, pending, head, report) {
+  await check(
+    '31. dev --base before the current run has a manifest: 404 and no warning',
+    async () =>
+      same(
+        { status: await changesStatus(dev), warnings: await compareWarnings(dev) },
+        { status: 404, warnings: [] },
+      ),
+  )
+
+  cpSync(head, pending, { recursive: true })
+
+  await check('31. once the current run has a manifest: the report', async () =>
+    same(await fetchJson(dev.url, '__data/changes.json'), { status: 200, body: report }),
+  )
+
+  // The comparison reads this snapshot, and a new generatedAt makes the endpoint compare again.
+  const snapshot = readJsonIn(base, 'manifest.json').modules[0].tests[0].frames[0].snapshot
+
+  rmSync(join(base, snapshot))
+  editManifest(base, (manifest) => {
+    manifest.generatedAt = '2026-01-03T00:00:00.000Z'
+  })
+
+  await check('31. a base snapshot that cannot be read: 404 twice and one warning', async () =>
+    same(
+      {
+        statuses: [await changesStatus(dev), await changesStatus(dev)],
+        warnings: await compareWarnings(dev),
+      },
+      { statuses: [404, 404], warnings: [`${CANNOT_COMPARE}cannot read ${join(base, snapshot)}`] },
+    ),
+  )
+
+  rmSync(join(base, 'manifest.json'))
+
+  await check(
+    '31. then a base without its manifest: 404 and a second warning, no manifest at …',
+    async () => {
+      const status = await changesStatus(dev)
+      const warnings = await compareWarnings(dev)
+
+      return same(
+        { status, count: warnings.length, last: warnings.at(-1) },
+        {
+          status: 404,
+          count: 2,
+          last: `${CANNOT_COMPARE}no manifest at ${join(base, 'manifest.json')}`,
+        },
+      )
+    },
+  )
+}
+
 async function checkDevBase() {
   const { base, head } = viewerPair()
   const { report } = diffOut(base, head)
@@ -3650,6 +3731,18 @@ async function checkDevBase() {
     await devBaseSteps(dev, base, head, report)
   } finally {
     await stopDev(dev)
+  }
+
+  const broken = viewerPair()
+  const pending = tempDir()
+  const brokenReport = diffOut(broken.base, broken.head).report
+  const waiting = await startDev(repoRoot, pending, ['--base', broken.base, '--no-live'])
+
+  try {
+    await waitForPreview(waiting)
+    await devErrorSteps(waiting, broken.base, pending, broken.head, brokenReport)
+  } finally {
+    await stopDev(waiting)
   }
 
   const plain = await startDev(repoRoot, head, ['--no-live'], { DESCRIBE_ME_BASE: base })
